@@ -1,0 +1,31 @@
+{
+  "phase": 8,
+  "status": "in_progress",
+  "milestone": "virtual_x64_unwind_and_owned_pe_stack_capture",
+  "required_ctest_count": 37,
+  "matrix_boots_per_configuration": 400,
+  "guest_loader_checks_per_boot": 26,
+  "runtime_restart_pairs_per_configuration": 20,
+  "historical_evidence_must_remain_unchanged": true,
+  "stop_before_next_phase": true,
+  "next_phase": 9,
+  "remaining_before_phase_completion": [
+    "user exception dispatch, handler invocation and nonlocal unwind; expand beyond bounded stack capture",
+    "runtime DLL loading/unloading and expanded initialization/termination failure matrix",
+    "expanded application behavior acceptance and final phase audit"
+  ],
+  "worker_threads_per_runtime_boot": 31,
+  "serialized_counter_increments_per_runtime_boot": 360,
+  "individual_native_thread_checks": 904,
+  "executed_children_per_lifetime_boot": 23,
+  "child_creation_fault_budgets_per_lifetime_boot": 10,
+  "native_thread_opening_rights_checks": 17,
+  "per_process_service_exit_checks": 10,
+  "windows_differential_frames": 59,
+  "minimum_native_unwind_checks": 2000,
+  "minimum_unwind_fault_points": 391,
+  "trace_threads_per_lifetime_boot": 4,
+  "successful_trace_requests_per_lifetime_boot": 20,
+  "nonempty_trace_requests_per_lifetime_boot": 16,
+  "empty_trace_requests_per_lifetime_boot": 4
+}

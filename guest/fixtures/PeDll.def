@@ -1,0 +1,4 @@
+LIBRARY guardian-pe-runtime
+EXPORTS
+    GuardianAdd
+    GuardianOrdinal @17 NONAME

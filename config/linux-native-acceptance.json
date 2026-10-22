@@ -1,0 +1,19 @@
+{
+  "platform": "Linux x86-64",
+  "scope": "native_scanner_image_inspection_and_shared_core",
+  "required_ctest_count": 24,
+  "configurations": [
+    "Debug",
+    "Release",
+    "Sanitize"
+  ],
+  "wine_allowed": false,
+  "content_scan_limit_bytes": 4194304,
+  "vm_execution": true,
+  "vm_execution_tested_by": "tools/validate_phase11.py",
+  "windows_ui": false,
+  "windows_differential_tests": false,
+  "phase": 11,
+  "phase_status": "in_progress",
+  "next_phase_started": false
+}

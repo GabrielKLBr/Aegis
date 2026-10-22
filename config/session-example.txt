@@ -1,0 +1,7 @@
+# Tempo ativo do convidado em milissegundos. Entrada apenas no desktop virtual.
+# Fecha o diálogo, desenha em Paint e escreve K em Notes; encerra após um minuto.
+500 key 13
+1000 click 40 65 1
+1500 click 160 145 1
+2000 key 75
+60000 close

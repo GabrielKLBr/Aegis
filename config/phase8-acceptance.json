@@ -1,0 +1,21 @@
+{
+  "phase": 8,
+  "status": "in_progress",
+  "milestone": "bounded_guest_pe_loader_and_first_console",
+  "required_ctest_count": 33,
+  "matrix_boots_per_configuration": 320,
+  "guest_loader_checks_per_boot": 26,
+  "owned_console_executions_per_configuration": 40,
+  "historical_evidence_must_remain_unchanged": true,
+  "stop_before_next_phase": true,
+  "next_phase": 9,
+  "remaining_before_phase_completion": [
+    "PE process and thread creation API with per-thread TEB and TLS lifetime",
+    "broader console NT/Win32 API matrix including file and registry calls from loaded PEs",
+    "heap and lock integration in the PE user runtime",
+    "user exception dispatch and x64 unwind execution",
+    "runtime DLL load/unload and failure/termination matrix",
+    "independent application behavior acceptance and complete phase audit"
+  ],
+  "latest_milestone_contract": "phase8-runtime-acceptance.json"
+}

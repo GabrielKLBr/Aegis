@@ -1,0 +1,35 @@
+[Version]
+Signature="$Windows NT$"
+Class=System
+ClassGuid={4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider=%Provider%
+DriverVer=10/19/2026,1.0.0.0
+
+[Manufacturer]
+%Provider%=Guardian,NTamd64.10.0
+
+[Guardian.NTamd64.10.0]
+%Device%=ProbeInstall,ROOT\GUARDIAN_PROBE
+
+[ProbeInstall]
+CopyFiles=ProbeFiles
+
+[ProbeFiles]
+guardian-hardware-probe.sys
+
+[DestinationDirs]
+DefaultDestDir=12
+
+[ProbeInstall.Services]
+AddService=GuardianProbe,0x2,ProbeService
+
+[ProbeService]
+DisplayName=%Device%
+ServiceType=1
+StartType=3
+ErrorControl=1
+ServiceBinary=%12%\guardian-hardware-probe.sys
+
+[Strings]
+Provider="Guardian Project"
+Device="Guardian virtual probe"

@@ -1,0 +1,18 @@
+# GuardianAV signature database
+# ------------------------------------------------------------------
+# One signature per line. Lines starting with '#' are comments.
+#
+# Format:
+#   sha256:<64-hex-lowercase>:<ThreatName>
+#   substr:<ascii-bytes-to-find>:<ThreatName>
+#
+# The EICAR test file is always detected by a built-in rule, so you do
+# not need an entry for it here - but its public SHA-256 is included
+# below as an example of hash-based detection.
+# ------------------------------------------------------------------
+
+# Public SHA-256 of the standard EICAR antivirus test file.
+sha256:275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f:EICAR-Test-File-(hash)
+
+# Example content rule: flag files that carry this demo marker string.
+substr:GUARDIANAV-DEMO-MALWARE-MARKER:Demo.TestMarker

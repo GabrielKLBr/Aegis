@@ -1,0 +1,8 @@
+{
+  "assembly_sha256": "d6d846367089d1564b04cdd6fafd9c1ab354bc4bf43ea9f6219a98d62e24a815",
+  "header_sha256": "aa58c0d9deed34316ae313c16b65ad7f52a50daae8939618273699c725fe2833",
+  "code_sha256": "d0ba69d710e0b0f5a5ccc77ef35919993fefd634b61b43db8ee13c4f8aa135c3",
+  "bytes": 512,
+  "handler_offset": 447,
+  "origin": "Owned test assembly; code executed only in KVM/WHP guest"
+}

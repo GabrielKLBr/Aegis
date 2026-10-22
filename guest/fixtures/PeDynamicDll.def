@@ -1,0 +1,6 @@
+LIBRARY guardian-dynamic
+EXPORTS
+    DynamicValue @1
+    DynamicStats @2
+    DynamicBind @3
+    DynamicRaise @4

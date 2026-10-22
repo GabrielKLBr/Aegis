@@ -1,0 +1,18 @@
+{
+  "phase": 8,
+  "status": "in_progress",
+  "milestone": "guest_console_runtime_files_registry_heap_locks",
+  "required_ctest_count": 35,
+  "matrix_boots_per_configuration": 360,
+  "guest_loader_checks_per_boot": 26,
+  "runtime_restart_pairs_per_configuration": 20,
+  "historical_evidence_must_remain_unchanged": true,
+  "stop_before_next_phase": true,
+  "next_phase": 9,
+  "remaining_before_phase_completion": [
+    "PE child creation and per-thread TEB/TLS lifetime, callbacks and contention tests",
+    "user exception dispatch and x64 unwind execution",
+    "runtime DLL loading/unloading and initialization/termination failure matrix",
+    "expanded application behavior acceptance and final phase audit"
+  ]
+}

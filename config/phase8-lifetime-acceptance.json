@@ -1,0 +1,24 @@
+{
+  "phase": 8,
+  "status": "in_progress",
+  "milestone": "pe_child_processes_explicit_exits_primary_last_thread_lifetime",
+  "required_ctest_count": 36,
+  "matrix_boots_per_configuration": 400,
+  "guest_loader_checks_per_boot": 26,
+  "runtime_restart_pairs_per_configuration": 20,
+  "historical_evidence_must_remain_unchanged": true,
+  "stop_before_next_phase": true,
+  "next_phase": 9,
+  "remaining_before_phase_completion": [
+    "user exception dispatch and x64 unwind execution",
+    "runtime DLL loading/unloading and expanded initialization/termination failure matrix",
+    "expanded application behavior acceptance and final phase audit"
+  ],
+  "worker_threads_per_runtime_boot": 31,
+  "serialized_counter_increments_per_runtime_boot": 360,
+  "individual_native_thread_checks": 904,
+  "executed_children_per_lifetime_boot": 23,
+  "child_creation_fault_budgets_per_lifetime_boot": 10,
+  "native_thread_opening_rights_checks": 17,
+  "per_process_service_exit_checks": 10
+}

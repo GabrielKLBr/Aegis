@@ -1,0 +1,65 @@
+#pragma once
+#include <stdint.h>
+namespace guardian::conformance {
+inline constexpr uint32_t Schema = 1;
+struct Case { const char* name; const char* domain; uint64_t expected; };
+// These are contract results, not recordings presented as Windows observations.
+// Each native reference run records its actual architecture and NT version.
+inline constexpr Case Cases[] = {
+    {"qpc.frequency", "time", 1},
+    {"qpc.monotonic", "time", 1},
+    {"ticks.shared.units", "time", 1},
+    {"utc.filetime.epoch", "time", 1},
+    {"unbiased.available", "time", 1},
+    {"sleep.elapsed", "time", 1},
+    {"clocks.elapsed.agree", "time", 1},
+    {"utc.elapsed", "time", 1},
+    {"mutex.initial.owner", "synchronization", 1},
+    {"mutex.unowned.error", "api-results", 288},
+    {"mutex.recursive.wait", "synchronization", 0},
+    {"mutex.recursive.depth", "synchronization", 258},
+    {"mutex.release.depth", "synchronization", 1},
+    {"mutex.abandoned", "synchronization", 128},
+    {"thread.join.exit", "synchronization", 1},
+    {"thread.identity", "coherence", 1},
+    {"thread.last.error.private", "handles", 1},
+    {"handle.stale.wait", "handles", 6},
+    {"handle.stale.close", "handles", 6},
+    {"heap.zero.alignment", "memory", 1},
+    {"heap.realloc.prefix", "memory", 1},
+    {"heap.realloc.zero.extension", "memory", 1},
+    {"heap.release", "memory", 1},
+    {"virtual.zero.alignment", "memory", 1},
+    {"virtual.query.private", "memory", 1},
+    {"virtual.protect.old", "memory", 4},
+    {"virtual.query.split", "memory", 1},
+    {"virtual.protect.restore", "memory", 2},
+    {"virtual.contents", "memory", 1},
+    {"virtual.release", "memory", 1},
+    {"virtual.query.free", "memory", 1},
+    {"virtual.release.stale", "api-results", 487},
+    {"file.create", "io", 1},
+    {"file.write", "io", 3},
+    {"file.seek", "io", 0},
+    {"file.read.contents", "io", 1},
+    {"file.eof", "io", 0},
+    {"file.size", "io", 3},
+    {"file.negative.seek", "api-results", 131},
+    {"file.sharing", "api-results", 32},
+    {"file.flush", "io", 1},
+    {"file.close", "handles", 1},
+    {"file.create.new.collision", "api-results", 80},
+    {"file.read.only.denied", "api-results", 5},
+    {"file.denied.transferred", "io", 0},
+    {"file.truncate", "io", 0},
+    {"exception.raised.arguments", "exceptions", 1},
+    {"exception.instruction.continue", "exceptions", 1},
+    {"exception.divide.finally", "exceptions", 1},
+    {"architecture.x64", "coherence", 1},
+    {"architecture.nx", "coherence", 1},
+    {"architecture.sse2", "coherence", 1},
+    {"process.identity", "coherence", 1},
+};
+inline constexpr uint32_t CaseCount = sizeof(Cases) / sizeof(Cases[0]);
+inline constexpr const char* Domains[] = {"time", "exceptions", "synchronization", "memory", "handles", "io", "api-results", "coherence"};
+}

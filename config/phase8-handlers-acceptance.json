@@ -1,0 +1,20 @@
+{
+  "phase": 8,
+  "status": "preparation",
+  "substep": "handler_metadata_only",
+  "target": "Windows x64, MSVC 2022, Windows Hypervisor Platform",
+  "required_ctest_count": 40,
+  "minimum_handler_checks": 3059,
+  "valid_handler_scenarios": 155,
+  "handler_read_fault_points": 980,
+  "windows_handler_differential_frames": 153,
+  "next_phase_started": false,
+  "remaining_before_phase_completion": [
+    "Native Windows Debug/Release validation of this preparatory substep",
+    "User-mode exception dispatch, invocation and safe handler return",
+    "Nonlocal unwind and recovery across functions",
+    "Dynamic DLL loading and unloading",
+    "Expanded initialization, execution and termination failure matrix",
+    "Final application behavior audit"
+  ]
+}

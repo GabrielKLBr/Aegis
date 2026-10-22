@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "phase": 0,
+  "initial_platform": {
+    "guest_architecture": "x64",
+    "guest_vcpus": 1,
+    "ram_min_bytes": 16777216,
+    "ram_max_bytes": 1073741824,
+    "boot_ram_test_bytes": [16777216, 67108864],
+    "backend": "WHP",
+    "host_tested": "Windows 11 Pro 10.0.26300 x64",
+    "host_versions_requiring_validation": ["Windows 10 x64", "other Windows 11 builds"],
+    "compatibility_reference": "local host ntdll build; implemented subset only",
+    "bare_metal_boot": "outside initial sandbox platform"
+  },
+  "toolchain": {
+    "generator": "Visual Studio 17 2022",
+    "architecture": "x64",
+    "cxx_standard": 20,
+    "cmake_minimum": "4.0",
+    "python_minimum": "3.9",
+    "external_downloads_required": false
+  },
+  "phase0_gates": {
+    "configurations": ["Debug", "Release"],
+    "existing_ctest_count": 10,
+    "contract_ctest_count": 3,
+    "allowed_skipped_whp_tests_for_full_validation": 0,
+    "guest_object_undefined_externals": 0,
+    "guest_object_default_libraries": 0,
+    "bootable_kernel_required_in_phase0": false
+  },
+  "existing_reference_programs": [
+    "vmntdll", "vmntfile", "vmntsect", "vmntimage", "vmntquery", "vmntreg", "vmwininit"
+  ],
+  "regression_policy": {
+    "expected_exit_code": 0,
+    "timeout_seconds_per_example": 20,
+    "guest_test_watchdog_seconds": 3,
+    "samples": "project-generated programs, system ntdll and trusted project test DLLs"
+  },
+  "future_acceptance": [
+    {
+      "phase": 1,
+      "artifact_state": "planned",
+      "program": "own guest kernel self-test",
+      "gates": ["20 sequential boots per RAM test size", "versioned hello then explicit stop result", "invalid image and boot parameters rejected"],
+      "timeout_seconds_per_boot": 3,
+      "measure": ["elapsed milliseconds", "vCPU exits", "guest RAM bytes", "host private bytes", "stop status"]
+    },
+    {
+      "phase": 4,
+      "artifact_state": "planned",
+      "program": "generated preemption and wait scenarios",
+      "gates": ["two CPU loops progress without voluntary syscalls", "wait and cancellation results correct", "context state preserved"],
+      "measure": ["time to first progress per thread", "context switches", "wait completion latency"]
+    },
+    {
+      "phase": 8,
+      "artifact_state": "planned",
+      "program": "project reference console application",
+      "gates": ["imports and TLS", "file and registry round trips", "child process", "thread join", "handled exception", "clean exit"],
+      "measure": ["startup latency", "peak memory", "unimplemented calls", "resource deltas after exit"]
+    },
+    {
+      "phase": 9,
+      "artifact_state": "planned",
+      "program": "VM lifecycle and snapshot scenarios",
+      "gates": ["restore CPU, kernel, devices and storage consistently", "base image unchanged", "repeated disposable cleanup"],
+      "measure": ["snapshot and restore latency", "allocated disk bytes", "remaining handles and temporary files"]
+    },
+    {
+      "phase": 11,
+      "artifact_state": "planned",
+      "program": "project reference graphical application",
+      "gates": ["draw and resize", "keyboard and mouse", "dialog and focus", "multiple windows", "input restricted to guest"],
+      "measure": ["input-to-frame latency", "frame delivery", "CPU and graphics memory"]
+    }
+  ],
+  "measurement_policy": {
+    "results_include": ["build configuration", "toolchain", "host version", "workload version", "resource settings", "raw observations"],
+    "functional_timeouts_are_not_performance_guarantees": true,
+    "unmeasured_targets_are_not_passed": true,
+    "release_performance_thresholds": "set per available workload using recorded baselines before launch phase"
+  },
+  "profile_policy": {
+    "planned_in": ["12A", "12B", "12C", "12D", "12E"],
+    "identity_scope": "guest only",
+    "host_unique_identifiers": "never copied to default guest profile",
+    "unsupported_device_capabilities": "explicitly unavailable",
+    "resource_backing": "announced RAM and CPUs must match implemented provisioning",
+    "host_operational_reserve": "required; policy and admission implementation in phase 12B"
+  }
+}

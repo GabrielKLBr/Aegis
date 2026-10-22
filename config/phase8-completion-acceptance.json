@@ -1,0 +1,36 @@
+{
+  "phase": 8,
+  "implementation": "complete_for_owned_console_matrix",
+  "acceptance": "requires_linux_and_native_windows",
+  "product_platform": "Windows x64 / MSVC / WHP",
+  "development_platform": "Linux x86-64 / LLVM PE-COFF / KVM",
+  "linux_ctest_count": 20,
+  "windows_ctest_count": 40,
+  "linux_successful_boots": 132,
+  "windows_handler_oracle_cases": 153,
+  "windows_unwind_oracle_cases": 59,
+  "exception_core_minimum_checks": 415,
+  "exception_read_fault_points": 64,
+  "dynamic_mapping_fault_points": 49,
+  "next_phase_started": false,
+  "wine_allowed": false,
+  "required_application_evidence": [
+    "PE x64 exception dispatch recovery nonlocal unwind PASS",
+    "PE dynamic DLL TLS references rollback unload PASS",
+    "PE child processes explicit exits last-thread lifetime PASS",
+    "PE x64 virtual stack capture PASS",
+    "PE private TEB TLS thread lifecycle contention PASS",
+    "PE runtime services heap locks PASS"
+  ],
+  "failure_matrix": [
+    "Uncaught illegal instruction preserves exception status",
+    "Kernel RIP, invalid MXCSR and forged unwind target are refused",
+    "Nested exception and noncontinuable resumption terminate only the caller process",
+    "User access to the supervisor exception arena is refused",
+    "DLL process attach refusal rolls back mappings, references and TLS",
+    "Faults in DLL attach and process detach are contained and reclaimed",
+    "Normal process exit drains outstanding dynamic library references",
+    "Every dynamic mapping backend operation is fault-injected",
+    "Unmap failure remains owned and supports a cleanup retry"
+  ]
+}

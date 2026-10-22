@@ -1,0 +1,12 @@
+[
+  {
+    "family": 4,
+    "hex": "45000021000000004011eda8c6120001c61200fe9c400007000dcd620102030405",
+    "origin": "Independent Python struct/one-complement checksum; frozen wire vector"
+  },
+  {
+    "family": 6,
+    "hex": "60000000000d1140fd426761000000000000000000000001fd4267610000000000000000000000fe9c400007000d903f0102030405",
+    "origin": "Independent Python struct/one-complement checksum; frozen wire vector"
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "purpose": "Owned MSVC reference outputs, read only as parser input; never executed by Linux tests.",
+  "files": [
+    {
+      "name": "guardian-pe-console.exe",
+      "source": "build-codex/guest/fixtures/Release/guardian-pe-console.exe",
+      "sha256": "9b285972269cddddb8bbed94c20a8974e02a3745601ad7cfd4c68721135b4420"
+    },
+    {
+      "name": "guardian-pe-runtime.dll",
+      "source": "build-codex/guest/fixtures/Release/guardian-pe-runtime.dll",
+      "sha256": "517b33c38b36a004626981fd393f00834b6b12c9bbf65c724cd256e0ee2c56c1"
+    },
+    {
+      "name": "guardian-kernel.gk",
+      "source": "build-codex/guest/Release/guardian-kernel.gk",
+      "sha256": "5d1972ac7934f5674649db847ea57f4b1757d60c25c3fa568e3a85619d19a7be"
+    }
+  ]
+}
