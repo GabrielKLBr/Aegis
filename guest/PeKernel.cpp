@@ -372,7 +372,7 @@ bool PeRuntimeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f
                 if(!service)status=storage::NotFound;
                 else if(c.op==runtime::Op::ServiceStart){
                     if(service->child)status=storage::Collision;
-                    else {uint32_t tid=0;status=ProcessCreatePeChild(pid,service->image,"service",false,service->child,tid,service->process,service->thread);if(!status)audit.related=service->child;}
+                    else {uint32_t childTid=0;status=ProcessCreatePeChild(pid,service->image,"service",false,service->child,childTid,service->process,service->thread);if(!status)audit.related=service->child;}
                 }else if(c.op==runtime::Op::ServiceQuery){processes::Object* child=nullptr;const auto found=service->process?p.Resolve(pid,service->process,processes::Kind::Process,processes::Query,child):storage::NotFound;c.transferred=!found&&!child->exited?1u:0u;status=0;}
                 else if(!service->child)status=storage::NotFound;
                 else {status=ProcessStopPeChild(pid,service->child);if(!status){p.Close(pid,service->thread);p.Close(pid,service->process);service->thread=service->process=0;service->child=0;}}

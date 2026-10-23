@@ -1,6 +1,7 @@
 // SignatureDatabase.h - loads and matches malware signatures.
 #pragma once
 #include "Common.h"
+#include "scanner/Scanner.h"
 
 namespace av {
 
@@ -28,17 +29,18 @@ public:
     bool Load(const std::wstring& path);
 
     // Number of loaded signatures (excluding the built-in EICAR content rule).
-    size_t Count() const { return sigs_.size(); }
+    size_t Count() const { return engine_ ? engine_->SignatureCount() : 0; }
+    scan::Json Analyze(const std::wstring&, const std::atomic<bool>* cancel = nullptr) const;
 
-    // Tests a file against all signatures. Returns true if a threat is found,
-    // filling 'out'. 'precomputedSha256' may be provided to avoid re-hashing.
+    // Compatibility wrapper for confirmed local detections. Prefer Analyze:
+    // false cannot express incomplete coverage. Caller hashes are deliberately
+    // ignored: the worker verifies the exact bytes of its own bounded snapshot.
     bool Match(const std::wstring& path, Detection& out,
                const std::string* precomputedSha256 = nullptr) const;
 
 private:
-    std::vector<Signature> sigs_;
-
-    bool ContentMatch(const std::wstring& path, Detection& out) const;
+    mutable std::shared_ptr<scan::Engine> engine_;
+    std::string loadError_;
 };
 
 } // namespace av

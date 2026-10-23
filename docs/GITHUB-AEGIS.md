@@ -5,6 +5,34 @@ O repositório público é <https://github.com/GabrielKLBr/Aegis>.
 O nome do projeto no GitHub muda; os executáveis e contratos `guardian-*`
 mantêm seus nomes para preservar compatibilidade.
 
+### Separação aprovada em 23/10/2026
+
+O Aegis público recebe os fontes completos, incluindo o runtime MiniNT e os
+perfis existentes, sem substituir implementações por retornos nulos.
+As builds históricas ficam em **https://github.com/GabrielKLBr/Aegis-builds**, privado,
+como arquivos da branch, sem criar GitHub Releases. As validações Windows e a
+fase 14 estão documentadas nos respectivos registros de entrega.
+
+Para exportar seleções explícitas de builds, preservando os originais:
+
+```text
+python tools/aegis_git.py prepare-builds --output PASTA_NOVA --entry fase14=PASTA_DA_ENTREGA
+python tools/aegis_git.py --root PASTA_NOVA publish-builds --repo SUA_CONTA/Aegis-builds --create
+```
+
+Pode repetir `--entry ROTULO=CAMINHO` para cada diretório ou pacote existente.
+A exportação gera ZIPs com manifesto SHA-256 dos pacotes e arquivos internos;
+recusa links, formatos conhecidos de credenciais e discos/estado pessoal de VM.
+Pacotes acima de 90 MiB precisam ser separados em seleções menores. O envio
+confere o manifesto e exige que o destino seja privado, inclusive antes do push.
+Não transforma automaticamente um repositório público em privado. Para atualizar
+uma exportação posterior, preparar outra pasta e integrar seus pacotes/manifesto
+ao clone privado antes do comando, omitindo `--create`.
+
+As builds são registros históricos: não são recompiladas para fingir que houve
+nova aceitação. Fases sem binário preservado devem aparecer como ausentes no
+inventário. Não se incluem caches/intermediários do compilador nem imagens de SO.
+
 ## Conteúdo publicado
 
 Fontes C/C++, assembly, Python, configuração, documentação e imagens da

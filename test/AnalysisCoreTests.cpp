@@ -10,6 +10,9 @@
 using namespace av::microvm;
 namespace gt=guardian::telemetry;namespace gs=guardian::storage;
 namespace {
+template<size_t N,size_t M> void Copy(char (&out)[N],const char (&text)[M]) {
+    static_assert(M<=N);std::memcpy(out,text,M);
+}
 analysis::Trace* active=nullptr;uint64_t serial=0;bool accepted=true;
 void Exchange(gt::Event& e) noexcept {e.boot=71;e.sequence=++serial;if(e.stage==gt::Stage::Intent)e.operationId=e.sequence;try{if(!active->Accept(e,serial*1000))accepted=false;}catch(...){accepted=false;}}
 struct Disk {std::array<uint8_t,65536> bytes{};};
@@ -58,19 +61,19 @@ int main(int argc,char** argv){try{
         state::Writer saved;trace.Save(saved);check(saved.data.size()>(1u<<20)&&saved.data.size()<(5u<<20));analysis::Trace restored;state::Reader r(saved.data);restored.Load(r,71,policy);r.End();check(restored.Records().size()==gt::MaxEvents&&!restored.Dropped());}
     // The same interception point is used by the real guest volume.
     auto volume=std::make_unique<gs::Volume>();auto disk=std::make_unique<Disk>();auto scheduler=std::make_unique<guardian::threads::Scheduler>();guardian::processes::Token token{};token.user=100;token.primaryGroup=10;token.integrity=2;
-    volume->Configure(disk.get(),Block,*scheduler);check(volume->Mount()==0);gs::Command c{};c.op=gs::Op::Open;std::strcpy(c.path,"C:\\policy.txt");c.access=gs::All;c.disposition=1;check(volume->Execute(17,token,c)==0);const auto handle=c.handle;c={};c.op=gs::Op::Write;c.handle=handle;c.length=1;c.data[0]='A';check(volume->Execute(17,token,c)==0);check(volume->Flush()==0);const auto original=disk->bytes;
+    volume->Configure(disk.get(),Block,*scheduler);check(volume->Mount()==0);gs::Command c{};c.op=gs::Op::Open;Copy(c.path,"C:\\policy.txt");c.access=gs::All;c.disposition=1;check(volume->Execute(17,token,c)==0);const auto handle=c.handle;c={};c.op=gs::Op::Write;c.handle=handle;c.length=1;c.data[0]='A';check(volume->Execute(17,token,c)==0);check(volume->Flush()==0);const auto original=disk->bytes;
     analysis::Trace trace;gt::Policy p{};p.denyMask=gt::Bit(gt::Domain::File);trace.Configure(71,p);active=&trace;serial=0;accepted=true;gt::exchange=Exchange;
     c={};c.op=gs::Op::Write;c.handle=handle;c.length=1;c.data[0]='B';check(volume->Execute(17,token,c)==gs::Denied);
     c={};c.op=gs::Op::Read;c.handle=handle;c.length=1;check(volume->Execute(17,token,c)==0&&c.data[0]=='A');check(disk->bytes==original);trace.Complete(true);check(trace.Coherent()&&accepted);check(std::strcmp(trace.Records()[0].event.resource,"C:\\policy.txt")==0);
     p={};p.simulateMask=gt::Bit(gt::Domain::File);trace.Configure(71,p);serial=0;c={};c.op=gs::Op::Write;c.handle=handle;c.length=1;c.data[0]='B';check(volume->Execute(17,token,c)==0);
     c={};c.op=gs::Op::Read;c.handle=handle;c.length=1;check(volume->Execute(17,token,c)==0&&c.data[0]=='B');trace.Complete(true);check(trace.Coherent()&&accepted&&trace.Records()[0].event.decision==gt::Decision::Simulate);check(disk->bytes==original);
     gt::exchange=nullptr;volume->Exit(17);
-    c={};c.op=gs::Op::RegCreate;std::strcpy(c.path,"HKCU\\Lab\\Run");check(volume->Execute(17,token,c)==0);
-    c={};c.op=gs::Op::RegSet;std::strcpy(c.path,"HKCU\\Lab\\Run");std::strcpy(c.name,"MixedCase");c.type=3;c.length=1;c.data[0]='A';check(volume->Execute(17,token,c)==0);
-    p={};p.simulateMask=gt::Bit(gt::Domain::Registry);trace.Configure(71,p);serial=0;gt::exchange=Exchange;c.data[0]='B';std::strcpy(c.name,"MIXEDCASE");check(volume->Execute(17,token,c)==0);trace.Complete(true);
+    c={};c.op=gs::Op::RegCreate;Copy(c.path,"HKCU\\Lab\\Run");check(volume->Execute(17,token,c)==0);
+    c={};c.op=gs::Op::RegSet;Copy(c.path,"HKCU\\Lab\\Run");Copy(c.name,"MixedCase");c.type=3;c.length=1;c.data[0]='A';check(volume->Execute(17,token,c)==0);
+    p={};p.simulateMask=gt::Bit(gt::Domain::Registry);trace.Configure(71,p);serial=0;gt::exchange=Exchange;c.data[0]='B';Copy(c.name,"MIXEDCASE");check(volume->Execute(17,token,c)==0);trace.Complete(true);
     check(trace.Coherent()&&trace.Records().size()==2);const auto changed=trace.Records()[1].event;check(changed.domain==gt::Domain::Registry&&changed.beforeBytes==1&&changed.afterBytes==1&&changed.oldHash!=changed.newHash&&(changed.flags&6)==6);
-    p={};p.denyMask=gt::Bit(gt::Domain::Registry);trace.Configure(71,p);serial=0;c={};c.op=gs::Op::RegSet;std::strcpy(c.path,"HKCU\\Lab\\Run");std::strcpy(c.name,"MixedCase");c.type=3;c.length=1;c.data[0]='C';check(volume->Execute(17,token,c)==gs::Denied);
-    c={};c.op=gs::Op::RegGet;std::strcpy(c.path,"HKCU\\Lab\\Run");std::strcpy(c.name,"mixedcase");c.length=512;check(volume->Execute(17,token,c)==0&&c.data[0]=='B');trace.Complete(true);check(trace.Coherent());gt::exchange=nullptr;
+    p={};p.denyMask=gt::Bit(gt::Domain::Registry);trace.Configure(71,p);serial=0;c={};c.op=gs::Op::RegSet;Copy(c.path,"HKCU\\Lab\\Run");Copy(c.name,"MixedCase");c.type=3;c.length=1;c.data[0]='C';check(volume->Execute(17,token,c)==gs::Denied);
+    c={};c.op=gs::Op::RegGet;Copy(c.path,"HKCU\\Lab\\Run");Copy(c.name,"mixedcase");c.length=512;check(volume->Execute(17,token,c)==0&&c.data[0]=='B');trace.Complete(true);check(trace.Coherent());gt::exchange=nullptr;
     // Corrupted serialized guest inputs cannot grow the bounded result set.
     for(uint32_t i=0;i<1024;++i){analysis::Trace fuzz;fuzz.Configure(71);auto e=Sample();auto* bytes=reinterpret_cast<uint8_t*>(&e);bytes[(i*37)%sizeof(e)]^=uint8_t(1+(i%255));fuzz.Accept(e,i);check(fuzz.Records().size()<=1);}
     state::AtomicText(output/"core.json","{\"status\":\"PASS\",\"phase\":13,\"checks\":"+std::to_string(checks)+",\"realVolumePolicy\":true,\"untrustedInputs\":true}\n");std::cout<<checks<<" input, loss, classification, snapshot and actual guest volume policy checks PASS\n";return 0;

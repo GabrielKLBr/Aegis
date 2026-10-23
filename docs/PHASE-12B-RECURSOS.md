@@ -1,5 +1,7 @@
 # Contrato de recursos da 12B — continuação de 20/10/2026
 
+**Atualização Windows de 23/10/2026:** a matriz atual passou em MSVC/WHP: 80 testes distintos Debug, com retestes documentados, e 80/80 Release em uma suíte completa, sem ignorados. [Correções e evidências](REVISAO-WINDOWS-FASES12B-13-20261023.md). Os registros Linux abaixo são históricos; as pendências de escopo e de comparação entre versões continuam abertas.
+
 A 12B permanece aberta até a aceitação Windows/MSVC/WHP da revisão final e a
 revisão do escopo completo. A 12C foi autorizada posteriormente em 21/10/2026:
 [matriz e estado atual](PHASE-12C.md). A implementação de referência da 12B está em

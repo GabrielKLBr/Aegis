@@ -369,6 +369,7 @@ void ProcessSelfTest() noexcept {
         result.liveProcesses=counts.processes;result.liveObjects=counts.objects;result.liveHandles=counts.handles;result.liveReferences=counts.references;
         result.checks=telemetry::AnalysisChecks;return;
 #endif
+#ifndef GUARDIAN_ANALYSIS_KERNEL
         const char message[]="PE console TLS DLL execution PASS\n";for(char ch:message)if(ch)__outbyte(0xE9,static_cast<uint8_t>(ch));
 #ifdef GUARDIAN_RUNTIME_KERNEL
         const char threadMessage[]="PE private TEB TLS thread lifecycle contention PASS\n";for(char ch:threadMessage)if(ch)__outbyte(0xE9,static_cast<uint8_t>(ch));
@@ -384,8 +385,10 @@ void ProcessSelfTest() noexcept {
 #endif
         const char apiMessage[]="PE runtime services heap locks PASS\n";for(char ch:apiMessage)if(ch)__outbyte(0xE9,static_cast<uint8_t>(ch));
 #endif
+#endif
     }
 #endif
+#ifndef GUARDIAN_ANALYSIS_KERNEL
     Token token{};token.user=100;token.primaryGroup=10;token.session=1;token.integrity=2;token.privileges=CreateGlobal;
     Check(manager.CreateRoot(token,parentPid)==Success,10);token.user=200;token.session=2;Check(manager.CreateRoot(token,badPid)==Success,11);
     Check(InitializeData(parentPid,0x1111) && InitializeData(badPid,0x2222),12);
@@ -415,6 +418,7 @@ void ProcessSelfTest() noexcept {
     result.freeAfter=memoryManager.physical.Statistics().free;Check(result.freeAfter+21==result.freeBefore && scheduler.AllDead(),18);
     result.liveProcesses=counts.processes;result.liveObjects=counts.objects;result.liveHandles=counts.handles;result.liveReferences=counts.references;
     result.checks|=0x1F;Check(result.checks==RequiredChecks,19);
+#endif
 }
 
 #ifdef GUARDIAN_COMPLETE_KERNEL

@@ -21,6 +21,20 @@ Elas preservam erros reais e relatórios; não prometem indetectabilidade.
 [Automação e uso](docs/GITHUB-AEGIS.md) · [Segurança](SECURITY.md) ·
 [Estado atual e limites](docs/PHASE-13.md) · [Roadmap](docs/ROADMAP-COMPLETO.md)
 
+**Revisão Windows em 23/10/2026:** as fases 12B–13 receberam correções e passaram
+na matriz MSVC/WHP: **80 testes distintos Debug**, com retestes documentados,
+e **80/80 Release** em uma suíte completa, sem ignorados.
+[Correções, evidências e limites](docs/REVISAO-WINDOWS-FASES12B-13-20261023.md).
+A integração PE/SMP e as referências NT específicas continuam abertas.
+
+**Fase 14 em 23/10/2026:** scanner compartilhado com YARA, hashes, análise PE,
+scripts/contêineres limitados, cache SQLite, conectores de reputação por hash e
+fila para o MiniNT. Modo offline por padrão; desconhecido não significa seguro.
+Windows: **83/83 Release** na suíte completa e **3/3 Debug** do scanner; Linux
+Debug: motor/pipeline **2/2** e CLI **1/1**, com escopo parcial documentado.
+[Uso, configuração, entrega local e limites](docs/PHASE-14.md).
+A fase 15 não foi iniciada.
+
 Os registros datados abaixo preservam a evolução histórica do GuardianAV.
 As entregas compiladas mencionadas neles permanecem locais e não fazem parte
 deste repositório de fontes.

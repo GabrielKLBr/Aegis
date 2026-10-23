@@ -408,6 +408,12 @@ def main():
     create.add_argument("name")
     create.add_argument("--public", action="store_true")
     commands.add_parser("push")
+    builds = commands.add_parser("prepare-builds", help="Exportar builds para uma pasta nova")
+    builds.add_argument("--output", type=Path, required=True)
+    builds.add_argument("--entry", action="append", required=True, help="ROTULO=CAMINHO")
+    builds_push = commands.add_parser("publish-builds", help="Enviar exportação somente a destino privado")
+    builds_push.add_argument("--repo", required=True)
+    builds_push.add_argument("--create", action="store_true")
     publish_parser = commands.add_parser("publish", help="Auditar, selecionar fontes, commit e push")
     publish_parser.add_argument("--repo", required=True)
     publish_parser.add_argument("--create", action="store_true")
@@ -415,7 +421,13 @@ def main():
     publish_parser.add_argument("--message", default="Publica os fontes do Aegis")
     args = parser.parse_args()
     root = args.root.expanduser().resolve()
-    if args.action == "audit":
+    if args.action == "prepare-builds":
+        from aegis_builds import prepare
+        print(json.dumps(prepare(args.output, args.entry), indent=2))
+    elif args.action == "publish-builds":
+        from aegis_builds import publish as publish_builds
+        print(json.dumps(publish_builds(root, args.repo, args.create), indent=2))
+    elif args.action == "audit":
         print(json.dumps(audit(root), indent=2, ensure_ascii=False))
     elif args.action == "status":
         print(git(root, "status", "--short", "--branch"))

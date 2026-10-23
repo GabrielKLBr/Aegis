@@ -160,9 +160,11 @@ int wmain(int argc, wchar_t** argv) {
         PrintLine(L"", Color::Default);
         PrintLine(L"Done. " + std::to_wstring(stats.filesScanned) + L" files scanned, " +
                   std::to_wstring(stats.threatsFound) + L" threat(s), " +
-                  std::to_wstring(stats.quarantined) + L" quarantined.",
-                  stats.threatsFound ? Color::Yellow : Color::Green);
-        return stats.threatsFound ? 2 : 0;
+                  std::to_wstring(stats.quarantined) + L" quarantined, " +
+                  std::to_wstring(stats.suspicious) + L" suspicious, " +
+                  std::to_wstring(stats.errors) + L" inconclusive/error(s).",
+                  (stats.threatsFound || stats.suspicious || stats.errors) ? Color::Yellow : Color::Green);
+        return stats.errors ? 3 : ((stats.threatsFound || stats.suspicious) ? 2 : 0);
     }
 
     if (cmd == L"monitor") {

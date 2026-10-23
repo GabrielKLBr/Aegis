@@ -11,6 +11,8 @@ struct ScanStats {
     uint64_t threatsFound = 0;
     uint64_t quarantined  = 0;
     uint64_t errors       = 0;
+    uint64_t suspicious   = 0;
+    uint64_t unknown      = 0;
 };
 
 class Scanner {
@@ -22,7 +24,7 @@ public:
     bool ScanFile(const std::wstring& path, ScanStats& stats);
 
     // Recursively scans a directory tree (or a single file if 'path' is a file).
-    void ScanPath(const std::wstring& path, ScanStats& stats);
+    void ScanPath(const std::wstring& path, ScanStats& stats, uint32_t depth=0);
 
 private:
     const SignatureDatabase& db_;

@@ -58,8 +58,8 @@ int32_t Continue(FaultPointers* p) {
     p->context->rip+=2;p->context->gpr[0]=0x1234;return -1;
 }
 #endif
-__declspec(noinline) void Finally(volatile uint32_t* cleaned) {
-    __try {GuardianFaultDivide();} __finally {*cleaned=*cleaned+1;}
+__declspec(noinline) void Finally(volatile uint32_t* cleanupCount) {
+    __try {GuardianFaultDivide();} __finally {*cleanupCount=*cleanupCount+1;}
 }
 uint32_t Exception(uint32_t kind) {
     if(kind==0) {
@@ -79,8 +79,8 @@ uint32_t Exception(uint32_t kind) {
         __except(Continue(static_cast<FaultPointers*>(_exception_info()))) {return 0;}
         return value==0x1234?1u:0u;
     }
-    volatile uint32_t cleaned=0;
-    __try {Finally(&cleaned);} __except(_exception_code()==0xC0000094?1:0) {return cleaned==1?1u:0u;}
+    volatile uint32_t finallyCount=0;
+    __try {Finally(&finallyCount);} __except(_exception_code()==0xC0000094?1:0) {return finallyCount==1?1u:0u;}
     return 0;
 }
 Api Interface() {

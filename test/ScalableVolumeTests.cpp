@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
 using namespace guardian::scalable;
 namespace {
@@ -138,14 +139,14 @@ int main() {
         Fixture initial(base);
         Check(initial.volume.Mount(true) == Status::Ok);
         Check(initial.volume.Create("atomic.bin") == Status::Ok);
-        std::fill(data.begin(), data.end(), 0x31);
+        std::fill(data.begin(), data.end(), uint8_t(0x31));
         Check(initial.volume.Write("atomic.bin", 0, data.data(), ChunkBytes, n) == Status::Ok);
         for (int64_t budget = 0; budget < 16; ++budget) {
             Disk interrupted = base;
             Fixture test(interrupted);
             Check(test.volume.Mount(false) == Status::Ok);
             interrupted.operations = budget;
-            std::fill(data.begin(), data.end(), 0x62);
+            std::fill(data.begin(), data.end(), uint8_t(0x62));
             const auto result = test.volume.Write("atomic.bin", 0, data.data(), ChunkBytes, n);
             interrupted.operations = -1;
             Fixture boot(interrupted);

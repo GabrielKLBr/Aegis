@@ -1,8 +1,10 @@
 """Owned kernel only: resource reporting, real larger RAM and lifecycle checkpoints."""
 import json
+import os
 import pathlib
 import subprocess
 import sys
+import tempfile
 import time
 
 
@@ -29,6 +31,34 @@ def main():
     try:
         run('create', 'large', kernel, 'basic', '--ram-mib', '32', '--storage-limit-mib', '512')
         host = run('resources', 'large')['host']
+        # Another catalog can be inspecting/admitting resources at the same time.
+        # Hold only the short admission transaction, never a running VM's lease.
+        pool = (pathlib.Path(os.environ['LOCALAPPDATA']) / 'Guardian' / 'microvm-resources-v1'
+                if sys.platform == 'win32' else
+                pathlib.Path(tempfile.gettempdir()) / ('guardian-resources-' + str(os.getuid())))
+        with (pool / 'admission.lock').open('r+b') as guard:
+            if sys.platform != 'win32':
+                import fcntl
+                fcntl.flock(guard.fileno(), fcntl.LOCK_EX)
+            pending = subprocess.Popen([str(exe), '--root', str(root), 'resources', 'large'],
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                pending.wait(timeout=.3)
+                exited_while_locked = True
+            except subprocess.TimeoutExpired:
+                exited_while_locked = False
+        try:
+            stdout, stderr = pending.communicate(timeout=15)
+        except subprocess.TimeoutExpired:
+            pending.kill()
+            pending.communicate()
+            raise
+        log.append({'args': ['resources', 'large'], 'contendedAdmission': True,
+                    'exit': pending.returncode, 'stdout': stdout, 'stderr': stderr})
+        check(not exited_while_locked and pending.returncode == 0,
+              'Concurrent resource inspection failed instead of waiting: ' + stderr)
+        check(json.loads(stdout)['ram']['requestedMiB'] == 32, 'Contended inspection changed configuration')
+        proof['contendedAdmissionWaited'] = True
         # Leave additional margin for ordinary host activity during this test.
         capacity = (host['availableRamBytes'] - host['memoryReserveBytes'] - (128 << 20)) // (8 << 20)
         ram = min(128, capacity - 16)

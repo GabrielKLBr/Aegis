@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cerrno>
+#include <chrono>
 #include <thread>
 #include <fstream>
 #include <limits>
@@ -52,6 +53,15 @@ Plan Admit(uint32_t requested,uint32_t vcpus,bool maximum,const Host& h,Usage u,
     return {uint32_t(admitted),vcpus,cost,reserve};
 }
 namespace {
+std::unique_ptr<Lease> Admission(const std::filesystem::path& root) {
+    const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    for(;;){
+        auto lease=std::make_unique<Lease>(root/"admission.lock",true);
+        if(lease->Held())return lease;
+        Require(std::chrono::steady_clock::now()<deadline,"Timed out waiting for resource admission");
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+}
 std::filesystem::path Pool() {
     namespace fs=std::filesystem;
 #ifdef _WIN32
@@ -83,9 +93,9 @@ Usage Slots(const std::filesystem::path& root,int& vacant) {
     return usage;
 }
 }
-Usage Inspect(){const auto root=Pool();Lease transaction(root/"admission.lock");int vacant=-1;return Slots(root,vacant);}
+Usage Inspect(){const auto root=Pool();auto transaction=Admission(root);int vacant=-1;return Slots(root,vacant);}
 Reservation::Reservation(uint32_t ram,uint32_t cpus,uint32_t reserveMiB,uint64_t diskBytes) {
-    const auto root=Pool();Lease transaction(root/"admission.lock");int vacant=-1;const auto usage=Slots(root,vacant);
+    const auto root=Pool();auto transaction=Admission(root);int vacant=-1;const auto usage=Slots(root,vacant);
     Require(vacant>=0,"Resource pool full");const auto host=Probe();const auto plan=Admit(ram,cpus,false,host,usage,reserveMiB,diskBytes);
     lease_=std::make_unique<Lease>(root/(std::to_string(vacant)+".lock"));
     Writer w;w.Pod(plan.commitment);w.Pod(plan.vcpus);w.Pod(Reserve(host,reserveMiB));AtomicWrite(root/(std::to_string(vacant)+".gvr"),Seal(w.data));

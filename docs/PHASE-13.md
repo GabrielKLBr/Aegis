@@ -1,5 +1,7 @@
 # Fase 13 — telemetria, políticas e análise comportamental
 
+**Atualização Windows de 23/10/2026:** a matriz atual passou em MSVC/WHP: 80 testes distintos Debug, com retestes documentados, e 80/80 Release em uma suíte completa, sem ignorados. [Correções e evidências](REVISAO-WINDOWS-FASES12B-13-20261023.md). Os registros Linux abaixo são históricos; as pendências de escopo e de comparação entre versões continuam abertas.
+
 **Estado em 22/10/2026:** implementação concluída e aceita na matriz Linux/KVM
 nativa: **59 Debug, 59 Release e 35 ASan/UBSan**, sem falhas ou ignorados.
 O produto permanece Windows/MSVC/WHP; não foi usado Wine ou QEMU.

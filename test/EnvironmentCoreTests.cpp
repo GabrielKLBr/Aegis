@@ -6,6 +6,9 @@
 #include <memory>
 using namespace av::microvm;
 namespace gs=guardian::storage;
+template<size_t N,size_t M> void Copy(char (&out)[N],const char (&text)[M]) {
+    static_assert(M<=N);std::memcpy(out,text,M);
+}
 struct Disk {std::array<uint8_t,65536> data{};uint64_t now=133485408000000000ull;int64_t writes=-1;};
 bool Transfer(void* raw,guardian::io::Op op,uint64_t at,uint8_t* bytes) noexcept {
     auto& d=*static_cast<Disk*>(raw);if(op!=guardian::io::Op::Read){if(!d.writes)return false;if(d.writes>0)--d.writes;}
@@ -29,7 +32,7 @@ int main(int argc,char** argv){try{
     guardian::processes::Token token{};token.user=100;token.primaryGroup=10;token.integrity=2;
     auto scheduler=std::make_unique<guardian::threads::Scheduler>();auto disk=std::make_unique<Disk>();auto volume=std::make_unique<gs::Volume>();
     volume->Configure(disk.get(),Transfer,*scheduler);check(volume->Mount()==0);
-    auto c=Command(gs::Op::Open);std::strcpy(c.path,"C:\\dates.txt");c.access=gs::All;c.disposition=1;check(volume->Execute(1,token,c)==0);const auto handle=c.handle;
+    auto c=Command(gs::Op::Open);Copy(c.path,"C:\\dates.txt");c.access=gs::All;c.disposition=1;check(volume->Execute(1,token,c)==0);const auto handle=c.handle;
     c=Command(gs::Op::FileTimesRead,handle);c.length=24;check(volume->Execute(1,token,c)==0);gs::FileTimes times{};std::memcpy(&times,c.data,24);check(!times.creation&&!times.access&&!times.write);
     times={disk->now-864000000000ull,disk->now,disk->now};c=Command(gs::Op::FileTimesWrite,handle);c.length=24;c.flags=7;std::memcpy(c.data,&times,24);check(volume->Execute(1,token,c)==0);
     volume->ConfigureClock([](void* p) noexcept {return static_cast<Disk*>(p)->now;});disk->now+=10000000;
@@ -47,7 +50,7 @@ int main(int argc,char** argv){try{
     check(volume->Flush()==0);const auto committed=disk->data;
     c=Command(gs::Op::Write,handle);c.length=1;c.data[0]=66;disk->now+=10000000;check(volume->Execute(1,token,c)==0);disk->writes=0;check(volume->Flush()==gs::IoError);disk->writes=-1;
     auto recovered=std::make_unique<gs::Volume>();recovered->Configure(disk.get(),Transfer,*scheduler);check(recovered->Mount()==0);
-    c=Command(gs::Op::Open);std::strcpy(c.path,"C:\\dates.txt");c.access=gs::Read;check(recovered->Execute(2,token,c)==0);const auto readOnly=c.handle;
+    c=Command(gs::Op::Open);Copy(c.path,"C:\\dates.txt");c.access=gs::Read;check(recovered->Execute(2,token,c)==0);const auto readOnly=c.handle;
     c=Command(gs::Op::FileTimesRead,readOnly);c.length=24;check(recovered->Execute(2,token,c)==0&&std::memcmp(c.data,&before,24)==0);
     c=Command(gs::Op::FileTimesWrite,readOnly);c.flags=7;c.length=24;check(recovered->Execute(2,token,c)==gs::Denied);
     c=Command(gs::Op::Read,readOnly);c.length=1;check(recovered->Execute(2,token,c)==0&&c.data[0]==65);check(disk->data==committed);

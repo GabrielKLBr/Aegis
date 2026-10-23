@@ -10,9 +10,15 @@ int main(int argc,char** argv){try{
     const auto report=std::filesystem::absolute(argv[2]);
     const auto directory=report.parent_path()/(report.stem().string()+"-volumes")/std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());std::filesystem::create_directories(directory);
     std::vector<BootResult> rows;uint64_t id=1;
+    auto bootTimeout=complete?std::chrono::seconds(10):std::chrono::seconds(3);
+#ifdef _WIN32
+    // These functional probes include synchronous host disk flushes. Match the
+    // complete PE probe's budget; dedicated clock/watchdog checks stay separate.
+    if(runtime)bootTimeout=std::chrono::seconds(10);
+#endif
     for(uint64_t ram:{16ull<<20,64ull<<20})for(uint32_t run=0;run<20;++run){
         StorageOptions disk{directory/"base.gvd",directory/(std::to_string(runtime?(id-1)/2:id)+".gvo"),true};
-        KernelBootSession session;session.Prepare(image,ram,id++,{true,true,false,false,true,true,true},disk);auto r=session.Run(complete?std::chrono::seconds(10):std::chrono::seconds(3));rows.push_back(r);
+        KernelBootSession session;session.Prepare(image,ram,id++,{true,true,false,false,true,true,true},disk);auto r=session.Run(bootTimeout);rows.push_back(r);
         if(!r.success){WriteBootReport(report,rows);throw std::runtime_error("Guest PE mapping: "+r.error);}
         Check(r.console.find("Guardian kernel 0.8.0 PE MAPPING\n")!=std::string::npos && r.console.find("PE loader mapping checks PASS\n")!=std::string::npos,"Guest mapping checks missing");
         Check(r.console.find("PE console TLS DLL execution PASS\n")!=std::string::npos,"Guest PE console/TLS/DLL execution missing");

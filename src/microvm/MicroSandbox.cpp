@@ -19,6 +19,11 @@ static constexpr uint64_t kExcBitmap = (1ull << 6) | (1ull << 13);  // #UD | #GP
 MicroSandboxResult MicroSandbox::Detonate(const std::wstring& pePath,
                                           const MicroSandboxOptions& opt) {
     MicroSandboxResult r;
+    if (opt.guestCommandLine.empty() || opt.guestCommandLine.size() > 2047 ||
+        opt.guestCommandLine.find(L'\0') != std::wstring::npos) {
+        r.error = "Guest command line outside the process-parameter buffer";
+        return r;
+    }
 
     MicroVm vm;
     if (!vm.Create(opt.ramBytes, kExcBitmap)) {
@@ -55,7 +60,7 @@ MicroSandboxResult MicroSandbox::Detonate(const std::wstring& pePath,
     // Give the guest a process environment (TEB/PEB/Ldr) so it can read its
     // ImageBase, command line and module list like real ntdll/CRT code.
     ProcessEnv env = BuildProcessEnv(vm, 0x300000, img.imageBase, kStack, kStack - 0x100000,
-                                     0x1A4, 0x1A8, pePath);
+                                     0x1A4, 0x1A8, opt.guestCommandLine);
     std::vector<ModuleSpec> mods = {
         {L"sample.exe",   img.imageBase, (uint32_t)img.sizeOfImage},
         {L"ntdll.dll",    0x180000000ull, 0x200000},

@@ -163,7 +163,24 @@ BootResult ResourceSession::Run(std::chrono::milliseconds timeout, bool suspendA
     result.resource = report_;
     result.success = ok && !paused_ && reported_ && !report_.status && report_.checks == gr::RequiredChecks;
     result.stopStatus = reported_ ? report_.status : UINT32_MAX;
+#ifdef __linux__
     result.error = std::string(vm.Error().begin(), vm.Error().end());
+#else
+    const auto &error = vm.Error();
+    if (!error.empty()) {
+        const auto bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, error.data(),
+                                             static_cast<int>(error.size()), nullptr, 0, nullptr, nullptr);
+        if (bytes <= 0) {
+            result.error = "WHP error (text conversion failed)";
+        } else {
+            result.error.resize(static_cast<size_t>(bytes));
+            if (WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, error.data(),
+                                    static_cast<int>(error.size()), result.error.data(), bytes,
+                                    nullptr, nullptr) != bytes)
+                result.error = "WHP error (text conversion failed)";
+        }
+    }
+#endif
     if (!result.success && !paused_ && result.error.empty())
         result.error = "Resource kernel checks failed";
     return result;

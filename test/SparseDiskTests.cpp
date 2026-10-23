@@ -23,11 +23,11 @@ template <class F> void Reject(F f) {
 }
 struct Guest {
     std::unique_ptr<Metadata> a = std::make_unique<Metadata>(), b = std::make_unique<Metadata>();
-    std::array<uint8_t, ChunkBytes> scratch{};
+    std::unique_ptr<uint8_t[]> scratch = std::make_unique<uint8_t[]>(ChunkBytes);
     Volume volume;
     Guest(storage::SparseDisk &d) {
         Check(volume.Configure(&d, storage::SparseDisk::Block, storage::SparseDisk::Space, a.get(), b.get(),
-                               scratch.data(), d.Options().capacity, 16ull << 20));
+                               scratch.get(), d.Options().capacity, 16ull << 20));
     }
 };
 } // namespace

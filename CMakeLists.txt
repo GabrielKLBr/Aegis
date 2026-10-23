@@ -694,3 +694,4 @@ endif()
 
 # Phase 0: explicit host/VMM/reference groups and the freestanding ABI boundary.
 include(cmake/GuardianPlatform.cmake)
+include(cmake/GuardianScanner.cmake)

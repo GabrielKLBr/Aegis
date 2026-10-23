@@ -27,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix="guardian-linux-") as folder:
         path = traps / name
         path.write_text('#!/bin/sh\nprintf used >> "' + str(sentinel) + '"\nexit 97\n')
         path.chmod(0o700)
-    env = dict(os.environ, PATH=str(traps) + os.pathsep + os.environ.get("PATH", ""))
+    env = dict(os.environ, XDG_STATE_HOME=str(root / "state"), PATH=str(traps) + os.pathsep + os.environ.get("PATH", ""))
 
     def run(*args, code=0, as_json=True):
         result = subprocess.run([binary, *map(str, args)], cwd=root, env=env,
@@ -101,9 +101,9 @@ with tempfile.TemporaryDirectory(prefix="guardian-linux-") as folder:
 
     target.write_bytes(b"x" * (4 * 1024 * 1024) + b"native-marker")
     database.write_text("substr:native-marker:BeyondLimit\n")
-    scan = run("scan", target, "--signatures", database, "--json", code=3)
-    check(scan["partial"] == 1 and not scan["threatsFound"] and scan["results"][0]["status"] == "partial",
-          "Content limit must be reported as incomplete")
+    scan = run("scan", target, "--signatures", database, "--json", code=1)
+    check(not scan["partial"] and scan["threatsFound"] == 1,
+          "Phase 14 must inspect content beyond the old 4 MiB prefix")
     database.write_text("sha256:" + hashlib.sha256(target.read_bytes()).hexdigest() + ":WholeFile\n")
     scan = run("scan", target, "--signatures", database, "--json", code=1)
     check(scan["threatsFound"] == 1 and not scan["partial"], "Full-file hash match remains conclusive")
@@ -123,7 +123,7 @@ with tempfile.TemporaryDirectory(prefix="guardian-linux-") as folder:
     (tree / "file-link").symlink_to(target)
     os.mkfifo(tree / "pipe")
     scan = run("scan", tree, "--signatures", database, "--json", code=3)
-    check(scan["filesScanned"] == 3 and scan["skipped"] == 3, "Symlinks and FIFOs must not be followed or block")
+    check(scan["filesScanned"] == 3 and scan["summary"]["inconclusive"] == 3, "Symlinks and FIFOs must not be followed or block")
     run("hash", tree / "pipe", code=3, as_json=False)
     run("hash", tree / "file-link", code=3, as_json=False)
     run("hash", tree, code=3, as_json=False)

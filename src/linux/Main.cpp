@@ -1,6 +1,7 @@
 // Native Linux entry point. Never launches input files or a Windows program.
 #include "../microvm/boot/KernelImage.h"
 #include "KvmMachine.h"
+#include "../scanner/Scanner.h"
 int GuardianKvmCli(int,char**);
 #include <openssl/evp.h>
 #include <algorithm>
@@ -197,6 +198,12 @@ fs::path DefaultRules(const char* executable){
 int Run(int argc,char** argv){
     if(argc<2 || std::string_view(argv[1])=="--help"){Help();return 0;}
     const std::string command=argv[1];
+    if(command=="scan" || command=="queue" || command=="sandbox-next") {
+        std::vector<std::string> args; bool explicitConfig=false;
+        for(int i=1;i<argc;++i) { args.emplace_back(argv[i]); if(args.back()=="--signatures" || args.back()=="--config") explicitConfig=true; }
+        if(command=="scan" && !explicitConfig) { args.emplace_back("--signatures"); args.push_back(DefaultRules(argv[0]).string()); }
+        return av::scan::CliMain(args);
+    }
     if(command=="boot-kernel")return GuardianKvmCli(argc-1,argv+1);
     if(command=="--version"){if(argc!=2)throw std::invalid_argument("unexpected arguments");std::cout<<"GuardianAV 1.0.0 Linux native x86-64\n";return 0;}
     if(command=="--capabilities"){

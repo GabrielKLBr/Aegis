@@ -20,6 +20,8 @@ namespace microvm {
 struct MicroSandboxOptions {
     SystemProfile profile = SystemProfile::Win11();
     size_t        ramBytes = 0x1000000;  // 16 MiB
+    // Guest-visible identity must not contain the host's private spool path.
+    std::wstring guestCommandLine = L"C:\\Samples\\sample.exe";
 };
 
 struct MicroSandboxResult {

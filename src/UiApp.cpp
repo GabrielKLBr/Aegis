@@ -467,7 +467,8 @@ static void PaintScanPage(float W, float H) {
 
     // status line
     std::wstring status = L"Scanned " + std::to_wstring(st.filesScanned.load()) +
-                          L" files  •  " + std::to_wstring(st.threatsFound.load()) + L" threats";
+                          L" files  •  " + std::to_wstring(st.threatsFound.load()) + L" threats, " + std::to_wstring(st.suspicious.load()) + L" suspicious, " +
+                          std::to_wstring(st.inconclusive.load()) + L" inconclusive";
     Text(status, g.fH2.Get(), RectF(x, by + S(56), W - S(36), by + S(82)),
          st.threatsFound.load() ? T.danger : T.textDim);
 
@@ -477,7 +478,9 @@ static void PaintScanPage(float W, float H) {
     std::vector<av::Detection> dets;
     { std::lock_guard<std::mutex> lk(st.mtx); dets = st.detections; }
     if (dets.empty()) {
-        Text(scanning ? L"Scanning…" : L"No threats detected.", g.fBody.Get(),
+        Text(scanning ? L"Scanning…" : (st.cancel.load() ? L"Scan cancelled; results are incomplete." :
+            (st.inconclusive.load() ? L"Scan incomplete. Some files could not be analyzed." :
+            (st.filesScanned.load() ? L"No signature match. Files remain unknown." : L"Choose a target to scan."))), g.fBody.Get(),
              RectF(list.left + S(18), list.top + S(16), list.right - S(16), list.top + S(44)),
              T.textDim);
     } else {
@@ -924,7 +927,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         KillTimer(hwnd, TIMER_ANIM);
         auto& st = g.engine.State();
         g.lastScanText = L"Last scan: " + std::to_wstring(st.filesScanned.load()) +
-                         L" files, " + std::to_wstring(st.threatsFound.load()) + L" threats";
+                         L" files, " + std::to_wstring(st.threatsFound.load()) + L" threats, " + std::to_wstring(st.suspicious.load()) + L" suspicious, " +
+                          std::to_wstring(st.inconclusive.load()) + L" inconclusive";
         InvalidateRect(hwnd, nullptr, FALSE);
         return 0;
     }

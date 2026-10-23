@@ -18,6 +18,7 @@ struct ScanState {
     std::atomic<bool>     cancel{false};
     std::atomic<uint64_t> filesScanned{0};
     std::atomic<uint64_t> threatsFound{0};
+    std::atomic<uint64_t> suspicious{0}, inconclusive{0}, unknown{0};
 
     std::mutex            mtx;          // guards the fields below
     std::wstring          currentFile;
@@ -46,7 +47,7 @@ public:
     ScanState& State() { return state_; }
 
 private:
-    void Walk(const std::wstring& dir, const std::function<void()>& onUpdate);
+    void Walk(const std::wstring& dir, const std::function<void()>& onUpdate, uint32_t depth=0);
 
     SignatureDatabase db_;
     ScanState         state_;

@@ -1,4 +1,6 @@
 > Continuação de 20/10/2026: o novo contrato próprio `resources` implementa SMP,
+
+**Atualização Windows de 23/10/2026:** a matriz atual passou em MSVC/WHP: 80 testes distintos Debug, com retestes documentados, e 80/80 Release em uma suíte completa, sem ignorados. [Correções e evidências](REVISAO-WINDOWS-FASES12B-13-20261023.md). Os registros Linux abaixo são históricos; as pendências de escopo e de comparação entre versões continuam abertas.
 > volume escalável e pasta independente. Os limites antigos descritos abaixo
 > continuam referentes aos perfis anteriores. A 12B permanece aberta; consulte
 > [implementação, limites e validação atual](PHASE-12B-RECURSOS.md).

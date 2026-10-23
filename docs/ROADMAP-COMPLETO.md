@@ -1,9 +1,16 @@
 # Plano de desenvolvimento do GuardianAV e do kernel próprio
 
-Data de referência: 19/10/2026.
+Data de referência: 23/10/2026.
 Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
 
-**Estado atual:** 12A concluída para a matriz de referência, com validação Windows/WHP e Linux/KVM. [Resultados e limites](PHASE-12A.md). A 12B está em implementação e validação: [recursos, cotas e pendências](PHASE-12B.md). O contrato próprio `resources` passou na matriz Linux (47 Debug, 47 Release e 30 ASan/UBSan), com SMP, volume escalável e pasta independente; a aceitação Windows da revisão e a integração aos perfis existentes continuam pendentes. [Continuação de 20/10](PHASE-12B-RECURSOS.md). A 12C passou na validação Linux em 21/10/2026 (50 Debug, 50 Release e 32 ASan/UBSan), com referências Windows ainda pendentes: [matriz, entrega e diferenças](PHASE-12C.md). A 12D foi autorizada em nova solicitação: sessões e interação passaram em 53 testes Debug, 53 Release e 33 ASan/UBSan na revisão estável da 12D. [Registro da 12D](PHASE-12D.md). A 12E foi implementada e aceita no Linux em 22/10/2026: 56 Debug, 56 Release e 34 ASan/UBSan, com perfis sintéticos funcionais e reproduzíveis. [Entrega e limites](PHASE-12E.md). A aceitação nativa Windows e os requisitos anteriores permanecem pendentes. A fase 13 passou na aceitação Linux em 22/10/2026: 59 Debug, 59 Release e 35 ASan/UBSan, com telemetria, políticas e análise comportamental. [Entrega e limites](PHASE-13.md). A aceitação Windows e os requisitos anteriores continuam abertos; a fase 14 não foi iniciada. Os registros históricos abaixo conservam os resultados e pendências da época.
+**Revisão Windows atual:** a continuação da 12B até a 13 passou na matriz
+MSVC/WHP: 80 testes distintos Debug, com retestes documentados, e 80/80 Release
+em uma suíte completa, sem ignorados. [Correções, evidências e limites](REVISAO-WINDOWS-FASES12B-13-20261023.md).
+A integração PE/SMP da 12B e as referências NT específicas da 12C continuam
+abertas. A fase 14 não foi iniciada. Os registros abaixo preservam o histórico
+das entregas anteriores.
+
+**Histórico das entregas:** 12A concluída para a matriz de referência, com validação Windows/WHP e Linux/KVM. [Resultados e limites](PHASE-12A.md). A 12B está em implementação e validação: [recursos, cotas e pendências](PHASE-12B.md). O contrato próprio `resources` passou na matriz Linux (47 Debug, 47 Release e 30 ASan/UBSan), com SMP, volume escalável e pasta independente; a aceitação Windows da revisão e a integração aos perfis existentes continuam pendentes. [Continuação de 20/10](PHASE-12B-RECURSOS.md). A 12C passou na validação Linux em 21/10/2026 (50 Debug, 50 Release e 32 ASan/UBSan), com referências Windows ainda pendentes: [matriz, entrega e diferenças](PHASE-12C.md). A 12D foi autorizada em nova solicitação: sessões e interação passaram em 53 testes Debug, 53 Release e 33 ASan/UBSan na revisão estável da 12D. [Registro da 12D](PHASE-12D.md). A 12E foi implementada e aceita no Linux em 22/10/2026: 56 Debug, 56 Release e 34 ASan/UBSan, com perfis sintéticos funcionais e reproduzíveis. [Entrega e limites](PHASE-12E.md). A aceitação nativa Windows e os requisitos anteriores permanecem pendentes. A fase 13 passou na aceitação Linux em 22/10/2026: 59 Debug, 59 Release e 35 ASan/UBSan, com telemetria, políticas e análise comportamental. [Entrega e limites](PHASE-13.md). A aceitação Windows e os requisitos anteriores continuam abertos; a fase 14 não foi iniciada. Os registros históricos abaixo conservam os resultados e pendências da época.
 
 **Progresso:** [fase 0](PHASE-0.md), [fase 1](PHASE-1.md),
 [fase 2](PHASE-2.md), [fase 3](PHASE-3.md), [fase 4](PHASE-4.md) e
@@ -483,6 +490,13 @@ esperados, com autoria e motivo rastreáveis. Falhas ou perda de telemetria são
 visíveis. Resultados recebidos da VM são tratados como entradas não confiáveis.
 
 ## Fase 14 — Scanner, regras e inteligência de ameaças
+
+**Entrega de 23/10/2026:** implementação e testes próprios descritos em
+[PHASE-14.md](PHASE-14.md); aceitação Windows: 83/83 Release e 3/3 Debug
+do scanner, sem ignorados. Linux Debug: scanner/pipeline 2/2 e CLI 1/1,
+com aceitação parcial. O resultado
+`unknown` não libera arquivos, e instaladores/formas sem suporte permanecem
+inconclusivos. A fase 15 aguarda nova autorização.
 
 **Trabalho:** evoluir o scanner existente: SHA-256 e hashes auxiliares,
 assinaturas, regras YARA com licença verificada, análise PE, scripts, instaladores

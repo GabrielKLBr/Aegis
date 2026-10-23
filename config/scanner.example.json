@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "offline": true,
+  "queueUnknown": false,
+  "cacheSeconds": 3600,
+  "limits": {
+    "fileBytes": 33554432,
+    "expandedBytes": 67108864,
+    "entries": 256,
+    "depth": 3,
+    "milliseconds": 5000
+  },
+  "providers": [
+    {
+      "id": "virustotal",
+      "enabled": false,
+      "termsAccepted": false,
+      "licenseTier": "premium",
+      "keyEnv": "AEGIS_VT_KEY",
+      "perMinute": 4,
+      "perDay": 500,
+      "ttlSeconds": 3600
+    },
+    {
+      "id": "malwarebazaar",
+      "enabled": false,
+      "termsAccepted": false,
+      "keyEnv": "AEGIS_MB_KEY",
+      "perMinute": 4,
+      "perDay": 500,
+      "ttlSeconds": 3600
+    },
+    {
+      "id": "circl",
+      "enabled": false,
+      "termsAccepted": false,
+      "perMinute": 4,
+      "perDay": 500,
+      "ttlSeconds": 3600
+    }
+  ]
+}
