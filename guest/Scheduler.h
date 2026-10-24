@@ -3,7 +3,11 @@
 namespace guardian::threads {
 enum class State : uint8_t { Empty, Ready, Running, Waiting, Dead };
 enum class Kind : uint8_t { Empty, ManualEvent, AutoEvent, Mutex, Semaphore, ManualTimer, AutoTimer, Critical, Srw, Completion };
-struct Apc { uint64_t routine, argument; };
+struct Apc { uint64_t routine, argument;
+#ifdef GUARDIAN_NATIVE_NT
+    uint64_t argument2=0,argument3=0;
+#endif
+};
 struct Thread {
     uint32_t id = 0, generation = 0, priority = 0, suspended = 0, result = 0, exitCode = Pending, completion = 0;
     State state = State::Empty;
@@ -46,6 +50,9 @@ public:
     uint32_t CancelWait(uint32_t thread) noexcept;
     uint32_t Alert(uint32_t thread) noexcept;
     uint32_t QueueApc(uint32_t thread, uint64_t routine, uint64_t argument) noexcept;
+#ifdef GUARDIAN_NATIVE_NT
+    uint32_t QueueNativeApc(uint32_t,uint64_t,uint64_t,uint64_t,uint64_t) noexcept;
+#endif
     uint32_t Arm(uint32_t object, uint64_t due, uint64_t period = 0) noexcept;
     uint32_t CancelTimer(uint32_t object) noexcept;
     bool AllDead() const noexcept;

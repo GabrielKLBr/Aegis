@@ -42,11 +42,14 @@ public:
     uint32_t Close(uint32_t pid,uint64_t handle) noexcept;
     uint32_t Flags(uint32_t pid,uint64_t handle,uint32_t flags) noexcept;
     uint32_t DuplicateHandle(uint32_t source,uint64_t handle,uint64_t targetProcess,uint32_t desired,uint32_t attributes,uint64_t& output) noexcept;
+#ifdef GUARDIAN_NATIVE_NT
+    uint32_t CloneHandle(uint32_t,uint64_t,uint64_t&) noexcept;
+#endif
     uint32_t QueryHandle(uint32_t pid,uint64_t handle,Information&) noexcept;
     uint32_t QuerySecurity(uint32_t pid,uint64_t handle,Security&) noexcept;
     uint32_t SetDacl(uint32_t pid,uint64_t handle,const Security&) noexcept;
     uint32_t QueryToken(uint32_t pid,uint64_t handle,Token&) noexcept;
-    uint32_t WaitHandles(uint32_t pid,uint32_t tid,const uint64_t* handles,uint32_t count,bool all,uint64_t deadline) noexcept;
+    uint32_t WaitHandles(uint32_t pid,uint32_t tid,const uint64_t* handles,uint32_t count,bool all,uint64_t deadline,bool alertable=false) noexcept;
     uint32_t Signal(uint32_t pid,uint64_t handle,uint32_t amount=1) noexcept;
     bool OwnsMutex(uint32_t pid,uint64_t handle,uint32_t tid) noexcept;
     uint32_t Unlock(uint32_t pid,uint64_t handle,uint32_t tid,bool shared=false) noexcept;

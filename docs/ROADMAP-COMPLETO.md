@@ -11,7 +11,9 @@ abertas. A fase 14 foi entregue no Windows em 23/10/2026; sua aceitação Linux 
 parcial. As subfases 14.1–14.14 abaixo passam a ser a próxima prioridade de
 compatibilidade, antes da fase 15. A implementação da 14.1 e seu escopo de
 aceitação estão registrados em [PHASE-14.1.md](PHASE-14.1.md). A 14.2 amplia o
-carregador externo e o volume de runtime: [escopo e aceitação](PHASE-14.2.md). 14.3–14.14 estão
+carregador externo e o volume de runtime: [escopo e aceitação](PHASE-14.2.md).
+A 14.3 acrescenta serviços nativos e uma matriz limitada com NTDLL própria e
+original Win10: [implementação, validação e pendências](PHASE-14.3.md). 14.4–14.14 estão
 planejadas e não iniciadas. Os registros abaixo preservam o histórico das
 entregas anteriores e suas pendências.
 
@@ -691,6 +693,12 @@ subfases seguintes. Não basta mapear o PE. Parar ao concluir.
 
 ### Subfase 14.3 — NTDLL e serviços nativos do MiniNT
 
+**Estado em 24/10/2026:** implementada para o recorte documentado em
+[PHASE-14.3.md](PHASE-14.3.md): 48 serviços nativos com argumentos limitados,
+RTL/Ldr próprios e ensaio de uma NTDLL original Win10. Inicialização completa
+da NTDLL, todos os seus exports e referências nativas exatas por versão continuam
+pendentes; não declarar compatibilidade Windows geral. Parar nesta subfase.
+
 **Dependências:** 14.2; reaproveitar processos, memória, objetos e runtime atuais.
 
 **Trabalho:** ampliar os contratos Nt/Zw, Rtl e Ldr exigidos por `ntdll.dll`:
@@ -1017,7 +1025,8 @@ medido por critérios aprovados, não pela quantidade de funções com o mesmo n
 protótipo gráfico externo da fase 12 aceito para a referência própria, sem
 compatibilidade Flappy concluída. A 14.1 implementa contratos, inventário e
 vínculo de perfil. A 14.2 implementa o carregador externo e volume de runtime,
-com escopo e aceitação próprios; a 12F e 14.3–14.14 continuam
+com escopo e aceitação próprios; a 14.3 implementa a matriz nativa limitada
+descrita em PHASE-14.3.md. A 12F e 14.4–14.14 continuam
 planejadas, sem implementação iniciada. Os resultados históricos e as pendências
 anteriores permanecem identificados nos respectivos documentos.
 

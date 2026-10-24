@@ -37,3 +37,10 @@ uint32_t ProcessPeTebs(uint32_t,uint32_t*,uint64_t*,uint32_t) noexcept;
 #endif
 
 uint32_t ProcessStopPeChild(uint32_t,uint32_t) noexcept;
+#ifdef GUARDIAN_NATIVE_NT
+bool PeNativePrepare(uint32_t,guardian::threads::Scheduler&) noexcept;
+void PeNativeTick(uint64_t) noexcept;
+bool PeNativeLegacy(uint32_t,uint64_t) noexcept;
+uint32_t ProcessNativeTerminate(uint32_t,uint32_t,uint32_t,bool) noexcept;
+bool PeNativeDispatch(uint32_t,uint32_t,uint64_t,const TrapFrame&,uint64_t,uint32_t&,bool=false) noexcept;
+#endif

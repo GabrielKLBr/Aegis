@@ -196,6 +196,15 @@ ProcessBootstrap LABEL BYTE
     mov eax,60h
     syscall
     ud2
+IFDEF GUARDIAN_NATIVE_NT
+PUBLIC ProcessNativeApc
+ProcessNativeApc LABEL BYTE
+    sub rsp,28h
+    call r9
+    mov eax,0a3h
+    syscall
+    ud2
+ENDIF
 IFDEF GUARDIAN_IO_KERNEL
 IoComplete:
     mov rdx,r15

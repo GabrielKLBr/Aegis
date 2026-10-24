@@ -70,6 +70,18 @@ Status Epilog(const Reader& r,const Function& fn,uint32_t frameRegister,Context&
 bool SupportedFlags(uint32_t flags,bool inspect) noexcept {
     return flags==0 || flags==4 || (inspect && flags<=3);
 }
+bool SupportedVersion(uint32_t version) noexcept {return version==1
+#ifdef GUARDIAN_NATIVE_NT
+    ||version==2
+#endif
+    ;}
+bool FrameInfo(uint32_t info) noexcept {
+#ifdef GUARDIAN_NATIVE_NT
+    (void)info;return true;
+#else
+    return !info;
+#endif
+}
 // Before SET_FPREG executes, the incoming frame register still belongs to
 // the caller. Skipping operand slots is essential: their bytes are not codes.
 bool FrameEstablished(const uint16_t* nodes,uint32_t count,uint64_t control) noexcept {
@@ -84,7 +96,7 @@ Status Restore(const Reader& r,Function fn,Context& c,bool inspect,HandlerType t
     for(uint32_t depth=0;depth<MaxChain;++depth){
         uint8_t h[4]{};if(!r.Meta(fn.info,h,4))return Status::Access;
         const auto flags=h[0]>>3,frame=h[3]&15,offset=h[3]>>4;
-        if((h[0]&7)!=1 || !SupportedFlags(flags,inspect))return Status::Unsupported;
+        if(!SupportedVersion(h[0]&7) || !SupportedFlags(flags,inspect))return Status::Unsupported;
         if(h[2]>64 || h[1]>fn.end-fn.begin || (!frame && offset) || (frame && !Nonvolatile(frame)))return Status::Invalid;
         if(depth && h[3]!=originalFrame)return Status::Invalid;originalFrame=h[3];
         const uint32_t tail=fn.info+4+((h[2]+1u)&~1u)*2;
@@ -97,6 +109,9 @@ Status Restore(const Reader& r,Function fn,Context& c,bool inspect,HandlerType t
            !Signed(c.gpr[frame],-int64_t(offset*16),establisher))return Status::Invalid;
         for(uint32_t at=0;at<h[2];){
             const auto slot=nodes[at++];const uint32_t code=slot&255,op=(slot>>8)&15,info=slot>>12;uint32_t extra=0;
+#ifdef GUARDIAN_NATIVE_NT
+            if((h[0]&7)==2&&op==6)continue;
+#endif
             if(code>h[1] || code>previous)return Status::Invalid;previous=code;
             if(op==1){if(info>1)return Status::Invalid;extra=info?2:1;}
             else if(op==4 || op==8)extra=1;else if(op==5 || op==9)extra=2;
@@ -104,7 +119,7 @@ Status Restore(const Reader& r,Function fn,Context& c,bool inspect,HandlerType t
             if(at+extra>h[2])return Status::Invalid;
             uint64_t value=extra?nodes[at]:0;if(extra==2)value|=uint64_t(nodes[at+1])<<16;at+=extra;
             if(((op==0 || op==4 || op==5) && !Nonvolatile(info)) || ((op==8 || op==9) && info<6) ||
-               (op==3 && (info || !frame)) || (op==10 && (info>1 || machine || at!=h[2] || flags)))return Status::Invalid;
+               (op==3 && (!FrameInfo(info) || !frame)) || (op==10 && (info>1 || machine || at!=h[2] || flags)))return Status::Invalid;
             if(code>control)continue;
             uint64_t address=0;
             switch(op){
@@ -152,9 +167,20 @@ Status Walk(const Backend& api,void* context,const Stack& stack,Context& c,bool 
        (image.count && ((image.table&3) || !Span(image.table,uint64_t(image.count)*12,0,image.size))))return Status::Invalid;
     Reader r{api,context,stack,image};Function fn{};bool found=false;auto status=Lookup(r,c.rip,fn,found);if(status!=Status::Ok)return status;
     Context work=c;Handler candidate{};if(!found){if(!r.Pop(work,work.rip))return Status::Access;}
-    else {uint8_t h[4]{};if(!r.Meta(fn.info,h,4))return Status::Access;if((h[0]&7)!=1 || !SupportedFlags(h[0]>>3,inspect))return Status::Unsupported;
+    else {uint8_t h[4]{};if(!r.Meta(fn.info,h,4))return Status::Access;if(!SupportedVersion(h[0]&7) || !SupportedFlags(h[0]>>3,inspect))return Status::Unsupported;
         if(h[2]>64 || h[1]>fn.end-fn.begin || (!(h[3]&15) && (h[3]>>4)) || ((h[3]&15) && !Nonvolatile(h[3]&15)))return Status::Invalid;
         bool epilog=false;if(c.rip>=image.base+fn.begin+h[1]){status=Epilog(r,fn,h[3]&15,work,epilog);if(status!=Status::Ok)return status;}
+#ifdef GUARDIAN_NATIVE_NT
+        if((h[0]&7)==2&&!epilog){uint16_t codes[64]{};if(h[2]&&!r.Meta(fn.info+4,codes,h[2]*2))return Status::Access;
+            if(h[2]&&((codes[0]>>8)&15)==6){const uint32_t size=codes[0]&255;const uint64_t relative=c.rip-image.base;bool marked=false;
+                if(!size||size>fn.end-fn.begin)return Status::Invalid;
+                if((codes[0]>>12)&1)marked=relative>=fn.end-size&&relative<fn.end;
+                for(uint32_t i=1;i<h[2]&&((codes[i]>>8)&15)==6;++i){const uint32_t offset=(codes[i]&255)+uint32_t(codes[i]>>12)*256;
+                    if(!offset)continue;if(offset<size||offset>fn.end-fn.begin)return Status::Invalid;
+                    if(relative>=fn.end-offset&&relative<fn.end-offset+size)marked=true;}
+                if(marked)return Status::Unsupported;
+            }}
+#endif
         if(!epilog){status=Restore(r,fn,work,inspect,type,candidate);if(status!=Status::Ok)return status;}}
     if(work.gpr[Sp]<=c.gpr[Sp] || !Span(work.gpr[Sp],0,stack.low,stack.high) || (work.gpr[Sp]&7))return Status::Invalid;
     c=work;handler=candidate;return Status::Ok;

@@ -192,6 +192,12 @@ uint32_t Scheduler::QueueApc(uint32_t id,uint64_t routine,uint64_t argument) noe
     auto* t=Get(id);if(!t || t->state==State::Dead) return BadId;if(!routine) return Invalid;if(t->apcCount==MaxApcs) return NoMemory;
     t->apcs[t->apcCount++]={routine,argument};if(t->state==State::Waiting) Interrupt(*t);return Success;
 }
+#ifdef GUARDIAN_NATIVE_NT
+uint32_t Scheduler::QueueNativeApc(uint32_t id,uint64_t routine,uint64_t a,uint64_t b,uint64_t c) noexcept {
+    auto* t=Get(id);if(!t||t->state==State::Dead)return BadId;if(!routine)return Invalid;if(t->apcCount==MaxApcs)return NoMemory;
+    t->apcs[t->apcCount++]={routine,a,b,c};if(t->state==State::Waiting)Interrupt(*t);return Success;
+}
+#endif
 uint32_t Scheduler::Arm(uint32_t id,uint64_t due,uint64_t period) noexcept {
     auto* o=GetObject(id);if(!o) return BadId;
     if((o->kind!=Kind::ManualTimer && o->kind!=Kind::AutoTimer) || due==Never || period==Never) return Invalid;

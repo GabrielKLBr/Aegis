@@ -50,7 +50,11 @@ uint32_t Catalog::Find(const char* input,const char*) const noexcept {
         return UINT32_MAX;
     }
     // This contract's runtime is always selected from the guest system directory.
-    if(Equal(name,"guardian-runtime-api.dll")||Equal(name,"user32.dll")){
+    if(Equal(name,"guardian-runtime-api.dll")||Equal(name,"user32.dll")
+#ifdef GUARDIAN_NATIVE_NT
+        ||Equal(name,"ntdll.dll")
+#endif
+        ){
         char full[128]{};return Join("c:\\windows\\system32\\",name,full)?Exact(full):UINT32_MAX;
     }
     const auto mask=ActiveMask();uint32_t selected=UINT32_MAX;

@@ -32,6 +32,10 @@ threads::Scheduler scheduler;
 processes::Manager manager;
 processes::Report result;
 ExecutionContext contexts[threads::MaxThreads],idle;
+#ifdef GUARDIAN_NATIVE_NT
+ExecutionContext nativeApcContexts[threads::MaxThreads];bool nativeInApc[threads::MaxThreads]{};
+extern "C" uint8_t ProcessNativeApc;
+#endif
 bool waiting[threads::MaxThreads]{},running=false,failed=false;
 uint64_t stacks[threads::MaxThreads]{},tebs[threads::MaxThreads]{},startups[threads::MaxThreads]{},sequence=0,session=0;
 uint32_t owners[threads::MaxThreads]{},parentPid=0,badPid=0;
@@ -53,6 +57,9 @@ uint32_t AddThread(uint32_t pid,uint64_t mode,uint32_t* created=nullptr,uint64_t
     uint64_t handle=0;status=manager.Attach(pid,tid,handle);
     if(status){scheduler.Terminate(tid,status);scheduler.Reap(tid);manager.Release(pid,stack);return status;}
     const auto slot=(tid&255u)-1;owners[slot]=pid;stacks[slot]=stack;waiting[slot]=false;contexts[slot]={};auto& c=contexts[slot];SeedContext(c);
+#ifdef GUARDIAN_NATIVE_NT
+    nativeInApc[slot]=false;nativeApcContexts[slot]={};
+#endif
     c.frame.rip=cpu::UserCode;c.frame.rsp=stack+0x10000-0x28;c.frame.cs=0x2B;c.frame.ss=0x23;c.frame.rflags=0x202;c.frame.rdi=pid;c.frame.rsi=mode;
     c.gs=cpu::UserData+0x300;c.fs=cpu::UserData+0x380;
 #ifdef GUARDIAN_RUNTIME_KERNEL
@@ -106,6 +113,13 @@ void Load(uint32_t tid,TrapFrame& f,void* fx) noexcept {
     if(!tid){memoryManager.Activate(&kernelSpace);RestoreContext(idle,f,fx);return;}
     const auto slot=(tid&255u)-1;const auto pid=manager.Owner(tid);auto* p=manager.Get(pid);Check(p && p->state==processes::State::Live,2);
     if(waiting[slot]){contexts[slot].frame.rax=scheduler.Get(tid)->result;waiting[slot]=false;}
+#ifdef GUARDIAN_NATIVE_NT
+    auto* thread=scheduler.Get(tid);if(thread->delivery&&!nativeInApc[slot]){
+        auto& c=contexts[slot];Check(c.frame.rsp>=stacks[slot]+4096+128,0xA0);nativeApcContexts[slot]=c;nativeInApc[slot]=true;thread->delivery=false;
+        c.frame.rip=UserAddress(&ProcessNativeApc);c.frame.rsp=((c.frame.rsp-64)&~15ull)-8;
+        c.frame.rcx=thread->dispatched.argument;c.frame.rdx=thread->dispatched.argument2;c.frame.r8=thread->dispatched.argument3;c.frame.r9=thread->dispatched.routine;
+    }
+#endif
     memoryManager.Activate(&p->space);RestoreContext(contexts[slot],f,fx);++result.switches;
 }
 uint32_t Spawn(uint32_t parent,uint64_t inherited,uint32_t& child,uint64_t& handle) noexcept {
@@ -231,6 +245,9 @@ bool ProcessTrap(TrapFrame& frame,void* fx,uint64_t now,bool timer) noexcept {
     const auto tid=scheduler.Current();telemetry::currentThread=tid;const auto pid=tid?manager.Owner(tid):0;telemetry::currentProcess=pid;
     if(tid)SaveContext(contexts[(tid&255u)-1],frame,fx);
     memoryManager.Activate(&kernelSpace);Check(scheduler.Advance(now),6);manager.Poll();
+#ifdef GUARDIAN_NATIVE_NT
+    PeNativeTick(now);
+#endif
     if(timer){++result.ticks;
 #ifdef GUARDIAN_IO_KERNEL
         IoTick();
@@ -248,7 +265,11 @@ bool ProcessTrap(TrapFrame& frame,void* fx,uint64_t now,bool timer) noexcept {
     else {
         Check(pid!=0,8);const auto slot=(tid&255u)-1;auto& c=contexts[slot];uint32_t status=Success;
 #ifdef GUARDIAN_COMPLETE_KERNEL
-        const bool continuation=frame.rax>=0x86 && frame.rax<=0x88 && PeOwnsProcess(pid);
+        const bool continuation=frame.rax>=0x86 && frame.rax<=0x88 && PeOwnsProcess(pid)
+#ifdef GUARDIAN_NATIVE_NT
+            &&PeNativeLegacy(pid,frame.rip)
+#endif
+            ;
 #endif
         bool validCode=frame.rip>=cpu::UserCode && frame.rip<cpu::UserCode+4096;
 #ifdef GUARDIAN_PE_KERNEL
@@ -260,6 +281,10 @@ bool ProcessTrap(TrapFrame& frame,void* fx,uint64_t now,bool timer) noexcept {
         if(continuation){if(!PeHandleContinuation(pid,tid,frame,c))KillProcess(pid,PeExceptionFailure(pid,tid),true);}else
 #endif
 #ifdef GUARDIAN_RUNTIME_KERNEL
+ #ifdef GUARDIAN_NATIVE_NT
+        if(frame.rax==0xA3&&frame.rip>=cpu::UserCode&&frame.rip<cpu::UserCode+4096&&nativeInApc[slot]){c=nativeApcContexts[slot];nativeInApc[slot]=false;status=uint32_t(c.frame.rax);}else
+        if(PeNativeDispatch(pid,tid,now,frame,tebs[slot],status,nativeInApc[slot])){}else
+ #endif
         if(PeRuntimeDispatch(pid,tid,now,frame,c,status)){}else
 #endif
 #ifdef GUARDIAN_IO_KERNEL
@@ -358,6 +383,9 @@ void ProcessSelfTest() noexcept {
         GraphicsInitialize();
 #endif
         Check(PePrepareProcess(manager,memoryManager,pePid,startup),24);
+#ifdef GUARDIAN_NATIVE_NT
+        Check(PeNativePrepare(pePid,scheduler),0xA1);
+#endif
         const auto slot=(peTid&255u)-1;auto& c=contexts[slot];c.frame.rip=UserAddress(&PeProcessBootstrap);c.frame.rcx=startup;c.gs=PeInitialTeb(pePid);c.fs=0;
 #ifdef GUARDIAN_RUNTIME_KERNEL
         tebs[slot]=PeInitialTeb(pePid);startups[slot]=startup;
@@ -458,5 +486,11 @@ uint32_t ProcessPeTebs(uint32_t pid,uint32_t* tids,uint64_t* output,uint32_t cap
         if(index<threads::MaxThreads && owners[index]==pid && tebs[index] && t && t->state!=threads::State::Dead){
             if(count==capacity)return 0;tids[count]=tid;output[count++]=tebs[index];}}
     return count;
+}
+#endif
+#ifdef GUARDIAN_NATIVE_NT
+uint32_t ProcessNativeTerminate(uint32_t pid,uint32_t tid,uint32_t code,bool whole) noexcept {
+    const auto* p=manager.Get(pid);if(!p||manager.Owner(tid)!=pid)return processes::InvalidHandle;
+    if(whole||p->threadCount==1){KillProcess(pid,code);return 0;}return manager.ThreadExit(tid,code);
 }
 #endif

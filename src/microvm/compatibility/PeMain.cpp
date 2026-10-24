@@ -18,6 +18,7 @@ int main(int argc,char** argv){
         boot::CpuOptions cpu;cpu.enabled=cpu.processes=cpu.graphics=true;
         boot::KernelBootSession session;session.Prepare(kernel,256ull<<20,1,cpu,{}, {},graphics,nullptr,{},nullptr,nullptr,nullptr,0,{},&binding,volume);
         const auto result=session.Run(std::chrono::seconds(30));boot::WriteBootReport(output/"boot.json",{result});
+        if(const auto* trace=session.Analysis()){state::AtomicText(output/"analysis.json",trace->Json());state::AtomicText(output/"analysis.html",trace->Html());}
         std::cout<<result.console;if(!result.success){std::cerr<<result.error<<'\n';return 3;}
         std::cout<<"External volume executed inside MiniNT\n";return 0;
     }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 2;}

@@ -65,6 +65,10 @@ uint64_t Physical::Allocate(Frame kind, uint32_t pages) noexcept {
 bool Physical::Release(uint64_t gpa, Frame kind, uint32_t pages) noexcept {
     if (!gpa || gpa % Page || !pages || gpa / Page >= pages_ || pages > pages_ - gpa / Page || (kind != Frame::Data && kind != Frame::Table)) return false;
     for (uint64_t i = gpa / Page; i < gpa / Page + pages; ++i) if (frames_[i] != kind) return false;
+#ifdef GUARDIAN_NATIVE_NT
+    if(pages==1&&kind==Frame::Data)for(auto& ref:references_)if(ref.page==gpa){if(!--ref.count)return false;if(ref.count==1)ref={};return true;}
+    for(const auto& ref:references_)if(ref.page>=gpa&&ref.page-gpa<uint64_t(pages)*Page)return false;
+#endif
     Zero(At(gpa), uint64_t(pages) * Page);
     for (uint64_t i = gpa / Page; i < gpa / Page + pages; ++i) frames_[i] = Frame::Free;
     if (gpa / Page < next_) next_ = gpa / Page;
@@ -93,6 +97,10 @@ bool Manager::Create(Space& s) noexcept {
 }
 bool Manager::Destroy(Space& s) noexcept {
     if (active_ == &s) return false;
+#ifdef GUARDIAN_NATIVE_NT
+    if(s.nativePage){Access(s.nativePage,ReadWrite);if(!physical.Release(s.nativePage,Frame::Data))return false;s.nativePage=0;}
+    if(s.nativeTable){static_cast<uint64_t*>(physical.At(s.arena))[511]=0;if(!physical.Release(s.nativeTable,Frame::Table))return false;s.nativeTable=0;}
+#endif
     if (s.arena) {
         for (auto& r : s.regions) if (r.used) { if (ReleaseRange(s, r.base) != Status::Success) return false; }
     }
@@ -107,6 +115,9 @@ Region* Manager::Find(Space& s, uint64_t base, uint64_t bytes) noexcept {
     return nullptr;
 }
 uint64_t* Manager::Leaf(const Space& s, uint64_t at) const noexcept {
+#ifdef GUARDIAN_NATIVE_NT
+    if(s.nativeTable&&at>=0x7FFE0000&&at<0x7FFE1000)return static_cast<uint64_t*>(physical.At(s.nativeTable))+480;
+#endif
     if (!s.arena || at < Arena || at >= Arena + ArenaBytes) return nullptr;
     const auto* pd = static_cast<const uint64_t*>(physical.At(s.arena)); const auto e = pd[(at - Arena) >> 21];
     return e ? static_cast<uint64_t*>(physical.At(e & Mask)) + ((at >> 12) & 511) : nullptr;
@@ -215,4 +226,28 @@ bool Manager::ConsumeGuard(Space& s, uint64_t at) noexcept {
     auto* leaf = Leaf(s, at); if (!leaf || !(*leaf & Guarded)) return false;
     *leaf = (*leaf & ~Guarded) | 1; Flush(s); return true;
 }
+#ifdef GUARDIAN_NATIVE_NT
+bool Physical::Reference(uint64_t gpa) noexcept {if(Kind(gpa)!=Frame::Data)return false;
+    for(auto& ref:references_)if(ref.page==gpa){if(ref.count==UINT16_MAX)return false;++ref.count;return true;}
+    for(auto& ref:references_)if(!ref.page){ref={gpa,2};return true;}return false;}
+bool Manager::NativeSharedData(Space& s,const uint8_t* initial) noexcept {
+    if(!s.arena||s.nativeTable||s.nativePage)return false;
+    const auto table=physical.Allocate(Frame::Table),page=physical.Allocate(Frame::Data);
+    if(!table||!page){if(table)physical.Release(table,Frame::Table);if(page)physical.Release(page,Frame::Data);return false;}
+    if(initial){auto* out=static_cast<uint8_t*>(physical.At(page));for(uint32_t i=0;i<4096;++i)out[i]=initial[i];}
+    // The guest kernel updates the clock in this frame; the user PTE is RO/NX.
+    if(!Access(page,ReadWrite)){physical.Release(table,Frame::Table);physical.Release(page,Frame::Data);return false;}
+    s.nativeTable=table;s.nativePage=page;static_cast<uint64_t*>(physical.At(table))[480]=page|Flags(ReadOnly);
+    static_cast<uint64_t*>(physical.At(s.arena))[511]=table|7;Flush(s);return true;
+}
+Status Manager::MapReferences(Space& s,uint64_t base,const uint64_t* pages,uint32_t count,uint32_t protection) noexcept {
+    if(!pages||!count||count>64||(base&4095)||(protection!=ReadOnly&&protection!=ReadWrite)||!Find(s,base,uint64_t(count)*Page))return Status::Invalid;
+    for(uint32_t i=0;i<count;++i)if(physical.Kind(pages[i])!=Frame::Data||(Entry(s,base+i*Page)&Committed))return Status::Invalid;
+    uint32_t completed=0;for(;completed<count;++completed){const auto at=base+completed*Page;auto* leaf=Leaf(s,at);
+        if(!leaf){const auto table=physical.Allocate(Frame::Table);if(!table)break;static_cast<uint64_t*>(physical.At(s.arena))[(at-Arena)>>21]=table|7;leaf=Leaf(s,at);}
+        if(!physical.Reference(pages[completed]))break;*leaf=pages[completed]|Flags(protection);}
+    if(completed!=count){for(uint32_t i=0;i<completed;++i){auto* leaf=Leaf(s,base+i*Page);physical.Release(*leaf&Mask,Frame::Data);*leaf=0;}Prune(s);Flush(s);return Status::NoMemory;}
+    Flush(s);return Status::Success;
+}
+#endif
 }

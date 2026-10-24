@@ -82,7 +82,11 @@ bool Loader::Headers(uint32_t index) noexcept {
         if constexpr(peprofile::Extended){if(i==4){if(d.bytes&&((d.rva&7)||!Range(d.rva,d.bytes,source.bytes)))return Fail(Error::InvalidImage);continue;}}
         if(d.bytes&&!Span(m,d.rva,d.bytes))return Fail(Error::InvalidImage);
         if(d.bytes && i!=0 && i!=1 && i!=3 && i!=5 && i!=6 && i!=9 && i!=12 &&
-           !(peprofile::Extended&&(i==2||i==13)))return Fail(Error::Unsupported);}
+           !(peprofile::Extended&&(i==2||i==13))
+#ifdef GUARDIAN_NATIVE_NT
+           &&i!=10
+#endif
+           )return Fail(Error::Unsupported);}
     return true;
 }
 bool Loader::Relocate(Module& m) noexcept {
@@ -211,21 +215,46 @@ bool Loader::Exceptions(Module& m) noexcept {
     const auto& d=m.directories[3];if(!d.bytes)return true;
     if((d.bytes%12) || d.bytes/12>MaxRuntimeFunctions)return Fail(Error::InvalidImage);uint32_t last=0;
     for(uint32_t i=0;i<d.bytes;i+=12){uint8_t f[12]{},h[4]{};if(!Read(m,d.rva+i,f,12))return false;
+#ifdef GUARDIAN_NATIVE_NT
+        diagnosticDetail_=i/12+1;
+#endif
         const auto begin=U32(f),end=U32(f+4),unwind=U32(f+8);
         if(begin<last || end<=begin || !Span(m,begin,end-begin,ReadFlag|ExecuteFlag) || (unwind&3) || !Read(m,unwind,h,4))return Fail(Error::InvalidImage);
         const auto flags=h[0]>>3;
-        if((h[0]&7)!=1 || (flags!=0 && flags!=4 && !(handlers_ && flags<=3)))return Fail(Error::Unsupported);
+        const auto version=h[0]&7;
+        if((version!=1
+#ifdef GUARDIAN_NATIVE_NT
+            &&version!=2
+#endif
+            ) || (flags!=0 && flags!=4 && !(handlers_ && flags<=3)))return Fail(Error::Unsupported);
         if(h[1]>end-begin || h[2]>64 || (!(h[3]&15) && (h[3]>>4)) || !Span(m,unwind,4+((uint32_t(h[2])+1)&~1u)*2))return Fail(Error::InvalidImage);
-        uint32_t code=0,previous=h[1];while(code<h[2]){uint8_t item[2]{};if(!Read(m,unwind+4+code*2,item,2))return false;
+        uint32_t code=0,previous=h[1];
+#ifdef GUARDIAN_NATIVE_NT
+        uint32_t epilogs=0,epilogSize=0;
+#endif
+        while(code<h[2]){uint8_t item[2]{};if(!Read(m,unwind+4+code*2,item,2))return false;
             const auto op=item[1]&15,info=item[1]>>4;uint32_t extra=0;
+#ifdef GUARDIAN_NATIVE_NT
+            if(version==2&&op==6){if(code!=epilogs)return Fail(Error::InvalidImage);
+                if(!epilogs){epilogSize=item[0];if(!epilogSize||epilogSize>end-begin||info>1)return Fail(Error::InvalidImage);}
+                else {const uint32_t offset=uint32_t(item[0])+uint32_t(info)*256;if(offset&&(offset<epilogSize||offset>end-begin))return Fail(Error::InvalidImage);}
+                ++epilogs;++code;continue;}
+#endif
             if(item[0]>previous || item[0]>h[1])return Fail(Error::InvalidImage);previous=item[0];
             switch(op){case 0:if(info==4)return Fail(Error::InvalidImage);break;
             case 1:if(info>1)return Fail(Error::InvalidImage);extra=info?2u:1u;break;
-            case 2:break;case 3:if(info || !(h[3]&15))return Fail(Error::InvalidImage);break;
+            case 2:break;case 3:if(
+#ifndef GUARDIAN_NATIVE_NT
+                info ||
+#endif
+                !(h[3]&15))return Fail(Error::InvalidImage);break;
             case 4:case 8:extra=1;break;case 5:case 9:extra=2;break;
             case 10:if(info>1)return Fail(Error::InvalidImage);break;default:return Fail(Error::Unsupported);}
             if(extra>=uint32_t(h[2])-code)return Fail(Error::InvalidImage);code+=extra+1;
         }
+#ifdef GUARDIAN_NATIVE_NT
+        if(epilogs&1)return Fail(Error::InvalidImage);
+#endif
         if(flags && flags!=4){
             uint32_t handler=0;const auto tail=unwind+4+((uint32_t(h[2])+1)&~1u)*2;
             if(!Read(m,tail,&handler,4) || !handler || !Span(m,handler,1,ReadFlag|ExecuteFlag))return Fail(Error::InvalidImage);
@@ -253,12 +282,21 @@ bool Loader::LoadOne(uint32_t index) noexcept {
     auto& m=modules_[index];if(m.state==2)return true;if(m.state==1)return Fail(Error::Cycle);
     if(nextGeneration_==UINT32_MAX)return Fail(Error::Limit);m.generation=nextGeneration_++;
     m.base=arena_+uint64_t(index)*MaxImageBytes;m.state=1;
-    if(!Headers(index))return false;
+    if(!Headers(index)){
+#ifdef GUARDIAN_NATIVE_NT
+        diagnosticStage_=1;diagnosticModule_=index;
+#endif
+        return false;}
     if(!backend_.map(context_,m.base,m.size))return Fail(Error::NoMemory);m.mapped=true;
     if(!backend_.write(context_,m.base,sources_[index].data,m.headers))return Fail(Error::Access);
     for(uint32_t i=0;i<m.sectionCount;++i){const auto& s=m.sections[i];if(s.rawBytes && !backend_.write(context_,m.base+s.rva,sources_[index].data+s.raw,s.rawBytes))return Fail(Error::Access);}
+#ifdef GUARDIAN_NATIVE_NT
+    const auto step=[&](uint32_t stage,bool ok) noexcept {if(!ok&&!diagnosticStage_){diagnosticStage_=stage;diagnosticModule_=index;}return ok;};
+    if(!step(2,Relocate(m))||!step(3,Resources(m,index==0))||!step(4,Imports(m))||!step(5,DelayImports(m))||!step(6,Tls(m,index))||!step(7,Exports(m))||!step(8,Exceptions(m))||!step(9,Seal(m)))return false;
+#else
     if(!Relocate(m) || (peprofile::Extended&&!Resources(m,index==0)) || !Imports(m) ||
        (peprofile::Extended&&!DelayImports(m)) || !Tls(m,index) || !Exports(m) || !Exceptions(m) || !Seal(m))return false;
+#endif
     m.state=2;return true;
 }
 bool Loader::Rollback(uint32_t keep) noexcept {

@@ -52,6 +52,11 @@ public:
     uint32_t MappedMask() const noexcept;
     const Module* Get(uint32_t i) const noexcept {return i<count_ && modules_[i].state==2?&modules_[i]:nullptr;}
     Error Failure() const noexcept {return error_;}
+#ifdef GUARDIAN_NATIVE_NT
+    uint32_t FailureStage() const noexcept {return diagnosticStage_;}
+    uint32_t FailureModule() const noexcept {return diagnosticModule_;}
+    uint32_t FailureDetail() const noexcept {return diagnosticDetail_;}
+#endif
     // Only the RX sections of successfully sealed modules are entry candidates.
     bool Executable(uint64_t address) const noexcept;
 private:
@@ -85,6 +90,9 @@ private:
     uint32_t pinned_=0,references_[MaxModules]{};bool handlers_=false;
     Namespace namespace_{};
     uint32_t nextGeneration_=1;
+#ifdef GUARDIAN_NATIVE_NT
+    uint32_t diagnosticStage_=0,diagnosticModule_=0,diagnosticDetail_=0;
+#endif
 #ifdef GUARDIAN_SCALABLE_PE
     uint32_t relocationTargets_[peprofile::Relocations*2]{};
     uint8_t manifestBytes_[4096]{};

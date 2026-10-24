@@ -13,6 +13,9 @@ public:
     bool Initialize(uint64_t backing, uint64_t bytes, const abi::MemoryRegion* map, uint32_t count) noexcept;
     uint64_t Allocate(Frame kind, uint32_t pages = 1) noexcept;
     bool Release(uint64_t gpa, Frame kind, uint32_t pages = 1) noexcept;
+#ifdef GUARDIAN_NATIVE_NT
+    bool Reference(uint64_t gpa) noexcept;
+#endif
     void* At(uint64_t gpa) const noexcept { return reinterpret_cast<void*>(backing_ + gpa); }
     Frame Kind(uint64_t gpa) const noexcept;
     Counts Statistics() const noexcept { return counts_; }
@@ -22,6 +25,10 @@ private:
     Frame frames_[abi::MaxRamBytes / abi::PageBytes]{};
     uint64_t backing_ = 0, pages_ = 0, next_ = 0;
     int64_t budget_ = -1;
+#ifdef GUARDIAN_NATIVE_NT
+    struct ReferenceEntry {uint64_t page=0;uint16_t count=0;};
+    ReferenceEntry references_[512]{};
+#endif
     Counts counts_{};
 };
 struct Region { uint64_t base, bytes; uint32_t protection, used; };
@@ -30,6 +37,9 @@ struct Space {
     uint64_t privatePages[16]{};
     Region regions[MaxRegions]{};
     bool live = false;
+#ifdef GUARDIAN_NATIVE_NT
+    uint64_t nativeTable=0,nativePage=0;
+#endif
 };
 class Manager {
 public:
@@ -47,6 +57,10 @@ public:
     bool ConsumeGuard(Space& s, uint64_t at) noexcept;
     uint64_t Translate(const Space& s, uint64_t at) const noexcept;
     uint64_t Entry(const Space& s, uint64_t at) const noexcept;
+#ifdef GUARDIAN_NATIVE_NT
+    bool NativeSharedData(Space&,const uint8_t*) noexcept;
+    Status MapReferences(Space&,uint64_t,const uint64_t*,uint32_t,uint32_t) noexcept;
+#endif
     uint64_t PhysicalRequests() const noexcept { return requests_; }
 private:
     Region* Find(Space& s, uint64_t base, uint64_t bytes) noexcept;

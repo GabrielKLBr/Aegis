@@ -103,12 +103,15 @@ def build(spec,kernel,output):
     validate_volume(data)
     kernel_data=nt.regular(kernel,4<<20);nt.require(b'GuardianExternalPe/1/volume' in kernel_data,'External PE kernel required')
     root_record=records[root]
-    manifest={'schema':1,'phase':'14.2','contract':'guardian-nt-contract/1','volumeFormat':'guardian-pe-volume/1',
+    phase=spec.get('phase','14.2');nt.require(phase in ('14.2','14.3'),'Unsupported volume phase')
+    if phase=='14.3':nt.require(b'GuardianNativeNt/1/guest' in kernel_data,'Native NT kernel required')
+    manifest={'schema':1,'phase':phase,'contract':'guardian-nt-contract/1','volumeFormat':'guardian-pe-volume/1',
               'profile':profile,'targetNt':nt.PROFILES[profile][1:],'architecture':'x64','revision':None,
               'runtimeSha256':nt.sha(data),'kernelSha256':nt.sha(kernel_data),'applicationSha256':root_record[6],
               'files':[{'path':r[0],'bytes':r[2],'kind':r[3],'assembly':r[4],'sha256':r[6]} for r in records],
               'apiMapKind':'explicit guest package mappings; no claim of native Windows schema conformance',
               'aliases':aliases,'assemblies':assemblies,'windowsBinaryCompatibility':False,'phase14_3Started':False}
+    if phase=='14.3':manifest.update({'phase14_3Started':True,'phase14_4Started':False,'nativeRuntime':spec['nativeRuntime']})
     encoded=nt.canonical(manifest)
     binding=struct.pack('<QQ8I',nt.MAGIC,0,1,176,*nt.PROFILES[profile],0,1)+b''.join(bytes.fromhex(s) for s in (
         nt.sha(encoded),manifest['kernelSha256'],manifest['applicationSha256'],manifest['runtimeSha256']))
@@ -136,7 +139,7 @@ def sample(build_dir,config,kernel,output,profile='win10'):
 
 def verify(bundle):
     bundle=Path(bundle);raw=nt.regular(bundle/'manifest.json',4<<20);manifest=json.loads(raw,object_pairs_hook=nt.pairs_unique)
-    nt.require(raw==nt.canonical(manifest) and manifest['phase']=='14.2','Manifest rejected')
+    nt.require(raw==nt.canonical(manifest) and manifest['phase'] in ('14.2','14.3'),'Manifest rejected')
     data=nt.regular(bundle/'runtime.gpv',MAX_BYTES);nt.require(nt.sha(data)==manifest['runtimeSha256'],'Volume digest mismatch')
     profile,root,records=validate_volume(data)
     p=manifest['profile'];nt.require(p in nt.PROFILES and manifest['architecture']=='x64' and manifest['revision'] is None,'Profile rejected')

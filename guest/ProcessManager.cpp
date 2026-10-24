@@ -157,6 +157,11 @@ uint32_t Manager::QueryHandle(uint32_t pid,uint64_t handle,Information& info) no
     Object* o=nullptr;const auto status=Resolve(pid,handle,Kind::Empty,Query,o);if(status)return status;auto* h=Lookup(*Get(pid),handle);
     info={static_cast<uint32_t>(o->kind),h->access,h->attributes,o->handles,o->refs,o->security.owner,o->security.integrity,0};return Success;
 }
+#ifdef GUARDIAN_NATIVE_NT
+uint32_t Manager::CloneHandle(uint32_t pid,uint64_t value,uint64_t& output) noexcept {
+    auto* p=Get(pid);if(!p||p->state!=State::Live)return Terminated;auto* h=Lookup(*p,value);if(!h)return InvalidHandle;return Insert(*p,h->object,h->access,0,output);
+}
+#endif
 uint32_t Manager::SetDacl(uint32_t pid,uint64_t handle,const Security& sd) noexcept {
     Object* o=nullptr;const auto status=Resolve(pid,handle,Kind::Empty,WriteDac,o);if(status)return status;
     if(!ValidSecurity(sd,o->kind) || sd.owner!=o->security.owner || sd.group!=o->security.group || sd.integrity!=o->security.integrity || sd.noWriteUp!=o->security.noWriteUp)return Invalid;o->security=sd;return Success;
@@ -197,12 +202,12 @@ void Manager::Poll() noexcept {
         if(held && !o.ownership){o.ownership=true;++o.refs;}else if(!held && o.ownership){o.ownership=false;Dereference(o.id);}}
     for(auto& w:waits_)if(w.count){const auto* t=scheduler_->Get(w.tid);if(!t || t->state!=threads::State::Waiting){for(uint32_t i=0;i<w.count;++i)Dereference(w.objects[i]);w={};}}
 }
-uint32_t Manager::WaitHandles(uint32_t pid,uint32_t tid,const uint64_t* handles,uint32_t count,bool all,uint64_t deadline) noexcept {
+uint32_t Manager::WaitHandles(uint32_t pid,uint32_t tid,const uint64_t* handles,uint32_t count,bool all,uint64_t deadline,bool alertable) noexcept {
     if(Owner(tid)!=pid || !handles || !count || count>threads::MaxWait)return Invalid;
     auto& record=waits_[(tid&255u)-1];if(record.count)return Invalid;uint32_t raw[threads::MaxWait]{};uint32_t objects[threads::MaxWait]{};
     for(uint32_t i=0;i<count;++i){Object* o=nullptr;const auto status=Resolve(pid,handles[i],Kind::Empty,Wait,o);if(status)return status;if(!o->raw)return TypeMismatch;raw[i]=o->raw;objects[i]=o->id;}
     for(uint32_t i=0;i<count;++i){auto* o=ObjectById(objects[i]);if(o->refs==UINT32_MAX){for(uint32_t j=0;j<i;++j)Dereference(objects[j]);return NoMemory;}++o->refs;}
-    const auto status=scheduler_->Wait(tid,raw,count,all,deadline);
+    const auto status=scheduler_->Wait(tid,raw,count,all,deadline,alertable);
     if(status==threads::Pending){record.tid=tid;record.pid=pid;record.count=count;for(uint32_t i=0;i<count;++i)record.objects[i]=objects[i];}
     else {Poll();for(uint32_t i=0;i<count;++i)Dereference(objects[i]);}return status;
 }

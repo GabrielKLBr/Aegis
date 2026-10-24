@@ -1,4 +1,7 @@
 #include "PeKernel.h"
+#ifdef GUARDIAN_NATIVE_NT
+#include "NativeServices.h"
+#endif
 #include "TelemetryKernel.h"
 #ifdef GUARDIAN_ANALYSIS_KERNEL
 #include "NetworkDriver.h"
@@ -77,7 +80,15 @@ peprofile::InitCalls;
 #endif
 #endif
 struct DynamicPending {uint32_t tid=0,index=0,added=0,removing=0,kind=0;};
+#ifdef GUARDIAN_NATIVE_NT
+// This phase executes one external native process per boot. Keep its mutable
+// volume out of the three legacy loader slots and below the boot image cap.
+native::Services nativeServicesInstance;
+#endif
 struct RuntimeSlot {Context context{};pe::Loader image;pe::Source sources[pe::MaxModules]{};uint32_t pid=0;uint64_t loaderLock=0;bool terminating=false;DynamicPending pending{};
+#ifdef GUARDIAN_NATIVE_NT
+    native::Services* nativeServices=nullptr;native::SyscallMap nativeMap;uint64_t nativePeb=0;uint32_t nativeTid=0;bool nativeReady=false;
+#endif
 #ifdef GUARDIAN_SCALABLE_PE
     pe::Catalog catalog;uint64_t initialTeb=0,nextResource=1;
     struct Resource {uint64_t id=0,address=0,base=0;uint32_t bytes=0,generation=0;};Resource resources[32]{};
@@ -86,7 +97,12 @@ struct RuntimeSlot {Context context{};pe::Loader image;pe::Source sources[pe::Ma
     runtime::VirtualMemory virtualMemory;
 #endif
 };
-RuntimeSlot runtimes[processes::MaxProcesses]{};uint32_t rootPid=0,runtimeCode=UINT32_MAX;bool runtimeClean=false,allClean=true;
+#ifdef GUARDIAN_NATIVE_NT
+RuntimeSlot runtimes[1]{};
+#else
+RuntimeSlot runtimes[processes::MaxProcesses]{};
+#endif
+uint32_t rootPid=0,runtimeCode=UINT32_MAX;bool runtimeClean=false,allClean=true;
 #ifdef GUARDIAN_ANALYSIS_KERNEL
 struct LabService {uint32_t owner=0,id=0,child=0;uint64_t process=0,thread=0;char name[32]{},image[64]{};};
 LabService labServices[4]{};uint32_t nextService=1;
@@ -199,6 +215,9 @@ bool ScalableStart(RuntimeSlot& slot,uint64_t entry,uint64_t argument,uint64_t& 
     uint64_t value=base;
     ok=ok&&Write(&c,base+0x30,&value,8);value=base+0x100;
     ok=ok&&Write(&c,base+0x58,&value,8)&&Write(&c,value,vector,sizeof(vector));value=cpu::UserData+0x400;
+#ifdef GUARDIAN_NATIVE_NT
+    if(slot.nativePeb)value=slot.nativePeb;
+#endif
     ok=ok&&Write(&c,base+0x60,&value,8)&&Write(&c,base+0x500,&start,sizeof(start));
     if(!ok){c.processes->Release(c.pid,base);return false;}teb=base;startup=base+0x500;return true;
 }
@@ -245,6 +264,9 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
 #endif
     if(Find(pid))return false;RuntimeSlot* slot=nullptr;for(auto& s:runtimes)if(!s.pid){slot=&s;break;}if(!slot)return false;
     slot->pid=pid;slot->context={&p,&m,pid};slot->terminating=false;slot->loaderLock=0;slot->pending={};auto& runtimeContext=slot->context;auto& loader=slot->image;
+#ifdef GUARDIAN_NATIVE_NT
+    slot->nativePeb=0;slot->nativeReady=false;slot->nativeTid=0;
+#endif
 #ifdef GUARDIAN_SCALABLE_PE
     slot->nextResource=1;for(auto& r:slot->resources)r={};
 #endif
@@ -322,6 +344,10 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
         const char text[]="External GUI PE loader rejected image; error=";
         for(char ch:text)if(ch)__outbyte(0xE9,uint8_t(ch));
         __outbyte(0xE9,uint8_t('0'+uint32_t(loader.Failure())));__outbyte(0xE9,'\n');
+#ifdef GUARDIAN_NATIVE_NT
+        const char debug[]="Native loader stage/module/detail ";for(char ch:debug)if(ch)__outbyte(0xE9,uint8_t(ch));
+        const uint32_t fields[]{loader.FailureStage(),loader.FailureModule(),loader.FailureDetail()};for(auto field:fields){for(uint32_t b=8;b;--b)__outbyte(0xE9,"0123456789ABCDEF"[(field>>((b-1)*4))&15]);__outbyte(0xE9,' ');}__outbyte(0xE9,'\n');
+#endif
 #endif
         return false;
     }
@@ -419,6 +445,9 @@ bool PeExitProcess(uint32_t pid,uint32_t code,bool fault) noexcept {
 #endif
     (void)fault;
     auto* slot=Find(pid);if(!slot)return true;
+#ifdef GUARDIAN_NATIVE_NT
+    if(slot->nativeReady&&!slot->nativeServices->Exit()){allClean=false;return false;}
+#endif
 #ifdef GUARDIAN_RUNTIME_KERNEL
     if(!services.Exit(pid,slot->context.processes->Get(pid)->token) || services.Count(pid)){allClean=false;return false;}
 #endif
@@ -781,4 +810,7 @@ uint32_t RefreshThread(RuntimeSlot& slot,uint32_t tid,uint64_t startup) noexcept
     return Write(&slot.context,startup,&start,sizeof(start))?0:storage::Denied;
 }
 }
+#endif
+#ifdef GUARDIAN_NATIVE_NT
+#include "NativeKernel.inl"
 #endif
