@@ -1,12 +1,13 @@
 #pragma once
 #include "Abi.h"
+#include "PeProfile.h"
 namespace guardian::memory {
 inline constexpr uint64_t Magic = 0x33504D454D5647ull;
 inline constexpr uint32_t Version = 1;
 inline constexpr uint64_t RequestGpa = 0x108000, ReportGpa = 0x109000;
 inline constexpr uint16_t Port = 0xED;
-inline constexpr uint64_t Arena = 0x40000000, ArenaBytes = 0x1000000;
-inline constexpr uint32_t MaxRegions = 64, MaxSpaces = 4;
+inline constexpr uint64_t Arena = 0x40000000, ArenaBytes = peprofile::ArenaBytes;
+inline constexpr uint32_t MaxRegions = peprofile::Regions, MaxSpaces = 4;
 inline constexpr uint32_t NoAccess = 1, ReadOnly = 2, ReadWrite = 4, ExecuteRead = 0x20, Guard = 0x100;
 inline constexpr uint32_t Free = 0x10000, Reserve = 0x2000, Commit = 0x1000;
 enum class Status : uint32_t { Success = 0, Invalid = 0xC000000D, NoMemory = 0xC0000017,

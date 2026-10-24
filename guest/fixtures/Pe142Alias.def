@@ -1,0 +1,4 @@
+LIBRARY api-ms-win-guardian-probe-l1-1-0
+EXPORTS
+    ProbeOrdinal @7 NONAME
+    ProbeData @9 DATA

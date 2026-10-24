@@ -5,7 +5,7 @@
 namespace guardian::pe {
 // Bounded PE32+ loader. All parsing and fixups run in the guest, without Win32,
 // STL, host function addresses or executable patches. Mapping is transactional.
-inline constexpr uint32_t MaxModules=4,MaxSections=16,MaxImageBytes=0x20000;
+inline constexpr uint32_t MaxModules=peprofile::Modules,MaxSections=peprofile::Sections,MaxImageBytes=peprofile::ImageBytes;
 enum class Error:uint32_t {Ok,InvalidImage,Unsupported,MissingModule,MissingSymbol,NoMemory,Access,Limit,Cycle,InvalidState};
 enum class Protection:uint32_t {None,Read,ReadWrite,ExecuteRead};
 struct Source {const char* name;const uint8_t* data;uint32_t bytes;};
@@ -18,11 +18,16 @@ struct Backend {
     bool (*protect)(void*,uint64_t,uint32_t,Protection) noexcept;
     bool (*unmap)(void*,uint64_t) noexcept;
 };
+struct Namespace {
+    void* context=nullptr;
+    uint32_t (*find)(void*,const char*,const char*) noexcept=nullptr;
+    bool (*manifest)(void*,const uint8_t*,uint32_t) noexcept=nullptr;
+};
 struct Section {uint32_t rva,bytes,raw,rawBytes,flags;};
 struct Directory {uint32_t rva,bytes;};
 struct Module {
     uint64_t base=0,preferred=0,entry=0;
-    uint32_t size=0,headers=0,sectionCount=0,state=0;
+    uint32_t size=0,headers=0,sectionCount=0,state=0,generation=0;
     Section sections[MaxSections]{};Directory directories[16]{};
     uint64_t tlsTemplate=0,tlsIndexAddress=0,tlsCallbacks[8]{};
     uint32_t tlsBytes=0,tlsZeroBytes=0,tlsCallbackCount=0,tlsIndex=0;
@@ -39,6 +44,10 @@ public:
     bool Release(uint32_t index,uint32_t& removable) noexcept;
     bool Remove(uint32_t mask) noexcept;
     bool Resolve(uint32_t index,const char*,uint32_t ordinal,uint64_t&) noexcept;
+    void ConfigureNamespace(const Namespace& ns) noexcept {namespace_=ns;}
+    bool Resource(uint32_t index,uint32_t type,uint32_t id,uint32_t language,uint64_t& address,uint32_t& bytes) noexcept;
+    bool CancelResolution(uint32_t newlyMapped) noexcept;
+    bool InitializationOrder(uint32_t mask,uint32_t* order,uint32_t& count) const noexcept;
     uint32_t References(uint32_t i) const noexcept {return i<count_?references_[i]:0;}
     uint32_t MappedMask() const noexcept;
     const Module* Get(uint32_t i) const noexcept {return i<count_ && modules_[i].state==2?&modules_[i]:nullptr;}
@@ -58,16 +67,27 @@ private:
     bool Tls(Module&,uint32_t) noexcept;
     bool Exceptions(Module&) noexcept;
     bool Seal(Module&) noexcept;
-    bool Symbol(Module&,const char*,uint32_t,uint64_t&) noexcept;
+    bool Symbol(Module&,const char*,uint32_t,uint64_t&,uint32_t depth=0) noexcept;
+    bool Thunks(Module&,uint32_t,uint32_t,uint32_t,uint32_t) noexcept;
+    bool DelayImports(Module&) noexcept;
+    bool Resources(Module&,bool activate) noexcept;
+    bool ResourceEntry(Module&,uint32_t,uint32_t,uint32_t,uint32_t&,uint32_t&) noexcept;
+    bool ResourceTree(Module&,uint32_t,uint32_t,uint32_t&) noexcept;
     bool Span(const Module&,uint32_t,uint32_t,uint32_t flags=0x40000000) const noexcept;
     bool Read(const Module&,uint32_t,void*,uint32_t) noexcept;
     bool Write(const Module&,uint32_t,const void*,uint32_t) noexcept;
     bool String(const Module&,uint32_t,char*,uint32_t) noexcept;
-    uint32_t Find(const char*) const noexcept;
+    uint32_t Find(const char*,const char* importer=nullptr) const noexcept;
     bool Rollback(uint32_t keep) noexcept;
     uint32_t Reachable() const noexcept;
     Backend backend_{};void* context_=nullptr;const Source* sources_=nullptr;
     uint32_t count_=0;uint64_t arena_=0;Error error_=Error::InvalidState;Module modules_[MaxModules]{};
     uint32_t pinned_=0,references_[MaxModules]{};bool handlers_=false;
+    Namespace namespace_{};
+    uint32_t nextGeneration_=1;
+#ifdef GUARDIAN_SCALABLE_PE
+    uint32_t relocationTargets_[peprofile::Relocations*2]{};
+    uint8_t manifestBytes_[4096]{};
+#endif
 };
 }

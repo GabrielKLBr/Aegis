@@ -70,10 +70,10 @@ def phase(module):
 
 
 class InventoryPe(gui.Pe):
-    def __init__(self, path):
+    def __init__(self, path, data=None):
         # Reuse the existing bounded parser; take a private byte snapshot so later
         # dependency inspection and hashing refer to the same bytes.
-        super().__init__(path, regular(path, 32 << 20))
+        super().__init__(path, regular(path, 32 << 20) if data is None else data)
         nt = self.u32(60)
         self.base = struct.unpack("<Q", self.slice(nt + 48, 8))[0]
         optional, count = self.u16(nt + 20), self.u16(nt + 6)

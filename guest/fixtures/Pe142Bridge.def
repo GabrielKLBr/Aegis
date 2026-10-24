@@ -1,0 +1,6 @@
+LIBRARY guardian-bridge
+EXPORTS
+    ForwardValue=guardian_leaf.ProbeAlias
+    ForwardData=guardian_leaf.ProbeData DATA
+    ForwardLate=guardian-late.LateValue
+    ForwardRejected=guardian-reject.RejectValue

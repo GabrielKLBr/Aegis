@@ -11,6 +11,10 @@
 namespace guardian::win {
 using Procedure=void (*)();using Handle=void*;using Bool=int;using Dword=uint32_t;using ThreadStart=Dword (*)(void*);
 struct FileTime {uint32_t low,high;};
+#ifdef GUARDIAN_SCALABLE_PE
+struct ActCtxA {uint32_t cb,flags;const char* source;uint16_t architecture,language;const char* directory;const char* resource;const char* application;Handle module;};
+static_assert(sizeof(ActCtxA)==56);
+#endif
 struct CriticalSection {void* debug;int32_t lockCount,recursion;Handle owner,semaphore;uint64_t spin;};
 static_assert(sizeof(CriticalSection)==40);
 struct ProcessInformation {Handle process,thread;Dword processId,threadId;};
@@ -23,6 +27,12 @@ RTAPI Bool QueryUnbiasedInterruptTime(uint64_t*);RTAPI void Sleep(Dword);
 RTAPI void* VirtualAlloc(void*,uint64_t,Dword,Dword);RTAPI Bool VirtualFree(void*,uint64_t,Dword);
 RTAPI Bool VirtualProtect(void*,uint64_t,Dword,Dword*);RTAPI uint64_t VirtualQuery(const void*,guardian::memory::Information*,uint64_t);
 RTAPI Handle LoadLibraryA(const char*);RTAPI Bool FreeLibrary(Handle);RTAPI Procedure GetProcAddress(Handle,const char*);
+#ifdef GUARDIAN_SCALABLE_PE
+RTAPI Handle GetModuleHandleA(const char*);
+RTAPI Handle FindResourceA(Handle,const char*,const char*);RTAPI Handle FindResourceExA(Handle,const char*,const char*,uint16_t);
+RTAPI Handle LoadResource(Handle,Handle);RTAPI void* LockResource(Handle);RTAPI Dword SizeofResource(Handle,Handle);
+RTAPI Handle CreateActCtxA(const ActCtxA*);RTAPI Bool ActivateActCtx(Handle,uint64_t*);RTAPI Bool DeactivateActCtx(Dword,uint64_t);RTAPI void ReleaseActCtx(Handle);
+#endif
 RTAPI void RaiseException(Dword,Dword,Dword,const uint64_t*);
 RTAPI __declspec(noreturn) void RtlUnwindEx(void*,void*,guardian::exceptions::Record*,void*,guardian::exceptions::Context*,void*);
 RTAPI uint16_t RtlCaptureStackBackTrace(Dword,Dword,void**,Dword*);

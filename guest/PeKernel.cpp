@@ -11,7 +11,12 @@
 #include "guardian/ExternalGui.h"
 #include "guardian/NtCompatibility.h"
 #include "guardian/Validate.h"
+#ifdef GUARDIAN_SCALABLE_PE
+#include "PeNamespace.h"
+extern "C" const volatile char GuardianExternalPeCapability[]="GuardianExternalPe/1/volume";
+#else
 extern "C" const volatile char GuardianExternalGuiCapability[]="GuardianExternalGui/1/bounded";
+#endif
 #endif
 #ifdef GUARDIAN_RUNTIME_KERNEL
 #include "PeRuntimeFixtures.h"
@@ -46,23 +51,37 @@ extern "C" const volatile char GuardianEnvironmentCapability[]="GuardianEnvironm
 #include "IoKernel.h"
 #endif
 #include <intrin.h>
+#include <string.h>
 namespace {
 using namespace guardian;
 struct Context {processes::Manager* processes;memory::Manager* memory;uint32_t pid;};
 #ifdef GUARDIAN_COMPLETE_KERNEL
+#ifdef GUARDIAN_SCALABLE_PE
+pe::Loader scalableMappingLoader;
+pe::Loader& MappingLoader() noexcept {return scalableMappingLoader;}
+#else
 static_assert(sizeof(pe::Loader)<=4096);
 pe::Loader& MappingLoader() noexcept {return *reinterpret_cast<pe::Loader*>(PeExceptionScratch+PeExceptionScratchBytes);}
+#endif
 #else
 pe::Loader mappingLoader;
 #endif
 inline constexpr uint32_t InitCalls=
+#ifdef GUARDIAN_SCALABLE_PE
+peprofile::InitCalls;
+#else
 #ifdef GUARDIAN_COMPLETE_KERNEL
 12;
 #else
 4;
 #endif
+#endif
 struct DynamicPending {uint32_t tid=0,index=0,added=0,removing=0,kind=0;};
-struct RuntimeSlot {Context context{};pe::Loader image;pe::Source sources[4]{};uint32_t pid=0;uint64_t loaderLock=0;bool terminating=false;DynamicPending pending{};
+struct RuntimeSlot {Context context{};pe::Loader image;pe::Source sources[pe::MaxModules]{};uint32_t pid=0;uint64_t loaderLock=0;bool terminating=false;DynamicPending pending{};
+#ifdef GUARDIAN_SCALABLE_PE
+    pe::Catalog catalog;uint64_t initialTeb=0,nextResource=1;
+    struct Resource {uint64_t id=0,address=0,base=0;uint32_t bytes=0,generation=0;};Resource resources[32]{};
+#endif
 #ifdef GUARDIAN_RUNTIME_KERNEL
     runtime::VirtualMemory virtualMemory;
 #endif
@@ -78,7 +97,14 @@ runtime::Services services;
 extern "C" const volatile char GuardianSystemClockCapability[]="GuardianSystemClock/1/real";
 #ifdef GUARDIAN_PE_GUI_KERNEL
 uint32_t Store(void*,uint32_t,const processes::Token&,storage::Command&) noexcept {return storage::Unsupported;}
+#ifdef GUARDIAN_SCALABLE_PE
+uint32_t Console(void*,uint32_t,const uint8_t* bytes,uint32_t count,uint32_t& out) noexcept {
+    out=0;if(!bytes||count>512)return storage::Invalid;
+    for(uint32_t i=0;i<count;++i)__outbyte(0xE9,bytes[i]);out=count;return 0;
+}
+#else
 uint32_t Console(void*,uint32_t,const uint8_t*,uint32_t,uint32_t& out) noexcept {out=0;return storage::Unsupported;}
+#endif
 #else
 uint32_t Store(void*,uint32_t pid,const processes::Token&,storage::Command& c) noexcept {return StorageExecute(pid,c);}
 uint32_t Console(void*,uint32_t pid,const uint8_t* b,uint32_t n,uint32_t& out) noexcept {return IoConsoleSync(pid,b,n,out);}
@@ -97,13 +123,25 @@ bool Map(void* p,uint64_t at,uint32_t n) noexcept {
 }
 bool Read(void* p,uint64_t at,void* out,uint32_t n) noexcept {
     auto& c=*static_cast<Context*>(p);if(at>UINT64_MAX-n)return false;
+#ifdef GUARDIAN_SCALABLE_PE
+    for(uint32_t i=0;i<n;){if(!c.processes->Translate(c.pid,at+i))return false;const auto chunk=4096u-uint32_t((at+i)&4095);i+=chunk<n-i?chunk:n-i;}
+    for(uint32_t i=0;i<n;){const auto physical=c.processes->Translate(c.pid,at+i);auto bytes=4096u-uint32_t((at+i)&4095);if(bytes>n-i)bytes=n-i;
+        memcpy(static_cast<uint8_t*>(out)+i,c.memory->physical.At(physical),bytes);i+=bytes;}return true;
+#else
     for(uint32_t i=0;i<n;++i)if(!c.processes->Translate(c.pid,at+i))return false;
     for(uint32_t i=0;i<n;++i)static_cast<uint8_t*>(out)[i]=*static_cast<const uint8_t*>(c.memory->physical.At(c.processes->Translate(c.pid,at+i)));return true;
+#endif
 }
 bool Write(void* p,uint64_t at,const void* in,uint32_t n) noexcept {
     auto& c=*static_cast<Context*>(p);if(at>UINT64_MAX-n)return false;
+#ifdef GUARDIAN_SCALABLE_PE
+    for(uint32_t i=0;i<n;){if(!c.processes->Translate(c.pid,at+i,true))return false;const auto chunk=4096u-uint32_t((at+i)&4095);i+=chunk<n-i?chunk:n-i;}
+    for(uint32_t i=0;i<n;){const auto physical=c.processes->Translate(c.pid,at+i,true);auto bytes=4096u-uint32_t((at+i)&4095);if(bytes>n-i)bytes=n-i;
+        memcpy(c.memory->physical.At(physical),static_cast<const uint8_t*>(in)+i,bytes);i+=bytes;}return true;
+#else
     for(uint32_t i=0;i<n;++i)if(!c.processes->Translate(c.pid,at+i,true))return false;
     for(uint32_t i=0;i<n;++i)*static_cast<uint8_t*>(c.memory->physical.At(c.processes->Translate(c.pid,at+i,true)))=static_cast<const uint8_t*>(in)[i];return true;
+#endif
 }
 #ifdef GUARDIAN_LIFETIME_KERNEL
 bool StackImage(void* raw,uint64_t pc,unwind::Image& image) noexcept {
@@ -137,8 +175,34 @@ bool Protect(void* p,uint64_t at,uint32_t n,pe::Protection protection) noexcept 
 #ifdef GUARDIAN_COMPLETE_KERNEL
 uint32_t DynamicExecute(RuntimeSlot&,uint32_t,runtime::Command&) noexcept;
 uint32_t RefreshThread(RuntimeSlot&,uint32_t,uint64_t) noexcept;
+#ifdef GUARDIAN_SCALABLE_PE
+uint32_t ScalableMetadata(RuntimeSlot&,uint32_t,runtime::Command&,bool) noexcept;
+#endif
 #endif
 bool Unmap(void* p,uint64_t at) noexcept {auto& c=*static_cast<Context*>(p);return c.processes->Release(c.pid,at)==0;}
+#ifdef GUARDIAN_SCALABLE_PE
+bool ScalableStart(RuntimeSlot& slot,uint64_t entry,uint64_t argument,uint64_t& teb,uint64_t& startup) noexcept {
+    auto& c=slot.context;uint64_t base=0;
+    if(c.processes->Reserve(c.pid,base,peprofile::TebBytes,memory::ReadWrite))return false;
+    if(c.processes->Commit(c.pid,base,peprofile::TebBytes,memory::ReadWrite)){c.processes->Release(c.pid,base);return false;}
+    struct Call {uint64_t function,module,check;};
+    struct Start {uint64_t entry,count;Call calls[InitCalls];uint64_t argument;};Start start{};start.entry=entry;start.argument=argument;
+    uint64_t vector[pe::MaxModules]{};uint32_t order[pe::MaxModules]{},count=0;
+    bool ok=slot.image.InitializationOrder(slot.image.MappedMask(),order,count);
+    for(uint32_t p=0;ok&&p<count;++p){const auto index=order[p];const auto* module=slot.image.Get(index);if(!module){ok=false;break;}
+        vector[index]=base+peprofile::TlsOffset+uint64_t(index)*peprofile::TlsBytes;
+        uint8_t bytes[peprofile::TlsBytes]{};if(module->tlsBytes&&!Read(&c,module->tlsTemplate,bytes,module->tlsBytes)){ok=false;break;}
+        if(!Write(&c,vector[index],bytes,sizeof(bytes))){ok=false;break;}
+        for(uint32_t i=0;i<module->tlsCallbackCount;++i){if(start.count==InitCalls){ok=false;break;}start.calls[start.count++]={module->tlsCallbacks[i],module->base,0};}
+        if(module->dll&&module->entry){if(start.count==InitCalls){ok=false;break;}start.calls[start.count++]={module->entry,module->base,1};}
+    }
+    uint64_t value=base;
+    ok=ok&&Write(&c,base+0x30,&value,8);value=base+0x100;
+    ok=ok&&Write(&c,base+0x58,&value,8)&&Write(&c,value,vector,sizeof(vector));value=cpu::UserData+0x400;
+    ok=ok&&Write(&c,base+0x60,&value,8)&&Write(&c,base+0x500,&start,sizeof(start));
+    if(!ok){c.processes->Release(c.pid,base);return false;}teb=base;startup=base+0x500;return true;
+}
+#endif
 }
 uint32_t PeMappingChecks(guardian::processes::Manager& processes,guardian::memory::Manager& memory,void (*check)(bool,uint32_t) noexcept) noexcept {
     using namespace guardian;uint32_t checks=0;
@@ -181,6 +245,9 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
 #endif
     if(Find(pid))return false;RuntimeSlot* slot=nullptr;for(auto& s:runtimes)if(!s.pid){slot=&s;break;}if(!slot)return false;
     slot->pid=pid;slot->context={&p,&m,pid};slot->terminating=false;slot->loaderLock=0;slot->pending={};auto& runtimeContext=slot->context;auto& loader=slot->image;
+#ifdef GUARDIAN_SCALABLE_PE
+    slot->nextResource=1;for(auto& r:slot->resources)r={};
+#endif
 #ifdef GUARDIAN_RUNTIME_KERNEL
     slot->virtualMemory.Reset();
 #endif
@@ -209,7 +276,7 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
 #endif
 #else
     slot->sources[0]=pe::fixtures::RuntimeSources[0];slot->sources[1]=pe::fixtures::RuntimeSources[1];
-#ifdef GUARDIAN_PE_GUI_KERNEL
+#if defined(GUARDIAN_PE_GUI_KERNEL) && !defined(GUARDIAN_SCALABLE_PE)
     const auto* boot=reinterpret_cast<const abi::BootInfo*>(0x100000);
     const auto* descriptor=reinterpret_cast<const externalgui::Info*>(externalgui::InfoGpa);
     if(!externalgui::Valid(*descriptor,boot->bootId)||!abi::Covered(reinterpret_cast<const abi::MemoryRegion*>(boot->memoryMapGpa),boot->memoryMapCount,externalgui::SourceGpa,externalgui::MaxFile,abi::MemoryKind::BootData))return false;
@@ -227,13 +294,30 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
 #else
     slot->sources[0]=pe::fixtures::Sources[0];slot->sources[1]=pe::fixtures::Sources[1];
 #endif
+#ifdef GUARDIAN_SCALABLE_PE
+    const auto* boot=reinterpret_cast<const abi::BootInfo*>(0x100000);
+    const auto* descriptor=reinterpret_cast<const pevolume::Info*>(pevolume::InfoGpa);
+    const auto* binding=reinterpret_cast<const nt::Info*>(nt::InfoGpa);
+    if(descriptor->magic!=pevolume::InfoMagic||descriptor->version!=pevolume::Version||descriptor->bytes!=sizeof(*descriptor)||
+        descriptor->reserved||descriptor->boot!=boot->bootId||!nt::Valid(*binding,boot->bootId)||descriptor->volumeBytes>pevolume::MaxBytes||
+        !abi::Covered(reinterpret_cast<const abi::MemoryRegion*>(boot->memoryMapGpa),boot->memoryMapCount,pevolume::SourceGpa,descriptor->volumeBytes,abi::MemoryKind::BootData))return false;
+    const auto* volume=reinterpret_cast<const uint8_t*>(pevolume::SourceGpa);
+    if(pevolume::Hash(volume,descriptor->volumeBytes,true)!=descriptor->hash)return false;
+    uint32_t sourceCount=0;if(!slot->catalog.Open(volume,descriptor->volumeBytes,binding->profile,slot->sources,sourceCount))return false;
+    constexpr bool allowHandlers=true;
+#else
 #ifdef GUARDIAN_COMPLETE_KERNEL
     constexpr uint32_t sourceCount=4;constexpr bool allowHandlers=true;
 #else
     constexpr uint32_t sourceCount=2;constexpr bool allowHandlers=false;
 #endif
+#endif
     loader.ConfigureAudit(pid,p.Get(pid)->token.user);
-    if(!loader.Configure(backend,&runtimeContext,slot->sources,sourceCount,memory::Arena+0x40000,allowHandlers) || !loader.Load(slot->sources[0].name,index)){
+    if(!loader.Configure(backend,&runtimeContext,slot->sources,sourceCount,memory::Arena+0x40000,allowHandlers))return false;
+#ifdef GUARDIAN_SCALABLE_PE
+    loader.ConfigureNamespace(slot->catalog.Resolver());
+#endif
+    if(!loader.Load(slot->sources[0].name,index)){
 #ifdef GUARDIAN_PE_GUI_KERNEL
         const char text[]="External GUI PE loader rejected image; error=";
         for(char ch:text)if(ch)__outbyte(0xE9,uint8_t(ch));
@@ -248,6 +332,13 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
     // The initial thread uses the private bootstrap data page. Workers get
     // separately allocated TEB/TLS pages; only the PEB is shared.
     uint8_t zero[256]{};for(uint32_t at=0;at<4096;at+=sizeof(zero))if(!Write(&runtimeContext,cpu::UserData+at,zero,sizeof(zero)))return false;
+#ifdef GUARDIAN_SCALABLE_PE
+    if(!ScalableStart(*slot,loader.Get(0)->entry,0,slot->initialTeb,startup))return false;
+    uint64_t value=loader.Get(0)->base;if(!Write(&runtimeContext,cpu::UserData+0x410,&value,8))return false;
+    char command[128]{};const auto* input=childCommand?childCommand:slot->sources[0].name;uint32_t n=0;
+    for(;n<sizeof(command)&&input[n];++n)command[n]=input[n];if(n==sizeof(command))return false;
+    value=cpu::UserData+0x800;return Write(&runtimeContext,value,command,sizeof(command))&&Write(&runtimeContext,cpu::UserData+0x420,&value,8);
+#else
     uint64_t tls[2]={cpu::UserData+0x200,cpu::UserData+0x300};
     if(!Write(&runtimeContext,cpu::UserData+0x100,tls,sizeof(tls)))return false;
     struct Call {uint64_t function,module,checkReturn;};struct Start {uint64_t entry,count;Call calls[InitCalls];};Start start{};start.entry=loader.Get(0)->entry;
@@ -264,11 +355,18 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
     char command[128]{};const auto* input=childCommand?childCommand:slot->sources[0].name;uint32_t n=0;
     for(;n<sizeof(command) && input[n];++n){if(input[n]<32 || input[n]>126)return false;command[n]=input[n];}if(n==sizeof(command))return false;
     value=cpu::UserData+0x800;return Write(&runtimeContext,value,command,sizeof(command)) && Write(&runtimeContext,cpu::UserData+0x420,&value,8);
+#endif
 
 }
 #ifdef GUARDIAN_RUNTIME_KERNEL
 bool PePrepareThread(uint32_t pid,uint32_t tid,uint64_t stack,uint64_t entry,uint64_t argument,uint64_t& teb,uint64_t& startup) noexcept {
     using namespace guardian;auto* slot=Find(pid);if(!slot || slot->terminating)return false;auto& c=slot->context;auto& loader=slot->image;teb=0;startup=0;uint64_t base=0;
+#ifdef GUARDIAN_SCALABLE_PE
+    (void)loader;(void)base;if(!PeExecutable(pid,entry)||!ScalableStart(*slot,entry,argument,teb,startup))return false;
+    bool ok=Write(&c,teb+0x40,&pid,4)&&Write(&c,teb+0x48,&tid,4);
+    const uint64_t high=stack+0x10000,low=stack+4096;ok=ok&&Write(&c,teb+8,&high,8)&&Write(&c,teb+16,&low,8);
+    if(!ok){c.processes->Release(pid,teb);teb=startup=0;}return ok;
+#else
     if(!PeExecutable(pid,entry) || c.processes->Reserve(c.pid,base,4096,memory::ReadWrite))return false;
     bool ok=c.processes->Commit(c.pid,base,4096,memory::ReadWrite)==0;
     struct Call {uint64_t function,module,checkReturn;};
@@ -285,9 +383,24 @@ bool PePrepareThread(uint32_t pid,uint32_t tid,uint64_t stack,uint64_t entry,uin
     value=tid;ok=ok && Write(&c,base+0x48,&value,8);value=stack+0x10000;ok=ok && Write(&c,base+8,&value,8);
     value=stack+4096;ok=ok && Write(&c,base+16,&value,8);ok=ok && Write(&c,base+0x500,&start,sizeof(start));
     if(!ok){c.processes->Release(c.pid,base);return false;}teb=base;startup=base+0x500;return true;
+#endif
 }
 #endif
 bool PeOwnsProcess(uint32_t pid) noexcept {return Find(pid)!=nullptr;}
+uint64_t PeInitialTeb(uint32_t pid) noexcept {
+#ifdef GUARDIAN_SCALABLE_PE
+    const auto* slot=Find(pid);return slot?slot->initialTeb:0;
+#else
+    (void)pid;return guardian::cpu::UserData;
+#endif
+}
+void PeThreadGone(uint32_t pid,uint32_t tid) noexcept {
+#ifdef GUARDIAN_SCALABLE_PE
+    if(auto* slot=Find(pid))slot->catalog.ThreadExit(tid);
+#else
+    (void)pid;(void)tid;
+#endif
+}
 bool PeExecutable(uint32_t pid,uint64_t rip) noexcept {const auto* slot=Find(pid);return slot && slot->image.Executable(rip);}
 bool PeIsRoot(uint32_t pid) noexcept {return pid && pid==rootPid;}
 bool PeProcessTerminating(uint32_t pid) noexcept {const auto* slot=Find(pid);return !slot || slot->terminating;}
@@ -336,6 +449,9 @@ bool PeRuntimeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f
 #endif
     )return false;status=storage::Denied;
     auto* slot=Find(pid);if(!slot || slot->context.processes->Owner(tid)!=pid)return true;auto& runtimeContext=slot->context;auto& p=*runtimeContext.processes;const auto loaderLock=slot->loaderLock;
+#ifdef GUARDIAN_SCALABLE_PE
+    slot->catalog.CurrentThread(tid);
+#endif
 #ifdef GUARDIAN_PE_GUI_KERNEL
     if(f.rax==0xA1){
         const auto* boot=reinterpret_cast<const abi::BootInfo*>(0x100000);
@@ -344,7 +460,10 @@ bool PeRuntimeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f
         if(!nt::Valid(*binding,boot->bootId)||f.rdx>UINT64_MAX-sizeof(nt::Query))return true;
         for(uint32_t i=0;i<sizeof(nt::Query);++i)if(!p.Translate(pid,f.rdx+i)||!p.Translate(pid,f.rdx+i,true))return true;
         nt::Query query{};if(!Read(&runtimeContext,f.rdx,&query,sizeof(query)))return true;
-        if(query.version!=nt::Version||query.bytes!=sizeof(query)||query.manifest>2||query.reserved){status=storage::Invalid;return true;}
+        if(query.version!=nt::Version||query.bytes!=sizeof(query)||(query.manifest>2&&!(peprofile::Extended&&query.manifest==UINT32_MAX))||query.reserved){status=storage::Invalid;return true;}
+#ifdef GUARDIAN_SCALABLE_PE
+        if(query.manifest==UINT32_MAX)query.manifest=slot->catalog.VersionMode();
+#endif
         query.target=nt::Find(binding->profile);query.reported=nt::Reported(query.target,static_cast<nt::Manifest>(query.manifest));
         status=Write(&runtimeContext,f.rdx,&query,sizeof(query))?0:storage::Denied;
         return true;
@@ -372,7 +491,7 @@ bool PeRuntimeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f
     for(uint32_t i=0;i<sizeof(runtime::Command);++i)if(!p.Translate(pid,f.rdx+i) || !p.Translate(pid,f.rdx+i,true)){RuntimeRejected(pid,f.rax,status);return true;}
     runtime::Command c{};if(!Read(&runtimeContext,f.rdx,&c,sizeof(c)))return true;
     bool valid=c.version==runtime::Version && c.bytes==sizeof(c) && !c.reserved && !c.status && !c.transferred;
-    if(c.op>=runtime::Op::LibraryLoad && c.op<=runtime::Op::LibraryNext){
+    if(c.op>=runtime::Op::LibraryLoad && c.op<=runtime::Op::LibraryFinishGetProc){
 #ifdef GUARDIAN_COMPLETE_KERNEL
         status=valid?DynamicExecute(*slot,tid,c):storage::Invalid;
 #else
@@ -380,6 +499,13 @@ bool PeRuntimeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f
 #endif
         c.status=status;if(!Write(&runtimeContext,f.rdx,&c,sizeof(c)))status=storage::Denied;return true;}
 
+#ifdef GUARDIAN_SCALABLE_PE
+    if(c.op==runtime::Op::ResourceFind||c.op==runtime::Op::ResourceInfo||c.op==runtime::Op::ModuleHandle||
+       (c.op>=runtime::Op::ContextCreate&&c.op<=runtime::Op::ContextRelease)){
+        status=ScalableMetadata(*slot,tid,c,valid);c.status=status;
+        if(!Write(&runtimeContext,f.rdx,&c,sizeof(c)))status=storage::Denied;return true;
+    }
+#endif
     if(c.op>=runtime::Op::MutexCreate&&c.op<=runtime::Op::ProcessExit){
         valid=valid && !c.length && !c.type && !c.access && !c.share && !c.disposition;
         if(c.op==runtime::Op::ThreadCreate || c.op==runtime::Op::ProcessCreate)valid=valid && !(c.flags&~4u) && !c.handle;
@@ -483,7 +609,11 @@ bool PeRuntimeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f
     else if(c.op==runtime::Op::StackCapture)status=StackCapture(*slot,tid,f,saved,c);
     else if(c.op==runtime::Op::ThreadExit || c.op==runtime::Op::ProcessExit)status=c.handle || c.argument>UINT32_MAX?storage::Invalid:ProcessRedirectPeExit(pid,tid,static_cast<uint32_t>(c.argument),c.op==runtime::Op::ProcessExit);
     else if(c.op==runtime::Op::ProcessCreate){uint32_t child=0,thread=0;uint64_t process=0,threadHandle=0;
+#ifdef GUARDIAN_SCALABLE_PE
+        status=storage::Unsupported;
+#else
         status=ProcessCreatePeChild(pid,c.path,reinterpret_cast<const char*>(c.data),(c.flags&4)!=0,child,thread,process,threadHandle);
+#endif
         if(!status){const uint64_t info[3]={process,threadHandle,uint64_t(child)|(uint64_t(thread)<<32)};for(uint32_t i=0;i<sizeof(info);++i)c.data[i]=reinterpret_cast<const uint8_t*>(info)[i];}}
     else if(c.op==runtime::Op::ProcessQuery){processes::Object* object=nullptr;status=p.Resolve(pid,c.handle,processes::Kind::Process,processes::Query,object);if(!status)c.transferred=object->exited?object->exitCode:259;}
 #endif
@@ -519,7 +649,12 @@ bool ExceptionWrite(void* raw,uint64_t at,const void* bytes,uint32_t count) noex
 bool ExceptionEnvironment(uint32_t pid,uint32_t tid,PeExceptionEnvironment& env) noexcept {
     auto* slot=Find(pid);if(!slot || slot->terminating || !ProcessPeStack(pid,tid,env.stack.low,env.stack.high))return false;
     env.api={StackImage,StackRead,ExceptionExecutable};env.context=slot;env.write=ExceptionWrite;
-    return slot->image.Resolve(1,"GuardianExceptionDispatch",0,env.entry);
+#ifdef GUARDIAN_SCALABLE_PE
+    const auto runtime=slot->catalog.Find("guardian-runtime-api.dll");
+#else
+    constexpr uint32_t runtime=1;
+#endif
+    return slot->image.Resolve(runtime,"GuardianExceptionDispatch",0,env.entry);
 }
 }
 bool PeHandleException(uint32_t pid,uint32_t tid,ExecutionContext& saved) noexcept {
@@ -533,22 +668,55 @@ bool PeHandleContinuation(uint32_t pid,uint32_t tid,const TrapFrame& f,Execution
 namespace {
 struct ModuleCall {uint64_t function,module,check;};
 uint32_t ModuleIndex(const RuntimeSlot& s,uint64_t base) noexcept {for(uint32_t i=0;i<pe::MaxModules;++i)if(const auto* m=s.image.Get(i);m && m->base==base)return i;return UINT32_MAX;}
+#ifdef GUARDIAN_SCALABLE_PE
+uint32_t ScalableMetadata(RuntimeSlot& slot,uint32_t tid,runtime::Command& c,bool valid) noexcept {
+    if(!valid)return storage::Invalid;auto& loader=slot.image;
+    if(c.op==runtime::Op::ModuleHandle){
+        if(c.flags||c.argument||c.handle||c.access||c.share||c.disposition||c.length||c.type)return storage::Invalid;
+        const auto i=c.path[0]?slot.catalog.Find(c.path):0;const auto* m=loader.Get(i);
+        if(!m)return storage::NotFound;c.handle=m->base;return 0;
+    }
+    if(c.op==runtime::Op::ResourceFind){
+        if(c.argument||c.type||c.share||c.disposition)return storage::Invalid;
+        const auto index=c.handle?ModuleIndex(slot,c.handle):0;const auto* m=loader.Get(index);if(!m)return storage::InvalidHandle;
+        uint64_t address=0;uint32_t bytes=0;if(!loader.Resource(index,c.access,c.length,c.flags,address,bytes))return storage::NotFound;
+        RuntimeSlot::Resource* record=nullptr;
+        for(auto& r:slot.resources){const auto old=ModuleIndex(slot,r.base);const auto* live=loader.Get(old);if(r.id&&(!live||live->generation!=r.generation))r={};
+            if(r.id&&r.base==m->base&&r.address==address){c.argument=r.id;c.transferred=r.bytes;return 0;}if(!r.id&&!record)record=&r;}
+        if(!record||slot.nextResource==UINT64_MAX)return storage::Quota;
+        *record={slot.nextResource++,address,m->base,bytes,m->generation};c.argument=record->id;c.transferred=bytes;return 0;
+    }
+    if(c.op==runtime::Op::ResourceInfo){
+        if(c.flags||c.type||c.share||c.disposition||c.length||c.access)return storage::Invalid;
+        const auto index=c.handle?ModuleIndex(slot,c.handle):0;const auto* m=loader.Get(index);if(!m)return storage::InvalidHandle;
+        for(const auto& r:slot.resources)if(r.id==c.argument&&r.base==m->base&&r.generation==m->generation){c.argument=r.address;c.transferred=r.bytes;return 0;}
+        return storage::InvalidHandle;
+    }
+    if(c.flags||c.type||c.access||c.share||c.disposition||c.length)return storage::Invalid;
+    if(c.op==runtime::Op::ContextCreate){if(c.handle||c.argument)return storage::Invalid;c.handle=slot.catalog.CreateContext(c.path);return c.handle?0:storage::Invalid;}
+    if(c.op==runtime::Op::ContextActivate){if(c.argument)return storage::Invalid;return slot.catalog.Activate(tid,c.handle,c.argument)?0:storage::InvalidHandle;}
+    if(c.op==runtime::Op::ContextDeactivate){if(c.handle)return storage::Invalid;return slot.catalog.Deactivate(tid,c.argument)?0:storage::Invalid;}
+    if(c.op==runtime::Op::ContextRelease){if(c.argument)return storage::Invalid;return slot.catalog.ReleaseContext(c.handle)?0:storage::InvalidHandle;}
+    return storage::Unsupported;
+}
+#endif
 bool ModuleTls(RuntimeSlot& slot,uint32_t mask,bool clear) noexcept {
     uint32_t tids[processes::MaxProcessThreads]{};uint64_t tebs[processes::MaxProcessThreads]{};
     const auto count=ProcessPeTebs(slot.pid,tids,tebs,processes::MaxProcessThreads);if(!count)return false;
-    for(uint32_t i=0;i<pe::MaxModules;++i)if(mask&(1u<<i)){const auto* module=slot.image.Get(i);if(!module)return false;uint8_t data[256]{};
+    for(uint32_t i=0;i<pe::MaxModules;++i)if(mask&(1u<<i)){const auto* module=slot.image.Get(i);if(!module)return false;uint8_t data[peprofile::TlsBytes]{};
         if(!clear && module->tlsBytes && !Read(&slot.context,module->tlsTemplate,data,module->tlsBytes))return false;
-        for(uint32_t t=0;t<count;++t){const uint64_t address=tebs[t]+(i<2?0x200+i*256:0xA00+(i-2)*256);const uint64_t vector=clear?0:address;
+        for(uint32_t t=0;t<count;++t){const uint64_t address=tebs[t]+(peprofile::Extended?peprofile::TlsOffset+uint64_t(i)*peprofile::TlsBytes:(i<2?0x200+i*256:0xA00+(i-2)*256));const uint64_t vector=clear?0:address;
             if(!Write(&slot.context,address,data,sizeof(data)) || !Write(&slot.context,tebs[t]+0x100+i*8,&vector,8))return false;}}
     return true;
 }
 bool ModuleCalls(RuntimeSlot& slot,uint32_t mask,bool attach,runtime::Command& c) noexcept {
-    ModuleCall calls[16]{};uint32_t used=0,done=0;
+    constexpr uint32_t capacity=peprofile::Extended?peprofile::InitCalls:16;
+    ModuleCall calls[capacity]{};uint32_t used=0,done=0;
     for(uint32_t pass=0;mask!=done && pass<pe::MaxModules;++pass){bool progress=false;
         for(uint32_t i=0;i<pe::MaxModules;++i)if((mask&~done)&(1u<<i)){const auto* m=slot.image.Get(i);if(!m)return false;
             if(m->dependencies&mask&~done)continue;
-            for(uint32_t j=0;j<m->tlsCallbackCount;++j){if(used==16)return false;calls[used++]={m->tlsCallbacks[j],m->base,0};}
-            if(m->dll && m->entry){if(used==16)return false;calls[used++]={m->entry,m->base,1};}
+            for(uint32_t j=0;j<m->tlsCallbackCount;++j){if(used==capacity)return false;calls[used++]={m->tlsCallbacks[j],m->base,0};}
+            if(m->dll && m->entry){if(used==capacity)return false;calls[used++]={m->entry,m->base,1};}
             done|=1u<<i;progress=true;}
         if(!progress)return false;
     }
@@ -561,15 +729,32 @@ uint32_t DynamicExecute(RuntimeSlot& slot,uint32_t tid,runtime::Command& c) noex
     if(!slot.context.processes->OwnsMutex(slot.pid,slot.loaderLock,tid) || c.length || c.type || c.access || c.share || c.disposition)return storage::Denied;
     const auto index=ModuleIndex(slot,c.handle);
     if(c.op==runtime::Op::LibraryGetProc){
-        if(c.flags || c.argument>65535 || index==UINT32_MAX || (index>1 && !loader.References(index)))return storage::Invalid;
-        uint64_t address=0;if(!loader.Resolve(index,c.argument?nullptr:c.path,static_cast<uint32_t>(c.argument),address))return storage::NotFound;c.argument=address;return 0;}
+        if(c.flags || c.argument>65535 || index==UINT32_MAX || (!peprofile::Extended&&index>1 && !loader.References(index)))return storage::Invalid;
+        const auto keep=loader.MappedMask();uint64_t address=0;
+        if(!loader.Resolve(index,c.argument?nullptr:c.path,static_cast<uint32_t>(c.argument),address))return storage::NotFound;
+        c.argument=address;
+#ifdef GUARDIAN_SCALABLE_PE
+        const auto added=loader.MappedMask()&~keep;
+        if(added){if(pending.kind||!ModuleTls(slot,added,false)||!ModuleCalls(slot,added,true,c)){ModuleTls(slot,added,true);loader.CancelResolution(added);return storage::Invalid;}
+            pending={tid,index,added,0,3};c.flags=1;}
+#else
+        (void)keep;
+#endif
+        return 0;}
+#ifdef GUARDIAN_SCALABLE_PE
+    if(c.op==runtime::Op::LibraryFinishGetProc){
+        if(pending.kind!=3||pending.tid!=tid||index!=pending.index||c.flags>1||c.argument)return storage::Invalid;
+        if(!c.flags&&(!ModuleTls(slot,pending.added,true)||!loader.CancelResolution(pending.added)))return storage::IoError;
+        pending={};return 0;
+    }
+#endif
     if(c.op==runtime::Op::LibraryNext){if(c.flags || c.argument || c.handle || pending.kind)return storage::Invalid;
         for(uint32_t i=0;i<pe::MaxModules;++i)if(loader.References(i)){c.handle=loader.Get(i)->base;return 0;}return 0;}
     if(c.op==runtime::Op::LibraryLoad){
         if(c.flags || c.argument || c.handle || pending.kind)return storage::Invalid;
         uint32_t found=0,added=0;if(!loader.Acquire(c.path,found,added))return loader.Failure()==pe::Error::MissingModule?storage::NotFound:storage::Invalid;
         c.handle=loader.Get(found)->base;
-        if(!ModuleTls(slot,added,false) || !ModuleCalls(slot,added,true,c)){uint32_t removed=0;loader.Release(found,removed);loader.Remove(removed);return storage::NoSpace;}
+        if(!ModuleTls(slot,added,false) || !ModuleCalls(slot,added,true,c)){uint32_t removed=0;loader.Release(found,removed);ModuleTls(slot,removed,true);loader.Remove(removed);return storage::NoSpace;}
         pending={tid,found,added,0,1};return 0;}
     if(c.op==runtime::Op::LibraryFinish){
         if(pending.kind!=1 || pending.tid!=tid || index!=pending.index || c.flags>1 || c.argument)return storage::Invalid;

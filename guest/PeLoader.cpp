@@ -14,7 +14,8 @@ bool Equal(const char* a,const char* b,bool fold=false) noexcept {
 }
 bool Name(const char* s) noexcept {
     if(!s || !s[0])return false;
-    for(uint32_t i=0;i<64;++i){const char c=s[i];if(!c)return true;
+    for(uint32_t i=0;i<(peprofile::Extended?128u:64u);++i){const char c=s[i];if(!c)return true;
+        if constexpr(peprofile::Extended){if(c=='\\'||c==':'||c=='/')continue;}
         if(!((c>='A' && c<='Z') || (c>='a' && c<='z') || (c>='0' && c<='9') || c=='_' || c=='-' || c=='.'))return false;}
     return false;
 }
@@ -22,13 +23,16 @@ bool Name(const char* s) noexcept {
 bool Loader::Configure(const Backend& b,void* c,const Source* s,uint32_t count,uint64_t arena,bool handlers) noexcept {
     for(const auto& m:modules_)if(m.mapped)return Fail(Error::InvalidState);
     if(!b.map || !b.read || !b.write || !b.protect || !b.unmap || !s || !count || count>MaxModules ||
-        !arena || (arena&0xFFFF) || arena>0x0000800000000000ull-MaxModules*MaxImageBytes)return Fail(Error::InvalidState);
-    for(uint32_t i=0;i<count;++i){if(!Name(s[i].name) || !s[i].data || s[i].bytes<64 || s[i].bytes>MaxImageBytes)return Fail(Error::InvalidImage);
+        !arena || (arena&0xFFFF) || arena>0x0000800000000000ull-uint64_t(MaxModules)*MaxImageBytes)return Fail(Error::InvalidState);
+    for(uint32_t i=0;i<count;++i){if(!Name(s[i].name) || !s[i].data || s[i].bytes<64 || s[i].bytes>peprofile::FileBytes)return Fail(Error::InvalidImage);
         for(uint32_t j=0;j<i;++j)if(Equal(s[i].name,s[j].name,true))return Fail(Error::InvalidImage);}
     backend_=b;context_=c;sources_=s;count_=count;arena_=arena;error_=Error::Ok;
     for(auto& m:modules_)m={};pinned_=0;for(auto& r:references_)r=0;handlers_=handlers;return true;
 }
-uint32_t Loader::Find(const char* name) const noexcept {for(uint32_t i=0;i<count_;++i)if(Equal(name,sources_[i].name,true))return i;return UINT32_MAX;}
+uint32_t Loader::Find(const char* name,const char* importer) const noexcept {
+    if constexpr(peprofile::Extended){if(namespace_.find){const auto i=namespace_.find(namespace_.context,name,importer);return i<count_?i:UINT32_MAX;}}
+    for(uint32_t i=0;i<count_;++i)if(Equal(name,sources_[i].name,true))return i;return UINT32_MAX;
+}
 bool Loader::Span(const Module& m,uint32_t at,uint32_t n,uint32_t flags) const noexcept {
     if(!n || !Range(at,n,m.size))return false;
     if(at<m.headers)return flags==ReadFlag && Range(at,n,m.headers);
@@ -74,21 +78,40 @@ bool Loader::Headers(uint32_t index) noexcept {
     if(previous!=m.size || (!m.dll && !entry) || (entry && !Span(m,entry,1,ReadFlag|ExecuteFlag)))return Fail(Error::InvalidImage);
     m.entry=entry?m.base+entry:0;
     for(uint32_t i=0;i<16;++i){auto& d=m.directories[i];d={U32(opt+112+i*8),U32(opt+116+i*8)};
-        if(bool(d.rva)!=bool(d.bytes) || (d.bytes && !Span(m,d.rva,d.bytes)))return Fail(Error::InvalidImage);
-        if(d.bytes && i!=0 && i!=1 && i!=3 && i!=5 && i!=6 && i!=9 && i!=12)return Fail(Error::Unsupported);}
+        if(bool(d.rva)!=bool(d.bytes))return Fail(Error::InvalidImage);
+        if constexpr(peprofile::Extended){if(i==4){if(d.bytes&&((d.rva&7)||!Range(d.rva,d.bytes,source.bytes)))return Fail(Error::InvalidImage);continue;}}
+        if(d.bytes&&!Span(m,d.rva,d.bytes))return Fail(Error::InvalidImage);
+        if(d.bytes && i!=0 && i!=1 && i!=3 && i!=5 && i!=6 && i!=9 && i!=12 &&
+           !(peprofile::Extended&&(i==2||i==13)))return Fail(Error::Unsupported);}
     return true;
 }
 bool Loader::Relocate(Module& m) noexcept {
     const auto& d=m.directories[5];const uint64_t delta=m.base-m.preferred;
     if(delta && !d.bytes)return Fail(Error::InvalidImage);
-    uint32_t offset=0,targets[256]{},count=0;
+#ifdef GUARDIAN_SCALABLE_PE
+    auto* targets=relocationTargets_;
+    for(auto& target:relocationTargets_)target=0;
+#else
+    uint32_t targets[peprofile::Relocations]{};
+#endif
+    uint32_t offset=0,count=0;
     while(offset<d.bytes){uint8_t block[8]{};if(d.bytes-offset<8 || !Read(m,d.rva+offset,block,8))return Fail(Error::InvalidImage);
         const auto page=U32(block),size=U32(block+4);
         if((page&4095) || size<8 || (size&1) || size>d.bytes-offset)return Fail(Error::InvalidImage);
         for(uint32_t i=8;i<size;i+=2){uint8_t b[2]{};if(!Read(m,d.rva+offset+i,b,2))return false;const auto type=U16(b)>>12;
             if(!type)continue;if(type!=10)return Fail(Error::Unsupported);
             const uint64_t target=uint64_t(page)+(U16(b)&4095);if(target>UINT32_MAX || !Span(m,static_cast<uint32_t>(target),8))return Fail(Error::InvalidImage);
-            if(count==256)return Fail(Error::Limit);for(uint32_t j=0;j<count;++j)if(targets[j]==target)return Fail(Error::InvalidImage);targets[count++]=static_cast<uint32_t>(target);
+            if(count==peprofile::Relocations)return Fail(Error::Limit);
+#ifdef GUARDIAN_SCALABLE_PE
+            uint32_t bucket=(static_cast<uint32_t>(target)*2654435761u)%(peprofile::Relocations*2);
+            for(uint32_t probe=0;probe<peprofile::Relocations*2;++probe){
+                if(targets[bucket]==target+1)return Fail(Error::InvalidImage);
+                if(!targets[bucket]){targets[bucket]=static_cast<uint32_t>(target)+1;break;}
+                bucket=(bucket+1)%(peprofile::Relocations*2);
+            }++count;
+#else
+            for(uint32_t j=0;j<count;++j)if(targets[j]==target)return Fail(Error::InvalidImage);targets[count++]=static_cast<uint32_t>(target);
+#endif
             uint64_t value=0;if(!Read(m,static_cast<uint32_t>(target),&value,8))return false;value+=delta;
             if(!Write(m,static_cast<uint32_t>(target),&value,8))return false;++m.relocated;
         }offset+=size;
@@ -98,15 +121,21 @@ bool Loader::Exports(Module& m) noexcept {
     const auto& d=m.directories[0];if(!d.bytes)return true;
     uint8_t h[40]{};if(d.bytes<40 || !Read(m,d.rva,h,40))return Fail(Error::InvalidImage);
     const auto functions=U32(h+20),names=U32(h+24),ft=U32(h+28),nt=U32(h+32),ot=U32(h+36);
-    if(!functions || functions>256 || names>functions || !Span(m,ft,functions*4) || (names && (!Span(m,nt,names*4) || !Span(m,ot,names*2))))return Fail(Error::InvalidImage);
+    if(!functions || functions>peprofile::Exports || names>functions || !Span(m,ft,functions*4) || (names && (!Span(m,nt,names*4) || !Span(m,ot,names*2))))return Fail(Error::InvalidImage);
     for(uint32_t i=0;i<functions;++i){uint32_t rva=0;if(!Read(m,ft+i*4,&rva,4))return false;
-        if(rva>=d.rva && rva-d.rva<d.bytes)return Fail(Error::Unsupported);
+        if(rva>=d.rva && rva-d.rva<d.bytes){
+            if(!peprofile::Extended)return Fail(Error::Unsupported);
+            char forward[128]{};const auto remaining=d.bytes-(rva-d.rva);if(!String(m,rva,forward,remaining<sizeof(forward)?remaining:sizeof(forward)))return false;
+            bool dot=false;for(uint32_t c=0;forward[c];++c)if(forward[c]=='.')dot=true;
+            if(!dot)return Fail(Error::InvalidImage);
+        }
         if(rva && !Span(m,rva,1))return Fail(Error::InvalidImage);}
     char text[128]{};for(uint32_t i=0;i<names;++i){uint32_t rva=0;uint16_t ordinal=0;
         if(!Read(m,nt+i*4,&rva,4) || !Read(m,ot+i*2,&ordinal,2) || ordinal>=functions || !String(m,rva,text,sizeof(text)) || !text[0])return Fail(Error::InvalidImage);}
     return true;
 }
-bool Loader::Symbol(Module& m,const char* name,uint32_t ordinal,uint64_t& address) noexcept {
+bool Loader::Symbol(Module& m,const char* name,uint32_t ordinal,uint64_t& address,uint32_t depth) noexcept {
+    if(depth>=MaxModules)return Fail(Error::Cycle);
     const auto& d=m.directories[0];if(!d.bytes)return Fail(Error::MissingSymbol);
     if(!Exports(m))return false;uint8_t h[40]{};if(!Read(m,d.rva,h,40))return false;
     const auto functions=U32(h+20),names=U32(h+24),ft=U32(h+28),nt=U32(h+32),ot=U32(h+36);uint32_t selected=UINT32_MAX;
@@ -115,18 +144,37 @@ bool Loader::Symbol(Module& m,const char* name,uint32_t ordinal,uint64_t& addres
         if(!Read(m,nt+i*4,&rva,4) || !Read(m,ot+i*2,&slot,2) || !String(m,rva,text,sizeof(text)))return false;
         if(Equal(name,text)){selected=slot;break;}}
     if(selected>=functions)return Fail(Error::MissingSymbol);uint32_t rva=0;if(!Read(m,ft+selected*4,&rva,4))return false;
-    if(!rva)return Fail(Error::MissingSymbol);address=m.base+rva;return true;
+    if(!rva)return Fail(Error::MissingSymbol);
+    if constexpr(peprofile::Extended){if(rva>=d.rva&&rva-d.rva<d.bytes){
+        char text[128]{},dll[128]{};const auto remaining=d.bytes-(rva-d.rva);if(!String(m,rva,text,remaining<sizeof(text)?remaining:sizeof(text)))return false;
+        uint32_t dot=UINT32_MAX;for(uint32_t i=0;text[i];++i)if(text[i]=='.')dot=i;
+        if(dot==UINT32_MAX||!dot||!text[dot+1]||dot>120)return Fail(Error::InvalidImage);
+        for(uint32_t i=0;i<dot;++i)dll[i]=text[i];
+        if(dot<4||Lower(dll[dot-4])!='.'||Lower(dll[dot-3])!='d'||Lower(dll[dot-2])!='l'||Lower(dll[dot-1])!='l'){
+            dll[dot++]='.';dll[dot++]='d';dll[dot++]='l';dll[dot++]='l';}
+        uint32_t source=UINT32_MAX;for(uint32_t i=0;i<count_;++i)if(&modules_[i]==&m)source=i;
+        const auto dep=Find(dll,source<count_?sources_[source].name:nullptr);if(dep==UINT32_MAX)return Fail(Error::MissingModule);
+        if(!LoadOne(dep))return false;if(!modules_[dep].dll)return Fail(Error::InvalidImage);
+        m.dependencies|=1u<<dep;
+        const char* symbol=text;uint32_t split=0;for(uint32_t i=0;text[i];++i)if(text[i]=='.')split=i;symbol+=split+1;
+        if(symbol[0]=='#'){uint32_t value=0;if(!symbol[1])return Fail(Error::InvalidImage);
+            for(uint32_t i=1;symbol[i];++i){if(symbol[i]<'0'||symbol[i]>'9'||value>6553)return Fail(Error::InvalidImage);value=value*10+uint32_t(symbol[i]-'0');}
+            if(value>65535)return Fail(Error::InvalidImage);return Symbol(modules_[dep],nullptr,value,address,depth+1);}
+        return Symbol(modules_[dep],symbol,0,address,depth+1);
+    }}
+    address=m.base+rva;return true;
 }
 bool Loader::Imports(Module& m) noexcept {
     const auto& d=m.directories[1];if(!d.bytes)return true;
     for(uint32_t at=0;at+20<=d.bytes;at+=20){uint8_t h[20]{};if(!Read(m,d.rva+at,h,20))return false;
         const auto lookup=U32(h),name=U32(h+12),iat=U32(h+16);
         if(!lookup && !name && !iat && !U32(h+4) && !U32(h+8))return true;
-        if(!name || !iat || U32(h+4) || U32(h+8) || (iat&7) || (lookup&7))return Fail(Error::InvalidImage);
+        if(!name || !iat || ((!peprofile::Extended||!lookup)&&(U32(h+4)||U32(h+8))) || (iat&7) || (lookup&7))return Fail(Error::InvalidImage);
         char dll[64]{};if(!String(m,name,dll,sizeof(dll)) || !Name(dll))return Fail(Error::InvalidImage);
-        const auto dep=Find(dll);if(dep==UINT32_MAX)return Fail(Error::MissingModule);
+        uint32_t source=UINT32_MAX;for(uint32_t i=0;i<count_;++i)if(&modules_[i]==&m)source=i;
+        const auto dep=Find(dll,source<count_?sources_[source].name:nullptr);if(dep==UINT32_MAX)return Fail(Error::MissingModule);
         if(!LoadOne(dep))return false;if(!modules_[dep].dll)return Fail(Error::InvalidImage);m.dependencies|=1u<<dep;
-        bool ended=false;for(uint32_t i=0;i<256;++i){const auto step=i*8;const uint64_t from=uint64_t(lookup?lookup:iat)+step,to=uint64_t(iat)+step;
+        bool ended=false;for(uint32_t i=0;i<peprofile::Imports;++i){const auto step=i*8;const uint64_t from=uint64_t(lookup?lookup:iat)+step,to=uint64_t(iat)+step;
             if(from>UINT32_MAX || to>UINT32_MAX)return Fail(Error::InvalidImage);uint64_t thunk=0,address=0;
             if(!Read(m,static_cast<uint32_t>(from),&thunk,8) || to<m.headers || !Span(m,static_cast<uint32_t>(to),8) ||
                 Span(m,static_cast<uint32_t>(to),8,ReadFlag|ExecuteFlag))return Fail(Error::InvalidImage);
@@ -144,7 +192,7 @@ bool Loader::Tls(Module& m,uint32_t index) noexcept {
     const auto& d=m.directories[9];if(!d.bytes)return true;uint8_t h[40]{};
     if(d.bytes<40 || !Read(m,d.rva,h,40))return Fail(Error::InvalidImage);
     const auto start=U64(h),end=U64(h+8),slot=U64(h+16),callbacks=U64(h+24);const auto zero=U32(h+32),flags=U32(h+36);
-    if(end<start || end-start>256 || zero>256 || end-start+zero>256 || flags&~0x00F00000u || ((flags>>20)&15)>5 ||
+    if(end<start || end-start>peprofile::TlsBytes || zero>peprofile::TlsBytes || end-start+zero>peprofile::TlsBytes || flags&~0x00F00000u || ((flags>>20)&15)>5 ||
         slot<m.base || slot-m.base>UINT32_MAX || !Span(m,static_cast<uint32_t>(slot-m.base),4,ReadFlag|WriteFlag))return Fail(Error::InvalidImage);
     if(end!=start && (start<m.base || start-m.base>UINT32_MAX || !Span(m,static_cast<uint32_t>(start-m.base),static_cast<uint32_t>(end-start))))return Fail(Error::InvalidImage);
     m.tlsTemplate=start;m.tlsBytes=static_cast<uint32_t>(end-start);m.tlsZeroBytes=zero;m.tlsIndexAddress=slot;m.tlsIndex=index;
@@ -157,6 +205,8 @@ bool Loader::Tls(Module& m,uint32_t index) noexcept {
             m.tlsCallbacks[m.tlsCallbackCount++]=entry;}}
     return true;
 }
+
+#include "PeLoaderExtra.inl"
 bool Loader::Exceptions(Module& m) noexcept {
     const auto& d=m.directories[3];if(!d.bytes)return true;
     if((d.bytes%12) || d.bytes/12>MaxRuntimeFunctions)return Fail(Error::InvalidImage);uint32_t last=0;
@@ -201,12 +251,14 @@ bool Loader::Seal(Module& m) noexcept {
 }
 bool Loader::LoadOne(uint32_t index) noexcept {
     auto& m=modules_[index];if(m.state==2)return true;if(m.state==1)return Fail(Error::Cycle);
+    if(nextGeneration_==UINT32_MAX)return Fail(Error::Limit);m.generation=nextGeneration_++;
     m.base=arena_+uint64_t(index)*MaxImageBytes;m.state=1;
     if(!Headers(index))return false;
     if(!backend_.map(context_,m.base,m.size))return Fail(Error::NoMemory);m.mapped=true;
     if(!backend_.write(context_,m.base,sources_[index].data,m.headers))return Fail(Error::Access);
     for(uint32_t i=0;i<m.sectionCount;++i){const auto& s=m.sections[i];if(s.rawBytes && !backend_.write(context_,m.base+s.rva,sources_[index].data+s.raw,s.rawBytes))return Fail(Error::Access);}
-    if(!Relocate(m) || !Imports(m) || !Tls(m,index) || !Exports(m) || !Exceptions(m) || !Seal(m))return false;
+    if(!Relocate(m) || (peprofile::Extended&&!Resources(m,index==0)) || !Imports(m) ||
+       (peprofile::Extended&&!DelayImports(m)) || !Tls(m,index) || !Exports(m) || !Exceptions(m) || !Seal(m))return false;
     m.state=2;return true;
 }
 bool Loader::Rollback(uint32_t keep) noexcept {
@@ -251,8 +303,26 @@ bool Loader::Remove(uint32_t mask) noexcept {
 }
 bool Loader::Resolve(uint32_t index,const char* name,uint32_t ordinal,uint64_t& address) noexcept {
     address=0;if(!Get(index) || (name && !name[0]))return Fail(Error::InvalidState);uint64_t result=0;
-    if(!Symbol(modules_[index],name,ordinal,result))return false;
-    if(!Executable(result))return Fail(Error::Unsupported);address=result;error_=Error::Ok;return true;
+    const auto keep=MappedMask();uint32_t dependencies[MaxModules]{};for(uint32_t i=0;i<count_;++i)dependencies[i]=modules_[i].dependencies;
+    if(!Symbol(modules_[index],name,ordinal,result)){
+        for(uint32_t i=0;i<count_;++i)modules_[i].dependencies=dependencies[i];Rollback(keep);return false;}
+    if constexpr(!peprofile::Extended){if(!Executable(result))return Fail(Error::Unsupported);}
+    address=result;error_=Error::Ok;return true;
+}
+bool Loader::CancelResolution(uint32_t added) noexcept {
+    if(added&~MappedMask()||added&pinned_)return Fail(Error::InvalidState);
+    for(uint32_t i=0;i<count_;++i)if((added&(1u<<i))&&references_[i])return Fail(Error::InvalidState);
+    for(uint32_t i=0;i<count_;++i)modules_[i].dependencies&=~added;
+    return Rollback(MappedMask()&~added);
+}
+bool Loader::InitializationOrder(uint32_t mask,uint32_t* order,uint32_t& count) const noexcept {
+    count=0;uint32_t done=0;
+    for(uint32_t pass=0;done!=mask&&pass<count_;++pass){bool progress=false;
+        for(uint32_t i=0;i<count_;++i)if((mask&~done)&(1u<<i)){
+            if(modules_[i].state!=2)return false;if(modules_[i].dependencies&mask&~done)continue;
+            order[count++]=i;done|=1u<<i;progress=true;
+        }if(!progress)return false;
+    }return done==mask;
 }
 bool Loader::Load(const char* name,uint32_t& index) noexcept {
     auto event=telemetry::Begin(telemetry::Domain::Module,telemetry::Operation::Load,auditPid_,auditUser_,name);

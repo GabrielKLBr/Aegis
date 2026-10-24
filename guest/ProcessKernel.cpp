@@ -87,6 +87,7 @@ void Garbage() noexcept {
         const auto* p=manager.Get(owners[slot]);if(!p || p->state!=processes::State::Live)continue;
         uint32_t tid=0;for(auto id:p->threads)if(id && (id&255u)==slot+1)tid=id;
         const auto* t=scheduler.Get(tid);if(!t || t->state!=threads::State::Dead)continue;
+        PeThreadGone(p->id,tid);
         Check((tebs[slot]==cpu::UserData || manager.Release(p->id,tebs[slot])==0) && manager.Release(p->id,stacks[slot])==0,26);
         Check(manager.ReapThread(tid),27);owners[slot]=0;tebs[slot]=stacks[slot]=startups[slot]=0;waiting[slot]=false;
     }
@@ -357,12 +358,18 @@ void ProcessSelfTest() noexcept {
         GraphicsInitialize();
 #endif
         Check(PePrepareProcess(manager,memoryManager,pePid,startup),24);
-        const auto slot=(peTid&255u)-1;auto& c=contexts[slot];c.frame.rip=UserAddress(&PeProcessBootstrap);c.frame.rcx=startup;c.gs=cpu::UserData;c.fs=0;
+        const auto slot=(peTid&255u)-1;auto& c=contexts[slot];c.frame.rip=UserAddress(&PeProcessBootstrap);c.frame.rcx=startup;c.gs=PeInitialTeb(pePid);c.fs=0;
 #ifdef GUARDIAN_RUNTIME_KERNEL
-        tebs[slot]=cpu::UserData;startups[slot]=startup;
+        tebs[slot]=PeInitialTeb(pePid);startups[slot]=startup;
 #endif
-        auto* teb=Data(pePid);teb[1]=stacks[slot]+0x10000;teb[2]=stacks[slot]+4096;teb[8]=pePid;teb[9]=peTid;
-#ifdef GUARDIAN_LIFETIME_KERNEL
+        auto* teb=
+#ifdef GUARDIAN_SCALABLE_PE
+            static_cast<uint64_t*>(memoryManager.physical.At(manager.Translate(pePid,PeInitialTeb(pePid),true)));
+#else
+            Data(pePid);
+#endif
+        teb[1]=stacks[slot]+0x10000;teb[2]=stacks[slot]+4096;teb[8]=pePid;teb[9]=peTid;
+#if defined(GUARDIAN_LIFETIME_KERNEL) && !defined(GUARDIAN_SCALABLE_PE)
         PeChildRollbackChecks(pePid);
 #endif
         running=true;ProcessRun(UserAddress(&ProcessBootstrap),cpu::UserStack+cpu::UserStackBytes-0x28);telemetry::currentThread=telemetry::currentProcess=0;

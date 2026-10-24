@@ -1,6 +1,6 @@
 # Plano de desenvolvimento do GuardianAV e do kernel próprio
 
-Data de referência: 23/10/2026.
+Data de referência: 24/10/2026.
 Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
 
 **Revisão Windows atual:** a continuação da 12B até a 13 passou na matriz
@@ -10,7 +10,8 @@ A integração PE/SMP da 12B e as referências NT específicas da 12C continuam
 abertas. A fase 14 foi entregue no Windows em 23/10/2026; sua aceitação Linux é
 parcial. As subfases 14.1–14.14 abaixo passam a ser a próxima prioridade de
 compatibilidade, antes da fase 15. A implementação da 14.1 e seu escopo de
-aceitação estão registrados em [PHASE-14.1.md](PHASE-14.1.md); 14.2–14.14 estão
+aceitação estão registrados em [PHASE-14.1.md](PHASE-14.1.md). A 14.2 amplia o
+carregador externo e o volume de runtime: [escopo e aceitação](PHASE-14.2.md). 14.3–14.14 estão
 planejadas e não iniciadas. Os registros abaixo preservam o histórico das
 entregas anteriores e suas pendências.
 
@@ -574,7 +575,8 @@ explícito. Arquivos compactados têm limites de expansão, profundidade e tempo
 **Prioridade definida em 23/10/2026:** executar esta sequência de compatibilidade
 antes da fase 15, aproveitando o kernel, o runtime, os perfis e o protótipo GUI
 existentes. A 14.1 foi implementada por solicitação posterior: [contratos,
-inventário, testes e limitações](PHASE-14.1.md). A 14.2 não foi iniciada.
+inventário, testes e limitações](PHASE-14.1.md). A 14.2 foi implementada por nova
+solicitação: [carregador externo, testes e limites](PHASE-14.2.md).
 Cada subfase exige solicitação e termina com entrega e parada.
 As pendências das fases 8–13 permanecem registradas; os lotes abaixo integram e
 ampliam esses caminhos, sem declarar sua conclusão retroativamente.
@@ -663,6 +665,13 @@ ordem de símbolos por dependência e testes que distingam perfis, inclusive
 recusa de combinações incompatíveis. Parar ao concluir.
 
 ### Subfase 14.2 — Carregador externo, módulos e memória escaláveis
+
+**Implementação de 24/10/2026:** PE externo até 8 MiB, catálogo de até 16 módulos,
+volume imutável convidado com busca controlada, forwarders, ordinais/dados,
+delay imports antecipados, recursos numéricos e manifests/contextos delimitados.
+Testes com DLLs próprias e três perfis NT; serviços de DLLs Windows originais
+continuam pendentes. [Contrato, aceitação e limites](PHASE-14.2.md).
+Parar nesta subfase; a 14.3 exige nova solicitação.
 
 **Dependências:** 14.1 e fundamentos de memória/PE das fases 3/8/12B.
 
@@ -1007,7 +1016,8 @@ medido por critérios aprovados, não pela quantidade de funções com o mesmo n
 **Entrega atual:** fase 14 aceita no Windows, com validação Linux parcial;
 protótipo gráfico externo da fase 12 aceito para a referência própria, sem
 compatibilidade Flappy concluída. A 14.1 implementa contratos, inventário e
-vínculo de perfil, com escopo e aceitação próprios; a 12F e 14.2–14.14 continuam
+vínculo de perfil. A 14.2 implementa o carregador externo e volume de runtime,
+com escopo e aceitação próprios; a 12F e 14.3–14.14 continuam
 planejadas, sem implementação iniciada. Os resultados históricos e as pendências
 anteriores permanecem identificados nos respectivos documentos.
 

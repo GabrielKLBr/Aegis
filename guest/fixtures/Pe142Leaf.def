@@ -1,0 +1,5 @@
+LIBRARY guardian_leaf
+EXPORTS
+    ProbeOrdinal=ProbeAlias @7 NONAME
+    ProbeAlias @8
+    ProbeData @9 DATA

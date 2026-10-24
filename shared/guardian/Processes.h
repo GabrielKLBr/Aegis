@@ -1,8 +1,9 @@
 #pragma once
 #include "Abi.h"
+#include "PeProfile.h"
 namespace guardian::processes {
 inline constexpr uint64_t Magic=0x35524350415647ull,ReportGpa=0x10B000,RequiredChecks=0x7FFF;
-inline constexpr uint32_t Version=1,MaxProcesses=3,MaxHandles=32,MaxObjects=64,MaxAces=8,MaxGroups=4,MaxProcessThreads=4,MaxPrivatePages=128;
+inline constexpr uint32_t Version=1,MaxProcesses=3,MaxHandles=32,MaxObjects=64,MaxAces=8,MaxGroups=4,MaxProcessThreads=4,MaxPrivatePages=peprofile::PrivatePages;
 inline constexpr uint16_t Port=0xEF;
 inline constexpr uint32_t Success=0,InvalidHandle=0xC0000008,Invalid=0xC000000D,NoMemory=0xC0000017,Denied=0xC0000022,
     TypeMismatch=0xC0000024,Collision=0xC0000035,NotFound=0xC0000034,Terminated=0xC000010A,Quota=0xC0000044,NotClosable=0xC0000235;

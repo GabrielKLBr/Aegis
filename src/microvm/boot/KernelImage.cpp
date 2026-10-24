@@ -110,6 +110,10 @@ bool KernelImage::SupportsExternalGui() const noexcept {
     constexpr char tag[]="GuardianExternalGui/1/bounded";
     return std::search(file_.begin(),file_.end(),tag,tag+sizeof(tag))!=file_.end();
 }
+bool KernelImage::SupportsExternalPe() const noexcept {
+    static constexpr char capability[]="GuardianExternalPe/1/volume";
+    return std::search(file_.begin(),file_.end(),std::begin(capability),std::end(capability)-1)!=file_.end();
+}
 }
 
 namespace av::microvm::boot {

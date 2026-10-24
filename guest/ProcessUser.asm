@@ -542,6 +542,12 @@ PeDetach:
     call QWORD PTR [r12+r13+16]
     jmp PeDetach
 PeAttachFailed:
+IFDEF GUARDIAN_SCALABLE_PE
+    mov rcx,[r12+r13+24]
+    xor edx,edx
+    xor r8d,r8d
+    call QWORD PTR [r12+r13+16]
+ENDIF
     mov r14d,3
     jmp PeDetach
 PeFinished:
@@ -592,10 +598,14 @@ PeThreadMain:
     syscall
     test eax,eax
     jnz PeLoaderFailed
+IFDEF GUARDIAN_SCALABLE_PE
+    mov rcx,[r12+3472]
+ELSE
 IFDEF GUARDIAN_COMPLETE_KERNEL
     mov rcx,[r12+304]
 ELSE
     mov rcx,[r12+112]
+ENDIF
 ENDIF
     call QWORD PTR [r12]
     mov r14d,eax

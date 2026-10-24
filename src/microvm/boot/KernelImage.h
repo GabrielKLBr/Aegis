@@ -19,6 +19,7 @@ public:
     bool SupportsAnalysisFixture() const noexcept;
     bool SupportsSystemClock() const noexcept;
     bool SupportsExternalGui() const noexcept;
+    bool SupportsExternalPe() const noexcept;
     uint64_t Base() const { return PreferredBase; }
     uint64_t Size() const { return imageBytes_; }
     uint64_t Entry() const { return PreferredBase + entryRva_; }

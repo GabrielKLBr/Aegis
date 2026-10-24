@@ -47,12 +47,23 @@ bool WhpAvailable() {
         written >= sizeof(BOOL) && capability.HypervisorPresent;
 #endif
 }
-void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu,const StorageOptions& storage,const net::Options& networking,const gui::Options& graphics,const hardware::Profile* hardware,const hardware::DriverOptions& driver,const storage::SparseOptions* scalable,const guardian::environment::Info* environment,const guardian::telemetry::Policy* analysisPolicy,uint32_t analysisScenario,std::span<const uint8_t> externalGui,const guardian::nt::Info* compatibility) {
+void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu,const StorageOptions& storage,const net::Options& networking,const gui::Options& graphics,const hardware::Profile* hardware,const hardware::DriverOptions& driver,const storage::SparseOptions* scalable,const guardian::environment::Info* environment,const guardian::telemetry::Policy* analysisPolicy,uint32_t analysisScenario,std::span<const uint8_t> externalGui,const guardian::nt::Info* compatibility,std::span<const uint8_t> externalVolume) {
     using namespace guardian::abi;
     Require(!attempted_, "A boot session cannot be reused"); attempted_ = true;
+    externalPeKernel_=image.SupportsExternalPe();
+    Require(externalPeKernel_?!externalVolume.empty():externalVolume.empty(),"External volume requires its kernel contract");
+    std::span<const uint8_t> application=externalGui;
+    if(externalPeKernel_){
+        Require(compatibility&&cpu.enabled&&cpu.processes&&cpu.graphics&&!cpu.io&&!cpu.storage&&!cpu.network&&!cpu.driver&&!cpu.resources&&externalGui.empty()&&ramBytes>=(128ull<<20),"External volume options rejected");
+        Require(externalVolume.size()<=guardian::pevolume::MaxBytes&&guardian::pevolume::Valid(externalVolume.data(),static_cast<uint32_t>(externalVolume.size())),"External volume rejected");
+        const auto& header=*reinterpret_cast<const guardian::pevolume::Header*>(externalVolume.data());
+        Require(header.profile==compatibility->profile,"External volume NT profile mismatch");
+        const auto digest=compatibility::Sha256(externalVolume);Require(std::memcmp(digest.data(),compatibility->runtimeSha,32)==0,"External volume SHA-256 mismatch");
+        const auto& root=header.entries[header.root];application=externalVolume.subspan(root.offset,root.bytes);
+    }
     if(compatibility){
         Require(cpu.enabled&&!cpu.resources&&!cpu.driver,"NT binding requires the CPU/process boot contract");
-        compatibility::Verify(*compatibility,image.FileBytes(),externalGui);
+        compatibility::Verify(*compatibility,image.FileBytes(),application);
         ntInfo_=*compatibility;ntInfo_.boot=bootId;ntEnabled_=true;
         if(environment)Require(guardian::nt::Matches(guardian::nt::Find(ntInfo_.profile),environment->ntMajor,environment->ntMinor,environment->ntBuild),"NT/environment profile mismatch");
     }
@@ -90,7 +101,7 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
     Require(!cpu.io || (cpu.enabled && cpu.processes && !cpu.memory && !cpu.threads), "I/O requires the process image contract");
     Require(!cpu.storage || (cpu.io && cpu.processes && !storage.base.empty() && !storage.overlay.empty()), "Storage requires I/O and explicit base/overlay paths");
     Require(cpu.graphics || (graphics.output.empty() && graphics.input.empty() && graphics.script.empty() && !graphics.continuous && !graphics.interactive && !graphics.poll && !graphics.display), "Graphics options require a graphics image");
-    Require(!cpu.graphics || (cpu.enabled && !cpu.memory && !cpu.threads && (!cpu.processes||externalGuiKernel_) && !cpu.network), "Graphics requires a distinct CPU profile");
+    Require(!cpu.graphics || (cpu.enabled && !cpu.memory && !cpu.threads && (!cpu.processes||externalGuiKernel_||externalPeKernel_) && !cpu.network), "Graphics requires a distinct CPU profile");
     Require(!cpu.network || (cpu.enabled && !cpu.memory && !cpu.threads && (!cpu.processes||analysisKernel_)), "Network image contract requires the CPU profile");
     Require(!analysisKernel_||(cpu.network&&(networking.policy.mode==guardian::net::Mode::Offline||networking.policy.mode==guardian::net::Mode::Simulated)),"Owned analysis echo supports offline/simulated networking only");
     Require(cpu.network || networking.policy.mode==guardian::net::Mode::Offline,"Network policy requires a network-capable image contract");
@@ -127,6 +138,17 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
         }
         regions=std::move(split);b.memoryMapCount=static_cast<uint32_t>(regions.size());
         Require(Covered(regions.data(),b.memoryMapCount,begin,end-begin,MemoryKind::BootData),"External PE source reservation rejected");
+    }
+    if(externalPeKernel_){
+        std::vector<MemoryRegion> split;const auto begin=guardian::pevolume::SourceGpa;
+        const uint64_t bytes=(externalVolume.size()+4095)&~4095ull,end=begin+bytes;
+        for(const auto& region:regions){if(region.kind==MemoryKind::Available&&region.gpa<=begin&&region.gpa+region.bytes>=end){
+            if(region.gpa<begin)split.push_back({region.gpa,begin-region.gpa,MemoryKind::Available,0,0});
+            split.push_back({begin,bytes,MemoryKind::BootData,0,0});
+            if(region.gpa+region.bytes>end)split.push_back({end,region.gpa+region.bytes-end,MemoryKind::Available,0,0});
+        }else split.push_back(region);}
+        regions=std::move(split);b.memoryMapCount=static_cast<uint32_t>(regions.size());
+        Require(Covered(regions.data(),b.memoryMapCount,begin,bytes,MemoryKind::BootData),"External volume reservation rejected");
     }
     if(cpu.driver){
         std::vector<MemoryRegion> split;
@@ -202,6 +224,14 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
         std::memcpy(ram+eg::InfoGpa,&info,sizeof(info));
         std::memcpy(ram+eg::SourceGpa,externalGui.data(),externalGui.size());
         Require(vm_.SetMemoryAccess(eg::InfoGpa,PageBytes,1)&&vm_.SetMemoryAccess(eg::SourceGpa,eg::MaxFile,1),"External PE source protections rejected");
+    }
+    if(externalPeKernel_){
+        // Console programs can finish without presenting a frame. Start with
+        // the same background as the host display before comparing reports.
+        std::fill_n(reinterpret_cast<uint32_t*>(ram+guardian::graphics::PixelsGpa),guardian::graphics::PixelCount,0xFF172536u);
+        guardian::pevolume::Info info;info.boot=bootId;info.volumeBytes=static_cast<uint32_t>(externalVolume.size());info.hash=guardian::pevolume::Hash(externalVolume.data(),info.volumeBytes,true);
+        std::memcpy(ram+guardian::pevolume::InfoGpa,&info,sizeof(info));std::memcpy(ram+guardian::pevolume::SourceGpa,externalVolume.data(),externalVolume.size());
+        Require(vm_.SetMemoryAccess(guardian::pevolume::InfoGpa,PageBytes,1)&&vm_.SetMemoryAccess(guardian::pevolume::SourceGpa,(externalVolume.size()+4095)&~4095ull,1),"External volume permissions rejected");
     }
     if(ntEnabled_){std::memcpy(ram+guardian::nt::InfoGpa,&ntInfo_,sizeof(ntInfo_));Require(vm_.SetMemoryAccess(guardian::nt::InfoGpa,PageBytes,1),"NT binding page protection failed");}
     if(hardwareInfo_.magic)Require(vm_.SetMemoryAccess(guardian::hardware::InfoGpa,PageBytes,1),"Hardware inventory protection failed");
@@ -549,7 +579,7 @@ BootResult KernelBootSession::Run(std::chrono::milliseconds timeout, bool suspen
         !r.stopStatus && channel_.Error().empty() && r.diagnostic == (cpuOptions_.processes ? (cpuOptions_.io?(cpuOptions_.storage?"kernel storage self-test PASS":"kernel IO self-test PASS"):"kernel processes self-test PASS") : (cpuOptions_.threads ? "kernel threads self-test PASS" : (cpuOptions_.memory ? "kernel memory self-test PASS" :
             (cpuOptions_.enabled ? (cpuOptions_.graphics?"kernel graphics self-test PASS":(cpuOptions_.network?"kernel network self-test PASS":"kernel CPU self-test PASS")) : "kernel self-test PASS"))));
     if(cpuOptions_.driver)r.success=r.success&&r.driverReportValid&&r.driver.functional&&r.driver.unloaded&&!r.driver.error;
-    if(externalGuiKernel_)r.success=r.success&&cpuReportValid_&&!cpuReport_.fatal&&processReportValid_&&
+    if(externalGuiKernel_||externalPeKernel_)r.success=r.success&&cpuReportValid_&&!cpuReport_.fatal&&processReportValid_&&
         processReport_.checks==guardian::externalgui::Checks&&processReport_.coreChecks>=693&&processReport_.completed==1&&!processReport_.faulted&&
         processReport_.freeBefore==processReport_.freeAfter+21&&!processReport_.liveProcesses&&!processReport_.liveObjects&&!processReport_.liveHandles&&!processReport_.liveReferences&&timerAcknowledged_==processReport_.ticks;
     else if(analysisKernel_)r.success=r.success&&cpuReportValid_&&!cpuReport_.fatal&&processReportValid_&&
@@ -572,7 +602,7 @@ BootResult KernelBootSession::Run(std::chrono::milliseconds timeout, bool suspen
         ioReport_.loads==3 && ioReport_.unloads==3 && ioReport_.consoleBytes==r.ioHostConsole && ioReport_.channelBytes==r.ioHostChannel && ioReport_.blockBytes==r.ioHostBlock;
     if(cpuOptions_.storage)r.success=r.success && storageReportValid_ && storageReport_.checks==guardian::storage::RequiredChecks && storageReport_.coreChecks>=700 &&
         storageReport_.sequenceAfter>storageReport_.sequenceBefore && !storageReport_.liveHandles && !storageReport_.liveWatches && storageReport_.userCalls>=10 && r.storageRecords>0;
-    if(cpuOptions_.graphics)r.success=r.success&&graphicsReportValid_&&graphicsReport_.checks==(externalGuiKernel_?guardian::externalgui::Checks:guardian::graphics::RequiredChecks)&&graphicsReport_.applications==(externalGuiKernel_?1u:2u)&&graphicsReport_.frames==r.graphicsFrames&&graphicsReport_.inputs==r.graphicsInputs&&graphicsReport_.pixelHash==r.graphicsHash&&(externalGuiKernel_?graphicsReport_.frames>=1:(graphicsReport_.calls>=20&&graphicsReport_.denied>=6));
+    if(cpuOptions_.graphics)r.success=r.success&&graphicsReportValid_&&graphicsReport_.checks==((externalGuiKernel_||externalPeKernel_)?guardian::externalgui::Checks:guardian::graphics::RequiredChecks)&&graphicsReport_.applications==((externalGuiKernel_||externalPeKernel_)?1u:2u)&&graphicsReport_.frames==r.graphicsFrames&&graphicsReport_.inputs==r.graphicsInputs&&graphicsReport_.pixelHash==r.graphicsHash&&(externalPeKernel_?true:(externalGuiKernel_?graphicsReport_.frames>=1:(graphicsReport_.calls>=20&&graphicsReport_.denied>=6)));
     if(graphicsBackend_)graphicsBackend_->Export();
     if(cpuOptions_.network)r.success=r.success&&networkReportValid_&&networkReport_.checks==(analysisKernel_?1u:guardian::net::RequiredChecks)&&(!analysisKernel_||networkReport_.userCalls>=1)&&networkReport_.sent==r.networkSent&&networkReport_.received==r.networkReceived&&networkReport_.denied==r.networkDenied;
     if(networkBackend_)networkBackend_->Export();
