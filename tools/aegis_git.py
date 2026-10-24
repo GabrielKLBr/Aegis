@@ -20,7 +20,7 @@ import urllib.request
 ROOT = Path(__file__).resolve().parents[1]
 DESCRIPTION = "Advanced Endpoint Guardian for Inspection & Sandboxing"
 SOURCE_DIRS = {"src", "shared", "guest", "test", "cmake", "tools", "docs", "config", ".github"}
-ROOT_FILES = {".gitignore", ".gitattributes", "CMakeLists.txt", "README.md", "SECURITY.md",
+ROOT_FILES = {".gitignore", ".gitattributes", "AGENTS.md", "CMakeLists.txt", "README.md", "SECURITY.md",
               "LICENSE", "LICENSE.md", "signatures.txt", "build.bat", "build-mingw.bat",
               "Build-Kernel.ps1", "Build-Linux.sh"}
 SOURCE_EXTENSIONS = {".c", ".cpp", ".h", ".hpp", ".inl", ".inc", ".asm", ".s", ".py",

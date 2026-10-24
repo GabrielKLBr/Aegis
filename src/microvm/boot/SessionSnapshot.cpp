@@ -9,6 +9,7 @@ uint32_t Options(CpuOptions c) {
 }
 } // namespace
 SessionSnapshot KernelBootSession::Capture() {
+    state::Require(!externalGuiKernel_,"External GUI snapshots are not implemented");
     if(resourceSession_)return resourceSession_->Capture();
     state::Require(prepared_ && (!ran_ || paused_), "Snapshot requires a prepared or paused guest");
     SessionSnapshot out;
@@ -54,8 +55,14 @@ SessionSnapshot KernelBootSession::Capture() {
     return out;
 }
 void KernelBootSession::Restore(const SessionSnapshot &saved) {
+    state::Require(!externalGuiKernel_,"External GUI snapshots are not implemented");
     if(resourceSession_){resourceSession_->Restore(saved);return;}
     state::Require(prepared_ && !ran_, "Restore requires a fresh candidate session");
+    if(saved.machine.ram.size()>=guardian::nt::InfoGpa+sizeof(ntInfo_)){
+        guardian::nt::Info info{};std::memcpy(&info,saved.machine.ram.data()+guardian::nt::InfoGpa,sizeof(info));
+        if(ntEnabled_)state::Require(saved.machine.access.size()>guardian::nt::InfoGpa/4096&&saved.machine.access[guardian::nt::InfoGpa/4096]==1&&std::memcmp(&info,&ntInfo_,sizeof(info))==0,"Snapshot NT profile/runtime/manifest mismatch");
+        else state::Require(info.magic!=guardian::nt::Magic,"Snapshot requires its NT compatibility manifest");
+    }else state::Require(!ntEnabled_,"Snapshot NT binding page missing");
     if(driverBackend_)driverBackend_->ValidateSnapshot(saved.machine);
     if(cpuOptions_.storage&&storageQuotaContract_){
         const auto gpa=guardian::storage::QuotaGpa;

@@ -12,9 +12,11 @@ int main(int argc,char** argv){try{
     std::vector<BootResult> rows;uint64_t id=1;
     auto bootTimeout=complete?std::chrono::seconds(10):std::chrono::seconds(3);
 #ifdef _WIN32
-    // These functional probes include synchronous host disk flushes. Match the
-    // complete PE probe's budget; dedicated clock/watchdog checks stay separate.
-    if(runtime)bootTimeout=std::chrono::seconds(10);
+    // Functional probes include synchronous host disk flushes. Windows runs on
+    // 2026-10-24 observed 12.7-15.7 s stalls at different I/O stages, while the
+    // same inputs completed on retry. Keep bounded headroom for persistence;
+    // dedicated CPU/clock/watchdog probes retain their independent deadlines.
+    bootTimeout=std::chrono::seconds(30);
 #endif
     for(uint64_t ram:{16ull<<20,64ull<<20})for(uint32_t run=0;run<20;++run){
         StorageOptions disk{directory/"base.gvd",directory/(std::to_string(runtime?(id-1)/2:id)+".gvo"),true};

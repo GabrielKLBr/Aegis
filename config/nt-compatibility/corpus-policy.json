@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "purpose": "Acceptance target defined before the phase 14.x compatibility campaign",
+  "architecture": ["x64", "x86"],
+  "profiles": ["win10", "win7", "win11"],
+  "categories": {
+    "console": 4,
+    "classic-gui": 4,
+    "utilities": 4,
+    "installers": 4,
+    "network": 4,
+    "com-shell": 4,
+    "frameworks": 4,
+    "multimedia": 4
+  },
+  "minimumIndependentPrograms": 32,
+  "minimumProgramsPerArchitecture": 8,
+  "requiredOverallFunctionalPercentPerProfile": 75,
+  "requiredFunctionalPercentPerCategory": 50,
+  "ownedFixturesCountAsIndependentPrograms": false,
+  "lockExactVersionsHashesAndScenariosBeforeCampaign": true,
+  "replacementOfFailedProgramsDuringCampaign": false,
+  "currentState": "selection-incomplete; no general compatibility claim"
+}

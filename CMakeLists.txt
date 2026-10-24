@@ -694,4 +694,11 @@ endif()
 
 # Phase 0: explicit host/VMM/reference groups and the freestanding ABI boundary.
 include(cmake/GuardianPlatform.cmake)
-include(cmake/GuardianScanner.cmake)
+option(GUARDIAN_GUI_COMPATIBILITY_ONLY "Build GUI compatibility/core tools without scanner dependencies or scanner frontends" OFF)
+if(GUARDIAN_GUI_COMPATIBILITY_ONLY)
+    set_target_properties(av avui PROPERTIES EXCLUDE_FROM_ALL TRUE)
+else()
+    include(cmake/GuardianScanner.cmake)
+endif()
+include(cmake/GuardianPeGui.cmake)
+include(cmake/GuardianCompatibility.cmake)

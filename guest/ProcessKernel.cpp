@@ -8,6 +8,9 @@
 #ifdef GUARDIAN_PE_KERNEL
 extern "C" const volatile char GuardianProcessTelemetryCapability[]="GuardianTelemetry/1/bounded";
 #include "PeKernel.h"
+#ifdef GUARDIAN_PE_GUI_KERNEL
+#include "GraphicsDriver.h"
+#endif
 #include "guardian/Environment.h"
 #ifdef GUARDIAN_COMPLETE_KERNEL
 #include "PeExceptions.h"
@@ -329,8 +332,11 @@ void ProcessSelfTest() noexcept {
         const auto free=memoryManager.physical.Statistics().free;Token peToken{};peToken.user=100;peToken.primaryGroup=10;peToken.integrity=2;peToken.session=1;peToken.privileges=CreateGlobal;
         uint32_t pePid=0,peTid=0;uint64_t startup=0;
         Check(manager.CreateRoot(peToken,pePid)==Success && AddThread(pePid,0,&peTid)==Success,23);
-#ifdef GUARDIAN_RUNTIME_KERNEL
-        IoBegin(pePid);StorageBegin(pePid);
+#if defined(GUARDIAN_RUNTIME_KERNEL) && defined(GUARDIAN_IO_KERNEL)
+        IoBegin(pePid);
+#ifdef GUARDIAN_STORAGE_KERNEL
+        StorageBegin(pePid);
+#endif
 #endif
 #ifdef GUARDIAN_ANALYSIS_KERNEL
         const char* baselinePaths[3]={"C:\\a.txt","C:\\b.txt","C:\\c.txt"};for(const char* path:baselinePaths){
@@ -347,6 +353,9 @@ void ProcessSelfTest() noexcept {
         Check(NetworkRuntimeInitialize(session),0x97);
 #endif
         auto actor=telemetry::Begin(telemetry::Domain::Process,telemetry::Operation::Query,pePid,100,"owned application root");telemetry::Before(actor);telemetry::End(actor,0);
+#ifdef GUARDIAN_PE_GUI_KERNEL
+        GraphicsInitialize();
+#endif
         Check(PePrepareProcess(manager,memoryManager,pePid,startup),24);
         const auto slot=(peTid&255u)-1;auto& c=contexts[slot];c.frame.rip=UserAddress(&PeProcessBootstrap);c.frame.rcx=startup;c.gs=cpu::UserData;c.fs=0;
 #ifdef GUARDIAN_RUNTIME_KERNEL
@@ -358,18 +367,29 @@ void ProcessSelfTest() noexcept {
 #endif
         running=true;ProcessRun(UserAddress(&ProcessBootstrap),cpu::UserStack+cpu::UserStackBytes-0x28);telemetry::currentThread=telemetry::currentProcess=0;
         Check(!running && PeProcessPassed() && memoryManager.physical.Statistics().free==free && scheduler.AllDead(),25);
-#ifdef GUARDIAN_ANALYSIS_KERNEL
-        // This image validates the owned analysis workload. The independent
-        // complete/process images retain the legacy CPL3 acceptance programs.
-        ++result.completed; // The owned PE root just returned successfully and was reaped.
-        StorageFinish();IoFinish();const auto counts=manager.Counts();
+#if defined(GUARDIAN_ANALYSIS_KERNEL) || defined(GUARDIAN_PE_GUI_KERNEL)
+        // Dedicated workloads return after their root PE; independent images
+        // retain the additional legacy CPL3 acceptance programs.
+        ++result.completed;
+#ifdef GUARDIAN_STORAGE_KERNEL
+        StorageFinish();
+#endif
+#ifdef GUARDIAN_IO_KERNEL
+        IoFinish();
+#endif
+        const auto counts=manager.Counts();
         Check(counts.consistent&&!counts.processes&&!counts.objects&&!counts.handles&&!counts.references&&!counts.threads,0x94);
         result.freeAfter=memoryManager.physical.Statistics().free;
         Check(result.freeAfter+21==result.freeBefore&&scheduler.AllDead(),0x95);
         result.liveProcesses=counts.processes;result.liveObjects=counts.objects;result.liveHandles=counts.handles;result.liveReferences=counts.references;
-        result.checks=telemetry::AnalysisChecks;return;
+#ifdef GUARDIAN_PE_GUI_KERNEL
+        GraphicsComplete();result.checks=1;
+#else
+        result.checks=telemetry::AnalysisChecks;
 #endif
-#ifndef GUARDIAN_ANALYSIS_KERNEL
+        return;
+#endif
+#if !defined(GUARDIAN_ANALYSIS_KERNEL) && !defined(GUARDIAN_PE_GUI_KERNEL)
         const char message[]="PE console TLS DLL execution PASS\n";for(char ch:message)if(ch)__outbyte(0xE9,static_cast<uint8_t>(ch));
 #ifdef GUARDIAN_RUNTIME_KERNEL
         const char threadMessage[]="PE private TEB TLS thread lifecycle contention PASS\n";for(char ch:threadMessage)if(ch)__outbyte(0xE9,static_cast<uint8_t>(ch));
@@ -388,7 +408,7 @@ void ProcessSelfTest() noexcept {
 #endif
     }
 #endif
-#ifndef GUARDIAN_ANALYSIS_KERNEL
+#if !defined(GUARDIAN_ANALYSIS_KERNEL) && !defined(GUARDIAN_PE_GUI_KERNEL)
     Token token{};token.user=100;token.primaryGroup=10;token.session=1;token.integrity=2;token.privileges=CreateGlobal;
     Check(manager.CreateRoot(token,parentPid)==Success,10);token.user=200;token.session=2;Check(manager.CreateRoot(token,badPid)==Success,11);
     Check(InitializeData(parentPid,0x1111) && InitializeData(badPid,0x2222),12);

@@ -28,7 +28,9 @@ set_tests_properties(analysis_core PROPERTIES TIMEOUT 40)
 if(WIN32 OR GUARDIAN_TEST_KVM)
     if(WIN32)
         set(analysis_kernel $<TARGET_FILE:guardian_kernel_analysis>)
-        add_dependencies(analysis_boot_tests guardian_kernel_analysis)
+        # The test reads negative references and separate network/driver images.
+        add_dependencies(analysis_boot_tests guardian_kernel_analysis guardian_kernel_cpu guardian_kernel_storage
+            guardian_kernel_network guardian_kernel_hardware guardian_driver_probe guardian_driver_api)
     else()
         set(analysis_kernel "${GUARDIAN_KVM_GUEST_DIR}/guardian-kernel-analysis.gk")
     endif()

@@ -1,0 +1,20 @@
+LIBRARY user32
+EXPORTS
+    RegisterClassA
+    CreateWindowExA
+    DefWindowProcA
+    DestroyWindow
+    ShowWindow
+    UpdateWindow
+    InvalidateRect
+    BeginPaint
+    EndPaint
+    GetClientRect
+    FillRect
+    GetSysColorBrush
+    GetMessageA
+    PeekMessageA
+    TranslateMessage
+    DispatchMessageA
+    PostQuitMessage
+    GetSystemMetrics

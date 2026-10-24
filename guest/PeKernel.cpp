@@ -5,6 +5,14 @@
 #endif
 #include "guardian/Environment.h"
 #include "PeFixtures.h"
+#ifdef GUARDIAN_PE_GUI_KERNEL
+#include "GraphicsDriver.h"
+#include "PeGuiFixtures.h"
+#include "guardian/ExternalGui.h"
+#include "guardian/NtCompatibility.h"
+#include "guardian/Validate.h"
+extern "C" const volatile char GuardianExternalGuiCapability[]="GuardianExternalGui/1/bounded";
+#endif
 #ifdef GUARDIAN_RUNTIME_KERNEL
 #include "PeRuntimeFixtures.h"
 #include "RuntimeMemory.h"
@@ -68,8 +76,13 @@ RuntimeSlot* Find(uint32_t pid) noexcept {for(auto& s:runtimes)if(pid && s.pid==
 #ifdef GUARDIAN_RUNTIME_KERNEL
 runtime::Services services;
 extern "C" const volatile char GuardianSystemClockCapability[]="GuardianSystemClock/1/real";
+#ifdef GUARDIAN_PE_GUI_KERNEL
+uint32_t Store(void*,uint32_t,const processes::Token&,storage::Command&) noexcept {return storage::Unsupported;}
+uint32_t Console(void*,uint32_t,const uint8_t*,uint32_t,uint32_t& out) noexcept {out=0;return storage::Unsupported;}
+#else
 uint32_t Store(void*,uint32_t pid,const processes::Token&,storage::Command& c) noexcept {return StorageExecute(pid,c);}
 uint32_t Console(void*,uint32_t pid,const uint8_t* b,uint32_t n,uint32_t& out) noexcept {return IoConsoleSync(pid,b,n,out);}
+#endif
 void RuntimeRejected(uint32_t pid,uint64_t operation,uint32_t status) noexcept {
     auto* slot=Find(pid);const auto* process=slot?slot->context.processes->Get(pid):nullptr;
     auto e=telemetry::Begin(telemetry::Domain::Control,telemetry::Operation::Query,pid,process?process->token.user:0,"runtime call failed or unsupported","",operation);
@@ -196,6 +209,17 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
 #endif
 #else
     slot->sources[0]=pe::fixtures::RuntimeSources[0];slot->sources[1]=pe::fixtures::RuntimeSources[1];
+#ifdef GUARDIAN_PE_GUI_KERNEL
+    const auto* boot=reinterpret_cast<const abi::BootInfo*>(0x100000);
+    const auto* descriptor=reinterpret_cast<const externalgui::Info*>(externalgui::InfoGpa);
+    if(!externalgui::Valid(*descriptor,boot->bootId)||!abi::Covered(reinterpret_cast<const abi::MemoryRegion*>(boot->memoryMapGpa),boot->memoryMapCount,externalgui::SourceGpa,externalgui::MaxFile,abi::MemoryKind::BootData))return false;
+    const auto* payload=reinterpret_cast<const uint8_t*>(externalgui::SourceGpa);
+    if(externalgui::Hash(payload,descriptor->fileBytes)!=descriptor->hash)return false;
+    const auto* ntBinding=reinterpret_cast<const nt::Info*>(nt::InfoGpa);
+    if(ntBinding->magic&&(!nt::Valid(*ntBinding,boot->bootId)||!abi::Covered(reinterpret_cast<const abi::MemoryRegion*>(boot->memoryMapGpa),boot->memoryMapCount,nt::InfoGpa,sizeof(nt::Info),abi::MemoryKind::BootData)))return false;
+    slot->sources[0]={"application.exe",payload,descriptor->fileBytes};
+    slot->sources[1]=pe::fixtures::GuiSource;
+#endif
 #endif
     services.Configure(nullptr,Store,Console);
     const auto* hardware=reinterpret_cast<const guardian::hardware::Info*>(guardian::hardware::InfoGpa);
@@ -209,7 +233,14 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
     constexpr uint32_t sourceCount=2;constexpr bool allowHandlers=false;
 #endif
     loader.ConfigureAudit(pid,p.Get(pid)->token.user);
-    if(!loader.Configure(backend,&runtimeContext,slot->sources,sourceCount,memory::Arena+0x40000,allowHandlers) || !loader.Load(slot->sources[0].name,index))return false;
+    if(!loader.Configure(backend,&runtimeContext,slot->sources,sourceCount,memory::Arena+0x40000,allowHandlers) || !loader.Load(slot->sources[0].name,index)){
+#ifdef GUARDIAN_PE_GUI_KERNEL
+        const char text[]="External GUI PE loader rejected image; error=";
+        for(char ch:text)if(ch)__outbyte(0xE9,uint8_t(ch));
+        __outbyte(0xE9,uint8_t('0'+uint32_t(loader.Failure())));__outbyte(0xE9,'\n');
+#endif
+        return false;
+    }
     if(!rootPid){rootPid=pid;runtimeCode=UINT32_MAX;runtimeClean=false;}
 #ifdef GUARDIAN_RUNTIME_KERNEL
     if(p.CreateObject(pid,processes::Kind::Mutex,nullptr,nullptr,processes::GenericAll,0,slot->loaderLock))return false;
@@ -294,6 +325,9 @@ bool PeRuntimeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f
     (void)saved;
 #endif
     if(f.rax!=0x81 && f.rax!=0x83 && f.rax!=0x84
+#ifdef GUARDIAN_PE_GUI_KERNEL
+        && f.rax!=0xA0 && f.rax!=0xA1
+#endif
 #ifdef GUARDIAN_COMPLETE_KERNEL
         && f.rax!=0x89
 #endif
@@ -302,6 +336,29 @@ bool PeRuntimeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f
 #endif
     )return false;status=storage::Denied;
     auto* slot=Find(pid);if(!slot || slot->context.processes->Owner(tid)!=pid)return true;auto& runtimeContext=slot->context;auto& p=*runtimeContext.processes;const auto loaderLock=slot->loaderLock;
+#ifdef GUARDIAN_PE_GUI_KERNEL
+    if(f.rax==0xA1){
+        const auto* boot=reinterpret_cast<const abi::BootInfo*>(0x100000);
+        const auto* binding=reinterpret_cast<const nt::Info*>(nt::InfoGpa);
+        if(!binding->magic){status=storage::Unsupported;return true;}
+        if(!nt::Valid(*binding,boot->bootId)||f.rdx>UINT64_MAX-sizeof(nt::Query))return true;
+        for(uint32_t i=0;i<sizeof(nt::Query);++i)if(!p.Translate(pid,f.rdx+i)||!p.Translate(pid,f.rdx+i,true))return true;
+        nt::Query query{};if(!Read(&runtimeContext,f.rdx,&query,sizeof(query)))return true;
+        if(query.version!=nt::Version||query.bytes!=sizeof(query)||query.manifest>2||query.reserved){status=storage::Invalid;return true;}
+        query.target=nt::Find(binding->profile);query.reported=nt::Reported(query.target,static_cast<nt::Manifest>(query.manifest));
+        status=Write(&runtimeContext,f.rdx,&query,sizeof(query))?0:storage::Denied;
+        return true;
+    }
+    if(f.rax==0xA0){
+        struct Packet {graphics::Command command;graphics::Event event;};
+        if(!PeIsRoot(pid)||p.Get(pid)->threadCount!=1||f.rdx>UINT64_MAX-sizeof(Packet))return true;
+        for(uint32_t i=0;i<sizeof(Packet);++i)if(!p.Translate(pid,f.rdx+i)||!p.Translate(pid,f.rdx+i,true))return true;
+        Packet packet{};if(!Read(&runtimeContext,f.rdx,&packet,sizeof(packet)))return true;
+        packet.event={};status=GraphicsExecute(packet.command,packet.event);
+        if(!Write(&runtimeContext,f.rdx,&packet,sizeof(packet)))status=storage::Denied;
+        return true;
+    }
+#endif
 #ifdef GUARDIAN_LIFETIME_KERNEL
     if(f.rax==0x85){status=f.rdx>UINT32_MAX?storage::Invalid:ProcessBeginPeExit(pid,tid,static_cast<uint32_t>(f.rdx));return true;}
 #endif

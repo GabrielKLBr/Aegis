@@ -7,8 +7,12 @@ Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
 MSVC/WHP: 80 testes distintos Debug, com retestes documentados, e 80/80 Release
 em uma suíte completa, sem ignorados. [Correções, evidências e limites](REVISAO-WINDOWS-FASES12B-13-20261023.md).
 A integração PE/SMP da 12B e as referências NT específicas da 12C continuam
-abertas. A fase 14 não foi iniciada. Os registros abaixo preservam o histórico
-das entregas anteriores.
+abertas. A fase 14 foi entregue no Windows em 23/10/2026; sua aceitação Linux é
+parcial. As subfases 14.1–14.14 abaixo passam a ser a próxima prioridade de
+compatibilidade, antes da fase 15. A implementação da 14.1 e seu escopo de
+aceitação estão registrados em [PHASE-14.1.md](PHASE-14.1.md); 14.2–14.14 estão
+planejadas e não iniciadas. Os registros abaixo preservam o histórico das
+entregas anteriores e suas pendências.
 
 **Histórico das entregas:** 12A concluída para a matriz de referência, com validação Windows/WHP e Linux/KVM. [Resultados e limites](PHASE-12A.md). A 12B está em implementação e validação: [recursos, cotas e pendências](PHASE-12B.md). O contrato próprio `resources` passou na matriz Linux (47 Debug, 47 Release e 30 ASan/UBSan), com SMP, volume escalável e pasta independente; a aceitação Windows da revisão e a integração aos perfis existentes continuam pendentes. [Continuação de 20/10](PHASE-12B-RECURSOS.md). A 12C passou na validação Linux em 21/10/2026 (50 Debug, 50 Release e 32 ASan/UBSan), com referências Windows ainda pendentes: [matriz, entrega e diferenças](PHASE-12C.md). A 12D foi autorizada em nova solicitação: sessões e interação passaram em 53 testes Debug, 53 Release e 33 ASan/UBSan na revisão estável da 12D. [Registro da 12D](PHASE-12D.md). A 12E foi implementada e aceita no Linux em 22/10/2026: 56 Debug, 56 Release e 34 ASan/UBSan, com perfis sintéticos funcionais e reproduzíveis. [Entrega e limites](PHASE-12E.md). A aceitação nativa Windows e os requisitos anteriores permanecem pendentes. A fase 13 passou na aceitação Linux em 22/10/2026: 59 Debug, 59 Release e 35 ASan/UBSan, com telemetria, políticas e análise comportamental. [Entrega e limites](PHASE-13.md). A aceitação Windows e os requisitos anteriores continuam abertos; a fase 14 não foi iniciada. Os registros históricos abaixo conservam os resultados e pendências da época.
 
@@ -100,13 +104,20 @@ permanecem identificadas por etapa.
 Ao concluir **cada fase**, entregar mudanças, testes, resultados, limitações e
 arquivos relevantes; em seguida, **parar e encerrar o turno**. Só iniciar a
 próxima fase após nova solicitação do usuário. A regra também vale para cada
-subfase 12A–12E abaixo. A autorização da fase corrente permite concluir suas
-tarefas e correções, mas não autoriza avançar automaticamente para a seguinte.
+subfase 12A–12F e 14.1–14.14 abaixo. A autorização da fase corrente permite
+concluir suas tarefas e correções, mas não autoriza avançar automaticamente para
+a seguinte.
 
 Um teste aprovado isoladamente não encerra uma fase cujo restante está pendente.
 Se houver bloqueio real, registrar o ponto exato e não declarar conclusão.
 Esta regra foi registrada antes da implementação. O progresso de cada fase é
 informado no início deste documento; não inicia uma fase seguinte automaticamente.
+
+**Versionamento autorizado em 24/10/2026:** ao concluir cada nova fase ou
+subfase, revisar, fazer um commit identificado pela etapa e enviá-lo ao
+`GabrielKLBr/Aegis` usando `tools/aegis_git.py`, sem nova confirmação. Conferir
+o commit remoto antes de encerrar a entrega. A regra permanente está em
+[AGENTS.md](../AGENTS.md); builds continuam fora do repositório público.
 
 ## Realismo do ambiente e avaliação de detecção de sandbox
 
@@ -356,6 +367,11 @@ exige abrir a janela, desenhar, receber entrada exclusivamente no convidado,
 executar a partida, ler suas configurações no disco virtual e encerrar de
 forma reproduzível. Esse lote não está concluído pela primeira entrega da 12A.
 
+**Avanço em 23/10/2026:** o novo contrato experimental recebe um PE separado
+do kernel e conecta um subconjunto de USER32 ao compositor do convidado.
+A referência própria não encerra a aceitação do Flappy: limites de imagem,
+runtime e APIs continuam pendentes. [Matriz, testes e avaliação da 12F](PHASE-12-GUI.md).
+
 ### Subfase 12A — Perfis coerentes de hardware e drivers
 
 **Estado em 19/10/2026:** concluída para a matriz de referência. Identidade em CPUID, firmware e registro, importação INF e execução real do driver próprio no convidado, incluindo falhas e snapshots, foram validadas nos dois backends. Drivers comerciais, autenticação CAT e compatibilidade Windows geral não são declarados suportados. [Matriz, testes e limites](PHASE-12A.md). Parada realizada antes da 12B.
@@ -474,6 +490,49 @@ os programas declarados instalados devem funcionar no perfil correspondente.
 **Conclusão:** perfil reproduzível e funcional, informações consistentes e teste
 de ausência de dados pessoais do host. Parar ao concluir.
 
+### Subfase 12F — Janelas integradas à área de trabalho do Windows
+
+**Planejada em 23/10/2026 por solicitação do usuário; não iniciada.** Extensão
+das fases 11/12 para implementação futura, sem alterar a numeração das fases
+posteriores ou declarar concluídas as pendências de compatibilidade gráfica.
+O início exige nova solicitação; esta inclusão autoriza apenas o planejamento.
+
+**Dependências:** saída gráfica e entrada da fase 11, carregamento e
+inicialização de PEs externos no kernel próprio e o lote USER32/GDI da fase 12
+necessário às aplicações escolhidas. Ampliar DWM e outras APIs conforme a matriz
+efetivamente utilizada, sem pressupor compatibilidade geral.
+
+**Trabalho:** oferecer um modo opcional em que cada janela de uma aplicação
+convidada apareça como janela nativa independente na área de trabalho do Windows.
+O aplicativo e suas bibliotecas continuam executando no convidado. Um componente
+de apresentação no host cria e mantém as janelas correspondentes, recebe pixels
+e comandos gráficos tipados e validados e devolve eventos de teclado/mouse
+somente à sessão e à janela convidada associadas.
+
+A ponte traduz identificadores de janela, coordenadas, foco, tamanho, títulos,
+DPI, fechamento e parentesco/modalidade. Identificadores reais do host e
+ponteiros não atravessam a fronteira. Não haverá encaminhamento arbitrário de
+chamadas USER32/GDI, mensagens Windows, callbacks ou código do convidado para
+execução no host. Operações fora do contrato retornam erro explícito.
+
+Aplicar limites de quantidade de janelas, dimensões, memória, comandos e taxa
+de eventos; validar também textos, imagens e transições de estado. Restringir
+operações às janelas pertencentes àquela sessão, sem alcançar outras aplicações,
+injetar entrada global ou instalar hooks globais. Clipboard, arrastar arquivos
+e demais transferências permanecem sujeitos a permissões independentes,
+inicialmente desativadas. Prever indicação visual de origem no sandbox e
+limpeza das janelas na falha, no encerramento ou na restauração da sessão.
+
+**Conclusão:** uma aplicação própria e ao menos um PE externo da matriz
+selecionada abrem janelas independentes, desenham e recebem entrada; validar
+múltiplas janelas, foco, redimensionamento, DPI, diálogo modal e fechamento.
+Testes com comandos malformados, identificadores de outra sessão, excesso de
+recursos e encerramento inesperado devem comprovar recusa ou término contido,
+sem entrada ou alterações em janelas externas. Registrar suporte por aplicação
+e operação e preservar o visualizador atual como alternativa. Não declarar
+aceleração GPU ou passthrough de GPU sem implementação e validação próprias.
+Parar ao concluir, antes de iniciar outro lote ou fase.
+
 ## Fase 13 — Telemetria, políticas e análise comportamental
 
 **Implementada e aceita no Linux em 22/10/2026:** 153 execuções CTest aprovadas, sem falhas ou ignorados. Nove domínios coletados, políticas e efeitos reais no convidado, regras, exportação e diferenças de estado. Aceitação nativa Windows e pendências anteriores continuam abertas. [Registro, entrega e limites](PHASE-13.md). A fase 14 não foi iniciada.
@@ -509,6 +568,319 @@ classificação justificada. Encaminhar desconhecidos ao sandbox por política.
 reproduzíveis; erros, formatos não suportados e limites não são classificados
 como arquivo seguro. Consultas não enviam arquivos completos sem consentimento
 explícito. Arquivos compactados têm limites de expansão, profundidade e tempo.
+
+## Fases 14.x — Compatibilidade de DLLs e serviços Windows por versão NT
+
+**Prioridade definida em 23/10/2026:** executar esta sequência de compatibilidade
+antes da fase 15, aproveitando o kernel, o runtime, os perfis e o protótipo GUI
+existentes. A 14.1 foi implementada por solicitação posterior: [contratos,
+inventário, testes e limitações](PHASE-14.1.md). A 14.2 não foi iniciada.
+Cada subfase exige solicitação e termina com entrega e parada.
+As pendências das fases 8–13 permanecem registradas; os lotes abaixo integram e
+ampliam esses caminhos, sem declarar sua conclusão retroativamente.
+
+### Arquitetura escolhida e critérios comuns
+
+**Abordagem híbrida:** implementar no MiniNT os serviços e contratos compatíveis
+necessários e reutilizar gradualmente DLLs originais de modo usuário, quando o
+carregador e suas dependências forem comprovadamente suportados. Manter DLLs
+próprias para contratos já implementados e como referência de teste. A seleção
+de cada implementação será explícita no manifesto da VM, sem substituições
+silenciosas. O objetivo é ampliar compatibilidade funcional, com possibilidade
+de testes diferenciais entre implementações próprias e originais.
+
+Aplicativos executam em processos separados dentro do convidado, em modo
+usuário, com suas DLLs carregadas no respectivo processo e atendidos pelo kernel
+MiniNT. O processo gerenciador no host controla a VM; ele não executa os imports
+do programa como chamadas Windows locais. DLLs
+originais não substituem os serviços do kernel, do subsistema gráfico ou de
+outros processos de que dependem. Reutilizar os componentes existentes antes de
+criar implementações paralelas.
+
+Pacotes de DLLs terão procedência, arquitetura, versão de arquivo, build/revisão
+de referência e hashes registrados, fornecidos de uma instalação ou mídia
+autorizada pelo usuário. Sua validação e execução ocorrerão no convidado; não
+carregar essas DLLs no gerenciador host para descobrir dependências. Evitar
+misturar componentes de instalações diferentes; pacotes próprios/originais
+mistos só serão aceitos com contratos e testes explícitos. Repositório e builds
+do projeto não incluirão automaticamente binários Windows importados.
+
+**Meta de cobertura:** buscar ampla execução de programas Windows de desktop,
+começando por x64. Os nomes de DLL abaixo representam famílias prioritárias,
+não uma garantia de que sua presença, ou todos os seus exports resolvidos,
+faça funcionar a maioria dos programas. Cada lote manterá inventário por
+DLL/símbolo/ordinal/contrato, versão NT e comportamento: ausente, parcial ou
+validado. Uma implementação só será chamada de completa para um escopo
+explicitamente delimitado e testado; funções sem suporte não retornarão sucesso
+fictício. A cobertura integral de cada família continua como objetivo de longo
+prazo, com novos lotes para os itens restantes.
+
+Todos os lotes integram os novos efeitos às políticas e à telemetria existentes,
+incluem entradas inválidas, falhas de recursos, concorrência, limpeza, regressões
+relevantes e aceitação Windows Debug/Release. Comparações
+nativas usam programas de teste inofensivos em referências da versão alvo;
+aplicações externas são executadas exclusivamente no convidado. Evidências
+identificam o que foi apenas inventariado, carregado, inicializado ou realmente
+executado até cumprir seus critérios de uso.
+
+### Subfase 14.1 — Contratos versionados e matriz de compatibilidade
+
+**Implementação de 23/10/2026:** manifesto persistente com SHA-256, três alvos
+x64, vínculo de sessão/snapshot e inventário estático/dinâmico observado de
+dependências. Consultas de versão usam contrato próprio, sem afirmar ABI Windows
+completa. Referências nativas dos builds exatos e novos serviços Windows
+permanecem pendentes. [Aceitação e continuidade](PHASE-14.1.md).
+Parar nesta subfase; a 14.2 exige nova solicitação.
+
+**Trabalho:** consolidar o inventário existente das fases 8/12 e das aplicações
+externas; registrar imports estáticos, dinâmicos, ordinais, exports de dados e
+dependências transitivas. Definir o manifesto único do perfil NT e do pacote de
+runtime, sua persistência e a matriz de testes antes de ampliar funções.
+
+Usar inicialmente **Windows 10 x64, NT 10.0.19045**, como referência principal;
+ampliar com **Windows 7 x64, NT 6.1.7601**, e **Windows 11 x64, NT 10.0.22631**,
+já presentes nos perfis. Fixar também a revisão dos componentes utilizados.
+Referências ausentes ficam pendentes, sem inferir conformidade de outra versão.
+Windows 10 e 11 compartilham a versão NT 10.0; build, revisão e capacidades
+fazem parte da seleção, não apenas major/minor.
+
+O perfil deverá reger disponibilidade e assinaturas de APIs, resolução de
+API sets, tabelas de syscalls, layouts utilizados, classes de informação,
+NTSTATUS/LastError, tempos, sincronização, memória, arquivos e regras gráficas.
+Conferir PEB/TEB, dados compartilhados, registro e consultas de versão, incluindo
+as diferenças documentadas de GetVersionEx/VerifyVersionInfo conforme o
+manifesto da aplicação. Não forçar todas as consultas a retornar a mesma string
+quando o próprio Windows diferencia os contratos.
+
+Fixar o perfil durante a sessão; trocar versão exige reinicialização com pacote
+coerente. Snapshots e relatórios vinculam perfil, versão do contrato e hashes
+dos módulos. Recusar combinações não suportadas. Os perfis de identidade XP,
+Vista, 8 e 8.1 não passam a ter compatibilidade binária por já existirem no
+inventário; sua promoção depende dos lotes de conformidade e da 14.12.
+
+**Conclusão:** matriz e manifesto revisáveis, referências e lacunas explícitas,
+ordem de símbolos por dependência e testes que distingam perfis, inclusive
+recusa de combinações incompatíveis. Parar ao concluir.
+
+### Subfase 14.2 — Carregador externo, módulos e memória escaláveis
+
+**Dependências:** 14.1 e fundamentos de memória/PE das fases 3/8/12B.
+
+**Trabalho:** superar os limites do protótipo de arquivo/imagem de 128 KiB,
+quatro módulos e orçamento de páginas privadas; dimensionar metadados, pilhas,
+TLS e cotas juntos. Carregar EXE e DLLs do volume convidado com busca controlada,
+forwarders, API sets por perfil, imports por nome/ordinal e de dados, delay
+imports, recursos, manifests e contextos de ativação conforme a matriz.
+Completar LoadLibrary/FreeLibrary/GetProcAddress, ordem de DllMain/TLS,
+referências, loader lock, rollback e proteção das seções.
+
+**Conclusão:** aplicações e bibliotecas externas maiores, com dependências já
+atendidas pelo runtime existente, iniciam em CPL3; falhas de inicialização ou
+limites liberam os recursos. Testar o carregador com bibliotecas independentes;
+a aceitação de DLLs Windows originais que exigem novos serviços pertence às
+subfases seguintes. Não basta mapear o PE. Parar ao concluir.
+
+### Subfase 14.3 — NTDLL e serviços nativos do MiniNT
+
+**Dependências:** 14.2; reaproveitar processos, memória, objetos e runtime atuais.
+
+**Trabalho:** ampliar os contratos Nt/Zw, Rtl e Ldr exigidos por `ntdll.dll`:
+memória virtual e seções, objetos/handles, processos/threads, esperas/timers/APCs,
+consulta de informações, arquivos/registro, heap, TLS/FLS, exceções e unwind.
+Ligar chamadas nativas ao estado real do kernel convidado; tabelas e estruturas
+dependentes de arquitetura/build pertencem ao perfil validado, sem reutilizar a
+tabela do host. Bibliotecas próprias e originais devem chegar aos mesmos
+serviços convidados. Validar ponteiros, tamanhos, direitos e transições de modo.
+
+**Conclusão:** inicialização e rotinas nativas da matriz funcionam com resultados
+comparados à referência, inclusive exceções e efeitos sobre memória/objetos;
+chamadas desconhecidas têm resultado explícito e telemetria. Parar ao concluir.
+
+### Subfase 14.4 — KERNEL32, KERNELBASE e contratos básicos Win32
+
+**Dependências:** 14.3.
+
+**Trabalho:** implementar e/ou viabilizar `kernel32.dll`, `kernelbase.dll` e
+seus contratos `api-ms-win-core-*`/`ext-ms-*` efetivamente presentes no perfil.
+Cobrir heap/memória, processos e filhos, threads/thread pool, sincronização,
+console, arquivos/mapeamentos/I/O assíncrono, ambiente, caminhos, recursos,
+tempo, Unicode/NLS, módulos, tratamento de erros e informações do sistema.
+Resolver contratos API set pelo schema da versão, sem presumir um arquivo
+físico para cada nome importado.
+
+**Conclusão:** programas externos de console usam threads, filhos, arquivos e
+exceções de ponta a ponta; aliases e forwarders preservam o comportamento e os
+erros da versão alvo. Parar ao concluir.
+
+### Subfase 14.5 — Runtime C/C++ e inicialização de aplicações
+
+**Dependências:** 14.4 e suporte de exceções da 14.3.
+
+**Trabalho:** atender `msvcrt.dll`, `ucrtbase.dll`, `api-ms-win-crt-*`,
+`vcruntime140*.dll`, `msvcp140*.dll` e versões adicionais exigidas pelo corpus.
+Cobrir exports de dados, startup/terminação, argv/ambiente, stdio/arquivos,
+alocação, locale/Unicode, matemática, inicializadores, TLS, exceções C++ e
+integração com unwind/locks. Distinguir versões de runtime da versão do NT e
+verificar requisitos dos redistribuíveis antes de aceitar seu pacote.
+
+**Conclusão:** binários externos de toolchains selecionadas iniciam, usam CRT e
+C++, tratam erros/exceções e encerram com resultados e recursos corretos;
+reutilização de runtime original é validada no convidado. Parar ao concluir.
+
+### Subfase 14.6 — ADVAPI32, segurança, registro e serviços
+
+**Dependências:** 14.4; integrar persistência e segurança das fases 5/7.
+
+**Trabalho:** ampliar `advapi32.dll` e, quando aplicável, `sechost.dll`,
+`userenv.dll` e contratos relacionados: registro, tokens/SIDs/ACLs, permissões,
+perfis de conta, serviço de eventos e gerenciador de serviços do convidado.
+Implementar dependências de IPC necessárias a esses cenários; processos de
+serviço têm identidade e vida útil próprias dentro da VM.
+
+**Conclusão:** aplicações externas persistem configurações e executam um serviço
+de teste no convidado com autorização real e isolamento entre contas; referências
+de handles e recursos sobrevivem a falhas de forma consistente. Parar ao concluir.
+
+### Subfase 14.7 — USER32, GDI e compatibilidade gráfica externa
+
+**Dependências:** 14.2–14.6 e gráficos/entrada existentes; promover as pendências
+do lote gráfico da fase 12 para esta entrega, preservando seu histórico.
+
+**Trabalho:** ampliar `user32.dll`, `gdi32.dll`, `gdi32full.dll`, `win32u.dll`
+onde existirem no perfil, e `dwmapi.dll`. Implementar o suporte correspondente
+no subsistema gráfico do MiniNT: criação/hierarquia de janelas, estilos,
+movimentação/redimensionamento, coordenadas/DPI, foco, mensagens síncronas e
+assíncronas, pintura/invalidação, fontes/texto, objetos GDI e temporizadores.
+Entrada terá teclas físicas pressionadas/soltas, modificadores, texto e mouse
+com contratos distintos. Integrar configurações e arquivos ao disco convidado;
+ampliar dimensões/cotas do visualizador conforme os requisitos das aplicações.
+
+**Conclusão:** o Flappy Window 1.5 fornecido pelo usuário abre, desenha texto,
+recebe os comandos necessários para jogar, movimenta suas janelas, lê/grava
+configurações quando aplicável e encerra de modo reproduzível, além de outras
+aplicações independentes da matriz. Conferir regressões e isolamento; não
+confundir resolução dos 178 imports inventariados com execução funcional.
+Reavaliar e registrar então os pré-requisitos da **12F**, que continua sendo
+uma entrega separada, dependente de solicitação. Parar ao concluir.
+
+### Subfase 14.8 — COM, RPC, Shell e controles de desktop
+
+**Dependências:** 14.6–14.7.
+
+**Trabalho:** atender `ole32.dll`, `combase.dll`, `oleaut32.dll`, `rpcrt4.dll`,
+`shell32.dll`, `shlwapi.dll`, `comctl32.dll`, `comdlg32.dll`, `uxtheme.dll` e
+famílias de propriedades exigidas pelas aplicações. Implementar inicialização e
+apartments COM, marshaling/IPC, ativação de classes/servidores no convidado,
+automação, controles, diálogos e operações de Shell em seu namespace. Serviços
+auxiliares executam na VM; nenhuma ativação é delegada ao COM/Shell do host.
+
+**Conclusão:** aplicações externas com controles/diálogos e componentes COM
+em processo e fora dele cumprem cenários de uso completos, com erros e
+encerramento de servidores testados por perfil. Parar ao concluir.
+
+### Subfase 14.9 — Rede, HTTP, criptografia e certificados
+
+**Dependências:** 14.4/14.6/14.8 e rede contida da fase 10.
+
+**Trabalho:** atender `ws2_32.dll`, `mswsock.dll`, `dnsapi.dll`, `iphlpapi.dll`,
+`winhttp.dll`, `wininet.dll`, `bcrypt.dll`, `ncrypt.dll`, `crypt32.dll` e
+`secur32.dll` conforme o corpus. Cobrir sockets/DNS/HTTP, operações assíncronas,
+TLS, armazenamento de chaves, certificados e credenciais virtuais. Manter modos
+offline/simulado/rede autorizada com comportamento documentado e política aplicada
+no canal virtual; não usar certificados, chaves ou credenciais pessoais do host.
+
+**Conclusão:** clientes de teste fazem comunicação e validação criptográfica
+reais em cenários controlados, com negativas de política, certificados inválidos,
+timeouts e cancelamento observáveis. Parar ao concluir.
+
+### Subfase 14.10 — DirectX, mídia, áudio e dispositivos de aplicação
+
+**Dependências:** 14.7–14.9 e contratos de dispositivos das fases 6/12A.
+
+**Trabalho:** priorizar `dxgi.dll`, `d3d9.dll`, `d3d11.dll`, `d2d1.dll`,
+`dwrite.dll`, `windowscodecs.dll`, `winmm.dll`, `mmdevapi.dll` e famílias de
+áudio/mídia usadas pela matriz. Definir renderização inicial por software ou
+dispositivo virtual com protocolo limitado, recursos e sincronização reais.
+Acrescentar D3D12/OpenGL e outros backends em lotes conforme requisitos medidos;
+anunciar somente capacidades implementadas, sem confundir identidade de GPU com
+aceleração ou suporte a seus drivers.
+
+**Conclusão:** aplicações independentes desenham, decodificam imagens e usam
+áudio nos backends anunciados, com testes de recursos, formatos, sincronização
+e falhas. Ausência de backend aparece como limitação funcional. Parar ao concluir.
+
+### Subfase 14.11 — Frameworks e instalação de aplicações
+
+**Dependências:** 14.5–14.10, conforme cada framework.
+
+**Trabalho:** validar runtimes .NET/CLR selecionados, WinForms/WPF, WinRT,
+Windows App SDK/WinUI e frameworks de terceiros da matriz. Implementar contratos
+de ativação, metadados e componentes adicionais que cada um exigir; importar o
+runtime não substitui essas dependências. Incluir `mscoree.dll`, `clr.dll`,
+`coreclr.dll`, `msi.dll`, `version.dll`, `setupapi.dll` e outros módulos conforme
+o pacote alvo. Instalação/extração e serviços auxiliares ocorrem no convidado;
+instaladores que exigem drivers continuam dependentes de suporte específico.
+
+**Conclusão:** ao menos uma aplicação externa por framework declarado suportado
+instala/inicia, executa seu cenário e encerra; casos sem suporte têm diagnóstico.
+Não anunciar todo .NET/WinRT por um exemplo aprovado. Parar ao concluir.
+
+### Subfase 14.12 — Aplicações x86 e perfis NT adicionais
+
+**Dependências:** 14.1–14.8; demais famílias conforme o aplicativo.
+
+**Trabalho:** adicionar PE32, execução x86 e camada de compatibilidade equivalente
+ao propósito do WOW64, com ABI, estruturas, DLLs, exceções e redirecionamento de
+arquivos/registro próprios de 32 bits. DLLs x64 não atendem imports de processos
+x86. Ampliar as referências Vista/8/8.1 e perfis legados por demanda, com aceitação
+separada por arquitetura e build; XP 5.1.2600 é perfil x86, enquanto XP x64 usa NT
+5.2 e exige identificação própria. Corrigir a validação de perfis antes de
+permitir essas combinações, sem promover o inventário atual a suporte binário.
+
+**Conclusão:** aplicações externas x86 de console e GUI funcionam com separação
+de arquiteturas e cada perfil adicional tem suas referências e regressões
+aprovadas. Programas de 16 bits e ARM ficam fora desse lote. Parar ao concluir.
+
+### Subfase 14.13 — Runtime unificado, análise e recuperação
+
+**Dependências:** lotes de compatibilidade utilizados e fases 9/13/14.
+
+**Trabalho:** integrar o carregamento externo e as novas DLLs ao mesmo kernel,
+armazenamento, dispositivos, políticas, telemetria e ciclo de vida da análise.
+Substituir o encaminhamento PE legado do scanner pelo caminho validado no
+MiniNT, preservando resultado inconclusivo diante de falha ou incompatibilidade.
+Registrar autoria dos efeitos e das chamadas nativas, perfil e módulos; funções
+executadas inteiramente dentro de DLLs exigem instrumentação específica se forem
+incluídas no escopo de observação, pois não geram necessariamente uma syscall.
+Completar snapshots/restauração com módulos externos, processos, GUI, cotas e
+estado persistente; vincular todos os artefatos ao perfil e hashes do runtime.
+
+**Conclusão:** um EXE externo enviado pelo scanner percorre análise no kernel
+próprio, gera relatório com efeitos atribuídos e suporta recuperação testada;
+troca indevida de pacote/perfil ou snapshot é recusada. Parar ao concluir.
+
+### Subfase 14.14 — Aceitação de compatibilidade ampla por versão NT
+
+**Dependências:** todos os lotes necessários às classes de aplicação anunciadas.
+
+**Trabalho:** manter corpus versionado de programas independentes e inofensivos,
+com amostragem definida antes da avaliação, cobrindo console, GUI clássica,
+utilitários, instaladores, rede, COM, frameworks, mídia e x86/x64. Registrar
+versão/hash, perfil NT, dependências, roteiro e resultado por programa: inicia,
+cumpre uso previsto, parcial ou incompatível. Testar versões diferentes do mesmo
+programa sem contar cada teste interno como uma aplicação independente.
+
+Medir proporção de aplicações que completam o uso previsto por categoria,
+arquitetura e perfil, desempenho, falhas e diferenças em relação às referências.
+Separar chamadas implementadas de aplicações compatíveis; compatibilidade não
+mede eficácia de detecção de malware. A expressão "maioria" só será usada para
+um corpus identificado em que mais da metade cumpra os critérios, com resultados
+e limitações publicados; não extrapolar automaticamente para todo o ecossistema.
+Definir na 14.1 a composição e a meta de aceitação desse corpus antes dos testes.
+
+**Conclusão:** matriz reproduzível e resultados auditáveis, sem esconder cenários
+falhos; lacunas viram lotes subsequentes. Reavaliar as pendências das fases
+8–13/12F e a prontidão da fase 15. Parar ao concluir e aguardar nova solicitação.
 
 ## Fase 15 — Quarentena e gerenciamento de ameaças
 
@@ -595,6 +967,12 @@ avançar para outra fase ou subfase sem nova solicitação. A compatibilidade da
 fase 12 é ampliada por lotes; não bloqueia indefinidamente o primeiro produto
 com um subconjunto claramente declarado.
 
+**Prioridade revista em 23/10/2026:** após a entrega da fase 14, as subfases
+14.1–14.14 organizam a próxima expansão de compatibilidade e precedem a fase 15.
+Começar pela 14.1 e parar ao final de cada subfase. A aceitação gráfica da 14.7
+alimenta a decisão de iniciar a 12F; sua implementação continua separada e exige
+solicitação. Essa ordem não transforma fases antigas pendentes em concluídas.
+
 | Pedido de realismo | Subfase | Validação |
 |---|---|---|
 | CPU/GPU, BIOS, placa-mãe, dispositivos e drivers | 12A | Inventário consistente, interfaces e drivers funcionais. |
@@ -610,6 +988,10 @@ com um subconjunto claramente declarado.
 | Ambiente de console | Fases 6–8: dispositivos, persistência e aplicações selecionadas. |
 | Sandbox gerenciável | Fases 9–10: snapshots consistentes, VMs e rede contida. |
 | Aplicações gráficas | Fase 11 e lote de compatibilidade correspondente da fase 12. |
+| Janelas independentes no desktop Windows | Subfase 12F: ponte de apresentação validada, aplicativo no convidado e entrada restrita à sessão. |
+| DLLs Windows no MiniNT | 14.1–14.6: perfis NT, carregador e serviços nativos/Win32/CRT comprovados no convidado. |
+| Aplicativos externos de desktop | 14.7–14.12: GUI, COM, rede, gráficos, frameworks e x86 conforme a matriz por perfil. |
+| Compatibilidade ampla mensurada | 14.13–14.14: análise integrada, recuperação e corpus independente com resultados por versão NT. |
 | Análise integrada | Fases 13–16: evidências, scanner, quarentena e serviço. |
 | Produto instalável | Fases 17–18: interface, idiomas, instalação e atualização. |
 | Versão de lançamento | Fase 19 e matriz de suporte aprovada para essa versão. |
@@ -622,15 +1004,22 @@ item. Compatibilidade universal com todas as versões, APIs, aplicações e driv
 Windows não recebe uma promessa nem um percentual neste plano. O trabalho será
 medido por critérios aprovados, não pela quantidade de funções com o mesmo nome.
 
-**Entrega atual:** 12A concluída para sua matriz de referência em 19/10/2026.
-Windows e Linux aprovados, com retestes e limites explícitos em
-[PHASE-12A.md](PHASE-12A.md). A fase 12 continua aberta e a 12B não foi iniciada.
+**Entrega atual:** fase 14 aceita no Windows, com validação Linux parcial;
+protótipo gráfico externo da fase 12 aceito para a referência própria, sem
+compatibilidade Flappy concluída. A 14.1 implementa contratos, inventário e
+vínculo de perfil, com escopo e aceitação próprios; a 12F e 14.2–14.14 continuam
+planejadas, sem implementação iniciada. Os resultados históricos e as pendências
+anteriores permanecem identificados nos respectivos documentos.
 
 ## Referências técnicas para os novos requisitos
 
 - [Memória do convidado em WHP](https://learn.microsoft.com/en-us/virtualization/api/hypervisor-platform/funcs/whvmapgparange)
 - [Componentes e interfaces de drivers gráficos WDDM](https://learn.microsoft.com/en-us/windows-hardware/drivers/display/windows-vista-and-later-display-driver-model-architecture)
 - [Espaço livre e espaço disponível com cotas](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getdiskfreespaceexa)
+- [Resolução de API sets pelo carregador](https://learn.microsoft.com/en-us/windows/win32/apiindex/api-set-loader-operation)
+- [Versões NT, incluindo Windows 10/11 e XP x64](https://learn.microsoft.com/en-us/windows/win32/sysinfo/operating-system-version)
+- [GetVersionEx e manifesto de compatibilidade](https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getversionexa)
+- [Execução x86 em Windows x64 e separação de DLLs](https://learn.microsoft.com/en-us/windows/win32/winprog64/running-32-bit-applications)
 
 ## Documentação do estado implementado
 

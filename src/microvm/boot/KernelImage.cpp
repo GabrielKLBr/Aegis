@@ -106,6 +106,10 @@ bool KernelImage::SupportsSystemClock() const noexcept {
     constexpr char tag[]="GuardianSystemClock/1/real";
     return std::search(file_.begin(),file_.end(),tag,tag+sizeof(tag))!=file_.end();
 }
+bool KernelImage::SupportsExternalGui() const noexcept {
+    constexpr char tag[]="GuardianExternalGui/1/bounded";
+    return std::search(file_.begin(),file_.end(),tag,tag+sizeof(tag))!=file_.end();
+}
 }
 
 namespace av::microvm::boot {

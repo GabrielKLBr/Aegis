@@ -43,16 +43,9 @@ Status Exchange(Op op, Event &event) noexcept {
     return r.status;
 }
 } // namespace
-uint32_t GraphicsSyscall(uint64_t command, uint64_t address) noexcept {
+uint32_t GraphicsExecute(guardian::graphics::Command& c,guardian::graphics::Event& e) noexcept {
     using namespace guardian::graphics;
     ++report.calls;
-    constexpr auto begin = guardian::cpu::UserData + 0x100, end = guardian::cpu::UserData + 4096;
-    if (command != 0xA0 || address < begin || address > end ||
-        sizeof(Command) + sizeof(Event) > end - address)
-        return uint32_t(Status::Invalid);
-    Command c{};
-    Event e{};
-    Copy(&c, reinterpret_cast<const void *>(address), sizeof(c));
     Status result;
     if (c.op == Op::Poll) {
         result = desktop.Execute(c, e);
@@ -73,9 +66,32 @@ uint32_t GraphicsSyscall(uint64_t command, uint64_t address) noexcept {
         result = desktop.Execute(c, e);
     if (result == Status::Denied)
         ++report.denied;
+    return uint32_t(result);
+}
+uint32_t GraphicsSyscall(uint64_t command, uint64_t address) noexcept {
+    using namespace guardian::graphics;
+    constexpr auto begin = guardian::cpu::UserData + 0x100, end = guardian::cpu::UserData + 4096;
+    if (command != 0xA0 || address < begin || address > end ||
+        sizeof(Command) + sizeof(Event) > end - address){
+        ++report.calls;
+        return uint32_t(Status::Invalid);
+    }
+    Command c{};Event e{};
+    Copy(&c,reinterpret_cast<const void*>(address),sizeof(c));
+    const auto result=GraphicsExecute(c,e);
     Copy(reinterpret_cast<void *>(address), &c, sizeof(c));
     Copy(reinterpret_cast<void *>(address + sizeof(c)), &e, sizeof(e));
-    return uint32_t(result);
+    return result;
+}
+void GraphicsInitialize() noexcept {
+    using namespace guardian::graphics;
+    Copy(&info,reinterpret_cast<const void*>(InfoGpa),sizeof(info));
+    desktop={};sequence=0;
+    report={Magic,info.boot,Version,sizeof(report),0,0,0,0,0,0,0};
+}
+void GraphicsComplete() noexcept {
+    report.checks=1;report.applications=1;
+    report.pixelHash=guardian::graphics::PixelHash(reinterpret_cast<const uint32_t*>(guardian::graphics::PixelsGpa));
 }
 void GraphicsSelfTest(void (*check)(bool, uint32_t) noexcept) noexcept {
     using namespace guardian::graphics;
