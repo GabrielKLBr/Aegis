@@ -17,6 +17,7 @@ public:
     void Render(uint32_t*) const noexcept;
     Frame Metadata() const noexcept;
     bool Changed() const noexcept {return state_&&state_->changed;}
+    bool Painting() const noexcept {if(state_)for(const auto& surface:state_->surfaces)if(surface.info.handle&&surface.painting)return true;return false;}
     void Presented() noexcept {state_->changed=false;}
     bool Clean() const noexcept;
 private:

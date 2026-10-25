@@ -115,6 +115,10 @@ bool KernelImage::SupportsExternalPe() const noexcept {
     return std::search(file_.begin(),file_.end(),std::begin(capability),std::end(capability)-1)!=file_.end();
 }
 bool KernelImage::SupportsDesktop() const noexcept {constexpr char tag[]="GuardianDesktop/1/guest";return std::search(file_.begin(),file_.end(),tag,tag+sizeof(tag))!=file_.end();}
+bool KernelImage::SupportsComponents() const noexcept {
+    constexpr char tag[]="GuardianComponent/1/guest";
+    return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();
+}
 bool KernelImage::SupportsSecurity() const noexcept {
     constexpr char tag[]="GuardianSecurity/1/guest";
     return std::search(file_.begin(),file_.end(),tag,tag+sizeof(tag))!=file_.end();

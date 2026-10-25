@@ -58,7 +58,7 @@ uint32_t Core::Registry(uint32_t pid,Request& r) noexcept {
     default:return 120;}
     const auto st=volume_->Execute(pid,token,c);r.returned=c.transferred;r.type=c.type;if(st==storage::NotFound&&r.op==Op::RegEnum)return 259;if(st)return Error(st);
     if(r.op==Op::RegEnum&&r.flags){c.op=storage::Op::RegGet;c.status=c.transferred=0;const auto read=volume_->Execute(pid,token,c);if(read)return Error(read);r.returned=c.transferred;r.type=c.type;}
-    if(r.op==Op::RegQuery||r.op==Op::RegEnum){Copy(r.data,c.data,512);Copy(r.name,c.name,32);if(r.op==Op::RegQuery&&r.length<r.returned)return 234;}return 0;
+    if(r.op==Op::RegQuery||r.op==Op::RegEnum){Copy(r.data,c.data,512);Copy(r.name,c.name,32);if(r.op==Op::RegEnum&&!r.flags)Copy(r.text,c.other,128);if(r.op==Op::RegQuery&&r.length<r.returned)return 234;}return 0;
 }
 uint32_t Core::Tokens(uint32_t pid,Request& r) noexcept {
     auto* p=processes_->Get(pid);if(r.op==Op::TokenOpen){if(r.other!=UINT64_MAX&&r.other!=0)return 50;if(!r.access||r.access&~0xBu)return 5;auto* h=New(pid,2,r.access);if(!h)return 8;const auto st=processes_->CloneHandle(pid,p->tokenHandle,h->raw);if(st){*h={};return Error(st);}h->index=1;r.handle=h->id;return 0;}

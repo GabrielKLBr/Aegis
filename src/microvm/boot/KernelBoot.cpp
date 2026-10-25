@@ -59,10 +59,10 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
     if(externalPeKernel_){
         Require(compatibility&&cpu.enabled&&cpu.processes&&cpu.graphics&&!cpu.io&&!cpu.storage&&!cpu.network&&!cpu.driver&&!cpu.resources&&externalGui.empty()&&ramBytes>=(128ull<<20),"External volume options rejected");
         Require(externalVolume.size()<=guardian::pevolume::MaxBytes&&guardian::pevolume::Valid(externalVolume.data(),static_cast<uint32_t>(externalVolume.size())),"External volume rejected");
-        const auto& header=*reinterpret_cast<const guardian::pevolume::Header*>(externalVolume.data());for(uint32_t i=0;i<header.files;++i)Require(header.entries[i].kind!=guardian::pevolume::Kind::Data||image.SupportsDesktop(),"Data assets require the desktop kernel");
+        const auto& header=*reinterpret_cast<const guardian::pevolume::Header*>(externalVolume.data());Require(header.version==1||image.SupportsComponents(),"Extended volume requires the component kernel");for(uint32_t i=0;i<header.files;++i)Require(guardian::pevolume::FileAt(header,i).kind!=guardian::pevolume::Kind::Data||image.SupportsDesktop(),"Data assets require the desktop kernel");
         Require(header.profile==compatibility->profile,"External volume NT profile mismatch");
         const auto digest=compatibility::Sha256(externalVolume);Require(std::memcmp(digest.data(),compatibility->runtimeSha,32)==0,"External volume SHA-256 mismatch");
-        const auto& root=header.entries[header.root];application=externalVolume.subspan(root.offset,root.bytes);
+        const auto& root=guardian::pevolume::FileAt(header,header.root);application=externalVolume.subspan(root.offset,root.bytes);
     }
     if(compatibility){
         Require(cpu.enabled&&!cpu.resources&&!cpu.driver,"NT binding requires the CPU/process boot contract");

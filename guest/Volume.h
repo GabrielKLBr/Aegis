@@ -31,7 +31,7 @@ public:
 private:
     uint32_t ExecuteRaw(uint32_t,const processes::Token&,Command&) noexcept;
     void Describe(uint32_t,const processes::Token&,const Command&,char*,Node*&) noexcept;
-    struct Path {uint32_t root=0,count=0;char parts[Depth][NameBytes]{};};
+    struct Path {uint32_t root=0,count=0;char parts[Depth][64]{};};
     static bool Parse(const char*,Path&) noexcept;
     static bool Name(const char*,char*,bool empty=false) noexcept;
     static bool Value(ValueType,const uint8_t*,uint32_t) noexcept;

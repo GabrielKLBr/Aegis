@@ -5,6 +5,9 @@ uint32_t Services::FlushSection(Section& s) noexcept {
 }
 uint32_t Services::Win32(uint32_t op,uint64_t* a) noexcept {
     if(!memory_||!a)return Denied;const auto& token=processes_->Get(pid_)->token;
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    if(op==10){storage::Command rename;rename.op=storage::Op::Rename;auto status=ObjectName(a[0],rename.path,2);if(status)return status;status=ObjectName(a[1],rename.other,2);return status?status:Files().Execute(pid_,token,rename);}
+#endif
     if(op==4){for(auto& r:ranges_)if(r.base&&r.section>=0&&a[0]>=r.base&&a[0]-r.base<r.bytes){if(a[1]>r.bytes-(a[0]-r.base))return Invalid;return FlushSection(sections_[r.section]);}return Invalid;}
     if((op>=5&&op<=7)||op==9){storage::Command c;auto status=ObjectName(a[0],c.path,2);if(status)return status;
         if(op!=5){storage::Kind kind{};status=Files().QueryKind(token,c.path,kind);if(status)return status;

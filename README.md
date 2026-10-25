@@ -6,6 +6,10 @@ Antivírus e laboratório de inspeção/sandbox em C/C++, com implementação pr
 do convidado. O produto mantém Windows/MSVC/WHP e validação nativa Linux/KVM.
 Os nomes dos executáveis `guardian-*` permanecem compatíveis.
 
+O lote de componentes COM/RPC, Shell e controles do MiniNT está descrito na
+[entrega delimitada da fase 14.8](docs/PHASE-14.8.md), com critérios de aceitação
+e limitações explícitos.
+
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem
 recriar seus dados compilados: [preparação a partir dos fontes](docs/GITHUB-AEGIS.md).

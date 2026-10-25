@@ -1,4 +1,8 @@
 #include "PeKernel.h"
+#ifdef GUARDIAN_COMPONENT_NATIVE
+#include "Component.h"
+namespace {guardian::component::Core componentCore;}
+#endif
 #ifdef GUARDIAN_NATIVE_NT
 #include "NativeServices.h"
 #ifdef GUARDIAN_DESKTOP_NATIVE
@@ -455,6 +459,9 @@ uint64_t PeInitialTeb(uint32_t pid) noexcept {
 #endif
 }
 void PeThreadGone(uint32_t pid,uint32_t tid) noexcept {
+#ifdef GUARDIAN_COMPONENT_NATIVE
+    componentCore.Exit(pid,tid);
+#endif
 #ifdef GUARDIAN_DESKTOP_NATIVE
     desktopCore.Exit(pid,tid);
 #endif
@@ -473,6 +480,9 @@ bool PeMarkTerminating(uint32_t pid) noexcept {auto* slot=Find(pid);if(!slot || 
 #endif
     return true;}
 bool PeExitProcess(uint32_t pid,uint32_t code,bool fault) noexcept {
+#ifdef GUARDIAN_COMPONENT_NATIVE
+    componentCore.Exit(pid);
+#endif
 #ifdef GUARDIAN_ANALYSIS_KERNEL
     for(auto& service:labServices)if(service.owner==pid){
         if(service.child)ProcessStopPeChild(pid,service.child);
@@ -504,6 +514,9 @@ bool PeExitProcess(uint32_t pid,uint32_t code,bool fault) noexcept {
     const bool clean=slot->image.UnloadAll();allClean=allClean && clean;if(PeIsRoot(pid)){runtimeCode=code;runtimeClean=clean;}if(clean)slot->pid=0;return clean;
 }
 bool PeProcessPassed() noexcept {for(const auto& s:runtimes)if(s.pid)return false;
+#ifdef GUARDIAN_COMPONENT_NATIVE
+    if(!componentCore.Clean())return false;
+#endif
 #ifdef GUARDIAN_SECURITY_NATIVE
     if(!securityCore.Finish())return false;
 #endif

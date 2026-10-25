@@ -1,4 +1,7 @@
 // Included by PeKernel.cpp, after the loader/runtime definitions.
+#ifdef GUARDIAN_COMPONENT_NATIVE
+#include "ComponentKernel.inl"
+#endif
 extern "C" const volatile char GuardianNativeNtCapability[]="GuardianNativeNt/1/guest";
 namespace {
 bool NativeCode(const RuntimeSlot& slot,const char* name,uint64_t ip) noexcept {
@@ -62,6 +65,9 @@ bool PeNativeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f,
     // and runtime modules. Other user code uses the native service domain.
     if(PeNativeLegacy(pid,f.rip))return false;
 #ifdef GUARDIAN_WIN32_NATIVE
+#ifdef GUARDIAN_COMPONENT_NATIVE
+    if(f.rax==0xA8&&NativeCode(*slot,"combase.dll",f.rip)){status=ComponentDispatch(*slot,tid,f.rdx);return true;}
+#endif
 #ifdef GUARDIAN_DESKTOP_NATIVE
     if(f.rax==0xA7&&NativeCode(*slot,"win32u.dll",f.rip)){status=DesktopDispatch(*slot,tid,now,f.rdx);return true;}
 #endif

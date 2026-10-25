@@ -22,11 +22,16 @@ bool Word(char c) noexcept {return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&
 bool Catalog::Open(const uint8_t* data,uint32_t bytes,uint32_t profile,Source* sources,uint32_t& count,const char* root) noexcept {
     *this={};count=0;if(!pevolume::Valid(data,bytes)||!sources)return false;
     const auto* h=reinterpret_cast<const pevolume::Header*>(data);if(h->profile!=profile)return false;
+#ifndef GUARDIAN_COMPONENT_NATIVE
+    if(h->version!=1)return false;
+#endif
+    uint32_t peCount=0;for(uint32_t i=0;i<h->files;++i)if(pevolume::FileAt(*h,i).kind==pevolume::Kind::Pe)++peCount;
+    if(peCount>MaxModules)return false;
     header_=h;data_=data;sources_=sources;
-    const auto add=[&](uint32_t i) noexcept {const auto& f=h->entries[i];sources[count++]={f.path,data+f.offset,f.bytes};};
+    const auto add=[&](uint32_t i) noexcept {const auto& f=pevolume::FileAt(*h,i);sources[count++]={f.path,data+f.offset,f.bytes};};
     uint32_t selected=h->root;if(root){char canonical[128]{};if(!pevolume::Canonical(root,canonical))return false;selected=UINT32_MAX;
-        for(uint32_t i=0;i<h->files;++i)if(h->entries[i].kind==pevolume::Kind::Pe&&Equal(canonical,h->entries[i].path))selected=i;if(selected==UINT32_MAX)return false;}
-    add(selected);for(uint32_t i=0;i<h->files;++i)if(i!=selected&&h->entries[i].kind==pevolume::Kind::Pe)add(i);
+        for(uint32_t i=0;i<h->files;++i)if(pevolume::FileAt(*h,i).kind==pevolume::Kind::Pe&&Equal(canonical,pevolume::FileAt(*h,i).path))selected=i;if(selected==UINT32_MAX)return false;}
+    add(selected);for(uint32_t i=0;i<h->files;++i)if(i!=selected&&pevolume::FileAt(*h,i).kind==pevolume::Kind::Pe)add(i);
 #ifdef GUARDIAN_WIN32_NATIVE
     uint32_t schemaBytes=0;const auto* schema=File("c:\\windows\\system32\\apisetschema.dll",schemaBytes);
     if(!schema||!schema_.OpenPe(schema,schemaBytes,profile==2?2u:6u))return false;
@@ -87,7 +92,7 @@ uint32_t Catalog::FindDepth(const char* input,const char* importer,uint32_t dept
 }
 const uint8_t* Catalog::File(const char* path,uint32_t& bytes) const noexcept {
     bytes=0;if(!header_)return nullptr;char full[128]{};if(!pevolume::Canonical(path,full))return nullptr;
-    for(uint32_t i=0;i<header_->files;++i)if(Equal(full,header_->entries[i].path)){bytes=header_->entries[i].bytes;return data_+header_->entries[i].offset;}
+    for(uint32_t i=0;i<header_->files;++i){const auto& f=pevolume::FileAt(*header_,i);if(Equal(full,f.path)){bytes=f.bytes;return data_+f.offset;}}
     return nullptr;
 }
 bool Catalog::Manifest(const uint8_t* data,uint32_t bytes,uint32_t& mask,uint32_t& mode) const noexcept {

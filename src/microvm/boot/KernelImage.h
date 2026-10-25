@@ -22,6 +22,7 @@ public:
     bool SupportsExternalPe() const noexcept;
     bool SupportsSecurity() const noexcept;
     bool SupportsDesktop() const noexcept;
+    bool SupportsComponents() const noexcept;
     uint64_t Base() const { return PreferredBase; }
     uint64_t Size() const { return imageBytes_; }
     uint64_t Entry() const { return PreferredBase + entryRva_; }

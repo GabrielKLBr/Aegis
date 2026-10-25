@@ -15,6 +15,16 @@ int main(int argc, char** argv) {
         Check(argc == 2, "Kernel path required"); const auto image = KernelImage::Read(argv[1]); const auto& original = image.FileBytes();
         const size_t pe = Get<uint32_t>(original, 0x3C), opt = pe + 24, sections = opt + 240;
         unsigned cases = 0;
+        Check(!image.SupportsComponents(), "Baseline kernel incorrectly advertises components");
+        {
+            constexpr char marker[]="GuardianComponent/1/guest";
+            auto marked=original;const auto& first=image.Sections().front();
+            Check(first.rawBytes>=sizeof(marker), "Capability test requires section data");
+            std::memcpy(marked.data()+first.rawOffset,marker,sizeof(marker));
+            Check(KernelImage::Parse(marked).SupportsComponents(), "Component capability not recognized");
+            marked[first.rawOffset+sizeof(marker)-2]^=1;
+            Check(!KernelImage::Parse(marked).SupportsComponents(), "Changed capability accepted");
+        }
         const auto bad = [&](size_t offset, uint64_t value, unsigned bytes) {
             auto b = original; std::memcpy(b.data() + offset, &value, bytes); Reject([&] { KernelImage::Parse(b); }); ++cases;
         };

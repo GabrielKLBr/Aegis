@@ -14,3 +14,5 @@ extern "C" Bool KbSetThreadContext(Handle thread,const exceptions::Context* cont
 extern "C" Bool KbGetProcessAffinityMask(Handle process,uint64_t* mask,uint64_t* system){if(!mask||!system)return Fail(87,0);uint64_t value=0;const auto status=DesktopPolicy(8,process,value);if(status)return Ok(status);*mask=*system=value;return 1;}
 extern "C" Bool KbSetProcessAffinityMask(Handle process,uint64_t mask){return Ok(DesktopPolicy(9,process,mask));}
 extern "C" Bool KbIsDBCSLeadByteEx(Dword page,uint8_t byte){(void)byte;if(page==0||page==1252||page==65001||page==437||page==850)return 0;return Fail(87,0);}
+
+extern "C" Bool KbMoveFileW(const uint16_t* from,const uint16_t* to){uint16_t first[128]{},second[128]{};if(!FullPath(from,first)||!FullPath(to,second))return Fail(123,0);native::Unicode names[2];native::RtlInitUnicodeString(&names[0],first);native::RtlInitUnicodeString(&names[1],second);native::Attributes attrs[2];win32::Request r;r.op=10;for(uint32_t i=0;i<2;++i){attrs[i].name=reinterpret_cast<uint64_t>(&names[i]);attrs[i].attributes=0x40;r.args[i]=reinterpret_cast<uint64_t>(&attrs[i]);}return Ok(GuardianWin32Call(&r));}

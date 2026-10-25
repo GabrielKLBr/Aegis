@@ -1,0 +1,9 @@
+namespace {volatile LONG themeOwner=0;UINT themeDepth=0;struct ThemeGuard {ThemeGuard(){const auto tid=LONG(GetCurrentThreadId());while(_InterlockedCompareExchange(&themeOwner,tid,0)!=0&&themeOwner!=tid)SwitchToThread();++themeDepth;}~ThemeGuard(){if(!--themeDepth)_InterlockedExchange(&themeOwner,0);}};}
+namespace {struct Theme {uint64_t id=0;HWND window=nullptr;};Theme themes[16]{};uint64_t nextTheme=0x148800;Theme* ThemeOf(HTHEME h){for(auto& t:themes)if(t.id&&t.id==uint64_t(h))return &t;return nullptr;}}
+extern "C" BOOL WINAPI CmpIsThemeActive(){return TRUE;}
+extern "C" BOOL WINAPI CmpIsAppThemed(){return TRUE;}
+extern "C" HTHEME WINAPI CmpOpenThemeData(HWND h,LPCWSTR name){ThemeGuard guard;if(!IsWindow(h)||(!Same(name,L"BUTTON")&&!Same(name,L"EDIT")&&!Same(name,L"LISTVIEW")&&!Same(name,L"TAB")&&!Same(name,L"PROGRESS")))return nullptr;for(auto& t:themes)if(!t.id){t.id=nextTheme++;t.window=h;return reinterpret_cast<HTHEME>(t.id);}return nullptr;}
+extern "C" HRESULT WINAPI CmpCloseThemeData(HTHEME h){ThemeGuard guard;auto* t=ThemeOf(h);if(!t)return E_HANDLE;*t={};return S_OK;}
+extern "C" HRESULT WINAPI CmpDrawThemeBackground(HTHEME h,HDC dc,int part,int state,const RECT* rect,const RECT* clip){ThemeGuard guard;auto* t=ThemeOf(h);if(!t||!IsWindow(t->window))return E_HANDLE;if(!dc||!rect||clip||part<1||part>4||state<1||state>5)return E_INVALIDARG;return FillRect(dc,rect,GetSysColorBrush(COLOR_3DFACE))?S_OK:E_FAIL;}
+extern "C" HRESULT WINAPI CmpDrawThemeText(HTHEME h,HDC dc,int,int,LPCWSTR text,int count,DWORD flags,DWORD reserved,const RECT* rect){ThemeGuard guard;if(!ThemeOf(h)||!dc||!text||!rect||flags||reserved)return E_INVALIDARG;if(count==-1)count=int(Len(text));if(count<0||count>128)return E_INVALIDARG;return TextOutW(dc,rect->left,rect->top,text,count)?S_OK:E_FAIL;}
+extern "C" HRESULT WINAPI CmpSetWindowTheme(HWND h,LPCWSTR sub,LPCWSTR ids){if(!IsWindow(h))return E_HANDLE;if((sub&&sub[0])||(ids&&ids[0]))return E_NOTIMPL;return S_OK;}

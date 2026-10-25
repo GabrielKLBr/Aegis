@@ -2,6 +2,15 @@
 #include "guardian/Telemetry.h"
 namespace guardian::storage {
 namespace {
+// Long registry GUID names reuse the unused payload of Key nodes; disk record sizes stay unchanged.
+bool GuidKey(const char* in,char* out) noexcept {
+    for(uint32_t i=0;i<38;++i){char ch=in[i];if(!ch)return false;if(ch>='A'&&ch<='F')ch=char(ch+32);
+        if(i==0){if(ch!='{')return false;}else if(i==37){if(ch!='}')return false;}
+        else if(i==9||i==14||i==19||i==24){if(ch!='-')return false;}else if(!((ch>='0'&&ch<='9')||(ch>='a'&&ch<='f')))return false;
+        out[i]=ch;}
+    if(in[38])return false;out[38]=0;return true;
+}
+const char* KeyName(const Node& n) noexcept {return n.kind==Kind::Key&&(n.flags&2)?reinterpret_cast<const char*>(n.data):n.name;}
 processes::Token Admin() noexcept {processes::Token t{};t.user=100;t.primaryGroup=10;t.integrity=2;return t;}
 bool Zero(const void* p,uint32_t n) noexcept {const auto* b=static_cast<const uint8_t*>(p);for(uint32_t i=0;i<n;++i)if(b[i])return false;return true;}
 uint64_t Digest(const Image& i) noexcept {return Hash(&i,sizeof(i),offsetof(Image,header)+offsetof(Header,checksum),sizeof(i.header.checksum));}
@@ -42,7 +51,7 @@ uint32_t Volume::Times(uint32_t owner,Command& c) noexcept {
     if(!c.flags)return Success;
     image_.header.reserved[0]=TimesMagic;for(uint32_t i=0;i<3;++i)TimeValue(image_.header,slot,i,values[i]);dirty_=true;return Success;
 }
-bool Volume::Equal(const char* a,const char* b) noexcept {for(uint32_t i=0;i<NameBytes;++i){if(a[i]!=b[i])return false;if(!a[i])return true;}return false;}
+bool Volume::Equal(const char* a,const char* b) noexcept {for(uint32_t i=0;i<64;++i){if(a[i]!=b[i])return false;if(!a[i])return true;}return false;}
 bool Volume::Name(const char* source,char* out,bool empty) noexcept {
     uint32_t i=0;for(;i<NameBytes-1 && source[i];++i){auto c=source[i];if(c<' ' || c>'~' || c=='\\' || c=='/' || c==':' || c=='*' || c=='?' || c=='"' || c=='<' || c=='>' || c=='|')return false;out[i]=c>='A' && c<='Z'?static_cast<char>(c+32):c;}
     if(source[i] || (!i && !empty) || (i && (out[i-1]=='.' || out[i-1]==' ')) || (i==1 && out[0]=='.') || (i==2 && out[0]=='.' && out[1]=='.'))return false;out[i]=0;return true;
@@ -55,7 +64,7 @@ bool Volume::Parse(const char* text,Path& p) noexcept {
     else if(size>=4 && (text[0]=='H'||text[0]=='h') && (text[1]=='K'||text[1]=='k') && (text[2]=='C'||text[2]=='c') && (text[3]=='U'||text[3]=='u')){p.root=3;at=4;}
     else return false;
     if(p.root!=1 && at<size){if(text[at++]!='\\')return false;if(at==size)return false;}
-    while(at<size){if(p.count==Depth)return false;char part[NameBytes]{};uint32_t n=0;while(at<size && text[at]!='\\'){if(n>=NameBytes-1)return false;part[n++]=text[at++];}if(!Name(part,p.parts[p.count++]))return false;if(at<size && ++at==size)return false;}return true;
+    while(at<size){if(p.count==Depth)return false;char part[64]{};uint32_t n=0;while(at<size && text[at]!='\\'){if(n>=63)return false;part[n++]=text[at++];}if(n>=NameBytes){if(p.root==1||!GuidKey(part,p.parts[p.count]))return false;}else if(!Name(part,p.parts[p.count]))return false;++p.count;if(at<size && ++at==size)return false;}return true;
 }
 bool Volume::Value(ValueType type,const uint8_t* data,uint32_t bytes) noexcept {
     if(bytes>DataBytes)return false;
@@ -68,14 +77,14 @@ bool Volume::Value(ValueType type,const uint8_t* data,uint32_t bytes) noexcept {
 }
 bool Volume::Access(const processes::Token& t,const Node& n,uint32_t rights) noexcept {return processes::Manager::Access(t,n.security,processes::Kind::Process,rights);}
 Node* Volume::Get(uint32_t id) noexcept {const auto slot=id&255u;if(!slot || slot>MaxNodes)return nullptr;auto& n=image_.nodes[slot-1];return n.kind!=Kind::Empty && n.id==id?&n:nullptr;}
-Node* Volume::Child(uint32_t parent,const char* name,Kind kind) noexcept {for(auto& n:image_.nodes)if(n.kind!=Kind::Empty && !(n.flags&1) && n.parent==parent && Equal(n.name,name) && (kind==Kind::Empty || n.kind==kind))return &n;return nullptr;}
+Node* Volume::Child(uint32_t parent,const char* name,Kind kind) noexcept {for(auto& n:image_.nodes)if(n.kind!=Kind::Empty && !(n.flags&1) && n.parent==parent && Equal(KeyName(n),name) && (kind==Kind::Empty || n.kind==kind))return &n;return nullptr;}
 bool Volume::ConfigureQuota(uint64_t bytes) noexcept {QuotaInfo q{};q.allocationLimit=bytes;if(!ValidQuota(q)||mounted_)return false;allocationLimit_=bytes;return true;}
 bool Volume::BackingReady(uint64_t records) const noexcept {if(!backing_)return true;BackingSpace s{};return backing_(context_,s)&&records<=s.available/544;}
 uint32_t Volume::BlockError() const noexcept {return BackingReady(1)?IoError:NoSpace;}
 Space Volume::QuerySpace() const noexcept {Space s{};s.allocationLimit=allocationLimit_;for(const auto& n:image_.nodes)if(n.kind!=Kind::Empty)s.allocated+=DataBytes;s.free=s.allocated<s.capacity?s.capacity-s.allocated:0;const auto quota=s.allocated<allocationLimit_?allocationLimit_-s.allocated:0;s.available=s.free<quota?s.free:quota;if(!BackingReady(sizeof(Image)/512+1))s.available=0;return s;}
 Node* Volume::New(const processes::Token& t,uint32_t parent,Kind kind,const char* name) noexcept {
-    if(QuerySpace().available<DataBytes)return nullptr;
-    for(uint32_t i=0;i<MaxNodes;++i)if(image_.nodes[i].kind==Kind::Empty && image_.nodes[i].generation<0xFFFFFE){auto& n=image_.nodes[i];const auto g=n.generation+1;n={};n.generation=g;n.id=(g<<8)|(i+1);n.parent=parent;n.kind=kind;ClearTimes(i);n.security=processes::Manager::DefaultSecurity(t,processes::Kind::Process);for(uint32_t a=0;a<NameBytes-1 && name[a];++a)n.name[a]=name[a];if(kind==Kind::File)Touch(n,true,true);dirty_=true;return &n;}return nullptr;
+    if(QuerySpace().available<DataBytes)return nullptr;uint32_t nameLength=0;while(nameLength<39&&name[nameLength])++nameLength;
+    for(uint32_t i=0;i<MaxNodes;++i)if(image_.nodes[i].kind==Kind::Empty && image_.nodes[i].generation<0xFFFFFE){auto& n=image_.nodes[i];const auto g=n.generation+1;n={};n.generation=g;n.id=(g<<8)|(i+1);n.parent=parent;n.kind=kind;ClearTimes(i);n.security=processes::Manager::DefaultSecurity(t,processes::Kind::Process);for(uint32_t a=0;a<NameBytes-1 && name[a];++a)n.name[a]=name[a];if(kind==Kind::Key&&nameLength>=NameBytes){if(!GuidKey(name,reinterpret_cast<char*>(n.data))){n={};return nullptr;}n.flags=2;}if(kind==Kind::File)Touch(n,true,true);dirty_=true;return &n;}return nullptr;
 }
 Node* Volume::Root(const processes::Token& t,uint32_t root,bool create) noexcept {
     if(root==1)return &image_.nodes[0];if(root==2)return &image_.nodes[1];
@@ -98,20 +107,21 @@ bool Volume::Validate(const Image& i) noexcept {
     const auto& h=i.header;if(h.magic!=Magic || h.version!=Version || h.bytes!=sizeof(i) || h.nodeBytes!=sizeof(Node) || h.nodeCount!=MaxNodes || !h.sequence || h.checksum!=Digest(i) || !(Zero(h.reserved,sizeof(h.reserved)) || (h.reserved[0]==TimesMagic && Zero(h.reserved+49,10*sizeof(uint64_t)))))return false;
     for(uint32_t slot=0;slot<MaxNodes;++slot){const auto& n=i.nodes[slot];if(n.generation>0xFFFFFE)return false;
         if(n.kind==Kind::Empty){if(h.reserved[0]==TimesMagic)for(uint32_t field=0;field<3;++field)if(TimeValue(h,slot,field))return false;auto copy=n;copy.generation=0;const Node empty{};const auto* a=reinterpret_cast<const uint8_t*>(&copy);const auto* b=reinterpret_cast<const uint8_t*>(&empty);for(uint32_t at=0;at<sizeof(empty);++at)if(a[at]!=b[at])return false;continue;}
-        if(n.kind>Kind::Link || n.id!=((n.generation<<8)|(slot+1)) || !n.generation || n.size>DataBytes || n.reserved || (n.flags&~1u) ||
-            (n.flags && (!n.parent || (n.kind!=Kind::File && n.kind!=Kind::Directory && n.kind!=Kind::Link))) || (n.kind==Kind::File && n.type!=ValueType::None))return false;
+        if(n.kind>Kind::Link || n.id!=((n.generation<<8)|(slot+1)) || !n.generation || n.size>DataBytes || n.reserved || (n.flags&~3u) ||
+            ((n.flags&1) && (!n.parent || (n.kind!=Kind::File && n.kind!=Kind::Directory && n.kind!=Kind::Link))) || (n.kind==Kind::File && n.type!=ValueType::None))return false;
         if(n.flags && n.kind==Kind::Directory)for(const auto& child:i.nodes)if(child.kind!=Kind::Empty && child.parent==n.id)return false;
         processes::Token t{};t.user=n.security.owner;t.primaryGroup=n.security.group;t.integrity=n.security.integrity;
         if(!processes::Manager::Access(t,n.security,processes::Kind::Process,0))return false;
         char name[NameBytes]{};if(!Name(n.name,name,n.kind==Kind::Value) || !Equal(n.name,name))return false;
         if(n.kind==Kind::Value && !Value(n.type,n.data,n.size))return false;
-        if(n.kind!=Kind::File && n.kind!=Kind::Value && (n.size || n.type!=ValueType::None || !Zero(n.data,sizeof(n.data))))return false;
+        if(n.flags&2){char full[64]{};if(n.flags!=2||n.kind!=Kind::Key||!n.parent||!GuidKey(reinterpret_cast<const char*>(n.data),full)||!Zero(n.data+39,DataBytes-39)||n.size||n.type!=ValueType::None)return false;for(uint32_t j=0;j<31;++j)if(n.name[j]!=full[j])return false;if(n.name[31])return false;}
+        else if(n.kind!=Kind::File && n.kind!=Kind::Value && (n.size || n.type!=ValueType::None || !Zero(n.data,sizeof(n.data))))return false;
         if(n.parent){const auto index=n.parent&255u;if(!index || index>MaxNodes)return false;const auto& p=i.nodes[index-1];if(p.id!=n.parent || (p.kind!=Kind::Directory && p.kind!=Kind::Key))return false;
             if((p.kind==Kind::Directory && (n.kind==Kind::Key || n.kind==Kind::Value)) || (p.kind==Kind::Key && n.kind!=Kind::Key && n.kind!=Kind::Value))return false;
             auto parent=n.parent;uint32_t depth=0;while(parent){if(++depth>Depth)return false;const auto at=parent&255u;if(!at || at>MaxNodes || i.nodes[at-1].id!=parent)return false;parent=i.nodes[at-1].parent;}}
         else if(slot!=0 && slot!=1 && (n.kind!=Kind::Key || !Equal(n.name,"hkcu")))return false;
         if(n.kind==Kind::Link){const auto at=n.target&255u;if(!at || at>MaxNodes || i.nodes[at-1].id!=n.target || i.nodes[at-1].kind!=Kind::File)return false;}else if(n.target)return false;
-        for(uint32_t j=0;j<slot;++j){const auto& a=i.nodes[j];if(a.kind!=Kind::Empty && !(n.flags&1) && !(a.flags&1) && a.parent==n.parent && (a.kind==Kind::Value)==(n.kind==Kind::Value) && Equal(a.name,n.name) && (n.parent || n.security.owner==a.security.owner))return false;}
+        for(uint32_t j=0;j<slot;++j){const auto& a=i.nodes[j];if(a.kind!=Kind::Empty && !(n.flags&1) && !(a.flags&1) && a.parent==n.parent && (a.kind==Kind::Value)==(n.kind==Kind::Value) && Equal(KeyName(a),KeyName(n)) && (n.parent || n.security.owner==a.security.owner))return false;}
     }
     return i.nodes[0].kind==Kind::Directory && !i.nodes[0].parent && Equal(i.nodes[0].name,"c") && i.nodes[1].kind==Kind::Key && !i.nodes[1].parent && Equal(i.nodes[1].name,"hklm");
 }
@@ -225,7 +235,7 @@ uint32_t Volume::Registry(uint32_t,const processes::Token& t,Command& c) noexcep
     }
     Node* key=nullptr;auto status=Resolve(t,c.path,key);if(status)return status;if(key->kind!=Kind::Key)return TypeMismatch;
     const auto rights=c.op==Op::RegGet?Read:(c.op==Op::RegEnum?List:(c.op==Op::RegDeleteKey?Delete:Write));if(!Access(t,*key,rights))return Denied;
-    if(c.op==Op::RegEnum){if(c.flags>1)return Invalid;uint32_t index=0;for(const auto& n:image_.nodes)if(n.kind!=Kind::Empty && n.parent==key->id && ((c.flags==0 && n.kind==Kind::Key) || (c.flags==1 && n.kind==Kind::Value))){if(index++!=c.index)continue;for(uint32_t i=0;i<NameBytes;++i)c.name[i]=n.name[i];c.type=static_cast<uint32_t>(n.type);c.transferred=n.size;return Success;}return NotFound;}
+    if(c.op==Op::RegEnum){if(c.flags>1)return Invalid;uint32_t index=0;for(const auto& n:image_.nodes)if(n.kind!=Kind::Empty && n.parent==key->id && ((c.flags==0 && n.kind==Kind::Key) || (c.flags==1 && n.kind==Kind::Value))){if(index++!=c.index)continue;for(uint32_t i=0;i<NameBytes;++i)c.name[i]=n.name[i];if(n.kind==Kind::Key&&(n.flags&2))for(uint32_t i=0;i<39;++i)c.other[i]=char(n.data[i]);c.type=static_cast<uint32_t>(n.type);c.transferred=n.size;return Success;}return NotFound;}
     if(c.op==Op::RegDeleteKey){if(!key->parent)return Denied;for(const auto& n:image_.nodes)if(n.kind==Kind::Key && n.parent==key->id)return NotEmpty;Notify(key->id,1);Notify(key->parent,1);for(auto& n:image_.nodes)if(n.kind==Kind::Value && n.parent==key->id)Clear(n);Clear(*key);return Success;}
     char name[NameBytes]{};if(!Name(c.name,name,true))return Invalid;auto* value=Child(key->id,name,Kind::Value);
     if(c.op==Op::RegSet){const auto type=static_cast<ValueType>(c.type);if(!Value(type,c.data,c.length))return Invalid;if(!value){value=New(t,key->id,Kind::Value,name);if(!value)return NoSpace;}

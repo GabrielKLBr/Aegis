@@ -8,14 +8,20 @@ inline constexpr uint32_t SymbolCharacters=128;
 #endif
 #ifdef GUARDIAN_SCALABLE_PE
 inline constexpr bool Extended=true;
-inline constexpr uint32_t Modules=16,Sections=32,ImageBytes=8u<<20,FileBytes=8u<<20;
+#ifdef GUARDIAN_COMPONENT_NATIVE
+inline constexpr uint32_t Modules=24;
+#else
+inline constexpr uint32_t Modules=16;
+#endif
+inline constexpr uint32_t Sections=32,ImageBytes=8u<<20,FileBytes=8u<<20;
 #ifdef GUARDIAN_NATIVE_NT
 inline constexpr uint32_t RuntimeFunctions=8192;
 #else
 inline constexpr uint32_t RuntimeFunctions=4096;
 #endif
 inline constexpr uint32_t Relocations=8192,Exports=8192,Imports=4096,TlsBytes=4096;
-inline constexpr uint32_t PrivatePages=16384,Regions=256,RuntimeData=4096,InitCalls=Modules*9;
+inline constexpr uint32_t PrivatePages=16384,Regions=256,InitCalls=16*9;
+inline constexpr uint32_t RuntimeData=4096;
 inline constexpr uint64_t ArenaBytes=256ull<<20,TebBytes=0x20000,TlsOffset=0x2000;
 #else
 inline constexpr bool Extended=false;

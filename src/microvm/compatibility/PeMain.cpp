@@ -9,7 +9,7 @@ int main(int argc,char** argv){
         state::Require(argc!=7||(kernel.SupportsSecurity()&&securityState.size()==65536),"Security state input rejected");
         const auto volume=state::ReadFile(argv[2],guardian::pevolume::MaxBytes);const auto binding=compatibility::Read(argv[4],argv[3]);
         state::Require(guardian::pevolume::Valid(volume.data(),static_cast<uint32_t>(volume.size())),"Volume rejected");
-        const auto& h=*reinterpret_cast<const guardian::pevolume::Header*>(volume.data());const auto& f=h.entries[h.root];
+        const auto& h=*reinterpret_cast<const guardian::pevolume::Header*>(volume.data());const auto& f=guardian::pevolume::FileAt(h,h.root);
         compatibility::Verify(binding,kernel.FileBytes(),std::span<const uint8_t>(volume).subspan(f.offset,f.bytes));
         const auto digest=compatibility::Sha256(volume);state::Require(std::memcmp(digest.data(),binding.runtimeSha,32)==0&&binding.profile==h.profile,"Volume binding mismatch");
         const auto output=std::filesystem::absolute(argv[5]);state::Require(!std::filesystem::exists(output),"Use a new output directory");

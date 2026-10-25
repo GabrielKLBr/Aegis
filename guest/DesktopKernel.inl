@@ -19,7 +19,8 @@ uint32_t DesktopDispatch(RuntimeSlot& slot,uint32_t tid,uint64_t now,uint64_t ad
     ++desktopReport.calls;auto event=telemetry::Begin(telemetry::Domain::Control,telemetry::Operation::Query,slot.pid,slot.context.processes->Get(slot.pid)->token.user,"Desktop service","",uint32_t(request.op));if(!telemetry::Before(event))return telemetry::End(event,5);
     desktopCurrentNow=now;if(request.op==desktop::Op::Poll){DesktopExchange(1);}
     auto status=desktopCore.Execute(slot.pid,tid,now,request);if(status==5||status==1400)++desktopReport.denied;
-    if(desktopCore.Changed()&&(!desktopReport.frames||now-desktopLastFrame>=33333333||(request.op==desktop::Op::Present&&request.flags&2))){DesktopExchange(2);desktopLastFrame=now;}
+    const bool flush=request.op==desktop::Op::Present&&(request.flags&2);
+    if(desktopCore.Changed()&&(!desktopCore.Painting()||flush)&&(!desktopReport.frames||now-desktopLastFrame>=33333333||flush)){DesktopExchange(2);desktopLastFrame=now;}
     if(!slot.nativeServices->Write(address,&request,sizeof(request)))status=998;return telemetry::End(event,status);
 }
 bool DesktopFinish() noexcept {
