@@ -17,6 +17,9 @@ GuardianExceptionReply PROC
     ud2
 GuardianExceptionReply ENDP
 GuardianUnwindCall PROC
+IFDEF GUARDIAN_CRT_RUNTIME
+    mov r10,r9
+ENDIF
     mov r9,r8
     mov r8,rdx
     mov rdx,rcx
@@ -24,6 +27,16 @@ GuardianUnwindCall PROC
     syscall
     ud2
 GuardianUnwindCall ENDP
+IFDEF GUARDIAN_CRT_RUNTIME
+PUBLIC GuardianCrtConsolidateReply
+GuardianCrtConsolidateReply PROC
+    mov r8,rdx
+    mov rdx,rcx
+    mov eax,8ah
+    syscall
+    ud2
+GuardianCrtConsolidateReply ENDP
+ENDIF
 GuardianRaiseCall PROC
     mov rdx,rcx
     mov eax,88h

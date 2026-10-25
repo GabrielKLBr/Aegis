@@ -287,7 +287,7 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
     vm_.MapIoTrapDetailed(DebugPort, [this](MicroVm&, const MicroVm::IoAccess& access) {
         if (!ValidIo(access)) return;
         const auto ch = static_cast<uint8_t>(access.value);
-        if (console_.size() >= 4096 || (ch < 32 && ch != '\n' && ch != '\t') || ch > 126) {
+        if (console_.size() >= 4096 || (ch < 32 && ch != '\n' && ch != '\r' && ch != '\t') || ch > 126) {
             vm_.FailExecution(L"Console text/budget rejected"); return;
         }
         console_ += static_cast<char>(ch);

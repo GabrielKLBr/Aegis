@@ -714,6 +714,9 @@ bool ExceptionEnvironment(uint32_t pid,uint32_t tid,PeExceptionEnvironment& env)
 #else
     constexpr uint32_t runtime=1;
 #endif
+#ifdef GUARDIAN_CRT_NATIVE
+    if(!slot->image.Resolve(runtime,"GuardianCrtConsolidate",0,env.consolidate))return false;
+#endif
     return slot->image.Resolve(runtime,"GuardianExceptionDispatch",0,env.entry);
 }
 }

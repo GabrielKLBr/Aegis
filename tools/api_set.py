@@ -72,11 +72,11 @@ def pe(data):
     raw[392:400]=b'.apiset\0';struct.pack_into('<IIIIIIHHI',raw,400,len(data),4096,size,512,0,0,0,0,0x40000040);raw[512:512+len(data)]=data;return bytes(raw)
 
 OWNED={name:{'':'kernelbase.dll'} for name in ('api-ms-win-core-memory-l1-1-0','api-ms-win-core-synch-l1-1-0','api-ms-win-core-processthreads-l1-1-0','api-ms-win-core-file-l1-1-0','api-ms-win-core-libraryloader-l1-1-0','api-ms-win-core-heap-l1-1-0','api-ms-win-core-localization-l1-1-0','api-ms-win-core-sysinfo-l1-1-0','api-ms-win-core-threadpool-l1-1-0')}
-def build(profile,original=None):
+def build(profile,original=None,hosts=('kernelbase.dll','kernel32.dll','ntdll.dll')):
     version=2 if profile=='win7' else 6;mapping=OWNED.copy();source='owned bounded profile fixture';digest=None
     if original:
         raw=nt.regular(Path(original),8<<20);actual,reference=parse(section(raw));nt.require(actual==version,'Reference schema version mismatch')
-        mapping={k:v for k,v in reference.items() if any(h in ('kernelbase.dll','kernel32.dll','ntdll.dll') for h in v.values())};source='selected native schema, re-encoded data only';digest=nt.sha(raw)
+        mapping={k:v for k,v in reference.items() if any(h in hosts for h in v.values())};source='selected native schema, re-encoded data only';digest=nt.sha(raw)
     output=pe(encode(version,mapping));return output,{'schemaVersion':version,'contracts':len(mapping),'source':source,'referenceSha256':digest,'exactTargetReference':False}
 
 if __name__=='__main__':

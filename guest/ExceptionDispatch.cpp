@@ -40,7 +40,8 @@ bool Dispatch::Reply(uint32_t disposition,const Context& changed) noexcept {
     if(disposition==0){if(record_.flags&Noncontinuable)return false;resume_=changed;active_=waiting_=false;resumed_=true;return true;}
     if(disposition!=1)return false;Move();return true;
 }
-bool Dispatch::UnwindTo(const unwind::Backend& api,void* p,uint64_t frame,uint64_t ip,uint64_t value) noexcept {
+bool Dispatch::UnwindTo(const unwind::Backend& api,void* p,uint64_t frame,uint64_t ip,uint64_t value,const Record* replacement) noexcept {
+    if(replacement&&(!replacement->code||(replacement->flags&~Noncontinuable)||replacement->nested||replacement->padding||replacement->count>15))return false;
     if(!active_ || !waiting_ || unwinding_ || (frame&7) || frame<stack_.low || frame>=stack_.high || !api.executable || !api.executable(p,ip))return false;
     // Validate the complete path and its termination metadata before cleanup.
     auto work=Convert(original_);bool found=false;
@@ -50,7 +51,7 @@ bool Dispatch::UnwindTo(const unwind::Backend& api,void* p,uint64_t frame,uint64
         if(e.routine && e.establisher==frame){if(ip<e.functionBegin || ip>=e.functionEnd)return false;target_=work;found=true;break;}
         work=caller;if(work.rip)--work.rip;
     }
-    if(!found)return false;targetFrame_=frame;targetIp_=ip;value_=value;walk_=Convert(original_);depth_=0;
+    if(!found)return false;if(replacement)record_=*replacement;targetFrame_=frame;targetIp_=ip;value_=value;walk_=Convert(original_);depth_=0;
     unwinding_=true;waiting_=false;return true;
 }
 }

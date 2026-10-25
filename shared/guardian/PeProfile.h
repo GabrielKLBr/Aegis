@@ -1,6 +1,11 @@
 #pragma once
 #include <stdint.h>
 namespace guardian::peprofile {
+#ifdef GUARDIAN_CRT_NATIVE
+inline constexpr uint32_t SymbolCharacters=512;
+#else
+inline constexpr uint32_t SymbolCharacters=128;
+#endif
 #ifdef GUARDIAN_SCALABLE_PE
 inline constexpr bool Extended=true;
 inline constexpr uint32_t Modules=16,Sections=32,ImageBytes=8u<<20,FileBytes=8u<<20;

@@ -34,12 +34,24 @@ bool FullPath(const uint16_t* in,uint16_t (&out)[128]){
 uint32_t PathCall(uint32_t op,const uint16_t* path){uint16_t full[128]{};char narrow[128]{};if(!FullPath(path,full))return native::Invalid;if(!Ascii(full,narrow))return native::Unsupported;
     native::Unicode name;native::RtlInitUnicodeString(&name,full);native::Attributes attributes;attributes.name=reinterpret_cast<uint64_t>(&name);attributes.attributes=0x40;
     win32::Request r;r.op=op;r.args[0]=reinterpret_cast<uint64_t>(&attributes);return GuardianWin32Call(&r);}
-struct FileState {Handle handle=nullptr;bool overlapped=false;};FileState files[8]{};
+struct FileState {Handle handle=nullptr;bool overlapped=false;
+#ifdef GUARDIAN_CRT_RUNTIME
+bool inherit=false;
+#endif
+};FileState files[8]{};
 FileState* File(Handle h){for(auto& f:files)if(f.handle==h&&h)return &f;return nullptr;}
 bool PendingFile(Handle);void DrainFile(Handle);
 }
-extern "C" int KbMultiByteToWideChar(Dword p,Dword flags,const char* in,int n,uint16_t* out,int cap){Dword e=0;const auto count=nls::Multi(p,flags,in,n,out,cap,e);if(e)win::SetLastError(e);return count;}
-extern "C" int KbWideCharToMultiByte(Dword p,Dword flags,const uint16_t* in,int n,char* out,int cap,const char* replacement,Bool* used){Dword e=0;const auto count=nls::Wide(p,flags,in,n,out,cap,replacement,used,e);if(e)win::SetLastError(e);return count;}
+extern "C" int KbMultiByteToWideChar(Dword p,Dword flags,const char* in,int n,uint16_t* out,int cap){
+#ifdef GUARDIAN_CRT_RUNTIME
+    if(p==3)p=1252;if(!p||p==1252)flags&=~1u;
+#endif
+    Dword e=0;const auto count=nls::Multi(p,flags,in,n,out,cap,e);if(e)win::SetLastError(e);return count;}
+extern "C" int KbWideCharToMultiByte(Dword p,Dword flags,const uint16_t* in,int n,char* out,int cap,const char* replacement,Bool* used){
+#ifdef GUARDIAN_CRT_RUNTIME
+    if(p==3)p=1252;if(!p||p==1252)flags&=~0x400u;
+#endif
+    Dword e=0;const auto count=nls::Wide(p,flags,in,n,out,cap,replacement,used,e);if(e)win::SetLastError(e);return count;}
 extern "C" Dword KbGetACP(){return 1252;}
 extern "C" int KbCompareStringOrdinal(const uint16_t* a,int na,const uint16_t* b,int nb,Bool fold){if(na==-1)na=int(Length(a,1<<20));if(nb==-1)nb=int(Length(b,1<<20));if(!a||!b||na<0||nb<0||na>(1<<20)||nb>(1<<20))return Fail(87,0);
     if(fold){for(int i=0;i<na;++i)if(!nls::CaseSupported(a[i]))return Fail(50,0);for(int i=0;i<nb;++i)if(!nls::CaseSupported(b[i]))return Fail(50,0);}
@@ -54,7 +66,13 @@ extern "C" Bool KbVirtualFree(void* base,uint64_t size,Dword type){return Ok(nat
 extern "C" Bool KbVirtualProtect(void* base,uint64_t size,Dword protection,Dword* old){return Ok(native::NtProtectVirtualMemory(KbGetCurrentProcess(),&base,&size,protection,old));}
 extern "C" uint64_t KbVirtualQuery(const void* base,memory::Information* info,uint64_t size){uint64_t returned=0;const auto s=native::NtQueryVirtualMemory(KbGetCurrentProcess(),base,0,info,size,&returned);if(s)return Fail(Error(s),uint64_t(0));return returned;}
 extern "C" Handle KbGetProcessHeap(){return heap;}
-extern "C" Handle KbHeapCreate(Dword flags,uint64_t initial,uint64_t maximum){if(flags||initial>(1u<<20)||maximum>(1u<<20)||(maximum&&initial>maximum))return Fail(87,static_cast<Handle>(nullptr));const auto h=native::RtlCreateHeap(2,nullptr,maximum?maximum:(initial?initial:65536),0,nullptr,nullptr);if(!h)win::SetLastError(8);return h;}
+extern "C" Handle KbHeapCreate(Dword flags,uint64_t initial,uint64_t maximum){if(flags||initial>(1u<<20)||maximum>(1u<<20)||(maximum&&initial>maximum))return Fail(87,static_cast<Handle>(nullptr));const auto h=native::RtlCreateHeap(2,nullptr,maximum?maximum:
+#ifdef GUARDIAN_CRT_RUNTIME
+    (1u<<20),
+#else
+    (initial?initial:65536),
+#endif
+    0,nullptr,nullptr);if(!h)win::SetLastError(8);return h;}
 extern "C" Bool KbHeapDestroy(Handle h){if(h==heap)return Fail(87,0);return native::RtlDestroyHeap(h)?Fail(87,0):1;}
 extern "C" void* KbHeapAlloc(Handle h,Dword f,uint64_t n){auto* p=native::RtlAllocateHeap(h,f,n);if(!p)win::SetLastError(8);return p;}
 extern "C" void* KbHeapReAlloc(Handle h,Dword f,void* p,uint64_t n){auto* out=native::RtlReAllocateHeap(h,f,p,n);if(!out)win::SetLastError(8);return out;}
@@ -83,5 +101,24 @@ extern "C" Procedure KbGetProcAddress(Handle h,const char* name){const auto p=wi
 #include "Win32Files.inl"
 #include "Win32Async.inl"
 #include "Win32Threads.inl"
-extern "C" int KbDllEntry(void*,Dword reason,void*){if(reason==1){mutex=win::CreateMutexA(nullptr,0,nullptr);if(!mutex)return 0;heap=native::RtlCreateHeap(2,nullptr,65536,0,nullptr,nullptr);if(!heap)return 0;Dword e=0;return nls::Wide(1252,0,KbGetCommandLineW(),-1,commandA,sizeof(commandA),nullptr,nullptr,e)!=0;}
-    if(reason==0){if(heap)native::RtlDestroyHeap(heap);if(mutex)win::CloseHandle(mutex);heap=mutex=nullptr;}return 1;}
+#ifdef GUARDIAN_CRT_RUNTIME
+extern "C" __declspec(dllimport) void GuardianCrtFlsCleanup();
+#include "CrtWin32.inl"
+#include "CrtSynchronization.inl"
+#endif
+extern "C" int KbDllEntry(void*,Dword reason,void*){if(reason==1){mutex=win::CreateMutexA(nullptr,0,nullptr);if(!mutex)return 0;heap=native::RtlCreateHeap(2,nullptr,
+#ifdef GUARDIAN_CRT_RUNTIME
+    1u<<20,
+#else
+    65536,
+#endif
+    0,nullptr,nullptr);if(!heap)return 0;
+#ifdef GUARDIAN_CRT_RUNTIME
+    *reinterpret_cast<Handle*>(__readgsqword(0x60)+0x30)=heap;
+#endif
+    Dword e=0;return nls::Wide(1252,0,KbGetCommandLineW(),-1,commandA,sizeof(commandA),nullptr,nullptr,e)!=0;}
+    if(reason==0){
+#ifdef GUARDIAN_CRT_RUNTIME
+        GuardianCrtFlsCleanup();
+#endif
+        if(heap)native::RtlDestroyHeap(heap);if(mutex)win::CloseHandle(mutex);heap=mutex=nullptr;}return 1;}

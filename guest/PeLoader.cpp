@@ -10,7 +10,7 @@ bool Range(uint32_t at,uint32_t bytes,uint32_t limit) noexcept {return at<=limit
 uint32_t Pages(uint32_t n) noexcept {return (n+4095)&~4095u;}
 char Lower(char c) noexcept {return c>='A' && c<='Z'?char(c+('a'-'A')):c;}
 bool Equal(const char* a,const char* b,bool fold=false) noexcept {
-    for(uint32_t i=0;i<128;++i){const auto x=fold?Lower(a[i]):a[i],y=fold?Lower(b[i]):b[i];if(x!=y)return false;if(!x)return true;}return false;
+    for(uint32_t i=0;i<peprofile::SymbolCharacters;++i){const auto x=fold?Lower(a[i]):a[i],y=fold?Lower(b[i]):b[i];if(x!=y)return false;if(!x)return true;}return false;
 }
 bool Name(const char* s) noexcept {
     if(!s || !s[0])return false;
@@ -134,7 +134,7 @@ bool Loader::Exports(Module& m) noexcept {
             if(!dot)return Fail(Error::InvalidImage);
         }
         if(rva && !Span(m,rva,1))return Fail(Error::InvalidImage);}
-    char text[128]{};for(uint32_t i=0;i<names;++i){uint32_t rva=0;uint16_t ordinal=0;
+    char text[peprofile::SymbolCharacters]{};for(uint32_t i=0;i<names;++i){uint32_t rva=0;uint16_t ordinal=0;
         if(!Read(m,nt+i*4,&rva,4) || !Read(m,ot+i*2,&ordinal,2) || ordinal>=functions || !String(m,rva,text,sizeof(text)) || !text[0])return Fail(Error::InvalidImage);}
     return true;
 }
@@ -144,7 +144,7 @@ bool Loader::Symbol(Module& m,const char* name,uint32_t ordinal,uint64_t& addres
     if(!Exports(m))return false;uint8_t h[40]{};if(!Read(m,d.rva,h,40))return false;
     const auto functions=U32(h+20),names=U32(h+24),ft=U32(h+28),nt=U32(h+32),ot=U32(h+36);uint32_t selected=UINT32_MAX;
     if(!name){if(ordinal<U32(h+16) || ordinal-U32(h+16)>=functions)return Fail(Error::MissingSymbol);selected=ordinal-U32(h+16);}
-    else for(uint32_t i=0;i<names;++i){uint32_t rva=0;uint16_t slot=0;char text[128]{};
+    else for(uint32_t i=0;i<names;++i){uint32_t rva=0;uint16_t slot=0;char text[peprofile::SymbolCharacters]{};
         if(!Read(m,nt+i*4,&rva,4) || !Read(m,ot+i*2,&slot,2) || !String(m,rva,text,sizeof(text)))return false;
         if(Equal(name,text)){selected=slot;break;}}
     if(selected>=functions)return Fail(Error::MissingSymbol);uint32_t rva=0;if(!Read(m,ft+selected*4,&rva,4))return false;
@@ -185,7 +185,7 @@ bool Loader::Imports(Module& m) noexcept {
             if(!thunk){ended=true;break;}
             if(thunk>>63){if(thunk&0x7FFFFFFFFFFF0000ull)return Fail(Error::InvalidImage);
                 if(!Symbol(modules_[dep],nullptr,static_cast<uint16_t>(thunk),address))return false;}
-            else {if(thunk>UINT32_MAX-2)return Fail(Error::InvalidImage);char symbol[128]{};
+            else {if(thunk>UINT32_MAX-2)return Fail(Error::InvalidImage);char symbol[peprofile::SymbolCharacters]{};
                 if(!String(m,static_cast<uint32_t>(thunk)+2,symbol,sizeof(symbol)))return false;
                 if(!symbol[0])return Fail(Error::InvalidImage);if(!Symbol(modules_[dep],symbol,0,address))return false;}
             if(!Write(m,static_cast<uint32_t>(to),&address,8))return false;++m.imports;

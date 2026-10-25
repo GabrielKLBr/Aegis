@@ -9,7 +9,7 @@ public:
     bool Begin(const Record&,const Context&,const unwind::Stack&) noexcept;
     Result Next(const unwind::Backend&,void*,Action&) noexcept;
     bool Reply(uint32_t disposition,const Context&) noexcept;
-    bool UnwindTo(const unwind::Backend&,void*,uint64_t frame,uint64_t ip,uint64_t value) noexcept;
+    bool UnwindTo(const unwind::Backend&,void*,uint64_t frame,uint64_t ip,uint64_t value,const Record* replacement=nullptr) noexcept;
     const Context& ResumeContext() const noexcept {return resume_;}
     static bool ValidContext(const Context&,const unwind::Stack&,const unwind::Backend&,void*) noexcept;
 private:

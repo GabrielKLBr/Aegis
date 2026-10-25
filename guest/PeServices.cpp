@@ -72,7 +72,11 @@ uint32_t Services::Execute(uint32_t pid,const processes::Token& token,Command& c
         const auto status=Call(pid,token,io);if(!status){Bytes(c.data,io.data,sizeof(storage::Space));c.transferred=sizeof(storage::Space);}return c.status=status;
     }
     if(c.op==runtime::Op::ConsoleWrite){if(c.handle!=Console || c.flags || c.length>512)return c.status=Invalid;
+#ifdef GUARDIAN_CRT_NATIVE
+        for(uint32_t i=0;i<c.length;++i)if((c.data[i]<32&&c.data[i]!=10&&c.data[i]!=9&&c.data[i]!=13)||c.data[i]>126)return c.status=Invalid;
+#else
         for(uint32_t i=0;i<c.length;++i)if((c.data[i]<32 && c.data[i]!=10 && c.data[i]!=9) || c.data[i]>126)return c.status=Invalid;
+#endif
         return c.status=c.length?(console_?console_(context_,pid,c.data,c.length,c.transferred):Unsupported):Success;}
     const bool registry=c.op==runtime::Op::RegSet || c.op==runtime::Op::RegGet || c.op==runtime::Op::RegClose;
     auto* h=Find(pid,c.handle,registry?2u:1u);if(!h)return c.status=InvalidHandle;

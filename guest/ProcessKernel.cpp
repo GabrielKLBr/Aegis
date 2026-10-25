@@ -280,7 +280,11 @@ bool ProcessTrap(TrapFrame& frame,void* fx,uint64_t now,bool timer) noexcept {
     else {
         Check(pid!=0,8);const auto slot=(tid&255u)-1;auto& c=contexts[slot];uint32_t status=Success;
 #ifdef GUARDIAN_COMPLETE_KERNEL
-        const bool continuation=frame.rax>=0x86 && frame.rax<=0x88 && PeOwnsProcess(pid)
+        const bool continuation=((frame.rax>=0x86 && frame.rax<=0x88)
+#ifdef GUARDIAN_CRT_NATIVE
+            ||frame.rax==0x8A
+#endif
+            ) && PeOwnsProcess(pid)
 #ifdef GUARDIAN_NATIVE_NT
             &&PeNativeLegacy(pid,frame.rip)
 #endif

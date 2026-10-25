@@ -3,7 +3,13 @@
 #include "guardian/Exception.h"
 #include <intrin.h>
 extern "C" __declspec(noreturn) void GuardianExceptionReply(uint64_t,uint32_t,void*);
+#ifdef GUARDIAN_CRT_RUNTIME
+extern "C" __declspec(noreturn) void GuardianUnwindCall(uint64_t,uint64_t,uint64_t,const guardian::exceptions::Record*);
+extern "C" __declspec(noreturn) void GuardianCrtConsolidateReply(uint64_t,void*);
+extern "C" __declspec(noreturn) void GuardianCrtConsolidate(guardian::exceptions::Packet* packet){const auto continuation=reinterpret_cast<void* (*)(guardian::exceptions::Record*)>(packet->record.information[0])(&packet->record);GuardianCrtConsolidateReply(packet->token,continuation);}
+#else
 extern "C" __declspec(noreturn) void GuardianUnwindCall(uint64_t,uint64_t,uint64_t);
+#endif
 extern "C" void GuardianRaiseCall(const guardian::exceptions::Record*);
 using namespace guardian::exceptions;
 extern "C" __declspec(noreturn) void GuardianExceptionDispatch(Packet* packet){
@@ -13,8 +19,12 @@ extern "C" __declspec(noreturn) void GuardianExceptionDispatch(Packet* packet){
     GuardianExceptionReply(packet->token,disposition,packet);
 }
 namespace guardian::win {
-extern "C" __declspec(noreturn) void RtlUnwindEx(void* frame,void* ip,Record*,void* value,Context*,void*){
-    GuardianUnwindCall(reinterpret_cast<uint64_t>(frame),reinterpret_cast<uint64_t>(ip),reinterpret_cast<uint64_t>(value));
+extern "C" __declspec(noreturn) void RtlUnwindEx(void* frame,void* ip,Record* record,void* value,Context*,void*){
+#ifdef GUARDIAN_CRT_RUNTIME
+    GuardianUnwindCall(reinterpret_cast<uint64_t>(frame),reinterpret_cast<uint64_t>(ip),reinterpret_cast<uint64_t>(value),record);
+#else
+    (void)record;GuardianUnwindCall(reinterpret_cast<uint64_t>(frame),reinterpret_cast<uint64_t>(ip),reinterpret_cast<uint64_t>(value));
+#endif
 }
 extern "C" void RaiseException(Dword code,Dword flags,Dword count,const uint64_t* information){
     if(!code || (flags&~1u) || count>15 || (count && !information))__ud2();

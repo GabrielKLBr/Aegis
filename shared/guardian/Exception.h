@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 namespace guardian::exceptions {
-inline constexpr uint32_t ContextFlags=0x10000B,Noncontinuable=1,Unwinding=2,TargetUnwind=0x40;
+inline constexpr uint32_t ContextFlags=0x10000B,Noncontinuable=1,Unwinding=2,TargetUnwind=0x20;
 inline constexpr uint32_t AccessViolation=0xC0000005,IllegalInstruction=0xC000001D,IntegerDivide=0xC0000094,
     NoncontinuableException=0xC0000025,InvalidDisposition=0xC0000026,InvalidUnwindTarget=0xC0000029,Unhandled=0xC0000144;
 struct Record {uint32_t code=0,flags=0;uint64_t nested=0,address=0;uint32_t count=0,padding=0;uint64_t information[15]{};};

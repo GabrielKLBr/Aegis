@@ -1,4 +1,7 @@
 extern "C" const volatile char GuardianWin32Capability[]="GuardianWin32/1/guest";
+#ifdef GUARDIAN_CRT_NATIVE
+extern "C" const volatile char GuardianCrtCapability[]="GuardianCrt/1/guest";
+#endif
 namespace {
 storage::Volume win32Storage;uint8_t win32Disk[65536]{};bool win32Mounted=false;
 bool Win32Block(void*,io::Op op,uint64_t offset,uint8_t* data) noexcept {
@@ -42,6 +45,10 @@ uint32_t Win32Dispatch(RuntimeSlot& slot,uint64_t pointer) noexcept {
     if(request.op==20){const char* found=nullptr;for(uint32_t i=0;i<pe::MaxModules;++i)if(const auto* m=slot.image.Get(i);m&&((!request.args[0]&&!i)||m->base==request.args[0])){found=slot.sources[i].name;break;}
         if(!found)result=native::InvalidHandle;else {uint32_t n=0;while(found[n])++n;
             if(request.args[2]<n+1)result=native::Small;else result=slot.nativeServices->Write(request.args[1],found,n+1)?0:native::AccessViolation;request.args[3]=n;}}
+#ifdef GUARDIAN_CRT_NATIVE
+    else if(request.op==21){unwind::Image image{};if(!StackImage(&slot,request.args[0],image))result=native::Invalid;else {request.args[1]=image.base;request.args[2]=image.size;request.args[3]=image.table;request.args[4]=image.count;result=0;}}
+    else if(request.op==22){result=native::Invalid;for(uint32_t i=0;i<pe::MaxModules;++i)if(const auto* m=slot.image.Get(i);m&&request.args[0]>=m->base&&request.args[0]-m->base<m->size){request.args[1]=m->base;result=0;break;}}
+#endif
     else result=slot.nativeServices->Win32(request.op,request.args);
     if(!slot.nativeServices->Write(pointer,&request,sizeof(request)))result=native::AccessViolation;return telemetry::End(event,result);
 }

@@ -19,6 +19,9 @@ Heap* Find(void* h) noexcept {for(auto& heap:heaps)if(heap.base&&h==&heap)return
 bool Narrow(const Unicode* s,char* out) noexcept {if(!s||(s->length&1)||s->length>s->maximum||s->length>=256||(!s->buffer&&s->length))return false;
     const auto* text=reinterpret_cast<const uint16_t*>(s->buffer);for(uint32_t i=0;i<uint32_t(s->length)/2;++i){if(text[i]<32||text[i]>126)return false;out[i]=char(text[i]);}out[s->length/2]=0;return true;}
 }
+#ifdef GUARDIAN_CRT_RUNTIME
+extern "C" __declspec(dllexport) void GuardianCrtFlsCleanup(){Cleanup();}
+#endif
 extern "C" void* RtlGetCurrentPeb(){return reinterpret_cast<void*>(__readgsqword(0x60));}
 extern "C" Status RtlGetVersion(VersionInfo* out){if(!out||(out->size!=276&&out->size!=sizeof(VersionInfo)))return Invalid;
     const auto* peb=static_cast<const uint8_t*>(RtlGetCurrentPeb());out->major=*reinterpret_cast<const uint32_t*>(peb+0x118);out->minor=*reinterpret_cast<const uint32_t*>(peb+0x11C);out->build=*reinterpret_cast<const uint16_t*>(peb+0x120);out->platform=2;

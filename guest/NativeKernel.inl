@@ -56,6 +56,9 @@ bool PeNativeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f,
     if(PeNativeLegacy(pid,f.rip))return false;
 #ifdef GUARDIAN_WIN32_NATIVE
     if(f.rax==0xA4&&NativeCode(*slot,"kernelbase.dll",f.rip)){status=Win32Dispatch(*slot,f.rdx);return true;}
+#ifdef GUARDIAN_CRT_NATIVE
+    if(f.rax==0xA5&&NativeCode(*slot,"ntdll.dll",f.rip)){win32::Request r;if(!slot->nativeServices->Read(f.rdx,&r,sizeof(r))||(r.op!=21&&r.op!=22)){status=native::Invalid;return true;}status=Win32Dispatch(*slot,f.rdx);return true;}
+#endif
 #endif
     native::Packet packet;slot->nativeTid=tid;
     if(f.rax==0xA2&&NativeCode(*slot,"ntdll.dll",f.rip)&&!slot->nativeMap.original){

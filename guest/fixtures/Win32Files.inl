@@ -1,10 +1,18 @@
 extern "C" Handle KbCreateFileW(const uint16_t* path,Dword access,Dword share,void* security,Dword disposition,Dword attributes,Handle templ){
+#ifdef GUARDIAN_CRT_RUNTIME
+    if(security){const auto& a=*static_cast<const SecurityAttributes*>(security);if(a.length!=sizeof(a)||a.descriptor||(a.inherit!=0&&a.inherit!=1))return Fail(50,reinterpret_cast<Handle>(UINT64_MAX));}
+    const bool inherit=security&&static_cast<const SecurityAttributes*>(security)->inherit;security=nullptr;
+#endif
     if(security||templ||!disposition||disposition>5||(attributes&~0x40000080u))return Fail(87,reinterpret_cast<Handle>(UINT64_MAX));
     uint16_t full[128]{};char narrow[128]{};if(!FullPath(path,full))return Fail(123,reinterpret_cast<Handle>(UINT64_MAX));if(!Ascii(full,narrow))return Fail(50,reinterpret_cast<Handle>(UINT64_MAX));
     native::Unicode text;native::RtlInitUnicodeString(&text,full);native::Attributes a;a.name=reinterpret_cast<uint64_t>(&text);a.attributes=0x40;native::IoStatus io;Handle h=nullptr;
     const uint32_t types[]{0,2,5,1,3,4};const auto s=native::NtCreateFile(&h,access,&a,&io,nullptr,0,share,types[disposition],0x60,nullptr,0);
     if(s)return Fail(s==0xC0000035&&disposition==1?80:Error(s),reinterpret_cast<Handle>(UINT64_MAX));if(!Lock()){native::NtClose(h);return Fail(8,reinterpret_cast<Handle>(UINT64_MAX));}
-    FileState* state=nullptr;for(auto& f:files)if(!f.handle){state=&f;break;}if(!state){Unlock();native::NtClose(h);return Fail(8,reinterpret_cast<Handle>(UINT64_MAX));}*state={h,(attributes&0x40000000)!=0};Unlock();
+    FileState* state=nullptr;for(auto& f:files)if(!f.handle){state=&f;break;}if(!state){Unlock();native::NtClose(h);return Fail(8,reinterpret_cast<Handle>(UINT64_MAX));}*state={h,(attributes&0x40000000)!=0};
+#ifdef GUARDIAN_CRT_RUNTIME
+    state->inherit=inherit;
+#endif
+    Unlock();
     if(disposition==2||disposition==4)win::SetLastError(io.information==2?0:183);return h;
 }
 extern "C" Handle KbCreateFileA(const char* path,Dword access,Dword share,void* security,Dword disposition,Dword attributes,Handle templ){uint16_t text[128]{};return FromA(path,text)?KbCreateFileW(text,access,share,security,disposition,attributes,templ):Fail(1113,reinterpret_cast<Handle>(UINT64_MAX));}

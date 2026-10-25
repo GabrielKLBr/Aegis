@@ -2,7 +2,11 @@
 #include "guardian/Threads.h"
 namespace {
 using namespace guardian;
-struct State {uint32_t pid=0,tid=0,code=0,failure=exceptions::InvalidDisposition;bool active=false,noncontinuable=false;uint64_t address=0,token=0,targetIp=0;exceptions::Dispatch dispatch{};ExecutionContext original{};};
+struct State {uint32_t pid=0,tid=0,code=0,failure=exceptions::InvalidDisposition;bool active=false,noncontinuable=false;uint64_t address=0,token=0,targetIp=0;exceptions::Dispatch dispatch{};ExecutionContext original{};
+#ifdef GUARDIAN_CRT_NATIVE
+    exceptions::Record raised{},consolidation{};uint64_t cxxFrame=0;bool consolidating=false;
+#endif
+};
 using StateArray=State[threads::MaxThreads];
 static_assert(sizeof(StateArray)<=PeExceptionScratchBytes);
 StateArray& States() noexcept {return *reinterpret_cast<StateArray*>(PeExceptionScratch);}
@@ -26,9 +30,19 @@ bool Advance(State& s,ExecutionContext& saved,const PeExceptionEnvironment& env)
     exceptions::Action action{};const auto result=s.dispatch.Next(env.api,env.context,action);
     if(result==exceptions::Result::Resume){const auto& c=s.dispatch.ResumeContext();
         if(!exceptions::Dispatch::ValidContext(c,env.stack,env.api,env.context))return false;
+#ifdef GUARDIAN_CRT_NATIVE
+        if(s.consolidation.code){if(s.consolidating||!env.consolidate||s.address<env.stack.low+1024)return false;
+            exceptions::Packet packet{};packet.record=s.consolidation;packet.context=c;packet.token=s.token;
+            const auto originalRecord=s.address-256;packet.padding=s.cxxFrame;packet.record.information[1]=s.address+offsetof(exceptions::Packet,padding);packet.record.information[4]=s.address+offsetof(exceptions::Packet,context);packet.record.information[6]=originalRecord;
+            if(!env.write(env.context,originalRecord,&s.raised,sizeof(s.raised))||!env.write(env.context,s.address,&packet,sizeof(packet)))return false;
+            saved=s.original;Import(saved,c);saved.frame.rip=env.consolidate;saved.frame.rsp=s.address-512-40;saved.frame.rcx=s.address;s.consolidating=true;return true;}
+#endif
         saved=s.original;Import(saved,c);s.active=false;return true;}
     if(result!=exceptions::Result::Call){s.failure=result==exceptions::Result::Unhandled?s.code:exceptions::InvalidDisposition;return false;}
     exceptions::Packet packet{};packet.record=action.record;packet.context=Export(s.original);
+#ifdef GUARDIAN_CRT_NATIVE
+    if(s.consolidation.code){packet.padding=s.cxxFrame;packet.record.information[1]=s.address+offsetof(exceptions::Packet,padding);}
+#endif
     if(action.record.flags&exceptions::Unwinding){packet.context.rip=action.frame.rip;
         for(uint32_t i=0;i<16;++i){packet.context.gpr[i]=action.frame.gpr[i];for(uint32_t j=0;j<16;++j)packet.context.fx[160+i*16+j]=action.frame.xmm[i][j];}}
     const auto& h=action.handler;auto& d=packet.dispatcher;
@@ -46,6 +60,9 @@ bool Begin(State& s,ExecutionContext& saved,const PeExceptionEnvironment& env,co
     if(s.active || saved.frame.rsp<env.stack.low+sizeof(exceptions::Packet)+4096 || saved.frame.rsp>=env.stack.high)return false;
     s.dispatch={};s.original=saved;s.address=(saved.frame.rsp-sizeof(exceptions::Packet)-64)&~15ull;
     s.code=record.code;s.noncontinuable=(record.flags&exceptions::Noncontinuable)!=0;s.failure=exceptions::InvalidDisposition;s.token=++nextToken;if(!s.token)return false;s.active=true;
+#ifdef GUARDIAN_CRT_NATIVE
+    s.raised=record;s.consolidation={};s.consolidating=false;
+#endif
     if(!s.dispatch.Begin(record,Export(saved),env.stack))return false;return Advance(s,saved,env);
 }
 }
@@ -61,13 +78,22 @@ bool PeExceptionCall(uint32_t pid,uint32_t tid,const TrapFrame& f,ExecutionConte
     auto* s=Slot(pid,tid);if(!s)return false;s->failure=guardian::exceptions::InvalidDisposition;
     if(f.rax==0x88){guardian::exceptions::Record r{};if(!env.api.read(env.context,f.rdx,&r,sizeof(r)))return false;r.address=f.rip;return Begin(*s,saved,env,r);}
     if(!s->active)return false;
+#ifdef GUARDIAN_CRT_NATIVE
+    if(f.rax==0x8A){if(!s->consolidating||f.rdx!=s->token||!env.api.executable(env.context,f.r8))return false;auto c=s->dispatch.ResumeContext();c.rip=f.r8;
+        if(!exceptions::Dispatch::ValidContext(c,env.stack,env.api,env.context))return false;saved=s->original;Import(saved,c);s->active=s->consolidating=false;s->consolidation={};return true;}
+#endif
     if(f.rax==0x86){
         if(f.rdx!=s->token || f.r9!=s->address || f.r8>1)return false;
         if(!f.r8 && s->noncontinuable){s->failure=guardian::exceptions::NoncontinuableException;return false;}guardian::exceptions::Context changed{};
         if(!env.api.read(env.context,s->address+offsetof(guardian::exceptions::Packet,context),&changed,sizeof(changed)) ||
            !s->dispatch.Reply(static_cast<uint32_t>(f.r8),changed))return false;
     }else if(f.rax==0x87){
-        if(!s->dispatch.UnwindTo(env.api,env.context,f.rdx,f.r8,f.r9)){s->failure=guardian::exceptions::InvalidUnwindTarget;return false;}
+        const exceptions::Record* replacement=nullptr;
+#ifdef GUARDIAN_CRT_NATIVE
+        exceptions::Record r{};if(f.r10){if(!env.api.read(env.context,f.r10,&r,sizeof(r)))return false;
+            if(r.code==0x80000029){if(r.count!=15||r.flags!=1||r.nested||r.padding||r.information[8]!=0x19930520||!env.api.executable(env.context,r.information[0])||!env.api.executable(env.context,r.information[2])||!env.api.read(env.context,r.information[1],&s->cxxFrame,8)||s->cxxFrame<env.stack.low||s->cxxFrame>=env.stack.high)return false;s->consolidation=r;replacement=&s->consolidation;}}
+#endif
+        if(!s->dispatch.UnwindTo(env.api,env.context,f.rdx,f.r8,f.r9,replacement)){s->failure=guardian::exceptions::InvalidUnwindTarget;return false;}
         // This private value is consumed when constructing the target callback.
         s->targetIp=f.r8;
     }else return false;

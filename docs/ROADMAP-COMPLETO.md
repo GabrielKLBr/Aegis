@@ -1,6 +1,6 @@
 # Plano de desenvolvimento do GuardianAV e do kernel próprio
 
-Data de referência: 24/10/2026.
+Data de referência: 25/10/2026.
 Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
 
 **Revisão Windows atual:** a continuação da 12B até a 13 passou na matriz
@@ -15,8 +15,9 @@ carregador externo e o volume de runtime: [escopo e aceitação](PHASE-14.2.md).
 A 14.3 acrescenta serviços nativos e uma matriz limitada com NTDLL própria e
 original Win10: [implementação, validação e pendências](PHASE-14.3.md).
 A 14.4 implementa a matriz Win32 própria e leitura de schemas API set:
-[contratos, testes e limites](PHASE-14.4.md). 14.5–14.14 estão
-planejadas e não iniciadas. Os registros abaixo preservam o histórico das
+[contratos, testes e limites](PHASE-14.4.md). A 14.5 acrescenta o corpus C/C++
+com runtimes originais no convidado: [implementação e limites](PHASE-14.5.md).
+14.6–14.14 estão planejadas e não iniciadas. Os registros abaixo preservam o histórico das
 entregas anteriores e suas pendências.
 
 **Histórico das entregas:** 12A concluída para a matriz de referência, com validação Windows/WHP e Linux/KVM. [Resultados e limites](PHASE-12A.md). A 12B está em implementação e validação: [recursos, cotas e pendências](PHASE-12B.md). O contrato próprio `resources` passou na matriz Linux (47 Debug, 47 Release e 30 ASan/UBSan), com SMP, volume escalável e pasta independente; a aceitação Windows da revisão e a integração aos perfis existentes continuam pendentes. [Continuação de 20/10](PHASE-12B-RECURSOS.md). A 12C passou na validação Linux em 21/10/2026 (50 Debug, 50 Release e 32 ASan/UBSan), com referências Windows ainda pendentes: [matriz, entrega e diferenças](PHASE-12C.md). A 12D foi autorizada em nova solicitação: sessões e interação passaram em 53 testes Debug, 53 Release e 33 ASan/UBSan na revisão estável da 12D. [Registro da 12D](PHASE-12D.md). A 12E foi implementada e aceita no Linux em 22/10/2026: 56 Debug, 56 Release e 34 ASan/UBSan, com perfis sintéticos funcionais e reproduzíveis. [Entrega e limites](PHASE-12E.md). A aceitação nativa Windows e os requisitos anteriores permanecem pendentes. A fase 13 passou na aceitação Linux em 22/10/2026: 59 Debug, 59 Release e 35 ASan/UBSan, com telemetria, políticas e análise comportamental. [Entrega e limites](PHASE-13.md). A aceitação Windows e os requisitos anteriores continuam abertos; a fase 14 não foi iniciada. Os registros históricos abaixo conservam os resultados e pendências da época.
@@ -740,6 +741,10 @@ erros da versão alvo. Parar ao concluir.
 
 ### Subfase 14.5 — Runtime C/C++ e inicialização de aplicações
 
+**Entrega delimitada:** [PHASE-14.5.md](PHASE-14.5.md), MSVC 19.44 `/MD`,
+FH3/FH4, CRT original Win10/VC143 e recusas documentadas. Não significa
+compatibilidade CRT geral; rethrow/nested C++ permanecem pendentes.
+
 **Dependências:** 14.4 e suporte de exceções da 14.3.
 
 **Trabalho:** atender `msvcrt.dll`, `ucrtbase.dll`, `api-ms-win-crt-*`,
@@ -1036,8 +1041,9 @@ compatibilidade Flappy concluída. A 14.1 implementa contratos, inventário e
 vínculo de perfil. A 14.2 implementa o carregador externo e volume de runtime,
 com escopo e aceitação próprios; a 14.3 implementa a matriz nativa limitada
 descrita em PHASE-14.3.md. A 14.4 acrescenta o runtime Win32 próprio descrito em
-PHASE-14.4.md. A 12F e 14.5–14.14 continuam
-planejadas, sem implementação iniciada. Os resultados históricos e as pendências
+PHASE-14.4.md. A 14.5 implementa o corpus CRT original delimitado em
+PHASE-14.5.md. Rethrow/nested C++ e compatibilidade CRT geral continuam abertos.
+A 12F e 14.6–14.14 continuam planejadas, sem implementação iniciada. Os resultados históricos e as pendências
 anteriores permanecem identificados nos respectivos documentos.
 
 ## Referências técnicas para os novos requisitos
