@@ -178,10 +178,18 @@ uint32_t ProcessCreatePeChildRaw(uint32_t parent,const char* name,const char* co
 #ifdef GUARDIAN_ENVIRONMENT_KERNEL
     if(!match)match=guardian::environment::Equal(name,"guardian-docs.exe");
 #endif
+#ifdef GUARDIAN_WIN32_NATIVE
+    uint32_t nameBytes=0;while(nameBytes<128&&name[nameBytes])++nameBytes;
+    match=nameBytes>4&&nameBytes<128&&name[nameBytes-4]=='.'&&
+        (name[nameBytes-3]=='e'||name[nameBytes-3]=='E')&&(name[nameBytes-2]=='x'||name[nameBytes-2]=='X')&&(name[nameBytes-1]=='e'||name[nameBytes-1]=='E');
+#endif
     if(!match)return processes::NotFound;
     for(i=0;i<128 && command[i];++i)if(command[i]<32 || command[i]>126)return processes::Invalid;if(i==128)return processes::Invalid;
     auto token=manager.Get(parent)->token;
-#ifdef GUARDIAN_ENVIRONMENT_KERNEL
+#ifdef GUARDIAN_WIN32_NATIVE
+    // Native console children retain the parent's token; native APIs still
+    // enforce ownership, ACLs and explicitly supported operations.
+#elif defined(GUARDIAN_ENVIRONMENT_KERNEL)
     // Installed owned applications inherit the caller's integrity. Fixture
     // children retain the explicitly restricted token from phase 8.
     if(!guardian::environment::Equal(name,"guardian-docs.exe"))token.integrity=1;
@@ -195,13 +203,20 @@ uint32_t ProcessCreatePeChildRaw(uint32_t parent,const char* name,const char* co
     auto status=manager.CreateChildProcess(parent,token,nullptr,0,pid);if(status)return status;
     uint64_t internal=0,startup=0;status=AddThread(pid,0,&tid,&internal,suspended);
     if(!status && !PePrepareProcess(manager,memoryManager,pid,startup,command,name))status=processes::NoMemory;
+#ifdef GUARDIAN_WIN32_NATIVE
+    if(!status&&!PeNativePrepare(pid,scheduler))status=processes::NoMemory;
+#endif
     if(!status)status=manager.OpenProcess(parent,pid,processes::GenericAll,processHandle);
     if(!status)status=manager.OpenThread(parent,tid,processes::GenericAll,threadHandle);
     if(!status)status=manager.Close(pid,internal);
     if(status){if(threadHandle)manager.Close(parent,threadHandle);if(processHandle)manager.Close(parent,processHandle);KillProcess(pid,status);Garbage();pid=tid=0;processHandle=threadHandle=0;return status;}
-    const auto slot=(tid&255u)-1;tebs[slot]=cpu::UserData;startups[slot]=startup;auto& c=contexts[slot];
-    c.frame.rip=UserAddress(&PeProcessBootstrap);c.frame.rcx=startup;c.gs=cpu::UserData;c.fs=0;
-    auto* teb=Data(pid);teb[1]=stacks[slot]+0x10000;teb[2]=stacks[slot]+4096;teb[8]=pid;teb[9]=tid;return 0;
+    const auto slot=(tid&255u)-1;uint64_t initial=cpu::UserData;
+#ifdef GUARDIAN_WIN32_NATIVE
+    initial=PeInitialTeb(pid);
+#endif
+    tebs[slot]=initial;startups[slot]=startup;auto& c=contexts[slot];
+    c.frame.rip=UserAddress(&PeProcessBootstrap);c.frame.rcx=startup;c.gs=initial;c.fs=0;
+    auto* teb=static_cast<uint64_t*>(memoryManager.physical.At(manager.Translate(pid,initial,true)));teb[1]=stacks[slot]+0x10000;teb[2]=stacks[slot]+4096;teb[8]=pid;teb[9]=tid;return 0;
 }
 uint32_t ProcessCreatePeChild(uint32_t parent,const char* name,const char* command,bool suspended,uint32_t& pid,uint32_t& tid,uint64_t& processHandle,uint64_t& threadHandle) noexcept {
     auto e=telemetry::Begin(telemetry::Domain::Process,telemetry::Operation::Create,parent,manager.Get(parent)?manager.Get(parent)->token.user:0,name,command);

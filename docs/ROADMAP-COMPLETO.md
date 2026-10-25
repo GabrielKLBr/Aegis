@@ -13,7 +13,9 @@ compatibilidade, antes da fase 15. A implementação da 14.1 e seu escopo de
 aceitação estão registrados em [PHASE-14.1.md](PHASE-14.1.md). A 14.2 amplia o
 carregador externo e o volume de runtime: [escopo e aceitação](PHASE-14.2.md).
 A 14.3 acrescenta serviços nativos e uma matriz limitada com NTDLL própria e
-original Win10: [implementação, validação e pendências](PHASE-14.3.md). 14.4–14.14 estão
+original Win10: [implementação, validação e pendências](PHASE-14.3.md).
+A 14.4 implementa a matriz Win32 própria e leitura de schemas API set:
+[contratos, testes e limites](PHASE-14.4.md). 14.5–14.14 estão
 planejadas e não iniciadas. Os registros abaixo preservam o histórico das
 entregas anteriores e suas pendências.
 
@@ -715,6 +717,13 @@ chamadas desconhecidas têm resultado explícito e telemetria. Parar ao concluir
 
 ### Subfase 14.4 — KERNEL32, KERNELBASE e contratos básicos Win32
 
+**Estado em 24/10/2026:** implementada para a matriz própria documentada em
+[PHASE-14.4.md](PHASE-14.4.md): console, threads/pool, filhos externos isolados,
+FS compartilhado, mapeamentos, I/O assíncrono, ambiente, recursos, Unicode e
+API sets v2/v6. KERNEL32/KERNELBASE originais, compatibilidade Windows geral,
+NLS completo e cotas maiores de arquivos permanecem pendentes. Parar nesta
+subfase; a 14.5 exige nova solicitação.
+
 **Dependências:** 14.3.
 
 **Trabalho:** implementar e/ou viabilizar `kernel32.dll`, `kernelbase.dll` e
@@ -1026,7 +1035,8 @@ protótipo gráfico externo da fase 12 aceito para a referência própria, sem
 compatibilidade Flappy concluída. A 14.1 implementa contratos, inventário e
 vínculo de perfil. A 14.2 implementa o carregador externo e volume de runtime,
 com escopo e aceitação próprios; a 14.3 implementa a matriz nativa limitada
-descrita em PHASE-14.3.md. A 12F e 14.4–14.14 continuam
+descrita em PHASE-14.3.md. A 14.4 acrescenta o runtime Win32 próprio descrito em
+PHASE-14.4.md. A 12F e 14.5–14.14 continuam
 planejadas, sem implementação iniciada. Os resultados históricos e as pendências
 anteriores permanecem identificados nos respectivos documentos.
 

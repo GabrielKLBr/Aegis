@@ -19,6 +19,7 @@ public:
     void* At(uint64_t gpa) const noexcept { return reinterpret_cast<void*>(backing_ + gpa); }
     Frame Kind(uint64_t gpa) const noexcept;
     Counts Statistics() const noexcept { return counts_; }
+    uint64_t Bytes() const noexcept {return pages_*4096;}
     // Deterministic finite quota also exercises real allocator rollback in the guest.
     void Budget(int64_t frames) noexcept { budget_ = frames; }
 private:

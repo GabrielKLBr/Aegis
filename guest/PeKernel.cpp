@@ -1,6 +1,9 @@
 #include "PeKernel.h"
 #ifdef GUARDIAN_NATIVE_NT
 #include "NativeServices.h"
+#ifdef GUARDIAN_WIN32_NATIVE
+#include "guardian/Win32.h"
+#endif
 #endif
 #include "TelemetryKernel.h"
 #ifdef GUARDIAN_ANALYSIS_KERNEL
@@ -80,7 +83,7 @@ peprofile::InitCalls;
 #endif
 #endif
 struct DynamicPending {uint32_t tid=0,index=0,added=0,removing=0,kind=0;};
-#ifdef GUARDIAN_NATIVE_NT
+#if defined(GUARDIAN_NATIVE_NT) && !defined(GUARDIAN_WIN32_NATIVE)
 // This phase executes one external native process per boot. Keep its mutable
 // volume out of the three legacy loader slots and below the boot image cap.
 native::Services nativeServicesInstance;
@@ -88,6 +91,9 @@ native::Services nativeServicesInstance;
 struct RuntimeSlot {Context context{};pe::Loader image;pe::Source sources[pe::MaxModules]{};uint32_t pid=0;uint64_t loaderLock=0;bool terminating=false;DynamicPending pending{};
 #ifdef GUARDIAN_NATIVE_NT
     native::Services* nativeServices=nullptr;native::SyscallMap nativeMap;uint64_t nativePeb=0;uint32_t nativeTid=0;bool nativeReady=false;
+#ifdef GUARDIAN_WIN32_NATIVE
+    native::Services nativeOwned;
+#endif
 #endif
 #ifdef GUARDIAN_SCALABLE_PE
     pe::Catalog catalog;uint64_t initialTeb=0,nextResource=1;
@@ -97,7 +103,19 @@ struct RuntimeSlot {Context context{};pe::Loader image;pe::Source sources[pe::Ma
     runtime::VirtualMemory virtualMemory;
 #endif
 };
-#ifdef GUARDIAN_NATIVE_NT
+#ifdef GUARDIAN_WIN32_NATIVE
+class RuntimeArray {
+public:
+    bool Initialize(memory::Manager& memory) noexcept {if(slots_)return true;pages_=uint32_t((sizeof(RuntimeSlot)*processes::MaxProcesses+4095)/4096);
+        base_=memory.physical.Allocate(memory::Frame::Data,pages_);if(!base_)return false;memory_=&memory;slots_=static_cast<RuntimeSlot*>(memory.physical.At(base_));
+        for(uint32_t i=0;i<processes::MaxProcesses;++i)::new(static_cast<void*>(slots_+i)) RuntimeSlot{};return true;}
+    RuntimeSlot* begin() noexcept {return slots_;}RuntimeSlot* end() noexcept {return slots_?slots_+processes::MaxProcesses:nullptr;}
+    bool Release() noexcept {if(!slots_)return true;for(auto& s:*this)if(s.pid)return false;
+        if(!memory_->physical.Release(base_,memory::Frame::Data,pages_))return false;slots_=nullptr;return true;}
+private:RuntimeSlot* slots_=nullptr;memory::Manager* memory_=nullptr;uint64_t base_=0;uint32_t pages_=0;
+};
+RuntimeArray runtimes;
+#elif defined(GUARDIAN_NATIVE_NT)
 RuntimeSlot runtimes[1]{};
 #else
 RuntimeSlot runtimes[processes::MaxProcesses]{};
@@ -259,6 +277,9 @@ uint32_t PeMappingChecks(guardian::processes::Manager& processes,guardian::memor
 }
 bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager& m,uint32_t pid,uint64_t& startup,const char* childCommand,const char* application) noexcept {
     using namespace guardian;
+#ifdef GUARDIAN_WIN32_NATIVE
+    if(!runtimes.Initialize(m))return false;
+#endif
 #if !defined(GUARDIAN_ENVIRONMENT_KERNEL) && !defined(GUARDIAN_ANALYSIS_KERNEL)
     (void)application;
 #endif
@@ -325,7 +346,12 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
         !abi::Covered(reinterpret_cast<const abi::MemoryRegion*>(boot->memoryMapGpa),boot->memoryMapCount,pevolume::SourceGpa,descriptor->volumeBytes,abi::MemoryKind::BootData))return false;
     const auto* volume=reinterpret_cast<const uint8_t*>(pevolume::SourceGpa);
     if(pevolume::Hash(volume,descriptor->volumeBytes,true)!=descriptor->hash)return false;
-    uint32_t sourceCount=0;if(!slot->catalog.Open(volume,descriptor->volumeBytes,binding->profile,slot->sources,sourceCount))return false;
+    uint32_t sourceCount=0;const char* selectedRoot=nullptr;
+#ifdef GUARDIAN_WIN32_NATIVE
+    char childPath[128]{};if(application){uint32_t n=0;bool path=false;for(uint32_t i=0;application[i];++i)if(application[i]==':'||application[i]=='\\')path=true;
+        if(!path){const char prefix[]="c:\\app\\";for(char ch:prefix)if(ch)childPath[n++]=ch;}for(uint32_t i=0;application[i];++i){if(n==127)return false;childPath[n++]=application[i];}selectedRoot=childPath;}
+#endif
+    if(!slot->catalog.Open(volume,descriptor->volumeBytes,binding->profile,slot->sources,sourceCount,selectedRoot))return false;
     constexpr bool allowHandlers=true;
 #else
 #ifdef GUARDIAN_COMPLETE_KERNEL
@@ -447,6 +473,7 @@ bool PeExitProcess(uint32_t pid,uint32_t code,bool fault) noexcept {
     auto* slot=Find(pid);if(!slot)return true;
 #ifdef GUARDIAN_NATIVE_NT
     if(slot->nativeReady&&!slot->nativeServices->Exit()){allClean=false;return false;}
+    slot->nativeReady=false;
 #endif
 #ifdef GUARDIAN_RUNTIME_KERNEL
     if(!services.Exit(pid,slot->context.processes->Get(pid)->token) || services.Count(pid)){allClean=false;return false;}
@@ -459,7 +486,11 @@ bool PeExitProcess(uint32_t pid,uint32_t code,bool fault) noexcept {
 #endif
     const bool clean=slot->image.UnloadAll();allClean=allClean && clean;if(PeIsRoot(pid)){runtimeCode=code;runtimeClean=clean;}if(clean)slot->pid=0;return clean;
 }
-bool PeProcessPassed() noexcept {for(const auto& s:runtimes)if(s.pid)return false;return !runtimeCode && runtimeClean && allClean;}
+bool PeProcessPassed() noexcept {for(const auto& s:runtimes)if(s.pid)return false;
+#ifdef GUARDIAN_WIN32_NATIVE
+    if(!Win32StorageFinish()||!runtimes.Release())return false;
+#endif
+    return !runtimeCode && runtimeClean && allClean;}
 #ifdef GUARDIAN_RUNTIME_KERNEL
 bool PeRuntimeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f,ExecutionContext& saved,uint32_t& status) noexcept {
     using namespace guardian;
@@ -638,7 +669,7 @@ bool PeRuntimeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f
     else if(c.op==runtime::Op::StackCapture)status=StackCapture(*slot,tid,f,saved,c);
     else if(c.op==runtime::Op::ThreadExit || c.op==runtime::Op::ProcessExit)status=c.handle || c.argument>UINT32_MAX?storage::Invalid:ProcessRedirectPeExit(pid,tid,static_cast<uint32_t>(c.argument),c.op==runtime::Op::ProcessExit);
     else if(c.op==runtime::Op::ProcessCreate){uint32_t child=0,thread=0;uint64_t process=0,threadHandle=0;
-#ifdef GUARDIAN_SCALABLE_PE
+#if defined(GUARDIAN_SCALABLE_PE) && !defined(GUARDIAN_WIN32_NATIVE)
         status=storage::Unsupported;
 #else
         status=ProcessCreatePeChild(pid,c.path,reinterpret_cast<const char*>(c.data),(c.flags&4)!=0,child,thread,process,threadHandle);
@@ -812,5 +843,8 @@ uint32_t RefreshThread(RuntimeSlot& slot,uint32_t tid,uint64_t startup) noexcept
 }
 #endif
 #ifdef GUARDIAN_NATIVE_NT
+#ifdef GUARDIAN_WIN32_NATIVE
+#include "Win32Kernel.inl"
+#endif
 #include "NativeKernel.inl"
 #endif

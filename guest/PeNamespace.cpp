@@ -19,12 +19,18 @@ bool Version(const char* text,uint32_t (&v)[4]) noexcept {
 bool Space(char c) noexcept {return c==' '||c=='\t'||c=='\r'||c=='\n';}
 bool Word(char c) noexcept {return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c==':'||c=='_'||c=='-'||c=='.';}
 }
-bool Catalog::Open(const uint8_t* data,uint32_t bytes,uint32_t profile,Source* sources,uint32_t& count) noexcept {
+bool Catalog::Open(const uint8_t* data,uint32_t bytes,uint32_t profile,Source* sources,uint32_t& count,const char* root) noexcept {
     *this={};count=0;if(!pevolume::Valid(data,bytes)||!sources)return false;
     const auto* h=reinterpret_cast<const pevolume::Header*>(data);if(h->profile!=profile)return false;
     header_=h;data_=data;sources_=sources;
     const auto add=[&](uint32_t i) noexcept {const auto& f=h->entries[i];sources[count++]={f.path,data+f.offset,f.bytes};};
-    add(h->root);for(uint32_t i=0;i<h->files;++i)if(i!=h->root&&h->entries[i].kind==pevolume::Kind::Pe)add(i);
+    uint32_t selected=h->root;if(root){char canonical[128]{};if(!pevolume::Canonical(root,canonical))return false;selected=UINT32_MAX;
+        for(uint32_t i=0;i<h->files;++i)if(h->entries[i].kind==pevolume::Kind::Pe&&Equal(canonical,h->entries[i].path))selected=i;if(selected==UINT32_MAX)return false;}
+    add(selected);for(uint32_t i=0;i<h->files;++i)if(i!=selected&&h->entries[i].kind==pevolume::Kind::Pe)add(i);
+#ifdef GUARDIAN_WIN32_NATIVE
+    uint32_t schemaBytes=0;const auto* schema=File("c:\\windows\\system32\\apisetschema.dll",schemaBytes);
+    if(!schema||!schema_.OpenPe(schema,schemaBytes,profile==2?2u:6u))return false;
+#endif
     sourceCount_=count;return count<=MaxModules;
 }
 Namespace Catalog::Resolver() noexcept {
@@ -36,7 +42,12 @@ uint32_t Catalog::ActiveMask() const noexcept {
     for(const auto& stack:stacks_)if(stack.tid==tid_&&stack.depth)for(const auto& c:contexts_)if(c.id==stack.handles[stack.depth-1])return c.mask;
     return defaultMask_;
 }
-uint32_t Catalog::Find(const char* input,const char*) const noexcept {
+uint32_t Catalog::Find(const char* input,const char* importer) const noexcept {return FindDepth(input,importer,0);}
+uint32_t Catalog::FindDepth(const char* input,const char* importer,uint32_t depth) const noexcept {
+    if(depth>=8)return UINT32_MAX;
+#ifndef GUARDIAN_WIN32_NATIVE
+    (void)importer;
+#endif
     if(!header_)return UINT32_MAX;char name[128]{};if(!LowerName(input,name))return UINT32_MAX;
     const auto* requestedLeaf=Leaf(name);bool extension=false;for(uint32_t i=0;requestedLeaf[i];++i)if(requestedLeaf[i]=='.')extension=true;
     if(!extension){uint32_t n=0;while(name[n])++n;if(!requestedLeaf[0]||n>123)return UINT32_MAX;
@@ -46,13 +57,20 @@ uint32_t Catalog::Find(const char* input,const char*) const noexcept {
     for(uint32_t i=0;name[i];++i)if(!Word(name[i]))return UINT32_MAX;
     if(name[0]=='.')return UINT32_MAX;
     if(pevolume::Prefix(name,"api-ms-")||pevolume::Prefix(name,"ext-ms-")){
+#ifdef GUARDIAN_WIN32_NATIVE
+        char host[128]{};return schema_.Resolve(name,importer,host)?FindDepth(host,importer,depth+1):UINT32_MAX;
+#else
         for(uint32_t i=0;i<header_->aliases;++i)if(Equal(name,header_->redirects[i].name))return Exact(header_->redirects[i].target);
         return UINT32_MAX;
+#endif
     }
     // This contract's runtime is always selected from the guest system directory.
     if(Equal(name,"guardian-runtime-api.dll")||Equal(name,"user32.dll")
 #ifdef GUARDIAN_NATIVE_NT
         ||Equal(name,"ntdll.dll")
+#ifdef GUARDIAN_WIN32_NATIVE
+        ||Equal(name,"kernel32.dll")||Equal(name,"kernelbase.dll")
+#endif
 #endif
         ){
         char full[128]{};return Join("c:\\windows\\system32\\",name,full)?Exact(full):UINT32_MAX;

@@ -1,10 +1,13 @@
 #pragma once
 #include "PeLoader.h"
 #include "guardian/PeVolume.h"
+#ifdef GUARDIAN_WIN32_NATIVE
+#include "ApiSet.h"
+#endif
 namespace guardian::pe {
 class Catalog {
 public:
-    bool Open(const uint8_t*,uint32_t,uint32_t profile,Source*,uint32_t& count) noexcept;
+    bool Open(const uint8_t*,uint32_t,uint32_t profile,Source*,uint32_t& count,const char* root=nullptr) noexcept;
     Namespace Resolver() noexcept;
     uint32_t Find(const char*,const char* importer=nullptr) const noexcept;
     bool Manifest(const uint8_t*,uint32_t,uint32_t& mask,uint32_t& mode) const noexcept;
@@ -19,6 +22,10 @@ public:
     const char* RootName() const noexcept {return sourceCount_?sources_[0].name:nullptr;}
     const uint8_t* File(const char*,uint32_t& bytes) const noexcept;
 private:
+    uint32_t FindDepth(const char*,const char*,uint32_t) const noexcept;
+#ifdef GUARDIAN_WIN32_NATIVE
+    apiset::Namespace schema_;
+#endif
     uint32_t ActiveMask() const noexcept;
     uint32_t Exact(const char*) const noexcept;
     struct Context {uint64_t id=0;uint32_t mask=0,references=0;bool released=false;};

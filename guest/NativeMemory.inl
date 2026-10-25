@@ -33,11 +33,24 @@ uint32_t Services::Vm(Op op,const uint64_t* a) noexcept {
 }
 uint32_t Services::Sections(Op op,const uint64_t* a) noexcept {
     if(op==Op::CreateSection){if(!Probe(a[0],8,true))return AccessViolation;char name[128]{};auto status=ObjectName(a[2],name,1,true);if(status)return status;
-        if(a[6]||a[5]!=0x8000000||a[1]&~0xF001Full||(a[4]!=memory::ReadOnly&&a[4]!=memory::ReadWrite))return Unsupported;
+        if(
+#ifndef GUARDIAN_WIN32_NATIVE
+            a[6]||
+#endif
+            a[5]!=0x8000000||a[1]&~0xF001Full||(a[4]!=memory::ReadOnly&&a[4]!=memory::ReadWrite))return Unsupported;
         int64_t maximum=0;if(!Read(a[3],&maximum,8))return AccessViolation;if(maximum<=0||maximum>64*4096)return Invalid;
         uint32_t index=0;for(;index<8;++index)if(!sections_[index].references)break;if(index==8)return NoMemory;
         auto* h=New(1,uint32_t(a[1]),0,index);if(!h)return NoMemory;auto& s=sections_[index];s.references=1;s.access=uint32_t(a[1]);s.protection=uint32_t(a[4]);s.pages=uint32_t((maximum+4095)/4096);
         for(uint32_t i=0;i<s.pages;++i)if(!(s.data[i]=memory_->physical.Allocate(memory::Frame::Data))){for(uint32_t j=0;j<i;++j)memory_->physical.Release(s.data[j],memory::Frame::Data);s={};*h={};return NoMemory;}
+#ifdef GUARDIAN_WIN32_NATIVE
+        if(a[6]){auto* file=Find(a[6]);if(!file||file->kind!=2){DropSection(index);*h={};return InvalidHandle;}
+            if(maximum>512||!(file->access&(0x80000000ull|1))||(a[4]==memory::ReadWrite&&!(file->access&(0x40000000ull|2)))){DropSection(index);*h={};return Denied;}
+            storage::Command c;c.op=storage::Op::Open;c.access=storage::Read|(a[4]==memory::ReadWrite?storage::Write:0u);c.share=7;Copy(c.path,file->path,128);
+            auto code=Files().Execute(pid_,processes_->Get(pid_)->token,c);if(code){DropSection(index);*h={};return code;}s.file=c.handle;s.length=uint32_t(maximum);
+            c={};c.op=storage::Op::Read;c.handle=s.file;c.length=s.length;code=Files().Execute(pid_,processes_->Get(pid_)->token,c);
+            if(code){s.protection=memory::ReadOnly;DropSection(index);*h={};return code;}Copy(memory_->physical.At(s.data[0]),c.data,c.transferred);
+        }
+#endif
         Output(a[0],h->id);return 0;
     }
     uint32_t target=0;auto status=Process(a[1],target,processes::WriteMemory);if(op==Op::UnmapSection)status=Process(a[0],target,processes::WriteMemory);if(status)return status;if(target!=pid_)return Denied;

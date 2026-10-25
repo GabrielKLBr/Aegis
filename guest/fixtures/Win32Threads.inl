@@ -1,0 +1,17 @@
+extern "C" Handle KbCreateEventW(SecurityAttributes* a,Bool manual,Bool initial,const uint16_t* name){if(a||name)return Fail(50,static_cast<Handle>(nullptr));Handle h=nullptr;const auto s=native::NtCreateEvent(&h,0x1F0003,nullptr,manual?0u:1u,uint8_t(initial!=0));return s?Fail(Error(s),static_cast<Handle>(nullptr)):h;}
+extern "C" Handle KbCreateEventA(SecurityAttributes* a,Bool manual,Bool initial,const char* name){if(name)return Fail(50,static_cast<Handle>(nullptr));return KbCreateEventW(a,manual,initial,nullptr);}
+extern "C" Bool KbSetEvent(Handle h){return Ok(native::NtSetEvent(h,nullptr));}extern "C" Bool KbResetEvent(Handle h){return Ok(native::NtResetEvent(h,nullptr));}
+extern "C" Dword KbWaitForSingleObject(Handle h,Dword milliseconds){int64_t ticks=-int64_t(milliseconds)*10000;const auto s=native::NtWaitForSingleObject(h,0,milliseconds==UINT32_MAX?nullptr:&ticks);if(s<0x80000000)return s;return Fail(Error(s),UINT32_MAX);}
+extern "C" Dword KbWaitForMultipleObjects(Dword n,const Handle* handles,Bool all,Dword ms){int64_t ticks=-int64_t(ms)*10000;const auto s=native::NtWaitForMultipleObjects(n,const_cast<Handle*>(handles),all?0u:1u,0,ms==UINT32_MAX?nullptr:&ticks);if(s<0x80000000)return s;return Fail(Error(s),UINT32_MAX);}
+extern "C" Dword KbSleepEx(Dword ms,Bool alertable){int64_t ticks=ms==UINT32_MAX?INT64_MIN+1:-int64_t(ms)*10000;const auto s=native::NtDelayExecution(uint8_t(alertable!=0),&ticks);if(s==native::UserApc)return 0xC0;if(s==native::Timeout||!s)return 0;return Fail(Error(s),UINT32_MAX);}
+namespace {void** tlsThreads[4]{};}
+extern "C" Dword KbTlsAlloc(){if(!Lock())return Fail(8,UINT32_MAX);for(Dword i=0;i<64;++i)if(!tlsUsed[i]){tlsUsed[i]=true;Unlock();return i;}Unlock();return Fail(8,UINT32_MAX);}
+extern "C" Bool KbTlsFree(Dword i){if(i>=64||!Lock())return Fail(87,0);if(!tlsUsed[i]){Unlock();return Fail(87,0);}for(auto& values:tlsThreads)if(values){memory::Information info{};uint64_t n=0;if(native::NtQueryVirtualMemory(KbGetCurrentProcess(),values,0,&info,sizeof(info),&n)||info.state!=0x1000)values=nullptr;else values[i]=nullptr;}tlsUsed[i]=false;Unlock();return 1;}
+extern "C" Bool KbTlsSetValue(Dword i,void* p){if(i>=64||!Lock())return Fail(87,0);if(!tlsUsed[i]){Unlock();return Fail(87,0);}tlsValues[i]=p;Unlock();return 1;}
+extern "C" void* KbTlsGetValue(Dword i){if(i>=64||!Lock())return Fail(87,static_cast<void*>(nullptr));if(!tlsUsed[i]){Unlock();return Fail(87,static_cast<void*>(nullptr));}const auto p=tlsValues[i];Unlock();win::SetLastError(0);return p;}
+extern "C" Dword KbFlsAlloc(void (*callback)(void*)){Dword i=UINT32_MAX;const auto s=native::RtlFlsAlloc(callback,&i);if(s)win::SetLastError(Error(s));return i;}
+extern "C" Bool KbFlsFree(Dword i){return Ok(native::RtlFlsFree(i));}extern "C" Bool KbFlsSetValue(Dword i,void* p){return Ok(native::RtlFlsSetValue(i,p));}
+extern "C" void* KbFlsGetValue(Dword i){void* out=nullptr;const auto s=native::RtlFlsGetValue(i,&out);if(s)win::SetLastError(Error(s));else win::SetLastError(0);return out;}
+#include "PeTls.h"
+extern "C" void TlsCallback(void*,Dword reason,void*){if(reason==1||reason==2){const bool locked=mutex&&Lock();bool found=false;for(auto values:tlsThreads)if(values==tlsValues)found=true;if(!found)for(auto& values:tlsThreads)if(!values){values=tlsValues;break;}if(locked)Unlock();}
+    if(reason==3){if(!Lock())return;for(auto& values:tlsThreads)if(values==tlsValues)values=nullptr;Unlock();}}

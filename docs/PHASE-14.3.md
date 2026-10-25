@@ -69,7 +69,7 @@ Isso amplia a observabilidade da fase 13, sem prometer detecção perfeita de ma
 | Alocação VM / rastreamento | 8 MiB por chamada / 32 intervalos nativos por processo |
 | Seções anônimas | 8, até 256 KiB cada, 512 frames compartilháveis no total |
 | Handles nativos | 32 por processo, sujeitos também às cotas dos gerenciadores existentes |
-| Threads | Até 4 slots globais; stacks e TEB/TLS privados |
+| Threads | Até 4 por processo e 16 slots globais; stacks e TEB/TLS privados |
 | Processos no caminho nativo | Um EXE externo por boot; criação nativa de filhos ainda recusada |
 | Heaps RTL | 4, até 1 MiB cada; flags suportadas explicitamente |
 | FLS | 31 índices na fibra padrão; outras fibras ainda não implementadas |

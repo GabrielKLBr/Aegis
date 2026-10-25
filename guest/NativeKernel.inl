@@ -21,13 +21,22 @@ bool PeNativePrepare(uint32_t pid,guardian::threads::Scheduler& scheduler) noexc
     if(target.id==2){const uint16_t servicePack=0x100;memcpy(peb+0x122,&servicePack,2);}
     memcpy(shared+0x260,&target.build,4);memcpy(shared+0x264,&product,4);shared[0x268]=1;
     memcpy(shared+0x26C,&target.major,4);memcpy(shared+0x270,&target.minor,4);
+#ifdef GUARDIAN_WIN32_NATIVE
+    if(!Win32Parameters(*slot,peb)||!Win32StorageStart(*slot,scheduler))return false;
+#endif
     if(!Write(&c,slot->nativePeb,peb,sizeof(peb))||!Write(&c,slot->initialTeb+0x60,&slot->nativePeb,8)||!c.memory->NativeSharedData(c.processes->Get(pid)->space,shared))return false;
     native::Bridge bridge;bridge.context=slot;
     bridge.executable=[](void* raw,uint64_t pc) noexcept {return static_cast<RuntimeSlot*>(raw)->image.Executable(pc);};
     bridge.thread=[](void* raw,uint64_t entry,uint64_t argument,bool suspended,uint32_t& tid,uint64_t& handle) noexcept {return ProcessCreatePeThread(static_cast<RuntimeSlot*>(raw)->pid,entry,argument,suspended,tid,handle);};
     bridge.exit=[](void* raw,uint32_t code,bool process) noexcept {auto& s=*static_cast<RuntimeSlot*>(raw);return ProcessNativeTerminate(s.pid,s.nativeTid,code,process);};
+#ifdef GUARDIAN_WIN32_NATIVE
+    slot->nativeServices=&slot->nativeOwned;
+    slot->nativeReady=slot->nativeServices->Initialize(*c.memory,*c.processes,scheduler,pid,target,slot->nativePeb,bridge,&win32Storage);
+#else
     slot->nativeServices=&nativeServicesInstance;
-    slot->nativeReady=slot->nativeServices->Initialize(*c.memory,*c.processes,scheduler,pid,target,slot->nativePeb,bridge);PeNativeTick(0);return slot->nativeReady;
+    slot->nativeReady=slot->nativeServices->Initialize(*c.memory,*c.processes,scheduler,pid,target,slot->nativePeb,bridge);
+#endif
+    PeNativeTick(0);return slot->nativeReady;
 }
 bool PeNativeLegacy(uint32_t pid,uint64_t ip) noexcept {using namespace guardian;const auto* slot=Find(pid);return slot&&
     ((ip>=cpu::UserCode&&ip<cpu::UserCode+4096)||NativeCode(*slot,"guardian-runtime-api.dll",ip)||NativeCode(*slot,"user32.dll",ip));}
@@ -45,6 +54,9 @@ bool PeNativeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f,
     // Guardian's existing protocol remains available only from its bootstrap
     // and runtime modules. Other user code uses the native service domain.
     if(PeNativeLegacy(pid,f.rip))return false;
+#ifdef GUARDIAN_WIN32_NATIVE
+    if(f.rax==0xA4&&NativeCode(*slot,"kernelbase.dll",f.rip)){status=Win32Dispatch(*slot,f.rdx);return true;}
+#endif
     native::Packet packet;slot->nativeTid=tid;
     if(f.rax==0xA2&&NativeCode(*slot,"ntdll.dll",f.rip)&&!slot->nativeMap.original){
         if(!slot->nativeServices->Read(f.rdx,&packet,sizeof(packet))||packet.version!=1||packet.bytes!=sizeof(packet)||packet.reserved){status=native::AccessViolation;RuntimeRejected(pid,0xA2,status);return true;}

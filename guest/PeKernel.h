@@ -1,4 +1,7 @@
 #pragma once
+#ifdef GUARDIAN_WIN32_NATIVE
+bool Win32StorageFinish() noexcept;
+#endif
 #include "ProcessManager.h"
 uint32_t PeMappingChecks(guardian::processes::Manager&,guardian::memory::Manager&,void (*)(bool,uint32_t) noexcept) noexcept;
 bool PePrepareProcess(guardian::processes::Manager&,guardian::memory::Manager&,uint32_t pid,uint64_t& startup,const char* childCommand=nullptr,const char* application=nullptr) noexcept;

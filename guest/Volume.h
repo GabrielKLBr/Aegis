@@ -7,6 +7,7 @@ struct Handle {uint64_t id=0;uint32_t owner=0,node=0,access=0,share=0;};
 struct Watch {uint32_t id=0,generation=0,owner=0,key=0,mask=0,changes=0,event=0;bool subtree=false;};
 class Volume {
 public:
+    uint32_t QueryKind(const processes::Token&,const char*,Kind&) noexcept;
     void Configure(void* context,Block block,threads::Scheduler& scheduler) noexcept {context_=context;block_=block;scheduler_=&scheduler;}
     void ConfigureBacking(bool (*query)(void*,BackingSpace&) noexcept) noexcept {backing_=query;}
     void ConfigureClock(uint64_t (*now)(void*) noexcept) noexcept {clock_=now;}

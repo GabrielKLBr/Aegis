@@ -7,9 +7,9 @@ bool Equal(const char* a,const char* b) noexcept {for(uint32_t i=0;i<128;++i){if
 bool Prefix(const char* a,const char* b) noexcept {while(*b)if(*a++!=*b++)return false;return true;}
 bool Protection(uint64_t p) noexcept {return p==memory::NoAccess||p==memory::ReadOnly||p==memory::ReadWrite||p==memory::ExecuteRead;}
 }
-bool Services::Initialize(memory::Manager& m,processes::Manager& p,threads::Scheduler& s,uint32_t pid,nt::Target target,uint64_t peb,Bridge bridge) noexcept {
+bool Services::Initialize(memory::Manager& m,processes::Manager& p,threads::Scheduler& s,uint32_t pid,nt::Target target,uint64_t peb,Bridge bridge,storage::Volume* shared) noexcept {
     if(memory_||!p.Get(pid)||!target.id)return false;memory_=&m;processes_=&p;scheduler_=&s;pid_=pid;target_=target;peb_=peb;bridge_=bridge;
-    calls_=unknown_=utc_=0;for(auto& byte:disk_)byte=0;
+    calls_=unknown_=utc_=0;shared_=shared;cleanupOk_=true;if(shared_)return true;for(auto& byte:disk_)byte=0;
     volume_.Configure(this,Block,s);return volume_.Mount()==0;
 }
 bool Services::Probe(uint64_t at,uint32_t n,bool write) noexcept {
@@ -40,12 +40,16 @@ uint32_t Services::ObjectName(uint64_t address,char* out,uint32_t kind,bool opti
 }
 Services::Handle* Services::Find(uint64_t id) noexcept {for(auto& h:handles_)if(h.id==id&&id)return &h;return nullptr;}
 Services::Handle* Services::New(uint32_t kind,uint32_t access,uint64_t raw,uint32_t index) noexcept {if(nextHandle_==UINT64_MAX)return nullptr;for(auto& h:handles_)if(!h.id){h={};h.id=nextHandle_++;h.kind=kind;h.access=access;h.raw=raw;h.index=index;return &h;}return nullptr;}
-void Services::DropSection(uint32_t index) noexcept {auto& s=sections_[index];if(s.references&&!--s.references){for(uint32_t i=0;i<s.pages;++i)memory_->physical.Release(s.data[i],memory::Frame::Data);s={};}}
+void Services::DropSection(uint32_t index) noexcept {auto& s=sections_[index];if(s.references&&!--s.references){
+#ifdef GUARDIAN_WIN32_NATIVE
+    if(s.file){cleanupOk_=!FlushSection(s)&&cleanupOk_;storage::Command c;c.op=storage::Op::Close;c.handle=s.file;cleanupOk_=!Files().Execute(pid_,processes_->Get(pid_)->token,c)&&cleanupOk_;}
+#endif
+    for(uint32_t i=0;i<s.pages;++i)memory_->physical.Release(s.data[i],memory::Frame::Data);s={};}}
 uint32_t Services::Close(uint64_t id) noexcept {
     auto* h=Find(id);if(!h)return processes_->Close(pid_,id);uint32_t result=0;
     if(h->kind==1)DropSection(h->index);
     else if(h->kind==4)result=processes_->Close(pid_,h->raw);
-    else if(h->kind==2){storage::Command c;c.op=storage::Op::Close;c.handle=h->raw;result=volume_.Execute(pid_,processes_->Get(pid_)->token,c);}
+    else if(h->kind==2){storage::Command c;c.op=storage::Op::Close;c.handle=h->raw;result=Files().Execute(pid_,processes_->Get(pid_)->token,c);}
     if(!result)*h={};return result;
 }
 uint32_t Services::Process(uint64_t handle,uint32_t& pid,uint32_t rights) noexcept {if(handle==CurrentProcess){pid=pid_;return 0;}auto* h=Find(handle);if(h&&h->kind==4)handle=h->raw;processes::Object* p=nullptr;const auto status=processes_->Resolve(pid_,handle,processes::Kind::Process,rights,p);if(!status)pid=p->target;return status;}
@@ -90,10 +94,13 @@ uint32_t Services::Execute(Op op,const uint64_t* a,uint32_t tid,uint64_t teb,uin
 bool Services::Exit() noexcept {
     if(!memory_)return true;
     bool ok=true;for(auto& range:ranges_)if(range.base){const auto section=range.section;ok=processes_->Release(pid_,range.base)==0&&ok;if(section>=0)DropSection(uint32_t(section));range={};}
-    for(auto& h:handles_)if(h.id)ok=Close(h.id)==0&&ok;volume_.Exit(pid_);ok=volume_.Unmount()==0&&ok;
+    for(auto& h:handles_)if(h.id)ok=Close(h.id)==0&&ok;Files().Exit(pid_);if(!shared_)ok=volume_.Unmount()==0&&ok;ok=cleanupOk_&&ok;
     if(ok){memory_=nullptr;processes_=nullptr;scheduler_=nullptr;pid_=0;peb_=0;bridge_={};}return ok;
 }
 #include "NativeMemory.inl"
 #include "NativeObjects.inl"
 #include "NativeFiles.inl"
+#ifdef GUARDIAN_WIN32_NATIVE
+#include "NativeWin32.inl"
+#endif
 }

@@ -145,6 +145,9 @@ uint32_t Volume::Mount() noexcept {
     if(QuerySpace().allocated>allocationLimit_)return NoSpace;
     mounted_=true;Garbage();return Success;
 }
+uint32_t Volume::QueryKind(const processes::Token& token,const char* path,Kind& kind) noexcept {
+    if(!mounted_||!processes::Manager::ValidToken(token))return Invalid;Node* node=nullptr;const auto status=Resolve(token,path,node);if(!status)kind=node->kind;return status;
+}
 uint32_t Volume::Flush() noexcept {
     if(!mounted_)return Invalid;if(!dirty_)return Success;if(image_.header.sequence==UINT64_MAX)return Quota;
     scratch_=image_;auto& h=scratch_.header;uint64_t savedTimes[59]{};for(uint32_t i=0;i<59;++i)savedTimes[i]=h.reserved[i];h={};for(uint32_t i=0;i<59;++i)h.reserved[i]=savedTimes[i];h.magic=Magic;h.sequence=image_.header.sequence+1;h.version=Version;h.bytes=sizeof(Image);h.nodeBytes=sizeof(Node);h.nodeCount=MaxNodes;h.checksum=Digest(scratch_);
