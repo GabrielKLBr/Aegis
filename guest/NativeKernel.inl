@@ -29,6 +29,9 @@ bool PeNativePrepare(uint32_t pid,guardian::threads::Scheduler& scheduler) noexc
     bridge.executable=[](void* raw,uint64_t pc) noexcept {return static_cast<RuntimeSlot*>(raw)->image.Executable(pc);};
     bridge.thread=[](void* raw,uint64_t entry,uint64_t argument,bool suspended,uint32_t& tid,uint64_t& handle) noexcept {return ProcessCreatePeThread(static_cast<RuntimeSlot*>(raw)->pid,entry,argument,suspended,tid,handle);};
     bridge.exit=[](void* raw,uint32_t code,bool process) noexcept {auto& s=*static_cast<RuntimeSlot*>(raw);return ProcessNativeTerminate(s.pid,s.nativeTid,code,process);};
+#ifdef GUARDIAN_SECURITY_NATIVE
+    bridge.extraClose=[](void* raw,uint64_t handle) noexcept {const auto st=securityCore.Close(static_cast<RuntimeSlot*>(raw)->pid,handle,2);return st?native::InvalidHandle:0;};
+#endif
 #ifdef GUARDIAN_WIN32_NATIVE
     slot->nativeServices=&slot->nativeOwned;
     slot->nativeReady=slot->nativeServices->Initialize(*c.memory,*c.processes,scheduler,pid,target,slot->nativePeb,bridge,&win32Storage);
@@ -55,6 +58,15 @@ bool PeNativeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f,
     // and runtime modules. Other user code uses the native service domain.
     if(PeNativeLegacy(pid,f.rip))return false;
 #ifdef GUARDIAN_WIN32_NATIVE
+#ifdef GUARDIAN_SECURITY_NATIVE
+    if(f.rax==0xA6&&NativeCode(*slot,"advapi32.dll",f.rip)){
+        security::Request request;status=87;
+        if(!slot->nativeServices->Read(f.rdx,&request,sizeof(request))||!slot->nativeServices->Probe(f.rdx,sizeof(request),true)){status=998;return true;}
+        auto event=telemetry::Begin(telemetry::Domain::Control,telemetry::Operation::Query,pid,slot->context.processes->Get(pid)->token.user,"Security service","",uint32_t(request.op));
+        if(!telemetry::Before(event)){status=5;return true;}status=securityCore.Execute(pid,tid,request);
+        if(!slot->nativeServices->Write(f.rdx,&request,sizeof(request)))status=998;telemetry::End(event,status);return true;
+    }
+#endif
     if(f.rax==0xA4&&NativeCode(*slot,"kernelbase.dll",f.rip)){status=Win32Dispatch(*slot,f.rdx);return true;}
 #ifdef GUARDIAN_CRT_NATIVE
     if(f.rax==0xA5&&NativeCode(*slot,"ntdll.dll",f.rip)){win32::Request r;if(!slot->nativeServices->Read(f.rdx,&r,sizeof(r))||(r.op!=21&&r.op!=22)){status=native::Invalid;return true;}status=Win32Dispatch(*slot,f.rdx);return true;}

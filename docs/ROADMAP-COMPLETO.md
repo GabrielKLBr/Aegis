@@ -17,7 +17,9 @@ original Win10: [implementação, validação e pendências](PHASE-14.3.md).
 A 14.4 implementa a matriz Win32 própria e leitura de schemas API set:
 [contratos, testes e limites](PHASE-14.4.md). A 14.5 acrescenta o corpus C/C++
 com runtimes originais no convidado: [implementação e limites](PHASE-14.5.md).
-14.6–14.14 estão planejadas e não iniciadas. Os registros abaixo preservam o histórico das
+A 14.6 acrescenta registro persistente, tokens/ACLs e serviços LocalService com
+vida útil própria: [entrega delimitada, testes e limites](PHASE-14.6.md).
+14.7–14.14 estão planejadas e não iniciadas. Os registros abaixo preservam o histórico das
 entregas anteriores e suas pendências.
 
 **Histórico das entregas:** 12A concluída para a matriz de referência, com validação Windows/WHP e Linux/KVM. [Resultados e limites](PHASE-12A.md). A 12B está em implementação e validação: [recursos, cotas e pendências](PHASE-12B.md). O contrato próprio `resources` passou na matriz Linux (47 Debug, 47 Release e 30 ASan/UBSan), com SMP, volume escalável e pasta independente; a aceitação Windows da revisão e a integração aos perfis existentes continuam pendentes. [Continuação de 20/10](PHASE-12B-RECURSOS.md). A 12C passou na validação Linux em 21/10/2026 (50 Debug, 50 Release e 32 ASan/UBSan), com referências Windows ainda pendentes: [matriz, entrega e diferenças](PHASE-12C.md). A 12D foi autorizada em nova solicitação: sessões e interação passaram em 53 testes Debug, 53 Release e 33 ASan/UBSan na revisão estável da 12D. [Registro da 12D](PHASE-12D.md). A 12E foi implementada e aceita no Linux em 22/10/2026: 56 Debug, 56 Release e 34 ASan/UBSan, com perfis sintéticos funcionais e reproduzíveis. [Entrega e limites](PHASE-12E.md). A aceitação nativa Windows e os requisitos anteriores permanecem pendentes. A fase 13 passou na aceitação Linux em 22/10/2026: 59 Debug, 59 Release e 35 ASan/UBSan, com telemetria, políticas e análise comportamental. [Entrega e limites](PHASE-13.md). A aceitação Windows e os requisitos anteriores continuam abertos; a fase 14 não foi iniciada. Os registros históricos abaixo conservam os resultados e pendências da época.
@@ -760,6 +762,13 @@ reutilização de runtime original é validada no convidado. Parar ao concluir.
 
 ### Subfase 14.6 — ADVAPI32, segurança, registro e serviços
 
+**Entrega delimitada:** [PHASE-14.6.md](PHASE-14.6.md). DLLs próprias
+ADVAPI32/SECHOST/USERENV no perfil Win10 x64, configurações reabertas em outra
+sessão, tokens retidos pelo kernel, DACLs canônicas e serviço de teste sob
+LocalService. O SCM preserva seu processo após a saída do criador e recolhe
+recursos após falhas. A matriz não equivale às DLLs Windows completas; logon,
+impersonação, ACLs gerais, RPC, autostart e outros perfis continuam pendentes.
+
 **Dependências:** 14.4; integrar persistência e segurança das fases 5/7.
 
 **Trabalho:** ampliar `advapi32.dll` e, quando aplicável, `sechost.dll`,
@@ -1043,7 +1052,8 @@ com escopo e aceitação próprios; a 14.3 implementa a matriz nativa limitada
 descrita em PHASE-14.3.md. A 14.4 acrescenta o runtime Win32 próprio descrito em
 PHASE-14.4.md. A 14.5 implementa o corpus CRT original delimitado em
 PHASE-14.5.md. Rethrow/nested C++ e compatibilidade CRT geral continuam abertos.
-A 12F e 14.6–14.14 continuam planejadas, sem implementação iniciada. Os resultados históricos e as pendências
+A 14.6 implementa a matriz delimitada de segurança/registro/serviços descrita em
+PHASE-14.6.md. A 12F e 14.7–14.14 continuam planejadas, sem implementação iniciada. Os resultados históricos e as pendências
 anteriores permanecem identificados nos respectivos documentos.
 
 ## Referências técnicas para os novos requisitos

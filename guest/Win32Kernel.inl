@@ -2,6 +2,9 @@ extern "C" const volatile char GuardianWin32Capability[]="GuardianWin32/1/guest"
 #ifdef GUARDIAN_CRT_NATIVE
 extern "C" const volatile char GuardianCrtCapability[]="GuardianCrt/1/guest";
 #endif
+#ifdef GUARDIAN_SECURITY_NATIVE
+extern "C" const volatile char GuardianSecurityCapability[]="GuardianSecurity/1/guest";
+#endif
 namespace {
 storage::Volume win32Storage;uint8_t win32Disk[65536]{};bool win32Mounted=false;
 bool Win32Block(void*,io::Op op,uint64_t offset,uint8_t* data) noexcept {
@@ -9,7 +12,18 @@ bool Win32Block(void*,io::Op op,uint64_t offset,uint8_t* data) noexcept {
     if(op==io::Op::Read)memcpy(data,win32Disk+offset,512);else if(op==io::Op::Write)memcpy(win32Disk+offset,data,512);else return false;return true;
 }
 bool Win32StorageStart(RuntimeSlot& slot,threads::Scheduler& scheduler) noexcept {
-    if(win32Mounted)return true;win32Storage.Configure(nullptr,Win32Block,scheduler);if(win32Storage.Mount())return false;win32Mounted=true;
+    if(win32Mounted)return true;
+#ifdef GUARDIAN_SECURITY_NATIVE
+    memcpy(win32Disk,reinterpret_cast<const void*>(security::StateGpa),sizeof(win32Disk));
+#endif
+    win32Storage.Configure(nullptr,Win32Block,scheduler);if(win32Storage.Mount())return false;win32Mounted=true;
+#ifdef GUARDIAN_SECURITY_NATIVE
+    security::Bridge bridge;
+    bridge.clock=[](void*) noexcept ->uint64_t {const auto* boot=reinterpret_cast<const abi::BootInfo*>(0x100000);time::Sample clock{};return time::ReadPublished(*reinterpret_cast<const volatile cpu::Clock*>(cpu::ClockGpa),boot->bootId,clock)?clock.utc100ns:0;};
+    bridge.start=[](void*,uint32_t parent,const char* image,uint32_t& pid,uint64_t& handle) noexcept {return ProcessCreatePeService(parent,image,pid,handle);};
+    bridge.stop=[](void*,uint32_t parent,uint32_t child) noexcept {return ProcessStopPeChild(parent,child);};
+    if(!securityCore.Initialize(*slot.context.processes,scheduler,win32Storage,bridge))return false;
+#endif
     storage::Command c;c.op=storage::Op::Mkdir;memcpy(c.path,"C:\\App",7);const auto status=win32Storage.Execute(slot.pid,slot.context.processes->Get(slot.pid)->token,c);
     return !status||status==storage::Collision;
 }
@@ -35,6 +49,12 @@ bool Win32Parameters(RuntimeSlot& slot,uint8_t (&peb)[4096]) noexcept {
         p.directory.length=previous.directory.length;
         peb[0xA00+previous.directory.length]=peb[0xA01+previous.directory.length]=0;
     }
+#ifdef GUARDIAN_SECURITY_NATIVE
+    if(slot.context.processes->Get(slot.pid)->token.user==200){
+        const char16_t serviceEnvironment[]=u"SystemRoot=C:\\Windows\0TEMP=C:\\Users\\LocalService\0PATH=C:\\Windows\\System32\0USERNAME=LOCAL SERVICE\0USERPROFILE=C:\\Users\\LocalService\0";
+        memset(peb+win32::EnvironmentOffset,0,win32::EnvironmentCharacters*2);memcpy(peb+win32::EnvironmentOffset,serviceEnvironment,sizeof(serviceEnvironment));
+    }
+#endif
     memcpy(peb+win32::ParametersOffset,&p,sizeof(p));return true;
 }
 uint32_t Win32Dispatch(RuntimeSlot& slot,uint64_t pointer) noexcept {
@@ -53,4 +73,8 @@ uint32_t Win32Dispatch(RuntimeSlot& slot,uint64_t pointer) noexcept {
     if(!slot.nativeServices->Write(pointer,&request,sizeof(request)))result=native::AccessViolation;return telemetry::End(event,result);
 }
 }
-bool Win32StorageFinish() noexcept {if(!win32Mounted)return true;const bool ok=!win32Storage.Unmount();if(ok)win32Mounted=false;return ok;}
+bool Win32StorageFinish() noexcept {if(!win32Mounted)return true;
+#ifdef GUARDIAN_SECURITY_NATIVE
+    if(win32Storage.Flush())return false;memcpy(reinterpret_cast<void*>(guardian::security::StateGpa),win32Disk,sizeof(win32Disk));
+#endif
+    const bool ok=!win32Storage.Unmount();if(ok)win32Mounted=false;return ok;}

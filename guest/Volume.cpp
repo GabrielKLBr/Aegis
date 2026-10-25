@@ -148,6 +148,25 @@ uint32_t Volume::Mount() noexcept {
 uint32_t Volume::QueryKind(const processes::Token& token,const char* path,Kind& kind) noexcept {
     if(!mounted_||!processes::Manager::ValidToken(token))return Invalid;Node* node=nullptr;const auto status=Resolve(token,path,node);if(!status)kind=node->kind;return status;
 }
+uint32_t Volume::CheckAccess(const processes::Token& token,const char* path,uint32_t rights,uint32_t* identity) noexcept {if(!mounted_||rights&~All)return Invalid;Node* node=nullptr;const auto status=Resolve(token,path,node);if(status)return status;if(!Access(token,*node,rights))return Denied;if(identity)*identity=node->id;return 0;}
+#ifdef GUARDIAN_SECURITY_NATIVE
+uint32_t Volume::PersistRegistry(const processes::Token& token,const char* path,const char* name,const void* data,uint32_t bytes,bool remove) noexcept {
+    if(!mounted_||bytes>DataBytes||(!data&&bytes))return Invalid;transaction_=image_;const bool dirty=dirty_;
+    Command c;for(uint32_t i=0;i<PathBytes&&path[i];++i)c.path[i]=path[i];for(uint32_t i=0;i<NameBytes&&name[i];++i)c.name[i]=name[i];
+    c.op=remove?Op::RegDeleteKey:Op::RegCreate;auto status=Execute(1,token,c);
+    if(!status&&!remove){c.op=Op::RegSet;c.status=c.transferred=0;c.type=3;c.length=bytes;for(uint32_t i=0;i<bytes;++i)c.data[i]=static_cast<const uint8_t*>(data)[i];status=Execute(1,token,c);}
+    if(status==NotFound&&remove)status=0;if(!status)status=Flush();if(status){image_=transaction_;dirty_=dirty;}return status;
+}
+uint32_t Volume::ProvisionUser(const processes::Token& token) noexcept {
+    if(!mounted_||!processes::Manager::ValidToken(token)||!((token.user==100&&token.primaryGroup==10)||(token.user==200&&token.primaryGroup==20)))return Denied;
+    image_.nodes[1].security.aces[1]={processes::Principal::Everyone,0,List|Read|ReadAcl,0};image_.nodes[1].security.aceCount=2;
+    if(!Root(token,3,true))return NoSpace;const auto admin=Admin();auto* users=Child(image_.nodes[0].id,"users");
+    if(!users)users=New(admin,image_.nodes[0].id,Kind::Directory,"users");if(!users||users->kind!=Kind::Directory||users->security.owner!=100)return Corrupt;
+    users->security.aceCount=2;users->security.aces[1]={processes::Principal::Everyone,0,List|Read|ReadAcl,0};dirty_=true;
+    const char* name=token.user==100?"minint":"localservice";auto* profile=Child(users->id,name);
+    if(!profile)profile=New(token,users->id,Kind::Directory,name);if(!profile)return NoSpace;if(profile->kind!=Kind::Directory||profile->security.owner!=token.user)return Corrupt;return 0;
+}
+#endif
 uint32_t Volume::Flush() noexcept {
     if(!mounted_)return Invalid;if(!dirty_)return Success;if(image_.header.sequence==UINT64_MAX)return Quota;
     scratch_=image_;auto& h=scratch_.header;uint64_t savedTimes[59]{};for(uint32_t i=0;i<59;++i)savedTimes[i]=h.reserved[i];h={};for(uint32_t i=0;i<59;++i)h.reserved[i]=savedTimes[i];h.magic=Magic;h.sequence=image_.header.sequence+1;h.version=Version;h.bytes=sizeof(Image);h.nodeBytes=sizeof(Node);h.nodeCount=MaxNodes;h.checksum=Digest(scratch_);

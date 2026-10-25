@@ -8,6 +8,11 @@ struct Watch {uint32_t id=0,generation=0,owner=0,key=0,mask=0,changes=0,event=0;
 class Volume {
 public:
     uint32_t QueryKind(const processes::Token&,const char*,Kind&) noexcept;
+    uint32_t CheckAccess(const processes::Token&,const char*,uint32_t,uint32_t* identity=nullptr) noexcept;
+#ifdef GUARDIAN_SECURITY_NATIVE
+    uint32_t ProvisionUser(const processes::Token&) noexcept;
+    uint32_t PersistRegistry(const processes::Token&,const char*,const char*,const void*,uint32_t,bool remove) noexcept;
+#endif
     void Configure(void* context,Block block,threads::Scheduler& scheduler) noexcept {context_=context;block_=block;scheduler_=&scheduler;}
     void ConfigureBacking(bool (*query)(void*,BackingSpace&) noexcept) noexcept {backing_=query;}
     void ConfigureClock(uint64_t (*now)(void*) noexcept) noexcept {clock_=now;}
@@ -58,6 +63,9 @@ private:
     void ClearTimes(uint32_t slot) noexcept;
     uint64_t (*clock_)(void*) noexcept=nullptr;
     Image image_{},scratch_{};Handle handles_[MaxHandles]{};Watch watches_[MaxWatches]{};
+#ifdef GUARDIAN_SECURITY_NATIVE
+    Image transaction_{};
+#endif
     void* context_=nullptr;Block block_=nullptr;threads::Scheduler* scheduler_=nullptr;
     uint64_t allocationLimit_=VolumeCapacity;
     uint64_t nextHandle_=4;uint32_t active_=1;bool mounted_=false,dirty_=false,formatting_=false;

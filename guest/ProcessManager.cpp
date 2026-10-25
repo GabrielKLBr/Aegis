@@ -1,5 +1,8 @@
 #include "ProcessManager.h"
 #include "guardian/Telemetry.h"
+#ifdef GUARDIAN_SECURITY_NATIVE
+#include "guardian/Security.h"
+#endif
 namespace guardian::processes {
 namespace {
 uint32_t Allowed(Kind k) noexcept {
@@ -85,6 +88,15 @@ uint32_t Manager::CreateRoot(const Token& token,uint32_t& pid) noexcept {return 
 uint32_t Manager::CreateChildProcess(uint32_t parent,const Token& token,const uint64_t* handles,uint32_t count,uint32_t& pid) noexcept {
     auto* p=Get(parent);if(!p || p->state!=State::Live)return Terminated;if(!Restricted(p->token,token))return Denied;return Create(token,parent,handles,count,pid);
 }
+#ifdef GUARDIAN_SECURITY_NATIVE
+uint32_t Manager::CreateServiceProcess(uint32_t parent,uint32_t& pid) noexcept {const auto* p=Get(parent);if(!p||p->state!=State::Live||!security::Administrator(p->token))return Denied;return Create(security::LocalService(),parent,nullptr,0,pid);}
+uint32_t Manager::ServiceHandles(uint32_t parent,uint32_t child,uint32_t tid,uint64_t& process,uint64_t& thread) noexcept {
+    auto* p=Get(parent);auto* c=Get(child);if(!p||!c||c->parent!=parent||c->token.user!=200||!security::Administrator(p->token))return Denied;
+    uint32_t oid=0;for(uint32_t i=0;i<MaxProcessThreads;++i)if(c->threads[i]==tid)oid=c->threadObjects[i];if(!oid)return Invalid;
+    auto status=Insert(*p,c->processObject,Wait|Query|Terminate,0,process);if(!status)status=Insert(*p,oid,Wait|Query,0,thread);if(status&&process){Close(parent,process);process=0;}return status;
+}
+bool Manager::ReferencedProcess(uint32_t id,bool& exited,uint32_t& code) noexcept {const auto* o=ObjectById(id);if(!o||o->kind!=Kind::Process||!o->refs)return false;exited=o->exited;code=o->exitCode;return true;}
+#endif
 uint32_t Manager::Create(const Token& token,uint32_t parent,const uint64_t* inherited,uint32_t count,uint32_t& pid) noexcept {
     if(!ValidToken(token) || count>MaxHandles-2 || (count && !inherited))return Invalid;
     auto* source=parent?Get(parent):nullptr;

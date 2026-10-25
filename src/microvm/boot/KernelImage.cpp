@@ -114,6 +114,10 @@ bool KernelImage::SupportsExternalPe() const noexcept {
     static constexpr char capability[]="GuardianExternalPe/1/volume";
     return std::search(file_.begin(),file_.end(),std::begin(capability),std::end(capability)-1)!=file_.end();
 }
+bool KernelImage::SupportsSecurity() const noexcept {
+    constexpr char tag[]="GuardianSecurity/1/guest";
+    return std::search(file_.begin(),file_.end(),tag,tag+sizeof(tag))!=file_.end();
+}
 }
 
 namespace av::microvm::boot {

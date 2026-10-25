@@ -168,7 +168,7 @@ uint32_t ProcessBeginPeExit(uint32_t pid,uint32_t tid,uint32_t code) noexcept {
     for(auto other:p->threads)if(other && other!=tid){const auto* t=scheduler.Get(other);if(t && t->state!=threads::State::Dead)manager.ThreadExit(other,code);}
     return 0;
 }
-uint32_t ProcessCreatePeChildRaw(uint32_t parent,const char* name,const char* command,bool suspended,uint32_t& pid,uint32_t& tid,uint64_t& processHandle,uint64_t& threadHandle) noexcept {
+uint32_t ProcessCreatePeChildRaw(uint32_t parent,const char* name,const char* command,bool suspended,uint32_t& pid,uint32_t& tid,uint64_t& processHandle,uint64_t& threadHandle,bool service=false) noexcept {
     pid=tid=0;processHandle=threadHandle=0;if(!PeOwnsProcess(parent) || PeProcessTerminating(parent))return processes::Denied;
     const char expected[]="guardian-lifetime-child.exe";bool match=true;uint32_t i=0;
     for(;i<sizeof(expected);++i){auto ch=name[i];if(ch>='A' && ch<='Z')ch=static_cast<char>(ch+32);if(ch!=expected[i]){match=false;break;}}
@@ -200,14 +200,27 @@ uint32_t ProcessCreatePeChildRaw(uint32_t parent,const char* name,const char* co
     if(guardian::environment::Equal(name,"guardian-analysis-child.exe"))token.integrity=manager.Get(parent)->token.integrity;
 #endif
     token.privileges=0;
-    auto status=manager.CreateChildProcess(parent,token,nullptr,0,pid);if(status)return status;
+    uint32_t status=0;
+#ifdef GUARDIAN_SECURITY_NATIVE
+    status=service?manager.CreateServiceProcess(parent,pid):manager.CreateChildProcess(parent,token,nullptr,0,pid);
+#else
+    (void)service;status=manager.CreateChildProcess(parent,token,nullptr,0,pid);
+#endif
+    if(status)return status;
     uint64_t internal=0,startup=0;status=AddThread(pid,0,&tid,&internal,suspended);
     if(!status && !PePrepareProcess(manager,memoryManager,pid,startup,command,name))status=processes::NoMemory;
 #ifdef GUARDIAN_WIN32_NATIVE
     if(!status&&!PeNativePrepare(pid,scheduler))status=processes::NoMemory;
 #endif
-    if(!status)status=manager.OpenProcess(parent,pid,processes::GenericAll,processHandle);
-    if(!status)status=manager.OpenThread(parent,tid,processes::GenericAll,threadHandle);
+#ifdef GUARDIAN_SECURITY_NATIVE
+    if(!status&&service)status=manager.ServiceHandles(parent,pid,tid,processHandle,threadHandle);
+    if(!service){
+#endif
+        if(!status)status=manager.OpenProcess(parent,pid,processes::GenericAll,processHandle);
+        if(!status)status=manager.OpenThread(parent,tid,processes::GenericAll,threadHandle);
+#ifdef GUARDIAN_SECURITY_NATIVE
+    }
+#endif
     if(!status)status=manager.Close(pid,internal);
     if(status){if(threadHandle)manager.Close(parent,threadHandle);if(processHandle)manager.Close(parent,processHandle);KillProcess(pid,status);Garbage();pid=tid=0;processHandle=threadHandle=0;return status;}
     const auto slot=(tid&255u)-1;uint64_t initial=cpu::UserData;
@@ -223,6 +236,13 @@ uint32_t ProcessCreatePeChild(uint32_t parent,const char* name,const char* comma
     if(!telemetry::Before(e)){pid=tid=0;processHandle=threadHandle=0;return telemetry::End(e,processes::Denied);}
     const auto status=ProcessCreatePeChildRaw(parent,name,command,suspended,pid,tid,processHandle,threadHandle);if(!status)e.related=pid;return telemetry::End(e,status);
 }
+#ifdef GUARDIAN_SECURITY_NATIVE
+uint32_t ProcessCreatePeService(uint32_t parent,const char* name,uint32_t& pid,uint64_t& handle) noexcept {
+    auto e=telemetry::Begin(telemetry::Domain::Process,telemetry::Operation::Create,parent,manager.Get(parent)?manager.Get(parent)->token.user:0,name,"LocalService");
+    if(!telemetry::Before(e))return telemetry::End(e,processes::Denied);uint32_t tid=0;uint64_t thread=0;
+    const auto status=ProcessCreatePeChildRaw(parent,name,"service",false,pid,tid,handle,thread,true);if(!status){manager.Close(parent,thread);e.related=pid;}return telemetry::End(e,status);
+}
+#endif
 void PeChildRollbackChecks(uint32_t parent) noexcept {
     const auto baseline=manager.Counts();const auto free=memoryManager.physical.Statistics().free;uint32_t checks=0;
     const auto clean=[&]() noexcept {const auto c=manager.Counts();return c.consistent && c.processes==baseline.processes && c.objects==baseline.objects && c.handles==baseline.handles && c.references==baseline.references && c.committed==baseline.committed && c.threads==baseline.threads && memoryManager.physical.Statistics().free==free;};

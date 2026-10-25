@@ -8,6 +8,7 @@ struct Bridge {
     bool (*executable)(void*,uint64_t) noexcept=nullptr;
     uint32_t (*thread)(void*,uint64_t,uint64_t,bool,uint32_t&,uint64_t&) noexcept=nullptr;
     uint32_t (*exit)(void*,uint32_t,bool) noexcept=nullptr;
+    uint32_t (*extraClose)(void*,uint64_t) noexcept=nullptr;
 };
 class Services {
 public:

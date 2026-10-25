@@ -29,6 +29,11 @@ public:
     const Process* Get(uint32_t pid) const noexcept {return const_cast<Manager*>(this)->Get(pid);}
     uint32_t CreateRoot(const Token&,uint32_t& pid) noexcept;
     uint32_t CreateChildProcess(uint32_t parent,const Token&,const uint64_t* inherit,uint32_t count,uint32_t& pid) noexcept;
+#ifdef GUARDIAN_SECURITY_NATIVE
+    uint32_t CreateServiceProcess(uint32_t parent,uint32_t& pid) noexcept;
+    uint32_t ServiceHandles(uint32_t parent,uint32_t child,uint32_t tid,uint64_t& process,uint64_t& thread) noexcept;
+    bool ReferencedProcess(uint32_t object,bool& exited,uint32_t& code) noexcept;
+#endif
     uint32_t Kill(uint32_t pid,uint32_t status) noexcept;
     bool Reap(uint32_t pid) noexcept; // Must be called after switching away from its CR3.
     uint32_t Attach(uint32_t pid,uint32_t tid,uint64_t& handle) noexcept;

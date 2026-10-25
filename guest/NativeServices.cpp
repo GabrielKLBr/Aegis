@@ -28,8 +28,12 @@ uint32_t Services::ObjectName(uint64_t address,char* out,uint32_t kind,bool opti
     if(!Read(address,&a,sizeof(a)))return AccessViolation;
     if(a.length!=sizeof(a)||a.padding||a.reserved||(a.attributes&~0x40u)||a.security||a.qos)return Unsupported;
     char text[128]{};if(a.name&&!Text(a.name,text,sizeof(text)))return AccessViolation;
-    if(a.root){auto* h=Find(a.root);if(!h||h->kind!=kind)return InvalidHandle;uint32_t n=0;while(h->path[n]){out[n]=h->path[n];++n;}
-        if(n&&out[n-1]!='\\')out[n++]='\\';for(uint32_t i=0;text[i];++i){if(n>=127)return Invalid;out[n++]=text[i];}out[n]=0;return 0;}
+    if(a.root){auto* h=Find(a.root);if(!h||h->kind!=kind)return InvalidHandle;
+#ifdef GUARDIAN_SECURITY_NATIVE
+        if(kind==3){uint32_t id=0;const auto st=Files().CheckAccess(processes_->Get(pid_)->token,h->path,0,&id);if(st==storage::NotFound||(!st&&id!=h->index))return 0xC000017C;if(st)return st;}
+#endif
+        uint32_t n=0;while(h->path[n]){out[n]=h->path[n];++n;}
+        if(n&&out[n-1]!='\\'){if(n>=127)return Invalid;out[n++]='\\';}for(uint32_t i=0;text[i];++i){if(n>=127)return Invalid;out[n++]=text[i];}out[n]=0;return 0;}
     const char* source=text;
     if(kind==2&&Prefix(source,"\\??\\"))source+=4;
     if(kind==3){if(Prefix(source,"\\Registry\\User\\CurrentUser\\")){Copy(out,"HKCU\\",5);source+=27;}
@@ -46,7 +50,7 @@ void Services::DropSection(uint32_t index) noexcept {auto& s=sections_[index];if
 #endif
     for(uint32_t i=0;i<s.pages;++i)memory_->physical.Release(s.data[i],memory::Frame::Data);s={};}}
 uint32_t Services::Close(uint64_t id) noexcept {
-    auto* h=Find(id);if(!h)return processes_->Close(pid_,id);uint32_t result=0;
+    auto* h=Find(id);if(!h){if(bridge_.extraClose&&(id&0xFFFFFFFF00000000ull)==0x5365000000000000ull)return bridge_.extraClose(bridge_.context,id);return processes_->Close(pid_,id);}uint32_t result=0;
     if(h->kind==1)DropSection(h->index);
     else if(h->kind==4)result=processes_->Close(pid_,h->raw);
     else if(h->kind==2){storage::Command c;c.op=storage::Op::Close;c.handle=h->raw;result=Files().Execute(pid_,processes_->Get(pid_)->token,c);}

@@ -17,12 +17,26 @@ uint32_t Services::Files(Op op,const uint64_t* a) noexcept {
         Output(a[0],h->id);IoStatus io{0,existed?(disposition>=4?3ull:1ull):2ull};Write(a[3],&io,sizeof(io));return 0;
     }
     if(op==Op::CreateKey||op==Op::OpenKey){if(!Probe(a[0],8,true)||(op==Op::CreateKey&&a[6]&&!Probe(a[6],4,true)))return AccessViolation;
+#ifdef GUARDIAN_SECURITY_NATIVE
+        if(op==Op::CreateKey){Attributes attributes{};if(!Read(a[2],&attributes,sizeof(attributes)))return AccessViolation;if(attributes.root){const auto* parent=Find(attributes.root);if(!parent||parent->kind!=3)return InvalidHandle;if(!(parent->access&4))return Denied;}}
+#endif
         if(op==Op::CreateKey&&(a[3]||a[4]||a[5]))return Unsupported;auto status=ObjectName(a[2],c.path,3);if(status)return status;
         // QueryAcl checks existence without creating a key in the open path.
+#ifdef GUARDIAN_SECURITY_NATIVE
+        const auto desired=uint32_t(a[1]);if(a[1]!=desired||desired&~0xF003Fu)return Invalid;
+        uint32_t rights=0;if(desired&1)rights|=storage::Read;if(desired&2)rights|=storage::Write;if(desired&4)rights|=storage::CreateChild;if(desired&8)rights|=storage::List;if(desired&16)rights|=storage::Read;
+        if(desired&0x10000)rights|=storage::Delete;if(desired&0x20000)rights|=storage::ReadAcl;if(desired&0xC0000)rights|=storage::WriteAcl;
+        uint32_t identity=0;status=Files().CheckAccess(token,c.path,rights,&identity);const bool existed=!status;
+        if(status&&(op==Op::OpenKey||status!=storage::NotFound))return status;
+#else
         c.op=storage::Op::QueryAcl;c.length=sizeof(processes::Security);status=Files().Execute(pid_,token,c);const bool existed=!status;
         if(status&&op==Op::OpenKey)return status;
+#endif
         auto* h=New(3,uint32_t(a[1]));if(!h)return NoMemory;
         if(!existed){c.op=storage::Op::RegCreate;c.status=0;c.transferred=0;c.length=0;status=Files().Execute(pid_,token,c);if(status){*h={};return status;}}
+#ifdef GUARDIAN_SECURITY_NATIVE
+        status=Files().CheckAccess(token,c.path,rights,&identity);if(status){*h={};return status;}h->index=identity;
+#endif
         Copy(h->path,c.path,128);Output(a[0],h->id);
         if(op==Op::CreateKey&&a[6]){const uint32_t disposition=existed?2u:1u;Write(a[6],&disposition,4);}return 0;
     }
@@ -41,6 +55,9 @@ uint32_t Services::Files(Op op,const uint64_t* a) noexcept {
         info.end=c.transferred;info.allocated=c.transferred?512:0;Write(a[2],&info,sizeof(info));IoStatus io{0,sizeof(info)};Write(a[1],&io,sizeof(io));return 0;
     }
     if(h->kind!=3)return 0xC0000024;Copy(c.path,h->path,128);
+#ifdef GUARDIAN_SECURITY_NATIVE
+    uint32_t identity=0;const auto keyStatus=Files().CheckAccess(token,h->path,0,&identity);if(keyStatus==storage::NotFound||(!keyStatus&&identity!=h->index))return 0xC000017C;if(keyStatus)return keyStatus;
+#endif
     if(op==Op::DeleteKey){if(!(h->access&0x10000))return Denied;c.op=storage::Op::RegDeleteKey;return Files().Execute(pid_,token,c);}
     if(!Text(a[1],c.name,sizeof(c.name)))return AccessViolation;
     if(op==Op::SetValue){if(!(h->access&2))return Denied;if(a[2]||a[5]>512)return Invalid;if(!Read(a[4],c.data,uint32_t(a[5])))return AccessViolation;

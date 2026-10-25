@@ -47,7 +47,9 @@ bool WhpAvailable() {
         written >= sizeof(BOOL) && capability.HypervisorPresent;
 #endif
 }
-void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu,const StorageOptions& storage,const net::Options& networking,const gui::Options& graphics,const hardware::Profile* hardware,const hardware::DriverOptions& driver,const storage::SparseOptions* scalable,const guardian::environment::Info* environment,const guardian::telemetry::Policy* analysisPolicy,uint32_t analysisScenario,std::span<const uint8_t> externalGui,const guardian::nt::Info* compatibility,std::span<const uint8_t> externalVolume) {
+void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu,const StorageOptions& storage,const net::Options& networking,const gui::Options& graphics,const hardware::Profile* hardware,const hardware::DriverOptions& driver,const storage::SparseOptions* scalable,const guardian::environment::Info* environment,const guardian::telemetry::Policy* analysisPolicy,uint32_t analysisScenario,std::span<const uint8_t> externalGui,const guardian::nt::Info* compatibility,std::span<const uint8_t> externalVolume,std::span<const uint8_t> securityState) {
+    constexpr uint64_t securityGpa=0x5000000,securityBytes=65536;
+    Require(securityState.empty()||(image.SupportsSecurity()&&securityState.size()==securityBytes),"Security state requires its kernel and exactly 64 KiB");
     using namespace guardian::abi;
     Require(!attempted_, "A boot session cannot be reused"); attempted_ = true;
     externalPeKernel_=image.SupportsExternalPe();
@@ -150,6 +152,16 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
         regions=std::move(split);b.memoryMapCount=static_cast<uint32_t>(regions.size());
         Require(Covered(regions.data(),b.memoryMapCount,begin,bytes,MemoryKind::BootData),"External volume reservation rejected");
     }
+    if(image.SupportsSecurity()){
+        std::vector<MemoryRegion> split;const auto begin=securityGpa,end=begin+securityBytes;
+        for(const auto& region:regions){if(region.kind==MemoryKind::Available&&region.gpa<=begin&&region.gpa+region.bytes>=end){
+            if(region.gpa<begin)split.push_back({region.gpa,begin-region.gpa,MemoryKind::Available,0,0});
+            split.push_back({begin,securityBytes,MemoryKind::BootData,0,0});
+            if(region.gpa+region.bytes>end)split.push_back({end,region.gpa+region.bytes-end,MemoryKind::Available,0,0});
+        }else split.push_back(region);}
+        regions=std::move(split);b.memoryMapCount=static_cast<uint32_t>(regions.size());
+        Require(Covered(regions.data(),b.memoryMapCount,begin,securityBytes,MemoryKind::BootData),"Security state reservation rejected");
+    }
     if(cpu.driver){
         std::vector<MemoryRegion> split;
         for(const auto& region:regions){
@@ -181,6 +193,7 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
 #endif
     if (!vm_.Create(static_cast<size_t>(ramBytes), exceptionExitBitmap_)) throw std::runtime_error(Narrow(vm_.Error()));
     auto* ram = static_cast<uint8_t*>(vm_.RamData()); image.Map({ram, vm_.RamSize()});
+    if(image.SupportsSecurity()){std::memset(ram+securityGpa,0,securityBytes);if(!securityState.empty())std::memcpy(ram+securityGpa,securityState.data(),securityState.size());Require(vm_.SetMemoryAccess(securityGpa,securityBytes,3),"Security state permissions rejected");}
     if(hardwareInfo_.magic)std::memcpy(ram+guardian::hardware::InfoGpa,&hardwareInfo_,sizeof(hardwareInfo_));
     std::memcpy(ram + BootGpa, &b, sizeof(b)); std::memcpy(ram + MapGpa, regions.data(), regions.size() * sizeof(MemoryRegion));
     std::memcpy(ram + DevicesGpa, devices, sizeof(devices));

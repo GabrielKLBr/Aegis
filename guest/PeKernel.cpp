@@ -1,6 +1,10 @@
 #include "PeKernel.h"
 #ifdef GUARDIAN_NATIVE_NT
 #include "NativeServices.h"
+#ifdef GUARDIAN_SECURITY_NATIVE
+#include "Security.h"
+namespace {guardian::security::Core securityCore;}
+#endif
 #ifdef GUARDIAN_WIN32_NATIVE
 #include "guardian/Win32.h"
 #endif
@@ -471,6 +475,9 @@ bool PeExitProcess(uint32_t pid,uint32_t code,bool fault) noexcept {
 #endif
     (void)fault;
     auto* slot=Find(pid);if(!slot)return true;
+#ifdef GUARDIAN_SECURITY_NATIVE
+    securityCore.Exit(pid);
+#endif
 #ifdef GUARDIAN_NATIVE_NT
     if(slot->nativeReady&&!slot->nativeServices->Exit()){allClean=false;return false;}
     slot->nativeReady=false;
@@ -487,6 +494,9 @@ bool PeExitProcess(uint32_t pid,uint32_t code,bool fault) noexcept {
     const bool clean=slot->image.UnloadAll();allClean=allClean && clean;if(PeIsRoot(pid)){runtimeCode=code;runtimeClean=clean;}if(clean)slot->pid=0;return clean;
 }
 bool PeProcessPassed() noexcept {for(const auto& s:runtimes)if(s.pid)return false;
+#ifdef GUARDIAN_SECURITY_NATIVE
+    if(!securityCore.Finish())return false;
+#endif
 #ifdef GUARDIAN_WIN32_NATIVE
     if(!Win32StorageFinish()||!runtimes.Release())return false;
 #endif
