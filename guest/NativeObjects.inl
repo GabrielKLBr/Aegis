@@ -7,7 +7,11 @@ uint32_t SyncAccess(uint64_t access,bool mutant=false) noexcept {
 }
 uint32_t Services::Information(Op op,const uint64_t* a,uint32_t tid,uint64_t teb) noexcept {
     if(op==Op::Duplicate){uint32_t source=0,target=0;auto status=Process(a[0],source,processes::Duplicate);if(!status)status=Process(a[2],target,processes::Duplicate);if(status)return status;
-        if(source!=pid_||target!=pid_||a[5]||a[6]!=2)return Unsupported;if(!Probe(a[3],8,true))return AccessViolation;auto* h=Find(a[1]);if(!h)return InvalidHandle;
+        if(source!=pid_||target!=pid_||a[5]||a[6]!=2)return Unsupported;if(!Probe(a[3],8,true))return AccessViolation;
+#ifdef GUARDIAN_DESKTOP_NATIVE
+        if(a[1]==CurrentThread||a[1]==CurrentProcess){uint64_t raw=0;status=a[1]==CurrentThread?processes_->OpenThread(pid_,tid,processes::GenericAll,raw):processes_->CloneHandle(pid_,processes_->Get(pid_)->self,raw);if(status)return status;auto* next=New(4,0x1FFFFFu,raw);if(!next){processes_->Close(pid_,raw);return NoMemory;}Output(a[3],next->id);return 0;}
+#endif
+        auto* h=Find(a[1]);if(!h)return InvalidHandle;
         if(h->kind!=1&&h->kind!=4)return Unsupported;uint64_t raw=0;
         if(h->kind==4){status=processes_->CloneHandle(pid_,h->raw,raw);if(status)return status;}
         auto* next=New(h->kind,h->access,raw,h->index);if(!next){if(raw)processes_->Close(pid_,raw);return NoMemory;}if(h->kind==1)++sections_[h->index].references;Output(a[3],next->id);return 0;
@@ -19,7 +23,13 @@ uint32_t Services::Information(Op op,const uint64_t* a,uint32_t tid,uint64_t teb
         if(op==Op::OpenThread&&(!id.thread||(id.process&&processes_->Owner(uint32_t(id.thread))!=id.process)))return Invalid;
         uint32_t access=0;if(a[1]&0x10000000)access=processes::GenericAll;else {if(a[1]&0x100000)access|=processes::Wait;if(a[1]&(0x400|0x1000))access|=processes::Query;
             if(a[1]&0x10)access|=processes::ReadMemory;if(a[1]&0x28)access|=processes::WriteMemory;if(a[1]&2)access|=processes::CreateChild;if(a[1]&1)access|=processes::Terminate;}
+        #ifdef GUARDIAN_DESKTOP_NATIVE
+        if(a[1]&0x40)access|=processes::Duplicate;if(a[1]&0x200)access|=processes::WriteDac;
+#endif
         uint32_t threadAccess=0;if(a[1]&0x10000000)threadAccess=processes::GenericAll;else {if(a[1]&0x100000)threadAccess|=processes::Wait;if(a[1]&(0x40|0x800))threadAccess|=processes::Query;if(a[1]&(2|0x10|0x20))threadAccess|=processes::Modify;if(a[1]&1)threadAccess|=processes::Terminate;}
+        #ifdef GUARDIAN_DESKTOP_NATIVE
+        if(a[1]&8)threadAccess|=processes::Query;
+#endif
         uint64_t raw=0;const auto status=op==Op::OpenProcess?processes_->OpenProcess(pid_,uint32_t(id.process),access,raw):processes_->OpenThread(pid_,uint32_t(id.thread),threadAccess,raw);
         if(status)return status;auto* h=New(4,uint32_t(a[1]),raw);if(!h){processes_->Close(pid_,raw);return NoMemory;}Output(a[0],h->id);return 0;
     }

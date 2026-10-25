@@ -1,5 +1,12 @@
 # Fase 12 — lote de compatibilidade gráfica
 
+**Atualização pela 14.7:** este documento preserva o histórico do lote gráfico da
+fase 12. A execução do Flappy original, as entradas físicas, o texto e as novas
+janelas foram promovidos à [entrega 14.7](PHASE-14.7.md), com aceitação própria
+Release/Debug. A avaliação atual da 12F está nessa entrega; sua implementação
+continua dependente de nova solicitação. As limitações antigas abaixo descrevem
+o estado de 23/10/2026.
+
 **23/10/2026: avanço parcial; lote do Flappy Window não concluído. A 12F não foi
 iniciada.** Esta entrega conecta pela primeira vez um arquivo PE separado ao
 kernel de processos e ao compositor do convidado. A validação desta matriz

@@ -2,6 +2,9 @@
 #include "guardian/NativeNt.h"
 #include "ProcessManager.h"
 #include "Volume.h"
+#ifdef GUARDIAN_DESKTOP_NATIVE
+#include "guardian/Exception.h"
+#endif
 namespace guardian::native {
 struct Bridge {
     void* context=nullptr;
@@ -9,6 +12,10 @@ struct Bridge {
     uint32_t (*thread)(void*,uint64_t,uint64_t,bool,uint32_t&,uint64_t&) noexcept=nullptr;
     uint32_t (*exit)(void*,uint32_t,bool) noexcept=nullptr;
     uint32_t (*extraClose)(void*,uint64_t) noexcept=nullptr;
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    uint32_t (*threadContext)(void*,uint32_t,exceptions::Context&,bool) noexcept=nullptr;
+    bool (*catalog)(void*,const char*,uint64_t,void*,uint32_t,uint32_t&,uint32_t&) noexcept=nullptr;
+#endif
 };
 class Services {
 public:
@@ -23,6 +30,9 @@ public:
     storage::Volume& Files() noexcept {return shared_?*shared_:volume_;}
 #ifdef GUARDIAN_WIN32_NATIVE
     uint32_t Win32(uint32_t,uint64_t*) noexcept;
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    uint32_t DesktopThread(uint32_t,uint64_t*) noexcept;
+#endif
 #endif
 private:
     struct Range {uint64_t base=0,bytes=0;int32_t section=-1;};

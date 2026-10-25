@@ -19,7 +19,8 @@ A 14.4 implementa a matriz Win32 própria e leitura de schemas API set:
 com runtimes originais no convidado: [implementação e limites](PHASE-14.5.md).
 A 14.6 acrescenta registro persistente, tokens/ACLs e serviços LocalService com
 vida útil própria: [entrega delimitada, testes e limites](PHASE-14.6.md).
-14.7–14.14 estão planejadas e não iniciadas. Os registros abaixo preservam o histórico das
+14.7 tem implementação e aceitação gráfica próprias, descritas em [PHASE-14.7.md](PHASE-14.7.md).
+14.8–14.14 estão planejadas e não iniciadas. Os registros abaixo preservam o histórico das
 entregas anteriores e suas pendências.
 
 **Histórico das entregas:** 12A concluída para a matriz de referência, com validação Windows/WHP e Linux/KVM. [Resultados e limites](PHASE-12A.md). A 12B está em implementação e validação: [recursos, cotas e pendências](PHASE-12B.md). O contrato próprio `resources` passou na matriz Linux (47 Debug, 47 Release e 30 ASan/UBSan), com SMP, volume escalável e pasta independente; a aceitação Windows da revisão e a integração aos perfis existentes continuam pendentes. [Continuação de 20/10](PHASE-12B-RECURSOS.md). A 12C passou na validação Linux em 21/10/2026 (50 Debug, 50 Release e 32 ASan/UBSan), com referências Windows ainda pendentes: [matriz, entrega e diferenças](PHASE-12C.md). A 12D foi autorizada em nova solicitação: sessões e interação passaram em 53 testes Debug, 53 Release e 33 ASan/UBSan na revisão estável da 12D. [Registro da 12D](PHASE-12D.md). A 12E foi implementada e aceita no Linux em 22/10/2026: 56 Debug, 56 Release e 34 ASan/UBSan, com perfis sintéticos funcionais e reproduzíveis. [Entrega e limites](PHASE-12E.md). A aceitação nativa Windows e os requisitos anteriores permanecem pendentes. A fase 13 passou na aceitação Linux em 22/10/2026: 59 Debug, 59 Release e 35 ASan/UBSan, com telemetria, políticas e análise comportamental. [Entrega e limites](PHASE-13.md). A aceitação Windows e os requisitos anteriores continuam abertos; a fase 14 não foi iniciada. Os registros históricos abaixo conservam os resultados e pendências da época.
@@ -783,6 +784,12 @@ de handles e recursos sobrevivem a falhas de forma consistente. Parar ao conclui
 
 ### Subfase 14.7 — USER32, GDI e compatibilidade gráfica externa
 
+**Entrega Windows:** runtime gráfico próprio, visualizador único e corpus de aceitação
+com o Flappy original, aplicações MSVC, configurações persistentes e entrada física/texto
+separadas. A aceitação exige 116 regressões Release e 41 verificações Debug, além do
+pacote validado. [Implementação, evidências e limites](PHASE-14.7.md). A 12F pode ser
+iniciada para essa matriz após sua aceitação e nova solicitação; ainda não foi implementada.
+
 **Dependências:** 14.2–14.6 e gráficos/entrada existentes; promover as pendências
 do lote gráfico da fase 12 para esta entrega, preservando seu histórico.
 
@@ -1053,7 +1060,7 @@ descrita em PHASE-14.3.md. A 14.4 acrescenta o runtime Win32 próprio descrito e
 PHASE-14.4.md. A 14.5 implementa o corpus CRT original delimitado em
 PHASE-14.5.md. Rethrow/nested C++ e compatibilidade CRT geral continuam abertos.
 A 14.6 implementa a matriz delimitada de segurança/registro/serviços descrita em
-PHASE-14.6.md. A 12F e 14.7–14.14 continuam planejadas, sem implementação iniciada. Os resultados históricos e as pendências
+PHASE-14.6.md e PHASE-14.7.md. A 12F e 14.8–14.14 continuam planejadas, sem implementação iniciada. Os resultados históricos e as pendências
 anteriores permanecem identificados nos respectivos documentos.
 
 ## Referências técnicas para os novos requisitos

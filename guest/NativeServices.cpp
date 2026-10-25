@@ -106,5 +106,8 @@ bool Services::Exit() noexcept {
 #include "NativeFiles.inl"
 #ifdef GUARDIAN_WIN32_NATIVE
 #include "NativeWin32.inl"
+#ifdef GUARDIAN_DESKTOP_NATIVE
+#include "DesktopNative.inl"
+#endif
 #endif
 }

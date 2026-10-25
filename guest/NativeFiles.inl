@@ -9,6 +9,9 @@ uint32_t Services::Files(Op op,const uint64_t* a) noexcept {
         c.access=access;c.share=uint32_t(op==Op::CreateFile?a[6]:a[4]);if(c.share>7)return Invalid;
         const auto disposition=op==Op::CreateFile?a[7]:1;if(!disposition)return Unsupported;c.disposition=disposition==2?1u:((disposition==3||disposition==5)?2u:0u);
         if(disposition>=4&&!(access&storage::Write))return Denied;
+#ifdef GUARDIAN_DESKTOP_NATIVE
+        if(!(access&(storage::Write|storage::Delete))&&(disposition==1||disposition==3)&&bridge_.catalog){storage::Kind kind{};const auto exists=Files().QueryKind(token,c.path,kind);if(exists==storage::NotFound){uint32_t read=0,total=0;if(bridge_.catalog(bridge_.context,c.path,0,nullptr,0,read,total)){auto audit=telemetry::Begin(telemetry::Domain::File,telemetry::Operation::Open,pid_,token.user,c.path);if(!telemetry::Before(audit))return telemetry::End(audit,Denied);auto* immutable=New(5,uint32_t(a[1]),0,total);if(!immutable)return telemetry::End(audit,NoMemory);Copy(immutable->path,c.path,128);Output(a[0],immutable->id);IoStatus io{0,1};Write(a[3],&io,sizeof(io));audit.related=immutable->id;return telemetry::End(audit,0);}}}
+#endif
         auto* h=New(2,uint32_t(a[1]));if(!h)return NoMemory;
         storage::Command exists;exists.op=storage::Op::QueryAcl;exists.length=sizeof(processes::Security);Copy(exists.path,c.path,128);const auto existence=Files().Execute(pid_,token,exists);const bool existed=existence==0;
         if(existence&&existence!=storage::NotFound){*h={};return existence;}
@@ -41,11 +44,28 @@ uint32_t Services::Files(Op op,const uint64_t* a) noexcept {
         if(op==Op::CreateKey&&a[6]){const uint32_t disposition=existed?2u:1u;Write(a[6],&disposition,4);}return 0;
     }
     auto* h=Find(a[0]);if(!h)return InvalidHandle;
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    if(h->kind==5){auto audit=telemetry::Begin(telemetry::Domain::File,op==Op::ReadFile?telemetry::Operation::Read:op==Op::WriteFile?telemetry::Operation::Write:telemetry::Operation::Query,pid_,token.user,h->path,"",h->id);if(!telemetry::Before(audit))return telemetry::End(audit,Denied);const auto operation=[&]() noexcept ->uint32_t {if(op==Op::WriteFile)return Denied;if(op==Op::ReadFile){if(a[1]||a[2]||a[3]||a[8]||a[6]>65536)return Unsupported;if(!Probe(a[4],sizeof(IoStatus),true)||(a[6]&&!Probe(a[5],uint32_t(a[6]),true)))return AccessViolation;int64_t offset=int64_t(h->position);if(a[7]&&!Read(a[7],&offset,8))return AccessViolation;if(offset<0)return Invalid;uint32_t total=0,done=0;const auto available=uint64_t(offset)>=h->index?0ull:uint64_t(h->index)-uint64_t(offset);const auto count=uint32_t(a[6]<available?a[6]:available);
+            while(done<count){const auto chunk=count-done>512?512u:count-done;uint32_t read=0;if(!bridge_.catalog(bridge_.context,h->path,uint64_t(offset)+done,c.data,chunk,read,total)||total!=h->index||read!=chunk)return Invalid;if(!Write(a[5]+done,c.data,read))return AccessViolation;done+=read;}h->position=uint64_t(offset)+done;IoStatus io{0,done};Write(a[4],&io,sizeof(io));return 0;}
+        if(op==Op::QueryFile){if(a[4]!=5)return InvalidClass;if(a[3]<24||!Probe(a[1],sizeof(IoStatus),true)||!Probe(a[2],24,true))return AccessViolation;struct Standard {uint64_t allocated,end;uint32_t links;uint8_t deleted,directory,pad[2];} info{(uint64_t(h->index)+511)&~511ull,h->index,1,0,0,{0,0}};Write(a[2],&info,sizeof(info));IoStatus io{0,sizeof(info)};Write(a[1],&io,sizeof(io));return 0;}return Unsupported;};return telemetry::End(audit,operation());
+    }
+#endif
     if(op==Op::ReadFile||op==Op::WriteFile){if(h->kind!=2)return 0xC0000024;if(a[1]||a[2]||a[3]||a[8])return Unsupported;
-        if(a[6]>512)return Unsupported;if(!Probe(a[4],sizeof(IoStatus),true)||!Probe(a[5],uint32_t(a[6]),op==Op::ReadFile))return AccessViolation;
+
+#ifdef GUARDIAN_DESKTOP_NATIVE
+        if(a[6]>(op==Op::ReadFile?65536u:512u))return Unsupported;
+#else
+        if(a[6]>512)return Unsupported;
+#endif
+        if(!Probe(a[4],sizeof(IoStatus),true)||(a[6]&&!Probe(a[5],uint32_t(a[6]),op==Op::ReadFile)))return AccessViolation;
         int64_t offset=int64_t(h->position);if(a[7]&&!Read(a[7],&offset,8))return AccessViolation;if(offset<0)return Unsupported;
         if(op==Op::WriteFile&&!Read(a[5],c.data,uint32_t(a[6])))return AccessViolation;
-        c.op=op==Op::ReadFile?storage::Op::Read:storage::Op::Write;c.handle=h->raw;c.offset=uint64_t(offset);c.length=uint32_t(a[6]);const auto status=Files().Execute(pid_,token,c);
+        c.op=op==Op::ReadFile?storage::Op::Read:storage::Op::Write;c.handle=h->raw;c.offset=uint64_t(offset);c.length=uint32_t(a[6]);
+#ifdef GUARDIAN_DESKTOP_NATIVE
+        if(c.length>512)c.length=512;
+        if(op==Op::ReadFile){storage::Command size;size.op=storage::Op::FileSize;size.handle=h->raw;const auto status=Files().Execute(pid_,token,size);if(status)return status;if(uint64_t(offset)>=size.transferred){IoStatus io{0,0};Write(a[4],&io,sizeof(io));return 0;}if(c.length>size.transferred-uint64_t(offset))c.length=uint32_t(size.transferred-uint64_t(offset));}
+#endif
+        const auto status=Files().Execute(pid_,token,c);
         if(!status){if(op==Op::ReadFile)Write(a[5],c.data,c.transferred);h->position=c.offset+c.transferred;}
         IoStatus io{status,status?0ull:uint64_t(c.transferred)};Write(a[4],&io,sizeof(io));return status;
     }

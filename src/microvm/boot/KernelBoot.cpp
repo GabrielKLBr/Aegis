@@ -47,7 +47,8 @@ bool WhpAvailable() {
         written >= sizeof(BOOL) && capability.HypervisorPresent;
 #endif
 }
-void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu,const StorageOptions& storage,const net::Options& networking,const gui::Options& graphics,const hardware::Profile* hardware,const hardware::DriverOptions& driver,const storage::SparseOptions* scalable,const guardian::environment::Info* environment,const guardian::telemetry::Policy* analysisPolicy,uint32_t analysisScenario,std::span<const uint8_t> externalGui,const guardian::nt::Info* compatibility,std::span<const uint8_t> externalVolume,std::span<const uint8_t> securityState) {
+void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu,const StorageOptions& storage,const net::Options& networking,const gui::Options& graphics,const hardware::Profile* hardware,const hardware::DriverOptions& driver,const storage::SparseOptions* scalable,const guardian::environment::Info* environment,const guardian::telemetry::Policy* analysisPolicy,uint32_t analysisScenario,std::span<const uint8_t> externalGui,const guardian::nt::Info* compatibility,std::span<const uint8_t> externalVolume,std::span<const uint8_t> securityState,const desktop_session::Options& desktop) {
+    Require(image.SupportsDesktop()||(!desktop.telemetryCapacity&&desktop.output.empty()&&desktop.script.empty()&&!desktop.interactive&&!desktop.poll&&!desktop.display),"Desktop options require their kernel");
     constexpr uint64_t securityGpa=0x5000000,securityBytes=65536;
     Require(securityState.empty()||(image.SupportsSecurity()&&securityState.size()==securityBytes),"Security state requires its kernel and exactly 64 KiB");
     using namespace guardian::abi;
@@ -58,7 +59,7 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
     if(externalPeKernel_){
         Require(compatibility&&cpu.enabled&&cpu.processes&&cpu.graphics&&!cpu.io&&!cpu.storage&&!cpu.network&&!cpu.driver&&!cpu.resources&&externalGui.empty()&&ramBytes>=(128ull<<20),"External volume options rejected");
         Require(externalVolume.size()<=guardian::pevolume::MaxBytes&&guardian::pevolume::Valid(externalVolume.data(),static_cast<uint32_t>(externalVolume.size())),"External volume rejected");
-        const auto& header=*reinterpret_cast<const guardian::pevolume::Header*>(externalVolume.data());
+        const auto& header=*reinterpret_cast<const guardian::pevolume::Header*>(externalVolume.data());for(uint32_t i=0;i<header.files;++i)Require(header.entries[i].kind!=guardian::pevolume::Kind::Data||image.SupportsDesktop(),"Data assets require the desktop kernel");
         Require(header.profile==compatibility->profile,"External volume NT profile mismatch");
         const auto digest=compatibility::Sha256(externalVolume);Require(std::memcmp(digest.data(),compatibility->runtimeSha,32)==0,"External volume SHA-256 mismatch");
         const auto& root=header.entries[header.root];application=externalVolume.subspan(root.offset,root.bytes);
@@ -79,7 +80,7 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
     Require(!analysisKernel_||(cpu.enabled&&cpu.processes&&cpu.io&&cpu.storage),"Owned analysis image requires the storage/process contract");
     Require(telemetryEnabled_||(!policy.denyMask&&!policy.simulateMask&&policy.eventLimit==guardian::telemetry::DefaultEvents&&!analysisScenario),"Imported kernel does not implement telemetry/policy");
     Require(!analysisScenario||image.SupportsAnalysisFixture(),"Scenario selection requires the owned analysis fixture");
-    if(telemetryEnabled_){telemetryInfo_.boot=bootId;telemetryInfo_.scenario=analysisScenario;telemetry_.Configure(bootId,policy);}
+    if(telemetryEnabled_){telemetryInfo_.boot=bootId;telemetryInfo_.scenario=analysisScenario;telemetry_.Configure(bootId,policy);if(desktop.telemetryCapacity)telemetry_.RecordCapacity(desktop.telemetryCapacity);}
     Require(!image.SupportsEnvironment()||environment,"Synthetic kernel requires an explicit environment profile");
     if(environment){Require(guardian::environment::Valid(*environment)&&!environment->catalogHash&&cpu.storage&&image.SupportsEnvironment()&&hardware,"Environment requires its supported kernel, volume and NT hardware profile");environmentInfo_=*environment;environmentEnabled_=true;}
     if(cpu.resources){
@@ -161,6 +162,10 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
         }else split.push_back(region);}
         regions=std::move(split);b.memoryMapCount=static_cast<uint32_t>(regions.size());
         Require(Covered(regions.data(),b.memoryMapCount,begin,securityBytes,MemoryKind::BootData),"Security state reservation rejected");
+    }
+    if(image.SupportsDesktop()){
+        constexpr uint64_t ranges[][2]={{guardian::desktop::PixelsGpa,guardian::desktop::PixelCount*4},{guardian::desktop::StateGpa,guardian::desktop::StateBytes}};
+        for(const auto& range:ranges){std::vector<MemoryRegion> split;const auto begin=range[0],end=begin+range[1];for(const auto& region:regions){if(region.kind==MemoryKind::Available&&region.gpa<=begin&&region.gpa+region.bytes>=end){if(region.gpa<begin)split.push_back({region.gpa,begin-region.gpa,MemoryKind::Available,0,0});split.push_back({begin,range[1],MemoryKind::BootData,0,0});if(region.gpa+region.bytes>end)split.push_back({end,region.gpa+region.bytes-end,MemoryKind::Available,0,0});}else split.push_back(region);}regions=std::move(split);b.memoryMapCount=static_cast<uint32_t>(regions.size());Require(Covered(regions.data(),b.memoryMapCount,begin,range[1],MemoryKind::BootData),"Desktop reservation rejected");}
     }
     if(cpu.driver){
         std::vector<MemoryRegion> split;
@@ -282,6 +287,11 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
     if(environmentEnabled_){std::memcpy(ram+guardian::environment::InfoGpa,&environmentInfo_,sizeof(environmentInfo_));Require(vm_.SetMemoryAccess(guardian::environment::InfoGpa,PageBytes,1),"Environment profile page protection failed");}
     if(cpu.storage&&storageQuotaContract_){std::memcpy(ram+guardian::storage::QuotaGpa,&storageQuota_,sizeof(storageQuota_));Require(vm_.SetMemoryAccess(guardian::storage::QuotaGpa,PageBytes,1),"Volume quota page protection failed");}
     if(cpu.storage)vm_.MapIoTrapDetailed(guardian::storage::Port,[this](MicroVm&,const MicroVm::IoAccess& a){StorageControl(a);});
+    if(image.SupportsDesktop()){
+        namespace gd=guardian::desktop;desktopBackend_=std::make_unique<desktop_session::Backend>(bootId,desktop);const auto info=desktopBackend_->Enumeration();std::memcpy(ram+gd::InfoGpa,&info,sizeof(info));
+        Require(vm_.SetMemoryAccess(gd::InfoGpa,PageBytes,1)&&vm_.SetMemoryAccess(gd::PixelsGpa,gd::PixelCount*4,3)&&vm_.SetMemoryAccess(gd::StateGpa,gd::StateBytes,3),"Desktop page permissions rejected");
+        vm_.MapIoTrapDetailed(gd::Port,[this](MicroVm&,const MicroVm::IoAccess& access){namespace d=guardian::desktop;if(!ValidIo(access)||!desktopBackend_||cpuReportValid_){vm_.FailExecution(L"Desktop channel rejected");return;}auto* memory=static_cast<uint8_t*>(vm_.RamData());try{if(access.value==1){d::Packet packet;std::memcpy(&packet,memory+d::PacketGpa,sizeof(packet));const auto now=elapsedNs_+uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-runStart_).count());if(!desktopBackend_->Exchange(packet,reinterpret_cast<const uint32_t*>(memory+d::PixelsGpa),now)){vm_.FailExecution(L"Desktop packet rejected");return;}std::memcpy(memory+d::PacketGpa,&packet,sizeof(packet));}else if(access.value==2){d::Report report;std::memcpy(&report,memory+d::ReportGpa,sizeof(report));if(!desktopBackend_->Complete(report))vm_.FailExecution(L"Desktop report rejected");}else vm_.FailExecution(L"Desktop operation rejected");}catch(const std::exception&){vm_.FailExecution(L"Desktop backend failure");}});
+    }
     if(cpu.graphics){
         graphicsBackend_=std::make_unique<gui::Backend>(bootId,graphics);
         const auto info=graphicsBackend_->Enumeration();std::memcpy(ram+guardian::graphics::InfoGpa,&info,sizeof(info));
@@ -554,7 +564,7 @@ BootResult KernelBootSession::Run(std::chrono::milliseconds timeout, bool suspen
         });
     } catch (...) { { std::lock_guard lock(mutex); done = true; } cv.notify_all(); watchdog.join(); throw; }
     bool completed = false;
-    try { completed = vm_.Run(suspendAtDeadline ? 1000000 : telemetryEnabled_ ? 100000 : 10000); }
+    try { completed = vm_.Run(suspendAtDeadline||desktopBackend_ ? 1000000 : telemetryEnabled_ ? 100000 : 10000); }
     catch (...) { { std::lock_guard lock(mutex); done = true; } cv.notify_all(); watchdog.join(); if (timer.joinable()) timer.join(); throw; }
     { std::lock_guard lock(mutex); done = true; } cv.notify_all(); watchdog.join(); if (timer.joinable()) timer.join();
     elapsedNs_+=static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now()-runStart_).count());
@@ -617,6 +627,7 @@ BootResult KernelBootSession::Run(std::chrono::milliseconds timeout, bool suspen
         storageReport_.sequenceAfter>storageReport_.sequenceBefore && !storageReport_.liveHandles && !storageReport_.liveWatches && storageReport_.userCalls>=10 && r.storageRecords>0;
     if(cpuOptions_.graphics)r.success=r.success&&graphicsReportValid_&&graphicsReport_.checks==((externalGuiKernel_||externalPeKernel_)?guardian::externalgui::Checks:guardian::graphics::RequiredChecks)&&graphicsReport_.applications==((externalGuiKernel_||externalPeKernel_)?1u:2u)&&graphicsReport_.frames==r.graphicsFrames&&graphicsReport_.inputs==r.graphicsInputs&&graphicsReport_.pixelHash==r.graphicsHash&&(externalPeKernel_?true:(externalGuiKernel_?graphicsReport_.frames>=1:(graphicsReport_.calls>=20&&graphicsReport_.denied>=6)));
     if(graphicsBackend_)graphicsBackend_->Export();
+    if(desktopBackend_){r.success=r.success&&desktopBackend_->Completed();desktopBackend_->Export();}
     if(cpuOptions_.network)r.success=r.success&&networkReportValid_&&networkReport_.checks==(analysisKernel_?1u:guardian::net::RequiredChecks)&&(!analysisKernel_||networkReport_.userCalls>=1)&&networkReport_.sent==r.networkSent&&networkReport_.received==r.networkReceived&&networkReport_.denied==r.networkDenied;
     if(networkBackend_)networkBackend_->Export();
     if (!r.success && !r.paused) {

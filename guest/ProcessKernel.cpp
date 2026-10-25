@@ -168,6 +168,16 @@ uint32_t ProcessBeginPeExit(uint32_t pid,uint32_t tid,uint32_t code) noexcept {
     for(auto other:p->threads)if(other && other!=tid){const auto* t=scheduler.Get(other);if(t && t->state!=threads::State::Dead)manager.ThreadExit(other,code);}
     return 0;
 }
+#ifdef GUARDIAN_DESKTOP_NATIVE
+uint32_t ProcessDesktopContext(uint32_t pid,uint32_t tid,guardian::exceptions::Context& c,bool write) noexcept {
+    using namespace guardian;const auto* thread=scheduler.Get(tid);if(!thread||manager.Owner(tid)!=pid||!thread->suspended||scheduler.Current()==tid)return processes::Denied;auto& saved=contexts[(tid&255u)-1];auto& f=saved.frame;
+    if(write){if((c.flags&8)&&(c.mxcsr&0xFFFF0000u))return processes::Invalid;if((c.flags&4)&&(c.cs!=0x2B||c.ss!=0x23||c.ds!=0x23||c.es!=0x23))return processes::Invalid;if(c.flags&1){if((!PeExecutable(pid,c.rip)&&!(c.rip==f.rip&&f.rip>=cpu::UserCode&&f.rip<cpu::UserCode+4096))||!manager.Translate(pid,c.gpr[4],true)||(c.eflags&~0xCD5u&~0x202u))return processes::Invalid;f.rip=c.rip;f.rsp=c.gpr[4];f.rflags=(c.eflags&0xCD5)|0x202;}
+        if(c.flags&2){f.rax=c.gpr[0];f.rcx=c.gpr[1];f.rdx=c.gpr[2];f.rbx=c.gpr[3];f.rbp=c.gpr[5];f.rsi=c.gpr[6];f.rdi=c.gpr[7];f.r8=c.gpr[8];f.r9=c.gpr[9];f.r10=c.gpr[10];f.r11=c.gpr[11];f.r12=c.gpr[12];f.r13=c.gpr[13];f.r14=c.gpr[14];f.r15=c.gpr[15];}
+        if(c.flags&8){if(c.mxcsr&0xFFFF0000u)return processes::Invalid;for(uint32_t n=0;n<512;++n)saved.fx[n]=c.fx[n];for(uint32_t n=0;n<4;++n)saved.fx[24+n]=uint8_t(c.mxcsr>>(n*8));}return 0;
+    }
+    const auto flags=c.flags;c={};c.flags=flags;const uint64_t gpr[16]={f.rax,f.rcx,f.rdx,f.rbx,f.rsp,f.rbp,f.rsi,f.rdi,f.r8,f.r9,f.r10,f.r11,f.r12,f.r13,f.r14,f.r15};for(uint32_t n=0;n<16;++n)c.gpr[n]=gpr[n];c.rip=f.rip;c.eflags=uint32_t(f.rflags);for(uint32_t n=0;n<512;++n)c.fx[n]=saved.fx[n];c.mxcsr=0;for(uint32_t n=0;n<4;++n)c.mxcsr|=uint32_t(c.fx[24+n])<<(n*8);return 0;
+}
+#endif
 uint32_t ProcessCreatePeChildRaw(uint32_t parent,const char* name,const char* command,bool suspended,uint32_t& pid,uint32_t& tid,uint64_t& processHandle,uint64_t& threadHandle,bool service=false) noexcept {
     pid=tid=0;processHandle=threadHandle=0;if(!PeOwnsProcess(parent) || PeProcessTerminating(parent))return processes::Denied;
     const char expected[]="guardian-lifetime-child.exe";bool match=true;uint32_t i=0;

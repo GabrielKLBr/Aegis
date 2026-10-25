@@ -5,7 +5,7 @@ namespace guardian::pevolume {
 inline constexpr uint64_t Magic=0x314C4F56504547ull,InfoMagic=0x31464E49504547ull;
 inline constexpr uint64_t InfoGpa=0x1F2000,SourceGpa=0x1000000;
 inline constexpr uint32_t Version=1,MaxFiles=16,MaxAliases=16,MaxAssemblies=8,MaxBytes=64u<<20,MaxFileBytes=8u<<20;
-enum class Kind:uint32_t {Pe=1,Manifest=2};
+enum class Kind:uint32_t {Pe=1,Manifest=2,Data=3};
 struct File {char path[128]{};uint32_t offset=0,bytes=0;Kind kind{};uint32_t assembly=0;uint64_t hash=0;};
 struct Alias {char name[64]{},target[128]{};};
 struct Assembly {char name[64]{};uint32_t version[4]{};char directory[128]{};};
@@ -47,8 +47,9 @@ inline bool Valid(const uint8_t* data,uint32_t bytes) noexcept {
     uint32_t previous=(sizeof(Header)+4095)&~4095u;
     for(uint32_t i=0;i<h.files;++i){const auto& f=h.entries[i];char normalized[128]{};
         if(!Text(f.path)||!Canonical(f.path,normalized)||!Equal(normalized,f.path)||f.assembly>h.assemblies||
-            (f.kind!=Kind::Pe&&f.kind!=Kind::Manifest)||!f.bytes||f.bytes>(f.kind==Kind::Pe?MaxFileBytes:4096u)||
+            (f.kind!=Kind::Pe&&f.kind!=Kind::Manifest&&f.kind!=Kind::Data)||!f.bytes||f.bytes>(f.kind==Kind::Manifest?4096u:MaxFileBytes)||
             (f.offset&4095)||f.offset<previous||f.offset>bytes||f.bytes>bytes-f.offset||Hash(data+f.offset,f.bytes)!=f.hash)return false;
+        if(f.kind==Kind::Data){if(!Prefix(f.path,"c:\\app\\"))return false;uint32_t length=0;while(f.path[length])++length;if(length<4||f.path[length-4]!='.'||(!Equal(f.path+length-3,"txt")&&!Equal(f.path+length-3,"ico")&&!Equal(f.path+length-3,"dat")&&!Equal(f.path+length-3,"bin")))return false;}
         if(f.assembly&&!Prefix(f.path,h.identities[f.assembly-1].directory))return false;
         for(uint32_t j=0;j<i;++j)if(Equal(f.path,h.entries[j].path))return false;
         previous=f.offset+f.bytes;

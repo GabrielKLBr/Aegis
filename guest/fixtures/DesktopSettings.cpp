@@ -1,0 +1,3 @@
+#include <Windows.h>
+#include <cstdio>
+int main(){const auto file=CreateFileW(L"C:\\App\\desktop-settings.bin",GENERIC_READ|GENERIC_WRITE,0,nullptr,OPEN_ALWAYS,0,nullptr);if(file==INVALID_HANDLE_VALUE)return 1;DWORD count=0;unsigned value=0;if(!ReadFile(file,&value,sizeof(value),&count,nullptr)||((count!=0)&&(count!=sizeof(value))))return 2;if(value>100)return 3;++value;LARGE_INTEGER begin{};if(!SetFilePointerEx(file,begin,nullptr,FILE_BEGIN)||!WriteFile(file,&value,sizeof(value),&count,nullptr)||count!=sizeof(value)||!FlushFileBuffers(file)||!CloseHandle(file))return 4;std::printf("Desktop guest settings value=%u PASS\n",value);return 0;}

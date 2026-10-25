@@ -5,7 +5,13 @@ Job jobs[8]{};uint64_t nextJob=1;bool running=false;Handle activeFile=nullptr;__
 bool WorkValid(Work* p){for(auto& w:works)if(&w==p&&w.used)return true;return false;}
 uint32_t Transfer(bool write,Handle file,void* data,Dword bytes,const int64_t* position,uint64_t& count){
     count=0;if(!bytes){native::IoStatus io;uint64_t size[3]{};return native::NtQueryInformationFile(file,&io,size,sizeof(size),5);}
-    while(count<bytes){const auto chunk=Dword(bytes-count>512?512:bytes-count);native::IoStatus io;int64_t offset=position?*position+int64_t(count):0;
+    while(count<bytes){
+#ifdef GUARDIAN_DESKTOP_RUNTIME
+        const uint64_t limit=write?512u:16384u;
+#else
+        const uint64_t limit=512;
+#endif
+        const auto chunk=Dword(bytes-count>limit?limit:bytes-count);native::IoStatus io;int64_t offset=position?*position+int64_t(count):0;
         const auto s=write?native::NtWriteFile(file,nullptr,nullptr,nullptr,&io,static_cast<uint8_t*>(data)+count,chunk,position?&offset:nullptr,nullptr):native::NtReadFile(file,nullptr,nullptr,nullptr,&io,static_cast<uint8_t*>(data)+count,chunk,position?&offset:nullptr,nullptr);
         if(s)return s;count+=io.information;if(io.information<chunk)break;}return 0;
 }

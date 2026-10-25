@@ -24,7 +24,13 @@ extern "C" Handle KbCreateSemaphoreExW(SecurityAttributes* a,int32_t initial,int
 extern "C" Dword KbWaitForSingleObjectEx(Handle h,Dword ms,Bool alertable){int64_t ticks=-int64_t(ms)*10000;const auto s=native::NtWaitForSingleObject(h,uint8_t(alertable!=0),ms==UINT32_MAX?nullptr:&ticks);return s<0x80000000?s:Fail(Error(s),UINT32_MAX);}
 extern "C" Bool KbDisableThreadLibraryCalls(Handle){return Fail(50,0);}
 extern "C" Bool KbAreFileApisANSI(){return 1;}
-extern "C" Bool KbGetHandleInformation(Handle h,Dword* flags){if(!flags)return Fail(87,0);if(auto* f=File(h)){*flags=f->inherit?1u:0u;return 1;}return Fail(6,0);}
+extern "C" Bool KbGetHandleInformation(Handle h,Dword* flags){if(!flags)return Fail(87,0);if(auto* f=File(h)){*flags=f->inherit?1u:0u;return 1;}
+#ifdef GUARDIAN_DESKTOP_RUNTIME
+    uint32_t data[14]{},returned=0;const auto status=native::NtQueryObject(h,0,data,sizeof(data),&returned);if(status)return Ok(status);*flags=data[0]&3;return 1;
+#else
+    return Fail(6,0);
+#endif
+}
 extern "C" Bool KbSetHandleInformation(Handle h,Dword mask,Dword flags){if((mask|flags)&~1u)return Fail(50,0);if(auto* f=File(h)){if(mask&1)f->inherit=(flags&1)!=0;return 1;}return Fail(6,0);}
 extern "C" Dword KbGetCurrentProcessorNumber(){return 0;}
 extern "C" void KbFlushProcessWriteBuffers(){_mm_mfence();}

@@ -9,6 +9,7 @@ uint32_t Options(CpuOptions c) {
 }
 } // namespace
 SessionSnapshot KernelBootSession::Capture() {
+    state::Require(!desktopBackend_,"Desktop checkpoints are not implemented");
     state::Require(!externalGuiKernel_&&!externalPeKernel_,"External PE snapshots are not implemented");
     if(resourceSession_)return resourceSession_->Capture();
     state::Require(prepared_ && (!ran_ || paused_), "Snapshot requires a prepared or paused guest");
@@ -55,6 +56,7 @@ SessionSnapshot KernelBootSession::Capture() {
     return out;
 }
 void KernelBootSession::Restore(const SessionSnapshot &saved) {
+    state::Require(!desktopBackend_,"Desktop checkpoints are not implemented");
     state::Require(!externalGuiKernel_&&!externalPeKernel_,"External PE snapshots are not implemented");
     if(resourceSession_){resourceSession_->Restore(saved);return;}
     state::Require(prepared_ && !ran_, "Restore requires a fresh candidate session");

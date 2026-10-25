@@ -154,7 +154,11 @@ Status Restore(const Reader& r,Function fn,Context& c,bool inspect,HandlerType t
             if(!machine && !r.Pop(c,c.rip))return Status::Access;return Status::Ok;
         }
         Function parent{};if(!r.Meta(fn.info+4+((h[2]+1u)&~1u)*2,&parent,12))return Status::Access;
-        if(!Valid(r.image,parent) || parent.begin>=fn.begin)return Status::Invalid;
+        if(!Valid(r.image,parent)
+#ifndef GUARDIAN_DESKTOP_NATIVE
+           ||parent.begin>=fn.begin
+#endif
+        )return Status::Invalid;
         Function table{};bool found=false;const auto status=Lookup(r,r.image.base+parent.begin,table,found);if(status!=Status::Ok)return status;
         if(!found || table.begin!=parent.begin || table.end!=parent.end || table.info!=parent.info)return Status::Invalid;fn=parent;
     }

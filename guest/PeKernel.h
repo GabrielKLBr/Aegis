@@ -7,6 +7,10 @@ uint32_t ProcessCreatePeService(uint32_t,const char*,uint32_t&,uint64_t&) noexce
 #endif
 #endif
 #include "ProcessManager.h"
+#ifdef GUARDIAN_DESKTOP_NATIVE
+#include "guardian/Exception.h"
+uint32_t ProcessDesktopContext(uint32_t,uint32_t,guardian::exceptions::Context&,bool) noexcept;
+#endif
 uint32_t PeMappingChecks(guardian::processes::Manager&,guardian::memory::Manager&,void (*)(bool,uint32_t) noexcept) noexcept;
 bool PePrepareProcess(guardian::processes::Manager&,guardian::memory::Manager&,uint32_t pid,uint64_t& startup,const char* childCommand=nullptr,const char* application=nullptr) noexcept;
 bool PeOwnsProcess(uint32_t pid) noexcept;

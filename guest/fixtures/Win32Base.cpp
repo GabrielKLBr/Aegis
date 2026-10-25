@@ -122,3 +122,7 @@ extern "C" int KbDllEntry(void*,Dword reason,void*){if(reason==1){mutex=win::Cre
         GuardianCrtFlsCleanup();
 #endif
         if(heap)native::RtlDestroyHeap(heap);if(mutex)win::CloseHandle(mutex);heap=mutex=nullptr;}return 1;}
+
+#ifdef GUARDIAN_DESKTOP_RUNTIME
+#include "DesktopWin32.inl"
+#endif

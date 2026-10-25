@@ -71,7 +71,11 @@ bool Loader::Headers(uint32_t index) noexcept {
         s.rva=U32(sh+12);s.rawBytes=U32(sh+16);s.raw=U32(sh+20);s.flags=U32(sh+36);s.bytes=U32(sh+8);if(s.bytes<s.rawBytes)s.bytes=s.rawBytes;
         if(!s.bytes || (s.rva&4095) || s.rva<previous || !Range(s.rva,s.bytes,m.size) || !(s.flags&ReadFlag) ||
             ((s.flags&WriteFlag) && (s.flags&ExecuteFlag)))return Fail(Error::InvalidImage);
-        if(s.rawBytes && ((s.raw&511) || (s.rawBytes&511) || s.raw<m.headers || !Range(s.raw,s.rawBytes,source.bytes)))return Fail(Error::InvalidImage);
+        if(s.rawBytes && ((s.raw&511) ||
+#ifndef GUARDIAN_DESKTOP_NATIVE
+            (s.rawBytes&511) ||
+#endif
+            s.raw<m.headers || !Range(s.raw,s.rawBytes,source.bytes)))return Fail(Error::InvalidImage);
         for(uint32_t j=0;j<i;++j){const auto& p=m.sections[j];if(s.rawBytes && p.rawBytes && s.raw<p.raw+p.rawBytes && p.raw<s.raw+s.rawBytes)return Fail(Error::InvalidImage);}
         previous=s.rva+Pages(s.bytes);
     }
@@ -260,6 +264,14 @@ bool Loader::Exceptions(Module& m) noexcept {
             if(!Read(m,tail,&handler,4) || !handler || !Span(m,handler,1,ReadFlag|ExecuteFlag))return Fail(Error::InvalidImage);
         }
         if(flags==4){
+#ifdef GUARDIAN_DESKTOP_NATIVE
+            uint32_t seen[32]{},visited=0,current=unwind;uint8_t record[4]{};for(uint32_t j=0;j<4;++j)record[j]=h[j];
+            for(;;){if(visited==32)return Fail(Error::Limit);for(uint32_t j=0;j<visited;++j)if(seen[j]==current)return Fail(Error::InvalidImage);seen[visited++]=current;
+                if(record[2]>64)return Fail(Error::InvalidImage);const auto tail=current+4+((uint32_t(record[2])+1)&~1u)*2;uint8_t chained[12]{};if(!Read(m,tail,chained,12))return false;bool found=false;
+                for(uint32_t at=0;at<d.bytes;at+=12){uint8_t entry[12]{};if(!Read(m,d.rva+at,entry,12))return false;if(U32(entry)==U32(chained)&&U32(entry+4)==U32(chained+4)&&U32(entry+8)==U32(chained+8)){found=true;break;}}
+                if(!found||!Read(m,U32(chained+8),record,4)||record[3]!=h[3])return Fail(Error::InvalidImage);current=U32(chained+8);if((record[0]>>3)!=4)break;
+            }
+#else
             // A secondary record must refer to an already validated .pdata
             // entry. Strictly backward edges bound traversal and exclude cycles.
             const auto tail=unwind+4+((uint32_t(h[2])+1)&~1u)*2;uint8_t chained[12]{};
@@ -268,6 +280,7 @@ bool Loader::Exceptions(Module& m) noexcept {
                 if(U32(entry)==U32(chained) && U32(entry+4)==U32(chained+4) && U32(entry+8)==U32(chained+8)){found=true;break;}}
             uint8_t primary[4]{};
             if(!found || !Read(m,U32(chained+8),primary,4) || primary[3]!=h[3])return Fail(Error::InvalidImage);
+#endif
         }
         last=end;++m.functions;
     }return true;

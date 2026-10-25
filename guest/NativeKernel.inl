@@ -27,6 +27,10 @@ bool PeNativePrepare(uint32_t pid,guardian::threads::Scheduler& scheduler) noexc
     if(!Write(&c,slot->nativePeb,peb,sizeof(peb))||!Write(&c,slot->initialTeb+0x60,&slot->nativePeb,8)||!c.memory->NativeSharedData(c.processes->Get(pid)->space,shared))return false;
     native::Bridge bridge;bridge.context=slot;
     bridge.executable=[](void* raw,uint64_t pc) noexcept {return static_cast<RuntimeSlot*>(raw)->image.Executable(pc);};
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    bridge.threadContext=[](void* raw,uint32_t thread,exceptions::Context& context,bool write) noexcept {return ProcessDesktopContext(static_cast<RuntimeSlot*>(raw)->pid,thread,context,write);};
+    bridge.catalog=[](void* raw,const char* path,uint64_t offset,void* out,uint32_t count,uint32_t& read,uint32_t& total) noexcept {uint32_t size=0;const auto* file=static_cast<RuntimeSlot*>(raw)->catalog.File(path,size);read=0;total=size;if(!file||offset>size)return false;read=count<size-offset?count:uint32_t(size-offset);if(read)memcpy(out,file+offset,read);return true;};
+#endif
     bridge.thread=[](void* raw,uint64_t entry,uint64_t argument,bool suspended,uint32_t& tid,uint64_t& handle) noexcept {return ProcessCreatePeThread(static_cast<RuntimeSlot*>(raw)->pid,entry,argument,suspended,tid,handle);};
     bridge.exit=[](void* raw,uint32_t code,bool process) noexcept {auto& s=*static_cast<RuntimeSlot*>(raw);return ProcessNativeTerminate(s.pid,s.nativeTid,code,process);};
 #ifdef GUARDIAN_SECURITY_NATIVE
@@ -58,6 +62,9 @@ bool PeNativeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f,
     // and runtime modules. Other user code uses the native service domain.
     if(PeNativeLegacy(pid,f.rip))return false;
 #ifdef GUARDIAN_WIN32_NATIVE
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    if(f.rax==0xA7&&NativeCode(*slot,"win32u.dll",f.rip)){status=DesktopDispatch(*slot,tid,now,f.rdx);return true;}
+#endif
 #ifdef GUARDIAN_SECURITY_NATIVE
     if(f.rax==0xA6&&NativeCode(*slot,"advapi32.dll",f.rip)){
         security::Request request;status=87;
@@ -67,7 +74,7 @@ bool PeNativeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f,
         if(!slot->nativeServices->Write(f.rdx,&request,sizeof(request)))status=998;telemetry::End(event,status);return true;
     }
 #endif
-    if(f.rax==0xA4&&NativeCode(*slot,"kernelbase.dll",f.rip)){status=Win32Dispatch(*slot,f.rdx);return true;}
+    if(f.rax==0xA4&&NativeCode(*slot,"kernelbase.dll",f.rip)){slot->nativeTid=tid;status=Win32Dispatch(*slot,f.rdx);return true;}
 #ifdef GUARDIAN_CRT_NATIVE
     if(f.rax==0xA5&&NativeCode(*slot,"ntdll.dll",f.rip)){win32::Request r;if(!slot->nativeServices->Read(f.rdx,&r,sizeof(r))||(r.op!=21&&r.op!=22)){status=native::Invalid;return true;}status=Win32Dispatch(*slot,f.rdx);return true;}
 #endif

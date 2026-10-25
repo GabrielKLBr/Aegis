@@ -1,6 +1,10 @@
 #include "PeKernel.h"
 #ifdef GUARDIAN_NATIVE_NT
 #include "NativeServices.h"
+#ifdef GUARDIAN_DESKTOP_NATIVE
+#include "Desktop.h"
+namespace {extern guardian::desktop::Core desktopCore;bool DesktopFinish() noexcept;}
+#endif
 #ifdef GUARDIAN_SECURITY_NATIVE
 #include "Security.h"
 namespace {guardian::security::Core securityCore;}
@@ -451,6 +455,9 @@ uint64_t PeInitialTeb(uint32_t pid) noexcept {
 #endif
 }
 void PeThreadGone(uint32_t pid,uint32_t tid) noexcept {
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    desktopCore.Exit(pid,tid);
+#endif
 #ifdef GUARDIAN_SCALABLE_PE
     if(auto* slot=Find(pid))slot->catalog.ThreadExit(tid);
 #else
@@ -478,6 +485,9 @@ bool PeExitProcess(uint32_t pid,uint32_t code,bool fault) noexcept {
 #ifdef GUARDIAN_SECURITY_NATIVE
     securityCore.Exit(pid);
 #endif
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    desktopCore.Exit(pid);
+#endif
 #ifdef GUARDIAN_NATIVE_NT
     if(slot->nativeReady&&!slot->nativeServices->Exit()){allClean=false;return false;}
     slot->nativeReady=false;
@@ -496,6 +506,9 @@ bool PeExitProcess(uint32_t pid,uint32_t code,bool fault) noexcept {
 bool PeProcessPassed() noexcept {for(const auto& s:runtimes)if(s.pid)return false;
 #ifdef GUARDIAN_SECURITY_NATIVE
     if(!securityCore.Finish())return false;
+#endif
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    if(!DesktopFinish())return false;
 #endif
 #ifdef GUARDIAN_WIN32_NATIVE
     if(!Win32StorageFinish()||!runtimes.Release())return false;
@@ -857,6 +870,9 @@ uint32_t RefreshThread(RuntimeSlot& slot,uint32_t tid,uint64_t startup) noexcept
 #endif
 #ifdef GUARDIAN_NATIVE_NT
 #ifdef GUARDIAN_WIN32_NATIVE
+#ifdef GUARDIAN_DESKTOP_NATIVE
+#include "DesktopKernel.inl"
+#endif
 #include "Win32Kernel.inl"
 #endif
 #include "NativeKernel.inl"

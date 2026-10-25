@@ -100,7 +100,13 @@ bool Catalog::Manifest(const uint8_t* data,uint32_t bytes,uint32_t& mask,uint32_
     while(at<bytes){if(Space(xml[at])){++at;continue;}if(xml[at]!='<')return false;++at;
         if(xml[at]=='?'){if(declaration||assembly||at+5>=bytes||xml[at+1]!='x'||xml[at+2]!='m'||xml[at+3]!='l'||!Space(xml[at+4]))return false;declaration=true;
             while(at+1<bytes&&!(xml[at]=='?'&&xml[at+1]=='>'))++at;if(at+1>=bytes)return false;at+=2;continue;}
-        if(xml[at]=='!')return false;bool closing=false;if(xml[at]=='/'){closing=true;++at;}
+        if(xml[at]=='!'){
+#ifdef GUARDIAN_DESKTOP_NATIVE
+            if(at+2>=bytes||xml[at+1]!='-'||xml[at+2]!='-')return false;at+=3;bool ended=false;while(at+2<bytes){if(xml[at]=='-'&&xml[at+1]=='-'){if(xml[at+2]!='>')return false;at+=3;ended=true;break;}++at;}if(!ended)return false;continue;
+#else
+            return false;
+#endif
+        }bool closing=false;if(xml[at]=='/'){closing=true;++at;}
         char tag[64]{};uint32_t n=0;while(at<bytes&&Word(xml[at])){if(n==63)return false;tag[n++]=xml[at++];}if(!n||++tokens>128)return false;
         if(closing){while(Space(xml[at]))++at;if(xml[at++]!='>'||!depth||!Equal(stack[depth-1],tag))return false;
             if(Equal(tag,"dependentAssembly"))dependent=0;--depth;continue;}
@@ -111,7 +117,14 @@ bool Catalog::Manifest(const uint8_t* data,uint32_t bytes,uint32_t& mask,uint32_
             Equal(tag,"dependentAssembly")?Equal(parent,"dependency"):
             Equal(tag,"compatibility")?Equal(parent,"assembly"):
             Equal(tag,"application")?Equal(parent,"compatibility"):
-            Equal(tag,"supportedOS")?Equal(parent,"application"):false;
+            Equal(tag,"supportedOS")?Equal(parent,"application"):
+#ifdef GUARDIAN_DESKTOP_NATIVE
+            Equal(tag,"trustInfo")?Equal(parent,"assembly"):
+            Equal(tag,"security")?Equal(parent,"trustInfo"):
+            Equal(tag,"requestedPrivileges")?Equal(parent,"security"):
+            Equal(tag,"requestedExecutionLevel")?Equal(parent,"requestedPrivileges"):
+#endif
+            false;
         if(!allowed)return false;
         char identity[64]{},version[64]{},arch[64]{},type[64]{},guid[64]{},keys[16][64]{};bool self=false;
         for(uint32_t attrs=0;;++attrs){if(attrs>16)return false;while(Space(xml[at]))++at;
@@ -124,6 +137,11 @@ bool Catalog::Manifest(const uint8_t* data,uint32_t bytes,uint32_t& mask,uint32_
             if(at>=bytes)return false;++at;
             char* target=nullptr;if(Equal(key,"name"))target=identity;else if(Equal(key,"version"))target=version;else if(Equal(key,"processorArchitecture"))target=arch;
             else if(Equal(key,"type"))target=type;else if(Equal(key,"Id"))target=guid;
+
+#ifdef GUARDIAN_DESKTOP_NATIVE
+            else if(Equal(key,"level")){if(!Equal(tag,"requestedExecutionLevel")||!Equal(value,"asInvoker"))return false;identity[0]='a';}
+            else if(Equal(key,"uiAccess")){if(!Equal(tag,"requestedExecutionLevel")||!Equal(value,"false"))return false;}
+#endif
             else if(!Equal(key,"xmlns")&&!Equal(key,"manifestVersion"))return false;
             if(Equal(key,"manifestVersion")&&!Equal(value,"1.0"))return false;
             if(target){if(n>=64||target[0])return false;for(uint32_t i=0;i<n;++i)target[i]=value[i];}
@@ -140,7 +158,14 @@ bool Catalog::Manifest(const uint8_t* data,uint32_t bytes,uint32_t& mask,uint32_
         }
         if(Equal(tag,"supportedOS")){if(Equal(guid,"{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"))mode=2;
             else if(Equal(guid,"{1f676c76-80e1-4239-95bb-83d0f6d0da78}")&&mode<1)mode=1;}
-        if(Equal(tag,"comClass")||Equal(tag,"windowClass")||Equal(tag,"file")||Equal(tag,"trustInfo")||Equal(tag,"requestedPrivileges"))return false;
+        if(Equal(tag,"comClass")||Equal(tag,"windowClass")||Equal(tag,"file")
+#ifndef GUARDIAN_DESKTOP_NATIVE
+           ||Equal(tag,"trustInfo")||Equal(tag,"requestedPrivileges")
+#endif
+        )return false;
+#ifdef GUARDIAN_DESKTOP_NATIVE
+        if(Equal(tag,"requestedExecutionLevel")&&identity[0]!='a')return false;
+#endif
         if(!self){if(depth==16)return false;for(uint32_t i=0;i<64;++i)stack[depth][i]=tag[i];++depth;}
         else if(Equal(tag,"dependentAssembly"))dependent=0;
     }return assembly&&!depth;

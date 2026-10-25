@@ -6,6 +6,7 @@
 #include "../compatibility/Binding.h"
 #include "../hardware/DriverBackend.h"
 #include "../gui/Backend.h"
+#include "../gui/DesktopBackend.h"
 #include "../net/Network.h"
 #include "SessionSnapshot.h"
 #include "BootChannel.h"
@@ -70,7 +71,7 @@ bool WhpAvailable();
 void WriteBootReport(const std::filesystem::path& path, const std::vector<BootResult>& rows);
 class KernelBootSession {
 public:
-    void Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu = {},const StorageOptions& storage={},const net::Options& networking={},const gui::Options& graphics={},const hardware::Profile* hardware=nullptr,const hardware::DriverOptions& driver={},const storage::SparseOptions* scalable=nullptr,const guardian::environment::Info* environment=nullptr,const guardian::telemetry::Policy* analysisPolicy=nullptr,uint32_t analysisScenario=0,std::span<const uint8_t> externalGui={},const guardian::nt::Info* compatibility=nullptr,std::span<const uint8_t> externalVolume={},std::span<const uint8_t> securityState={});
+    void Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu = {},const StorageOptions& storage={},const net::Options& networking={},const gui::Options& graphics={},const hardware::Profile* hardware=nullptr,const hardware::DriverOptions& driver={},const storage::SparseOptions* scalable=nullptr,const guardian::environment::Info* environment=nullptr,const guardian::telemetry::Policy* analysisPolicy=nullptr,uint32_t analysisScenario=0,std::span<const uint8_t> externalGui={},const guardian::nt::Info* compatibility=nullptr,std::span<const uint8_t> externalVolume={},std::span<const uint8_t> securityState={},const desktop_session::Options& desktop={});
     BootResult Run(std::chrono::milliseconds timeout = std::chrono::seconds(3), bool suspendAtDeadline = false);
     void PauseAtGraphicsRequest(uint64_t n){pauseAtGraphics_=n;}
     void PauseAtDriverWrite(uint32_t n){pauseAtDriverWrite_=n;}
@@ -117,6 +118,7 @@ private:
     BootChannel channel_{0};
     uint64_t ramBytes_ = 0, bootId_ = 0, exceptionExitBitmap_ = 0;
     std::unique_ptr<gui::Backend> graphicsBackend_;
+    std::unique_ptr<desktop_session::Backend> desktopBackend_;
     guardian::graphics::Report graphicsReport_{};
     bool graphicsReportValid_=false;
     uint64_t pauseAtGraphics_=0;

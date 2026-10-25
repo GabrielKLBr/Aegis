@@ -21,6 +21,7 @@ public:
     uint32_t VersionMode() const noexcept {return versionMode_;}
     const char* RootName() const noexcept {return sourceCount_?sources_[0].name:nullptr;}
     const uint8_t* File(const char*,uint32_t& bytes) const noexcept;
+    const pevolume::Header* VolumeHeader() const noexcept {return header_;}
 private:
     uint32_t FindDepth(const char*,const char*,uint32_t) const noexcept;
 #ifdef GUARDIAN_WIN32_NATIVE

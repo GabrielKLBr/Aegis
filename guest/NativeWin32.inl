@@ -13,7 +13,11 @@ uint32_t Services::Win32(uint32_t op,uint64_t* a) noexcept {
     if(op==8){const auto counts=memory_->physical.Statistics();a[0]=memory_->physical.Bytes();a[1]=counts.free*4096;a[2]=memory::ArenaBytes;a[3]=memory::ArenaBytes;
         for(const auto& r:processes_->Get(pid_)->space.regions)if(r.used)a[3]-=r.bytes;return 0;}
     if(op!=1&&op!=2)return NotImplemented;
-    auto* h=Find(a[0]);if(!h||h->kind!=2)return InvalidHandle;
+    auto* h=Find(a[0]);if(!h)return InvalidHandle;
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    if(h->kind==5){if(op==2)return Denied;if(a[2]>2)return Invalid;const uint64_t start=a[2]==0?0:a[2]==1?h->position:h->index;const auto distance=int64_t(a[1]);if((distance<0&&(distance==INT64_MIN||uint64_t(-distance)>start))||(distance>=0&&uint64_t(distance)>INT64_MAX-start))return Invalid;h->position=distance<0?start-uint64_t(-distance):start+uint64_t(distance);a[3]=h->position;return 0;}
+#endif
+    if(h->kind!=2)return InvalidHandle;
     if(op==1){storage::Command size;size.op=storage::Op::FileSize;size.handle=h->raw;const auto status=Files().Execute(pid_,token,size);if(status)return status;
         if(a[2]>2)return Invalid;const uint64_t start=a[2]==0?0:(a[2]==1?h->position:size.transferred);const auto distance=int64_t(a[1]);
         if((distance<0&&(distance==INT64_MIN||uint64_t(-distance)>start))||(distance>=0&&uint64_t(distance)>INT64_MAX-start))return 0xE1000001;

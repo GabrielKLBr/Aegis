@@ -17,6 +17,9 @@ bool Win32StorageStart(RuntimeSlot& slot,threads::Scheduler& scheduler) noexcept
     memcpy(win32Disk,reinterpret_cast<const void*>(security::StateGpa),sizeof(win32Disk));
 #endif
     win32Storage.Configure(nullptr,Win32Block,scheduler);if(win32Storage.Mount())return false;win32Mounted=true;
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    if(!DesktopStart(slot,scheduler))return false;
+#endif
 #ifdef GUARDIAN_SECURITY_NATIVE
     security::Bridge bridge;
     bridge.clock=[](void*) noexcept ->uint64_t {const auto* boot=reinterpret_cast<const abi::BootInfo*>(0x100000);time::Sample clock{};return time::ReadPublished(*reinterpret_cast<const volatile cpu::Clock*>(cpu::ClockGpa),boot->bootId,clock)?clock.utc100ns:0;};
@@ -25,6 +28,10 @@ bool Win32StorageStart(RuntimeSlot& slot,threads::Scheduler& scheduler) noexcept
     if(!securityCore.Initialize(*slot.context.processes,scheduler,win32Storage,bridge))return false;
 #endif
     storage::Command c;c.op=storage::Op::Mkdir;memcpy(c.path,"C:\\App",7);const auto status=win32Storage.Execute(slot.pid,slot.context.processes->Get(slot.pid)->token,c);
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    if(status&&status!=storage::Collision)return false;
+    if(const auto* header=slot.catalog.VolumeHeader())for(uint32_t i=0;i<header->files;++i){const auto& file=header->entries[i];if(file.kind!=pevolume::Kind::Data||file.bytes>storage::DataBytes||!pevolume::Prefix(file.path,"c:\\app\\"))continue;storage::Kind kind{};const auto& token=slot.context.processes->Get(slot.pid)->token;if(win32Storage.QueryKind(token,file.path,kind)!=storage::NotFound)continue;storage::Command open;open.op=storage::Op::Open;memcpy(open.path,file.path,128);open.access=storage::Read|storage::Write;open.disposition=1;if(win32Storage.Execute(slot.pid,token,open))return false;uint32_t bytes=0;const auto* content=slot.catalog.File(file.path,bytes);storage::Command write;write.op=storage::Op::Write;write.handle=open.handle;write.length=bytes;memcpy(write.data,content,bytes);if(win32Storage.Execute(slot.pid,token,write))return false;storage::Command close;close.op=storage::Op::Close;close.handle=open.handle;if(win32Storage.Execute(slot.pid,token,close))return false;}
+#endif
     return !status||status==storage::Collision;
 }
 bool Win32Parameters(RuntimeSlot& slot,uint8_t (&peb)[4096]) noexcept {
@@ -68,6 +75,9 @@ uint32_t Win32Dispatch(RuntimeSlot& slot,uint64_t pointer) noexcept {
 #ifdef GUARDIAN_CRT_NATIVE
     else if(request.op==21){unwind::Image image{};if(!StackImage(&slot,request.args[0],image))result=native::Invalid;else {request.args[1]=image.base;request.args[2]=image.size;request.args[3]=image.table;request.args[4]=image.count;result=0;}}
     else if(request.op==22){result=native::Invalid;for(uint32_t i=0;i<pe::MaxModules;++i)if(const auto* m=slot.image.Get(i);m&&request.args[0]>=m->base&&request.args[0]-m->base<m->size){request.args[1]=m->base;result=0;break;}}
+#endif
+#ifdef GUARDIAN_DESKTOP_NATIVE
+    else if(request.op==24)result=slot.nativeServices->DesktopThread(slot.nativeTid,request.args);
 #endif
     else result=slot.nativeServices->Win32(request.op,request.args);
     if(!slot.nativeServices->Write(pointer,&request,sizeof(request)))result=native::AccessViolation;return telemetry::End(event,result);

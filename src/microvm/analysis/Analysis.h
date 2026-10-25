@@ -10,6 +10,7 @@ class Trace {
 public:
     void Configure(uint64_t boot,const Policy& policy={});
     bool Accept(Event&,uint64_t observedNs);
+    void RecordCapacity(uint32_t);
     void Reject() noexcept {++rejected_;complete_=false;}
     void Complete(bool success) noexcept {finished_=true;complete_=success&&!rows_.empty()&&!dropped_&&!rejected_&&pending_.empty();}
     void Save(state::Writer&) const;
@@ -24,7 +25,7 @@ public:
     const Policy& Configuration() const {return policy_;}
 private:
     uint64_t boot_=0,lastSequence_=0,lastNs_=0,dropped_=0,rejected_=0;
-    Policy policy_{};bool finished_=false,complete_=false;
+    Policy policy_{};uint32_t recordCapacity_=DefaultEvents;bool finished_=false,complete_=false;
     std::vector<Record> rows_;
     std::vector<Event> pending_;
 };
