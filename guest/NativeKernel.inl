@@ -1,4 +1,7 @@
 // Included by PeKernel.cpp, after the loader/runtime definitions.
+#ifdef GUARDIAN_INTERNET_NATIVE
+#include "InternetKernel.inl"
+#endif
 #ifdef GUARDIAN_COMPONENT_NATIVE
 #include "ComponentKernel.inl"
 #endif
@@ -65,6 +68,9 @@ bool PeNativeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f,
     // and runtime modules. Other user code uses the native service domain.
     if(PeNativeLegacy(pid,f.rip))return false;
 #ifdef GUARDIAN_WIN32_NATIVE
+#ifdef GUARDIAN_INTERNET_NATIVE
+    if(f.rax==0xA9&&NativeCode(*slot,"guardianinet.dll",f.rip)){status=InternetDispatch(*slot,tid,f.rdx);return true;}
+#endif
 #ifdef GUARDIAN_COMPONENT_NATIVE
     if(f.rax==0xA8&&NativeCode(*slot,"combase.dll",f.rip)){status=ComponentDispatch(*slot,tid,f.rdx);return true;}
 #endif

@@ -54,7 +54,7 @@ inline bool Valid(const uint8_t* data,uint32_t bytes) noexcept {
         if(!Text(f.path)||!Canonical(f.path,normalized)||!Equal(normalized,f.path)||f.assembly>h.assemblies||
             (f.kind!=Kind::Pe&&f.kind!=Kind::Manifest&&f.kind!=Kind::Data)||!f.bytes||f.bytes>(f.kind==Kind::Manifest?4096u:MaxFileBytes)||
             (f.offset&4095)||f.offset<previous||f.offset>bytes||f.bytes>bytes-f.offset||Hash(data+f.offset,f.bytes)!=f.hash)return false;
-        if(f.kind==Kind::Data){if(!Prefix(f.path,"c:\\app\\"))return false;uint32_t length=0;while(f.path[length])++length;if(length<4||f.path[length-4]!='.'||(!Equal(f.path+length-3,"txt")&&!Equal(f.path+length-3,"ico")&&!Equal(f.path+length-3,"dat")&&!Equal(f.path+length-3,"bin")))return false;}
+        if(f.kind==Kind::Data){if(!Prefix(f.path,"c:\\app\\"))return false;uint32_t length=0;while(f.path[length])++length;if(length<4||f.path[length-4]!='.'||(!Equal(f.path+length-3,"txt")&&!Equal(f.path+length-3,"ico")&&!Equal(f.path+length-3,"dat")&&!Equal(f.path+length-3,"bin")&&!(h.version==2&&(Equal(f.path+length-3,"cfg")||Equal(f.path+length-3,"der")))))return false;}
         if(f.assembly&&!Prefix(f.path,h.identities[f.assembly-1].directory))return false;
         for(uint32_t j=0;j<i;++j)if(Equal(f.path,FileAt(h,j).path))return false;
         previous=f.offset+f.bytes;

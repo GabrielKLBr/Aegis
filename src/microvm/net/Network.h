@@ -26,6 +26,7 @@ std::vector<uint8_t> EncodePolicy(const Policy &);
 Policy DecodePolicy(std::span<const uint8_t>);
 void Validate(const Policy &);
 bool Public(uint8_t, const Address &) noexcept;
+bool LocalEndpoint(const Address &);
 Address ParseAddress(uint8_t, const std::string &);
 const char *Label(Mode);
 // Invoked only after policy and frame validation. Lab transports move raw IP;

@@ -9,6 +9,7 @@ uint32_t Options(CpuOptions c) {
 }
 } // namespace
 SessionSnapshot KernelBootSession::Capture() {
+    state::Require(!internetBackend_,"Internet transport checkpoints are not supported");
     state::Require(!desktopBackend_,"Desktop checkpoints are not implemented");
     state::Require(!externalGuiKernel_&&!externalPeKernel_,"External PE snapshots are not implemented");
     if(resourceSession_)return resourceSession_->Capture();
@@ -56,6 +57,7 @@ SessionSnapshot KernelBootSession::Capture() {
     return out;
 }
 void KernelBootSession::Restore(const SessionSnapshot &saved) {
+    state::Require(!internetBackend_,"Internet transport checkpoints are not supported");
     state::Require(!desktopBackend_,"Desktop checkpoints are not implemented");
     state::Require(!externalGuiKernel_&&!externalPeKernel_,"External PE snapshots are not implemented");
     if(resourceSession_){resourceSession_->Restore(saved);return;}

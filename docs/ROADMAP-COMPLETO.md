@@ -1,6 +1,6 @@
 # Plano de desenvolvimento do GuardianAV e do kernel próprio
 
-Data de referência: 25/10/2026.
+Data de referência: 26/10/2026.
 Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
 
 **Revisão Windows atual:** a continuação da 12B até a 13 passou na matriz
@@ -21,7 +21,7 @@ A 14.6 acrescenta registro persistente, tokens/ACLs e serviços LocalService com
 vida útil própria: [entrega delimitada, testes e limites](PHASE-14.6.md).
 14.7 tem implementação e aceitação gráfica próprias, descritas em [PHASE-14.7.md](PHASE-14.7.md).
 A 14.8 acrescenta o lote delimitado de COM/RPC, Shell, propriedades e controles
-descrito em [PHASE-14.8.md](PHASE-14.8.md). 14.9–14.14 estão planejadas e não iniciadas. Os registros abaixo preservam o histórico das
+descrito em [PHASE-14.8.md](PHASE-14.8.md). A 14.9 acrescenta rede contida, HTTP, TLS e criptografia conforme [PHASE-14.9.md](PHASE-14.9.md). 14.10–14.14 estão planejadas e não iniciadas. Os registros abaixo preservam o histórico das
 entregas anteriores e suas pendências.
 
 **Histórico das entregas:** 12A concluída para a matriz de referência, com validação Windows/WHP e Linux/KVM. [Resultados e limites](PHASE-12A.md). A 12B está em implementação e validação: [recursos, cotas e pendências](PHASE-12B.md). O contrato próprio `resources` passou na matriz Linux (47 Debug, 47 Release e 30 ASan/UBSan), com SMP, volume escalável e pasta independente; a aceitação Windows da revisão e a integração aos perfis existentes continuam pendentes. [Continuação de 20/10](PHASE-12B-RECURSOS.md). A 12C passou na validação Linux em 21/10/2026 (50 Debug, 50 Release e 32 ASan/UBSan), com referências Windows ainda pendentes: [matriz, entrega e diferenças](PHASE-12C.md). A 12D foi autorizada em nova solicitação: sessões e interação passaram em 53 testes Debug, 53 Release e 33 ASan/UBSan na revisão estável da 12D. [Registro da 12D](PHASE-12D.md). A 12E foi implementada e aceita no Linux em 22/10/2026: 56 Debug, 56 Release e 34 ASan/UBSan, com perfis sintéticos funcionais e reproduzíveis. [Entrega e limites](PHASE-12E.md). A aceitação nativa Windows e os requisitos anteriores permanecem pendentes. A fase 13 passou na aceitação Linux em 22/10/2026: 59 Debug, 59 Release e 35 ASan/UBSan, com telemetria, políticas e análise comportamental. [Entrega e limites](PHASE-13.md). A aceitação Windows e os requisitos anteriores continuam abertos; a fase 14 não foi iniciada. Os registros históricos abaixo conservam os resultados e pendências da época.
@@ -834,6 +834,8 @@ encerramento de servidores testados por perfil. Parar ao concluir.
 
 ### Subfase 14.9 — Rede, HTTP, criptografia e certificados
 
+**Entrega delimitada:** [PHASE-14.9.md](PHASE-14.9.md). Dez DLLs próprias, transporte de camada 4 limitado, HTTP/WinINet, TLS 1.2 e chaves/certificados virtuais para o corpus Win10 x64. Rede offline por padrão; sem TLS, DNS ou credenciais pessoais do host. Matriz exigida: 133 Release e 58 Debug, com provas estáveis na build privada.
+
 **Dependências:** 14.4/14.6/14.8 e rede contida da fase 10.
 
 **Trabalho:** atender `ws2_32.dll`, `mswsock.dll`, `dnsapi.dll`, `iphlpapi.dll`,
@@ -1068,7 +1070,7 @@ PHASE-14.4.md. A 14.5 implementa o corpus CRT original delimitado em
 PHASE-14.5.md. Rethrow/nested C++ e compatibilidade CRT geral continuam abertos.
 A 14.6 implementa a matriz delimitada de segurança/registro/serviços descrita em
 PHASE-14.6.md e PHASE-14.7.md. A 14.8 entrega a matriz delimitada de componentes
-de PHASE-14.8.md. A 12F e 14.9–14.14 continuam planejadas, sem implementação iniciada. Os resultados históricos e as pendências
+de PHASE-14.8.md. A 14.9 entrega o corpus de rede e criptografia de PHASE-14.9.md. A 12F e 14.10–14.14 continuam planejadas, sem implementação iniciada. Os resultados históricos e as pendências
 anteriores permanecem identificados nos respectivos documentos.
 
 ## Referências técnicas para os novos requisitos

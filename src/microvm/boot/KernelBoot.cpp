@@ -47,7 +47,8 @@ bool WhpAvailable() {
         written >= sizeof(BOOL) && capability.HypervisorPresent;
 #endif
 }
-void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu,const StorageOptions& storage,const net::Options& networking,const gui::Options& graphics,const hardware::Profile* hardware,const hardware::DriverOptions& driver,const storage::SparseOptions* scalable,const guardian::environment::Info* environment,const guardian::telemetry::Policy* analysisPolicy,uint32_t analysisScenario,std::span<const uint8_t> externalGui,const guardian::nt::Info* compatibility,std::span<const uint8_t> externalVolume,std::span<const uint8_t> securityState,const desktop_session::Options& desktop) {
+void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu,const StorageOptions& storage,const net::Options& networking,const gui::Options& graphics,const hardware::Profile* hardware,const hardware::DriverOptions& driver,const storage::SparseOptions* scalable,const guardian::environment::Info* environment,const guardian::telemetry::Policy* analysisPolicy,uint32_t analysisScenario,std::span<const uint8_t> externalGui,const guardian::nt::Info* compatibility,std::span<const uint8_t> externalVolume,std::span<const uint8_t> securityState,const desktop_session::Options& desktop,const internet_session::Policy* internet) {
+    Require(!internet||image.SupportsInternet(),"Internet policy requires its kernel");
     Require(image.SupportsDesktop()||(!desktop.telemetryCapacity&&desktop.output.empty()&&desktop.script.empty()&&!desktop.interactive&&!desktop.poll&&!desktop.display),"Desktop options require their kernel");
     constexpr uint64_t securityGpa=0x5000000,securityBytes=65536;
     Require(securityState.empty()||(image.SupportsSecurity()&&securityState.size()==securityBytes),"Security state requires its kernel and exactly 64 KiB");
@@ -297,6 +298,18 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
         const auto info=graphicsBackend_->Enumeration();std::memcpy(ram+guardian::graphics::InfoGpa,&info,sizeof(info));
         Require(vm_.SetMemoryAccess(guardian::graphics::InfoGpa,PageBytes,1),"Graphics enumeration protection failed");
         vm_.MapIoTrapDetailed(guardian::graphics::Port,[this](MicroVm&,const MicroVm::IoAccess& a){GraphicsControl(a);});
+    }
+    if(image.SupportsInternet()){
+        internetBackend_=std::make_unique<internet_session::Backend>(internet?*internet:internet_session::Policy{});
+        internetReport_=desktop.output.empty()?std::filesystem::path{}:desktop.output/"internet.json";
+        Require(vm_.SetMemoryAccess(guardian::internet::PacketGpa,4096,3),"Internet channel mapping failed");
+        vm_.MapIoTrapDetailed(guardian::internet::Port,[this](MicroVm&,const MicroVm::IoAccess& access){
+            if(!ValidIo(access)||access.value!=1||!internetBackend_){vm_.FailExecution(L"Internet channel rejected");return;}
+            auto* data=static_cast<uint8_t*>(vm_.RamData());guardian::internet::Request request;
+            std::memcpy(&request,data+guardian::internet::PacketGpa,sizeof(request));
+            if(!internetBackend_->Exchange(request)){vm_.FailExecution(L"Internet request rejected");return;}
+            std::memcpy(data+guardian::internet::PacketGpa,&request,sizeof(request));
+        });
     }
     if(cpu.network){
         auto transport=networking.transport?networking.transport:(networking.policy.mode==guardian::net::Mode::Lab?net::LabTransport(networking):
@@ -630,6 +643,7 @@ BootResult KernelBootSession::Run(std::chrono::milliseconds timeout, bool suspen
     if(desktopBackend_){r.success=r.success&&desktopBackend_->Completed();desktopBackend_->Export();}
     if(cpuOptions_.network)r.success=r.success&&networkReportValid_&&networkReport_.checks==(analysisKernel_?1u:guardian::net::RequiredChecks)&&(!analysisKernel_||networkReport_.userCalls>=1)&&networkReport_.sent==r.networkSent&&networkReport_.received==r.networkReceived&&networkReport_.denied==r.networkDenied;
     if(networkBackend_)networkBackend_->Export();
+    if(internetBackend_&&!internetReport_.empty())state::AtomicText(internetReport_,internetBackend_->Json());
     if (!r.success && !r.paused) {
         if (!channel_.Error().empty()) r.error = channel_.Error();
         else if (!vm_.Error().empty()) r.error = Narrow(vm_.Error());

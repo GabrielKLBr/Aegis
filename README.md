@@ -10,6 +10,10 @@ O lote de componentes COM/RPC, Shell e controles do MiniNT está descrito na
 [entrega delimitada da fase 14.8](docs/PHASE-14.8.md), com critérios de aceitação
 e limitações explícitos.
 
+A fase 14.9 acrescenta rede contida, HTTP, TLS 1.2 no convidado, CNG e lojas
+virtuais de chaves/certificados: [escopo e validação](docs/PHASE-14.9.md).
+A implementação atende um corpus delimitado de Windows 10 x64.
+
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem
 recriar seus dados compilados: [preparação a partir dos fontes](docs/GITHUB-AEGIS.md).

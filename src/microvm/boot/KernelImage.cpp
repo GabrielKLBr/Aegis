@@ -119,6 +119,10 @@ bool KernelImage::SupportsComponents() const noexcept {
     constexpr char tag[]="GuardianComponent/1/guest";
     return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();
 }
+bool KernelImage::SupportsInternet() const noexcept {
+    constexpr char tag[]="GuardianInternet/1/guest";
+    return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();
+}
 bool KernelImage::SupportsSecurity() const noexcept {
     constexpr char tag[]="GuardianSecurity/1/guest";
     return std::search(file_.begin(),file_.end(),tag,tag+sizeof(tag))!=file_.end();

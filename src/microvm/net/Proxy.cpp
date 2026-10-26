@@ -129,6 +129,7 @@ bool Random(uint8_t *p, size_t n) {
 #endif
 }
 } // namespace
+bool LocalEndpoint(const Address& address){return LocalRelay(address);}
 Status UdpExchange(const Address &target, uint16_t port, std::span<const uint8_t> request,
                    std::vector<uint8_t> &response) {
     response.clear();

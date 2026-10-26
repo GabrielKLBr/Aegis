@@ -1,4 +1,8 @@
 #include "PeKernel.h"
+#ifdef GUARDIAN_INTERNET_NATIVE
+#include "guardian/Internet.h"
+namespace {void InternetExit(uint32_t) noexcept;}
+#endif
 #ifdef GUARDIAN_COMPONENT_NATIVE
 #include "Component.h"
 namespace {guardian::component::Core componentCore;}
@@ -492,6 +496,9 @@ bool PeExitProcess(uint32_t pid,uint32_t code,bool fault) noexcept {
 #endif
     (void)fault;
     auto* slot=Find(pid);if(!slot)return true;
+#ifdef GUARDIAN_INTERNET_NATIVE
+    InternetExit(pid);
+#endif
 #ifdef GUARDIAN_SECURITY_NATIVE
     securityCore.Exit(pid);
 #endif
