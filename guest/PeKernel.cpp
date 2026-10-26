@@ -15,6 +15,10 @@ namespace {guardian::component::Core componentCore;}
 #include "guardian/NativeGui.h"
 namespace {bool NativeGuiFinish() noexcept;}
 #endif
+#ifdef GUARDIAN_NATIVE_USER32
+#include "guardian/NativeUser32.h"
+namespace {bool NativeUserFinish() noexcept;void NativeUserThreadGone(uint32_t,uint32_t) noexcept;}
+#endif
 namespace {extern guardian::desktop::Core desktopCore;bool DesktopFinish() noexcept;}
 #endif
 #ifdef GUARDIAN_SECURITY_NATIVE
@@ -467,6 +471,9 @@ uint64_t PeInitialTeb(uint32_t pid) noexcept {
 #endif
 }
 void PeThreadGone(uint32_t pid,uint32_t tid) noexcept {
+#ifdef GUARDIAN_NATIVE_USER32
+    NativeUserThreadGone(pid,tid);
+#endif
 #ifdef GUARDIAN_COMPONENT_NATIVE
     componentCore.Exit(pid,tid);
 #endif
@@ -535,6 +542,9 @@ bool PeProcessPassed() noexcept {for(const auto& s:runtimes)if(s.pid)return fals
     if(!DesktopFinish())return false;
 #ifdef GUARDIAN_NATIVE_GUI
     if(!NativeGuiFinish())return false;
+#endif
+#ifdef GUARDIAN_NATIVE_USER32
+    if(runtimeCode||!runtimeClean||!allClean||!NativeUserFinish())return false;
 #endif
 #endif
 #ifdef GUARDIAN_WIN32_NATIVE
@@ -901,6 +911,9 @@ uint32_t RefreshThread(RuntimeSlot& slot,uint32_t tid,uint64_t startup) noexcept
 #include "DesktopKernel.inl"
 #ifdef GUARDIAN_NATIVE_GUI
 #include "NativeGuiKernel.inl"
+#endif
+#ifdef GUARDIAN_NATIVE_USER32
+#include "NativeUserKernel.inl"
 #endif
 #endif
 #include "Win32Kernel.inl"

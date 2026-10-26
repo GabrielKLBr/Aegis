@@ -866,7 +866,8 @@ timeouts e cancelamento observáveis. Parar ao concluir.
 ### Subfase 14.10 — GUI nativa no host, DirectX, mídia e áudio
 
 **Estado:** 14.10A com implementação delimitada em [PHASE-14.10A.md](PHASE-14.10A.md);
-14.10B–14.10F pendentes. A solicitação de 26/10/2026
+14.10B com entrega delimitada em [PHASE-14.10B.md](PHASE-14.10B.md);
+14.10C–14.10F pendentes. A solicitação de 26/10/2026
 prioriza fazer o Windows host executar operações de criação e desenho de GUI,
 enquanto a aplicação permanece no MiniNT. A 12F fornece infraestrutura de sessão,
 entrada e janelas, mas sua apresentação de pixels não satisfaz esse requisito.
@@ -904,6 +905,11 @@ caminho nativo sem exigir uma imagem já rasterizada pelo MiniNT. Testar protoco
 duas sessões, falhas/queda do auxiliar e liberação de recursos. Parar ao concluir.
 
 #### 14.10B — USER32, janelas e controles nativos
+
+**Entrega delimitada:** [PHASE-14.10B.md](PHASE-14.10B.md). Imports USER32 do SDK,
+janelas e BUTTON/STATIC/EDIT reais, mensagens e timers, callbacks no MiniNT e
+auxiliar restrito. Critério: 147 Release, 72 Debug e pacote extraído.
+GDI de aplicações gerais fica na 14.10C; USER32 completa não é declarada.
 
 **Dependência:** 14.10A.
 

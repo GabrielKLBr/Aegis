@@ -68,7 +68,9 @@ def main():
         resources = run('resources', 'large')
         check(resources['ram']['requestedMiB'] == resources['ram']['admittedMiB'] == ram, 'Request and admission disagree')
         check(resources['ram']['provisionedMiB'] == 0 and resources['cpu']['provisioned'] == 0, 'Stopped VM claims provisioned resources')
-        error = run('resource-config', 'large', '--ram-mib', '128', '--vcpus', '2', ok=False)
+        # Keep the admitted RAM while testing an unsupported CPU configuration;
+        # otherwise host memory pressure can reject 128 MiB before the SMP check.
+        error = run('resource-config', 'large', '--ram-mib', ram, '--vcpus', '2', ok=False)
         check('SMP requires' in error, 'Unsupported SMP was not diagnosed')
         run('resource-config', 'large', '--ram-mib', '1025', ok=False)
         run('resource-config', 'large', '--host-reserve-mib', '512', ok=False)

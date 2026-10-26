@@ -18,7 +18,7 @@ add_library(guardian_native_gui_gateway SHARED guest/fixtures/DesktopGateway.cpp
 guardian_external_flags(guardian_native_gui_gateway)
 target_link_options(guardian_native_gui_gateway PRIVATE /ENTRY:DesktopGatewayEntry /EXPORT:GuardianNativeGuiCall)
 set_target_properties(guardian_native_gui_gateway PROPERTIES OUTPUT_NAME guardian-native-gui RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/guest/native-gui/$<CONFIG>" ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/guest/native-gui-imports/$<CONFIG>")
-add_executable(guardian-native-gui-host src/microvm/gui/NativeGuiWorker.cpp src/microvm/gui/NativeGuiCore.cpp)
+add_executable(guardian-native-gui-host src/microvm/gui/NativeGuiWorker.cpp src/microvm/gui/NativeGuiCore.cpp src/microvm/gui/NativeGuiRestrictions.cpp)
 target_link_libraries(guardian-native-gui-host PRIVATE guardian_abi user32 gdi32 advapi32)
 target_compile_definitions(guardian-native-gui-host PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
 target_compile_options(guardian-native-gui-host PRIVATE /W4 /WX /utf-8 /permissive-)

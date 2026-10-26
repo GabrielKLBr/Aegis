@@ -44,7 +44,7 @@ def exports(output):
         (output/(dll+'.def')).write_text('LIBRARY '+dll+'\nEXPORTS\n'+''.join(lines),encoding='utf-8')
     proof={'phase':'14.9','dlls':{key:sorted(value) for key,value in groups.items()},'implementedExports':len(names),'hostTls':False,'hostKeys':False,'completeWindowsNetworking':False,'tlsVersions':['1.2'],'suites':['ECDHE-ECDSA-AES128-GCM-SHA256','ECDHE-RSA-AES128-GCM-SHA256']};(output/'coverage.json').write_bytes(nt.canonical(proof));return proof
 
-def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False):
+def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False,native_user32=False):
     build=Path(build);output=Path(output);folder=build/'guest/internet'/config;application=Path(application) if application else folder/'guardian-internet-crypto.exe';output.parent.mkdir(parents=True,exist_ok=True)
     if native_gui:extras=(*extras,build/'guest/native-gui'/config/'guardian-native-gui.dll')
     hosts=('kernelbase.dll','kernel32.dll','ntdll.dll','ucrtbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll','advapi32.dll',*(d+'.dll' for d in (*component_runtime.DLLS,*DLLS)))
@@ -52,7 +52,7 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
     table,native=native_nt.syscall_map(build/'guest/desktop'/config/'ntdll.dll','win10',False);table_path=output.parent/(output.name+'-syscalls.bin');table_path.write_bytes(table)
     files=[{'path':'c:\\app\\'+application.name.lower(),'source':str(application),'kind':'pe'}]
     def add(path,source,kind='pe'):files.append({'path':path,'source':str(source),'kind':kind})
-    for name in ('ntdll.dll','kernel32.dll','kernelbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll'):add('c:\\windows\\system32\\'+name,build/'guest/desktop'/config/name)
+    for name in ('ntdll.dll','kernel32.dll','kernelbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll'):add('c:\\windows\\system32\\'+name,build/('guest/native-user32' if native_user32 and name in ('user32.dll','win32u.dll') else 'guest/desktop')/config/name)
     add('c:\\windows\\system32\\guardian-runtime-api.dll',build/'guest/crt'/config/'guardian-runtime-api.dll');add('c:\\windows\\system32\\advapi32.dll',build/'guest/security'/config/'advapi32.dll')
     for dll in component_runtime.DLLS:add('c:\\windows\\system32\\'+dll+'.dll',build/'guest/components'/config/(dll+'.dll'))
     for dll in DLLS:add('c:\\windows\\system32\\'+dll+'.dll',folder/(dll+'.dll'))
@@ -77,6 +77,9 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
     if presentation:spec['phase']='12F';spec['presentationRuntime']={'independentWindows':True,'guestCallbacks':True,'hostHandlesInGuest':False,'logicalDpi':96,'maxClient':[1280,720],'frameByteLimit':16<<20}
     if native_gui:
         spec['phase']='14.10A';spec['nativeGuiRuntime']={'backend':'win32-gdi-helper','protocol':1,'helperSha256':nt.sha(nt.regular(build/config/'guardian-native-gui-host.exe',16<<20)),'hostHandlesInGuest':False,'guestPixelsRequired':False,'standardUser32Passthrough':False,'phase14_10BStarted':False}
+    if native_user32:
+        nt.require(not native_gui and not presentation,'Native USER32 mode is exclusive')
+        spec['phase']='14.10B';spec['nativeGuiRuntime']={'backend':'win32-user32-helper','protocol':2,'helperSha256':nt.sha(nt.regular(build/config/'guardian-native-user-host.exe',16<<20)),'hostHandlesInGuest':False,'guestPixelsRequired':False,'standardUser32Subset':True,'completeWindowsGui':False,'logicalDpi':96,'phase14_10CStarted':False}
     return pe_volume.build(spec,kernel or build/'guest'/config/'guardian-kernel-internet.gk',output)
 
 def main():

@@ -72,6 +72,9 @@ bool PeNativeDispatch(uint32_t pid,uint32_t tid,uint64_t now,const TrapFrame& f,
 #ifdef GUARDIAN_NATIVE_GUI
     if(f.rax==0xAA&&NativeCode(*slot,"guardian-native-gui.dll",f.rip)){status=NativeGuiDispatch(*slot,tid,f.rdx);return true;}
 #endif
+    #ifdef GUARDIAN_NATIVE_USER32
+    if(f.rax==0xAB&&NativeCode(*slot,"win32u.dll",f.rip)){status=NativeUserDispatch(*slot,tid,f.rdx);return true;}
+#endif
     if(f.rax==0xA9&&NativeCode(*slot,"guardianinet.dll",f.rip)){status=InternetDispatch(*slot,tid,f.rdx);return true;}
 #endif
 #ifdef GUARDIAN_COMPONENT_NATIVE

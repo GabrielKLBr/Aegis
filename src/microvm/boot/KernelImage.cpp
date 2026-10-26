@@ -143,3 +143,5 @@ namespace av::microvm::boot {
 bool KernelImage::SupportsTelemetry() const noexcept {constexpr char tag[]="GuardianTelemetry/1/bounded";return std::search(file_.begin(),file_.end(),tag,tag+sizeof(tag))!=file_.end();}
 bool KernelImage::SupportsAnalysisFixture() const noexcept {constexpr char tag[]="GuardianAnalysis/1/owned";return std::search(file_.begin(),file_.end(),tag,tag+sizeof(tag))!=file_.end();}
 }
+
+namespace av::microvm::boot {bool KernelImage::SupportsNativeUser32() const noexcept {constexpr char tag[]="GuardianNativeUser32/2/guest";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}}

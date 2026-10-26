@@ -5,7 +5,8 @@ e aceitação Windows estão documentados em `docs/PHASE-13.md` e no roadmap.
 Isolamento e telemetria não representam garantia de indetectabilidade ou de
 proteção completa contra qualquer arquivo malicioso.
 
-O modo opcional da [14.10A](docs/PHASE-14.10A.md) executa um conjunto limitado
+Os modos opcionais da [14.10A](docs/PHASE-14.10A.md) e da
+[14.10B](docs/PHASE-14.10B.md) executam conjuntos limitados
 de operações GUI por APIs do Windows em um auxiliar com token restrito,
 integridade baixa e Job supervisionado. O código da aplicação permanece no
 MiniNT. Esse auxiliar acrescenta superfície de ataque no host; seu perfil não
