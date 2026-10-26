@@ -1,11 +1,13 @@
 #pragma once
 #include "guardian/Desktop.h"
+#include "guardian/Presentation.h"
 #include <filesystem>
 #include <functional>
 #include <vector>
+namespace av::microvm::window_session {struct Frame;}
 namespace av::microvm::desktop_session {
 struct TimedInput {uint64_t ns=0;guardian::desktop::Input event{};};
-struct Options {bool interactive=false;uint32_t telemetryCapacity=0;std::filesystem::path output;std::vector<TimedInput> script;std::function<guardian::desktop::Input()> poll;std::function<void(const guardian::desktop::Frame&,const uint32_t*)> display;};
+struct Options {bool interactive=false,integrated=false;std::function<guardian::presentation::Event()> windowPoll;std::function<void(const window_session::Frame&)> windowDisplay;uint32_t telemetryCapacity=0;std::filesystem::path output;std::vector<TimedInput> script;std::function<guardian::desktop::Input()> poll;std::function<void(const guardian::desktop::Frame&,const uint32_t*)> display;};
 std::vector<TimedInput> ReadScript(const std::filesystem::path&);
 class Backend {
 public:

@@ -1,5 +1,6 @@
 #pragma once
 #include "guardian/Desktop.h"
+#include "guardian/Presentation.h"
 #include "ProcessManager.h"
 namespace guardian::desktop {
 struct Surface {Window info{};uint64_t z=0;uint32_t background=0xFFFFFF,drawings=0;bool dirty=true,painting=false;Rect invalid{},clip{};Primitive commands[MaxDrawings]{};};
@@ -15,6 +16,10 @@ public:
     uint32_t Inject(const Input&,uint64_t now) noexcept;
     void Exit(uint32_t pid,uint32_t tid=0) noexcept;
     void Render(uint32_t*) const noexcept;
+    bool RenderWindow(uint64_t,uint32_t*,uint32_t,uint32_t&,uint32_t&) const noexcept;
+    uint64_t WindowOrder(uint64_t) const noexcept;
+    void RaiseWindow(uint64_t) noexcept;
+    uint32_t InjectWindow(const presentation::Event&,uint64_t,uint64_t) noexcept;
     Frame Metadata() const noexcept;
     bool Changed() const noexcept {return state_&&state_->changed;}
     bool Painting() const noexcept {if(state_)for(const auto& surface:state_->surfaces)if(surface.info.handle&&surface.painting)return true;return false;}

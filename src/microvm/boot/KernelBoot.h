@@ -7,6 +7,7 @@
 #include "../hardware/DriverBackend.h"
 #include "../gui/Backend.h"
 #include "../gui/DesktopBackend.h"
+#include "../gui/WindowBridge.h"
 #include "../net/Network.h"
 #include "../net/InternetBackend.h"
 #include "SessionSnapshot.h"
@@ -120,6 +121,8 @@ private:
     uint64_t ramBytes_ = 0, bootId_ = 0, exceptionExitBitmap_ = 0;
     std::unique_ptr<gui::Backend> graphicsBackend_;
     std::unique_ptr<desktop_session::Backend> desktopBackend_;
+    std::unique_ptr<window_session::Bridge> windowBridge_;
+    std::filesystem::path windowOutput_;
     guardian::graphics::Report graphicsReport_{};
     bool graphicsReportValid_=false;
     uint64_t pauseAtGraphics_=0;

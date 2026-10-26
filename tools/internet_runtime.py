@@ -44,7 +44,7 @@ def exports(output):
         (output/(dll+'.def')).write_text('LIBRARY '+dll+'\nEXPORTS\n'+''.join(lines),encoding='utf-8')
     proof={'phase':'14.9','dlls':{key:sorted(value) for key,value in groups.items()},'implementedExports':len(names),'hostTls':False,'hostKeys':False,'completeWindowsNetworking':False,'tlsVersions':['1.2'],'suites':['ECDHE-ECDSA-AES128-GCM-SHA256','ECDHE-RSA-AES128-GCM-SHA256']};(output/'coverage.json').write_bytes(nt.canonical(proof));return proof
 
-def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=()):
+def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False):
     build=Path(build);output=Path(output);folder=build/'guest/internet'/config;application=Path(application) if application else folder/'guardian-internet-crypto.exe';output.parent.mkdir(parents=True,exist_ok=True)
     hosts=('kernelbase.dll','kernel32.dll','ntdll.dll','ucrtbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll','advapi32.dll',*(d+'.dll' for d in (*component_runtime.DLLS,*DLLS)))
     schema,metadata=api_set.build('win10',schema_reference,hosts);schema_path=output.parent/(output.name+'-schema.dll');schema_path.write_bytes(schema)
@@ -57,10 +57,10 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
     for dll in DLLS:add('c:\\windows\\system32\\'+dll+'.dll',folder/(dll+'.dll'))
     for path in extras:add('c:\\app\\'+Path(path).name.lower(),path)
     for path in assets:add('c:\\app\\'+Path(path).name.lower(),path,'data')
-    inventory=crt_runtime.references(reference,('ucrtbase.dll','vcruntime140.dll'))
+    reference_names=('msvcrt.dll',) if 'msvcrt.dll' in nt.InventoryPe(application).imports() else ('ucrtbase.dll','vcruntime140.dll');inventory=crt_runtime.references(reference,reference_names)
     for record in inventory:add('c:\\windows\\system32\\'+record['name'],Path(reference)/record['name'])
     add('c:\\windows\\system32\\apisetschema.dll',schema_path);add('c:\\windows\\system32\\guardian-nt-syscalls.bin',table_path,'manifest')
-    available={f['path'].rsplit('\\',1)[-1]:f for f in files if f['kind']=='pe'};selected={application.name.lower(),'ntdll.dll','kernel32.dll','kernelbase.dll','guardian-runtime-api.dll','apisetschema.dll','ucrtbase.dll',*(Path(path).name.lower() for path in extras)};pending=list(selected)
+    available={f['path'].rsplit('\\',1)[-1]:f for f in files if f['kind']=='pe'};selected={application.name.lower(),'ntdll.dll','kernel32.dll','kernelbase.dll','guardian-runtime-api.dll','apisetschema.dll',*reference_names,*(Path(path).name.lower() for path in extras)};pending=list(selected)
     while pending:
         name=pending.pop();record=available.get(name);nt.require(record is not None,'Outside owned network corpus: '+name);pe=nt.InventoryPe(Path(record['source']));dependencies=set(pe.imports())|{e['forwarder'].rsplit('.',1)[0].lower()+'.dll' for e in pe.export_records() if e['forwarder']}
         for dependency in dependencies:
@@ -73,7 +73,8 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
             for imported in nt.InventoryPe(Path(file['source'])).import_records():
                 if imported['module'] in network_exports:nt.require(imported['symbol'] in network_exports[imported['module']],'Missing owned network export: '+imported['module']+'!'+imported['symbol'])
     spec={'phase':'14.9','profile':'win10','root':files[0]['path'],'files':files,'nativeRuntime':native,'win32Runtime':{'apiSet':metadata},'crtRuntime':{'originalReferences':inventory,'completeWindowsCrt':False},'securityRuntime':{'ownedAdvapi32':True,'persistentStateBytes':65536},'desktopRuntime':{'width':1280,'height':720,'hostCallbacks':False,'completeWindowsGui':False},'componentRuntime':{'hostActivation':False,'completeCOM':False,'completeNDR':False},'internetRuntime':{'hostTls':False,'hostCredentials':False,'defaultNetwork':'offline','tlsVersions':['1.2'],'socketQuota':16,'payload':2048,'completeWindowsNetworking':False}}
-    return pe_volume.build(spec,build/'guest'/config/'guardian-kernel-internet.gk',output)
+    if presentation:spec['phase']='12F';spec['presentationRuntime']={'independentWindows':True,'guestCallbacks':True,'hostHandlesInGuest':False,'logicalDpi':96,'maxClient':[1280,720],'frameByteLimit':16<<20}
+    return pe_volume.build(spec,kernel or build/'guest'/config/'guardian-kernel-internet.gk',output)
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);s=p.add_subparsers(dest='command',required=True);e=s.add_parser('exports');e.add_argument('output',type=Path);n=s.add_parser('policy');n.add_argument('input',type=Path);n.add_argument('output',type=Path)

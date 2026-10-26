@@ -23,6 +23,7 @@ public:
     bool SupportsSecurity() const noexcept;
     bool SupportsDesktop() const noexcept;
     bool SupportsComponents() const noexcept;
+    bool SupportsWindowBridge() const noexcept;
     bool SupportsInternet() const noexcept;
     uint64_t Base() const { return PreferredBase; }
     uint64_t Size() const { return imageBytes_; }

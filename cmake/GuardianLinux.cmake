@@ -33,7 +33,7 @@ add_executable(av src/linux/Main.cpp)
 set_target_properties(av PROPERTIES OUTPUT_NAME guardianav)
 target_link_libraries(av PRIVATE OpenSSL::Crypto guardian_boot_format)
 find_package(Threads REQUIRED)
-add_library(guardian_kvm STATIC src/microvm/net/InternetBackend.cpp src/linux/KvmCli.cpp src/linux/KvmMachine.cpp src/linux/PersistentBlockStore.cpp
+add_library(guardian_kvm STATIC src/microvm/gui/WindowBridge.cpp src/microvm/gui/DesktopBackend.cpp guest/DesktopRaster.cpp src/microvm/net/InternetBackend.cpp src/linux/KvmCli.cpp src/linux/KvmMachine.cpp src/linux/PersistentBlockStore.cpp
     src/microvm/boot/KernelBoot.cpp src/microvm/boot/SessionSnapshot.cpp src/microvm/state/Files.cpp src/microvm/boot/IoBackend.cpp)
 target_link_libraries(guardian_kvm PUBLIC guardian_boot_format Threads::Threads)
 target_compile_definitions(guardian_kvm PRIVATE GUARDIAN_BOOT_CONFIGURATION="${CMAKE_BUILD_TYPE}")

@@ -14,6 +14,10 @@ A fase 14.9 acrescenta rede contida, HTTP, TLS 1.2 no convidado, CNG e lojas
 virtuais de chaves/certificados: [escopo e validação](docs/PHASE-14.9.md).
 A implementação atende um corpus delimitado de Windows 10 x64.
 
+A 12F acrescenta o modo opcional de janelas independentes no desktop Windows,
+com execução no MiniNT e entrada restrita à sessão:
+[implementação, uso e limites](docs/PHASE-12F.md).
+
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem
 recriar seus dados compilados: [preparação a partir dos fontes](docs/GITHUB-AEGIS.md).
