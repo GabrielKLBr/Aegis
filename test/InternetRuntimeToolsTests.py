@@ -5,6 +5,35 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
 import internet_runtime as runtime
 import nt_compatibility as nt
 import pe_volume
+from InternetLab import echo_pair,Tcp
+import socket,socketserver
+
+def paired_port_checks():
+    sockets=[];attempts=0
+    def udp(address,handler):
+        server=socketserver.ThreadingUDPServer(address,handler);sockets.append(server);return server
+    def tcp(address,handler):
+        nonlocal attempts
+        attempts+=1
+        if attempts==1:raise OSError(10013,'Synthetic protocol-specific reservation')
+        assert sockets[0].socket.fileno()==-1,'Rejected UDP candidate leaked'
+        return Tcp(address,handler)
+    first,second=echo_pair(tcp,udp)
+    try:assert attempts==2 and first.server_address==second.server_address and first.socket.fileno()!=-1 and second.socket.fileno()!=-1
+    finally:first.server_close();second.server_close()
+    rejected=[]
+    def rejected_udp(address,handler):
+        server=socketserver.ThreadingUDPServer(address,handler);rejected.append(server);return server
+    def blocked_tcp(address,handler):raise OSError(10048,'Synthetic occupied TCP port')
+    try:echo_pair(blocked_tcp,rejected_udp)
+    except OSError:pass
+    else:raise AssertionError('Exhausted port allocation accepted')
+    assert len(rejected)==32 and all(server.socket.fileno()==-1 for server in rejected)
+    def unexpected(address,handler):raise OSError(22,'Synthetic unexpected failure')
+    try:echo_pair(unexpected,rejected_udp)
+    except OSError as error:assert error.errno==22
+    else:raise AssertionError('Unexpected socket error swallowed')
+    assert all(server.socket.fileno()==-1 for server in rejected)
 
 
 def rejected(action):
@@ -15,6 +44,7 @@ def rejected(action):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--build',type=Path,required=True);p.add_argument('--config',required=True);p.add_argument('--reference',type=Path,required=True);p.add_argument('--schema-reference',type=Path,required=True);a=p.parse_args()
+    paired_port_checks()
     assert len(runtime.policy({}))==800
     base={'mode':'lab','endpoints':[{'name':'localhost','address':'127.0.0.1','port':443}]}
     assert struct.unpack_from('<4I',runtime.policy(base),8)==(1,800,2,1)

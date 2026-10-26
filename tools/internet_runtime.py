@@ -44,8 +44,9 @@ def exports(output):
         (output/(dll+'.def')).write_text('LIBRARY '+dll+'\nEXPORTS\n'+''.join(lines),encoding='utf-8')
     proof={'phase':'14.9','dlls':{key:sorted(value) for key,value in groups.items()},'implementedExports':len(names),'hostTls':False,'hostKeys':False,'completeWindowsNetworking':False,'tlsVersions':['1.2'],'suites':['ECDHE-ECDSA-AES128-GCM-SHA256','ECDHE-RSA-AES128-GCM-SHA256']};(output/'coverage.json').write_bytes(nt.canonical(proof));return proof
 
-def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False):
+def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False):
     build=Path(build);output=Path(output);folder=build/'guest/internet'/config;application=Path(application) if application else folder/'guardian-internet-crypto.exe';output.parent.mkdir(parents=True,exist_ok=True)
+    if native_gui:extras=(*extras,build/'guest/native-gui'/config/'guardian-native-gui.dll')
     hosts=('kernelbase.dll','kernel32.dll','ntdll.dll','ucrtbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll','advapi32.dll',*(d+'.dll' for d in (*component_runtime.DLLS,*DLLS)))
     schema,metadata=api_set.build('win10',schema_reference,hosts);schema_path=output.parent/(output.name+'-schema.dll');schema_path.write_bytes(schema)
     table,native=native_nt.syscall_map(build/'guest/desktop'/config/'ntdll.dll','win10',False);table_path=output.parent/(output.name+'-syscalls.bin');table_path.write_bytes(table)
@@ -74,6 +75,8 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
                 if imported['module'] in network_exports:nt.require(imported['symbol'] in network_exports[imported['module']],'Missing owned network export: '+imported['module']+'!'+imported['symbol'])
     spec={'phase':'14.9','profile':'win10','root':files[0]['path'],'files':files,'nativeRuntime':native,'win32Runtime':{'apiSet':metadata},'crtRuntime':{'originalReferences':inventory,'completeWindowsCrt':False},'securityRuntime':{'ownedAdvapi32':True,'persistentStateBytes':65536},'desktopRuntime':{'width':1280,'height':720,'hostCallbacks':False,'completeWindowsGui':False},'componentRuntime':{'hostActivation':False,'completeCOM':False,'completeNDR':False},'internetRuntime':{'hostTls':False,'hostCredentials':False,'defaultNetwork':'offline','tlsVersions':['1.2'],'socketQuota':16,'payload':2048,'completeWindowsNetworking':False}}
     if presentation:spec['phase']='12F';spec['presentationRuntime']={'independentWindows':True,'guestCallbacks':True,'hostHandlesInGuest':False,'logicalDpi':96,'maxClient':[1280,720],'frameByteLimit':16<<20}
+    if native_gui:
+        spec['phase']='14.10A';spec['nativeGuiRuntime']={'backend':'win32-gdi-helper','protocol':1,'helperSha256':nt.sha(nt.regular(build/config/'guardian-native-gui-host.exe',16<<20)),'hostHandlesInGuest':False,'guestPixelsRequired':False,'standardUser32Passthrough':False,'phase14_10BStarted':False}
     return pe_volume.build(spec,kernel or build/'guest'/config/'guardian-kernel-internet.gk',output)
 
 def main():

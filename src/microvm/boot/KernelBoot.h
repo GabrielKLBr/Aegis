@@ -121,6 +121,8 @@ private:
     uint64_t ramBytes_ = 0, bootId_ = 0, exceptionExitBitmap_ = 0;
     std::unique_ptr<gui::Backend> graphicsBackend_;
     std::unique_ptr<desktop_session::Backend> desktopBackend_;
+    std::function<bool(guardian::nativegui::Packet&)> nativeGuiExchange_;
+    std::function<bool()> nativeGuiCompleted_;
     std::unique_ptr<window_session::Bridge> windowBridge_;
     std::filesystem::path windowOutput_;
     guardian::graphics::Report graphicsReport_{};

@@ -15,8 +15,11 @@ virtuais de chaves/certificados: [escopo e validação](docs/PHASE-14.9.md).
 A implementação atende um corpus delimitado de Windows 10 x64.
 
 A 12F acrescenta o modo opcional de janelas independentes no desktop Windows,
-com execução no MiniNT e entrada restrita à sessão:
+com conteúdo rasterizado pelo MiniNT e entrada restrita à sessão:
 [implementação, uso e limites](docs/PHASE-12F.md).
+A **14.10A** acrescenta a primeira ponte de comandos e desenho GDI por um
+auxiliar restrito do Windows: [escopo, uso e limites](docs/PHASE-14.10A.md).
+A adaptação de USER32/GDI e controles continua em **14.10B–14.10D**, antes de DirectX: [roadmap](docs/ROADMAP-COMPLETO.md#subfase-1410--gui-nativa-no-host-directx-mídia-e-áudio).
 
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem

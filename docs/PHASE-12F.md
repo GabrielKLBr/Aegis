@@ -12,6 +12,15 @@ cria suas próprias janelas, apresenta imagens e devolve eventos tipados. Não
 executa WNDPROCs, callbacks ou endereços de funções fornecidos pelo convidado.
 Não há encaminhamento arbitrário de mensagens USER32/GDI.
 
+**Distinção de escopo:** esta 12F apresenta imagens rasterizadas pelo MiniNT.
+Executar as operações de criação de controles e desenho pelas APIs reais do
+Windows host é o requisito adicional planejado em **14.10A–14.10D** do
+[roadmap](ROADMAP-COMPLETO.md#subfase-1410--gui-nativa-no-host-directx-mídia-e-áudio).
+A [14.10A](PHASE-14.10A.md) acrescenta a primeira ponte de comandos nativos;
+14.10B–14.10D continuam pendentes. Os testes desta 12F não comprovam essa
+renderização nativa. EXE, DLLs e callbacks continuarão no convidado também
+nessa evolução.
+
 ## Ponte e isolamento
 
 `guardian-kernel-integrated.gk` herda o kernel da 14.9 e acrescenta o protocolo

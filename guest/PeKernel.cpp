@@ -11,6 +11,10 @@ namespace {guardian::component::Core componentCore;}
 #include "NativeServices.h"
 #ifdef GUARDIAN_DESKTOP_NATIVE
 #include "Desktop.h"
+#ifdef GUARDIAN_NATIVE_GUI
+#include "guardian/NativeGui.h"
+namespace {bool NativeGuiFinish() noexcept;}
+#endif
 namespace {extern guardian::desktop::Core desktopCore;bool DesktopFinish() noexcept;}
 #endif
 #ifdef GUARDIAN_SECURITY_NATIVE
@@ -529,6 +533,9 @@ bool PeProcessPassed() noexcept {for(const auto& s:runtimes)if(s.pid)return fals
 #endif
 #ifdef GUARDIAN_DESKTOP_NATIVE
     if(!DesktopFinish())return false;
+#ifdef GUARDIAN_NATIVE_GUI
+    if(!NativeGuiFinish())return false;
+#endif
 #endif
 #ifdef GUARDIAN_WIN32_NATIVE
     if(!Win32StorageFinish()||!runtimes.Release())return false;
@@ -892,6 +899,9 @@ uint32_t RefreshThread(RuntimeSlot& slot,uint32_t tid,uint64_t startup) noexcept
 #ifdef GUARDIAN_WIN32_NATIVE
 #ifdef GUARDIAN_DESKTOP_NATIVE
 #include "DesktopKernel.inl"
+#ifdef GUARDIAN_NATIVE_GUI
+#include "NativeGuiKernel.inl"
+#endif
 #endif
 #include "Win32Kernel.inl"
 #endif

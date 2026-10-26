@@ -712,3 +712,4 @@ include(cmake/GuardianComponents.cmake)
 include(cmake/GuardianInternet.cmake)
 
 include(cmake/GuardianWindowBridge.cmake)
+include(cmake/GuardianNativeGui.cmake)

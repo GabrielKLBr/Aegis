@@ -33,6 +33,23 @@ class UdpEcho(socketserver.BaseRequestHandler):
         self.server.events.append({'udpBytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
         sock.sendto(data,self.client_address)
 
+def echo_pair(tcp_factory=Tcp,udp_factory=socketserver.ThreadingUDPServer):
+    # TCP and UDP have separate Windows reservations. Bind both before starting
+    # any peer thread; a TCP ephemeral port alone does not reserve UDP access.
+    for _ in range(32):
+        udp=udp_factory(('127.0.0.1',0),UdpEcho)
+        try:tcp=tcp_factory(('127.0.0.1',udp.server_address[1]),Echo)
+        except OSError as error:
+            udp.server_close()
+            if error.errno not in (13,98,10013,10048) and getattr(error,'winerror',None) not in (10013,10048):raise
+            last=error
+        except BaseException:
+            udp.server_close();raise
+        else:
+            udp.daemon_threads=True
+            return tcp,udp
+    raise last
+
 class Http(socketserver.BaseRequestHandler):
     def handle(self):
         stream=self.request
@@ -90,14 +107,21 @@ class Lab(contextlib.AbstractContextManager):
         else:private=bytes.fromhex('3041020100301306072A8648CE3D020106082A8648CE3D030107042730250201010420')+int(fixtures['serverPrivateScalar']).to_bytes(32,'big')
         key.write_bytes(pem('PRIVATE KEY',private))
         context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.minimum_version=context.maximum_version=ssl.TLSVersion.TLSv1_2;context.set_ciphers('ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256');context.load_cert_chain(cert,key)
-        echo=self.tcp(Echo);self.echo=echo.server_address[1]
-        udp=socketserver.ThreadingUDPServer(('127.0.0.1',self.echo),UdpEcho);udp.daemon_threads=True;self.add(udp)
-        self.http=self.tcp(Http).server_address[1]
-        tls=self.tcp(Http);tls.tls=context;self.tls=tls.server_address[1]
-        self.stall=self.tcp(Http).server_address[1]
+        pending=[]
+        try:
+            echo,udp=echo_pair();pending.extend((echo,udp));self.echo=echo.server_address[1]
+            http=Tcp(('127.0.0.1',0),Http);pending.append(http);self.http=http.server_address[1]
+            tls=Tcp(('127.0.0.1',0),Http);pending.append(tls);tls.tls=context;self.tls=tls.server_address[1]
+            stall=Tcp(('127.0.0.1',0),Http);pending.append(stall);self.stall=stall.server_address[1]
+            for server in pending:self.add(server)
+        except BaseException:
+            self.__exit__()
+            for server in pending:
+                if server not in self.servers:server.server_close()
+            raise
     def add(self,server):
-        server.events=self.events;self.servers.append(server)
-        thread=threading.Thread(target=server.serve_forever,kwargs={'poll_interval':.02},daemon=True);thread.start();self.threads.append(thread);return server
+        server.events=self.events
+        thread=threading.Thread(target=server.serve_forever,kwargs={'poll_interval':.02},daemon=True);thread.start();self.threads.append(thread);self.servers.append(server);return server
     def tcp(self,handler):return self.add(Tcp(('127.0.0.1',0),handler))
     def config(self,folder,expectation=0):
         folder=Path(folder);folder.mkdir(parents=True,exist_ok=True);path=folder/'network.cfg';path.write_text(f'{self.echo} {self.http} {self.tls} {self.stall} {expectation}\n',encoding='ascii');return path
