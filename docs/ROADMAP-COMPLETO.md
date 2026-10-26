@@ -867,7 +867,8 @@ timeouts e cancelamento observáveis. Parar ao concluir.
 
 **Estado:** 14.10A com implementação delimitada em [PHASE-14.10A.md](PHASE-14.10A.md);
 14.10B com entrega delimitada em [PHASE-14.10B.md](PHASE-14.10B.md);
-14.10C–14.10F pendentes. A solicitação de 26/10/2026
+14.10C com entrega delimitada em [PHASE-14.10C.md](PHASE-14.10C.md);
+14.10D–14.10F pendentes. A solicitação de 26/10/2026
 prioriza fazer o Windows host executar operações de criação e desenho de GUI,
 enquanto a aplicação permanece no MiniNT. A 12F fornece infraestrutura de sessão,
 entrada e janelas, mas sua apresentação de pixels não satisfaz esse requisito.
@@ -930,6 +931,11 @@ Conferir modalidade, falhas, concorrência e isolamento entre sessões. Parar ao
 concluir.
 
 #### 14.10C — GDI, texto, fontes e imagens desenhados pelo Windows
+
+**Entrega delimitada:** [PHASE-14.10C.md](PHASE-14.10C.md). DCs e objetos próprios,
+clipping, formas, texto, métricas, DIBs e cópias por GDI real do auxiliar, com
+comparação nativa. Critério: 152 Release, 77 Debug e pacote extraído.
+USER32/GDI completos não são declarados; a 14.10D permanece pendente.
 
 **Dependências:** 14.10A–14.10B.
 

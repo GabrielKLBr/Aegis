@@ -20,7 +20,9 @@ com conteúdo rasterizado pelo MiniNT e entrada restrita à sessão:
 A **14.10A** acrescenta a primeira ponte de comandos e desenho GDI por um
 auxiliar restrito do Windows: [escopo, uso e limites](docs/PHASE-14.10A.md).
 A **14.10B** acrescenta imports USER32 próprios, janelas e controles BUTTON/STATIC/EDIT reais com callbacks no MiniNT: [contrato e testes](docs/PHASE-14.10B.md).
-GDI, texto e os controles adicionais continuam em **14.10C–14.10D**, antes de DirectX: [roadmap](docs/ROADMAP-COMPLETO.md#subfase-1410--gui-nativa-no-host-directx-mídia-e-áudio).
+A **14.10C** acrescenta desenho GDI, fontes e bitmaps executados pelo Windows,
+com comparação da mesma aplicação no MiniNT e nativamente: [contrato e testes](docs/PHASE-14.10C.md).
+Controles adicionais e diálogos continuam na **14.10D**, antes de DirectX: [roadmap](docs/ROADMAP-COMPLETO.md#subfase-1410--gui-nativa-no-host-directx-mídia-e-áudio).
 
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem

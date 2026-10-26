@@ -1,6 +1,15 @@
 #include "guardian/NativeUser32.h"
 #include "NativeGuiRestrictions.h"
 #include "NativeGuiPipe.h"
+#ifdef GUARDIAN_NATIVE_GDI
+#include "NativeGdiEngine.h"
+namespace g=guardian::nativegdi;
+using WirePacket=g::Packet;
+constexpr auto WireMagic=g::Magic;constexpr uint32_t WireVersion=3;
+#else
+using WirePacket=guardian::nativeuser::Packet;
+constexpr auto WireMagic=guardian::nativeuser::Magic;constexpr uint32_t WireVersion=2;
+#endif
 #include <Windows.h>
 #include <windowsx.h>
 #include <array>
@@ -9,9 +18,14 @@
 #include <atomic>
 #include <string>
 #include <algorithm>
+#include <cstring>
 namespace u=guardian::nativeuser;
 namespace {
+#ifdef GUARDIAN_NATIVE_GDI
+constexpr wchar_t ClassName[]=L"Aegis.NativeGdi.14.10C",Prefix[]=L"[MiniNT native 14.10C] ";
+#else
 constexpr wchar_t ClassName[]=L"Aegis.NativeUser32.14.10B",Prefix[]=L"[MiniNT native 14.10B] ";
+#endif
 struct Host;
 struct Object {Host* host=nullptr;HWND hwnd=nullptr;uint64_t id=0,parent=0;uint32_t pid=0,tid=0,control=0;u::Class kind{};bool ready=false;};
 struct Pending {uint64_t id=0,result=0,window=0;uint32_t sender=0,receiver=0,pid=0,status=ERROR_IO_PENDING;ULONGLONG until=0;};
@@ -19,7 +33,10 @@ struct Timer {UINT_PTR native=0;uint64_t window=0,id=0;};
 struct Host {
     std::array<Object,u::MaxWindows> objects{};std::array<Pending,u::MaxPending> pending{};std::array<Timer,u::MaxTimers> timers{};
     std::deque<u::Event> events;uint64_t boot=0,session=0,sequence=0,next=1,nextCookie=1,nextEvent=1;bool complete=false,overflow=false;uint32_t calls[8]{};
-    HWND channel=nullptr;HANDLE done=nullptr;UINT_PTR nextTimer=1;u::Packet packet{};
+    HWND channel=nullptr;HANDLE done=nullptr;UINT_PTR nextTimer=1;WirePacket packet{};
+#ifdef GUARDIAN_NATIVE_GDI
+    av::microvm::native_gui::GdiEngine graphics;
+#endif
     Object* Find(uint64_t id){for(auto& o:objects)if(id&&o.id==id)return &o;return nullptr;}
     Object* Find(HWND h){for(auto& o:objects)if(h&&o.hwnd==h)return &o;return nullptr;}
     static int Logical(int value,UINT dpi){return MulDiv(value,96,int(dpi));}
@@ -39,7 +56,16 @@ struct Host {
             if(m==WM_COMMAND){auto* child=host.Find(reinterpret_cast<HWND>(l));if(child&&child->parent==o->id)host.Queue(*o,m,MAKEWPARAM(child->control,HIWORD(w)),LPARAM(child->id),0);return 0;}
             if(m==WM_WINDOWPOSCHANGED){host.Queue(*o,m,0,0,0,reinterpret_cast<WINDOWPOS*>(l));return DefWindowProcW(h,m,w,l);}
             if(m==WM_SIZE||m==WM_MOVE){const auto dpi=GetDpiForWindow(h);l=MAKELPARAM(WORD(Logical(GET_X_LPARAM(l),dpi)),WORD(Logical(GET_Y_LPARAM(l),dpi)));host.Queue(*o,m,w,l,0);return 0;}
-            if(m==WM_PAINT){PAINTSTRUCT ps{};const auto dc=BeginPaint(h,&ps);FillRect(dc,&ps.rcPaint,GetSysColorBrush(COLOR_WINDOW));EndPaint(h,&ps);host.Queue(*o,m);return 0;}
+            #ifdef GUARDIAN_NATIVE_GDI
+            if(m==WM_PRINTCLIENT&&w){host.graphics.Print(o->id,h,reinterpret_cast<HDC>(w));return 0;}
+#endif
+            if(m==WM_PAINT){PAINTSTRUCT ps{};const auto dc=BeginPaint(h,&ps);
+#ifdef GUARDIAN_NATIVE_GDI
+                host.graphics.Paint(o->id,h,dc,ps.rcPaint);
+#else
+                FillRect(dc,&ps.rcPaint,GetSysColorBrush(COLOR_WINDOW));
+#endif
+                EndPaint(h,&ps);host.Queue(*o,m);return 0;}
             if(m==WM_CLOSE){host.Queue(*o,m);return 0;}
             if(m==WM_DPICHANGED){auto* r=reinterpret_cast<RECT*>(l);SetWindowPos(h,nullptr,r->left,r->top,r->right-r->left,r->bottom-r->top,SWP_NOZORDER|SWP_NOACTIVATE);return 0;}
             if(m==WM_SETFOCUS||m==WM_KILLFOCUS){auto* target=host.Find(reinterpret_cast<HWND>(w));host.Queue(*o,m,target?target->id:0,0);return 0;}
@@ -55,7 +81,11 @@ struct Host {
         if(self&&m==WM_TIMER){for(auto& timer:self->timers)if(timer.native==w){auto* o=self->Find(timer.window);if(o)self->Queue(*o,WM_TIMER,WPARAM(timer.id),0,0);}return 0;}
         return DefWindowProcW(h,m,w,l);
     }
-    void Remove(Object& o){const auto id=o.id;o.ready=false;for(auto& child:objects)if(child.id&&child.parent==id)Remove(child);
+    void Remove(Object& o){const auto id=o.id;o.ready=false;
+#ifdef GUARDIAN_NATIVE_GDI
+        graphics.DropWindow(id);
+#endif
+        for(auto& child:objects)if(child.id&&child.parent==id)Remove(child);
         for(auto& t:timers)if(t.window==id){KillTimer(channel,t.native);t={};}
         events.erase(std::remove_if(events.begin(),events.end(),[&](const auto& e){return e.window==id;}),events.end());
         for(auto& p:pending)if(p.window==id&&p.status==ERROR_IO_PENDING)p.status=ERROR_INVALID_WINDOW_HANDLE;
@@ -65,7 +95,7 @@ struct Host {
     void Describe(Object& o,u::Window& info){info.id=o.id;info.parent=o.parent;info.pid=o.pid;info.tid=o.tid;info.kind=o.kind;info.style=uint32_t(GetWindowLongPtrW(o.hwnd,GWL_STYLE));info.exStyle=uint32_t(GetWindowLongPtrW(o.hwnd,GWL_EXSTYLE));info.enabled=IsWindowEnabled(o.hwnd);info.visible=IsWindowVisible(o.hwnd);info.dpi=96;
         RECT r{},c{};GetWindowRect(o.hwnd,&r);GetClientRect(o.hwnd,&c);POINT origin{};ClientToScreen(o.hwnd,&origin);const auto dpi=GetDpiForWindow(o.hwnd);info.bounds={Logical(r.left,dpi),Logical(r.top,dpi),Logical(r.right,dpi),Logical(r.bottom,dpi)};info.client={0,0,Logical(c.right,dpi),Logical(c.bottom,dpi)};info.originX=Logical(origin.x,dpi);info.originY=Logical(origin.y,dpi);
     }
-    uint32_t Execute(u::Packet& p){const auto& c=p.command;auto& r=p.reply;auto* o=Find(c.window);
+    template<class Packet> uint32_t Execute(Packet& p){const auto& c=p.command;auto& r=p.reply;auto* o=Find(c.window);
         if(c.op==u::Op::Create){
             if(c.window)return ERROR_INVALID_PARAMETER;Object* parent=c.other?Find(c.other):nullptr;
             if(c.other&&(!parent||parent->pid!=p.pid||parent->tid!=p.tid))return ERROR_INVALID_HANDLE;
@@ -78,7 +108,11 @@ struct Host {
             const wchar_t* cls=c.kind==u::Class::Custom?ClassName:c.kind==u::Class::Button?L"BUTTON":c.kind==u::Class::Static?L"STATIC":L"EDIT";
             const auto dpi=parent?GetDpiForWindow(parent->hwnd):GetDpiForSystem();
             slot->hwnd=CreateWindowExW(0,cls,text.c_str(),c.style&~WS_VISIBLE,Physical(c.rect.left,dpi),Physical(c.rect.top,dpi),Physical(c.rect.right-c.rect.left,dpi),Physical(c.rect.bottom-c.rect.top,dpi),parent?parent->hwnd:nullptr,(c.style&WS_CHILD)?reinterpret_cast<HMENU>(uintptr_t(c.id)):nullptr,GetModuleHandleW(nullptr),c.kind==u::Class::Custom?slot:nullptr);
-            if(!slot->hwnd){*slot={};return ERROR_NOT_ENOUGH_MEMORY;}++calls[0];slot->ready=true;
+            if(!slot->hwnd){*slot={};return ERROR_NOT_ENOUGH_MEMORY;}
+#ifdef GUARDIAN_NATIVE_GDI
+            if(c.kind==u::Class::Custom){const auto error=graphics.AddWindow(id,slot->hwnd);if(error){DestroyWindow(slot->hwnd);*slot={};return error;}}
+#endif
+            ++calls[0];slot->ready=true;
             if(c.kind==u::Class::Edit)SendMessageW(slot->hwnd,EM_SETLIMITTEXT,255,0);
             if(c.style&WS_VISIBLE)ShowWindow(slot->hwnd,SW_SHOWNOACTIVATE);r.value=id;Describe(*slot,r.window);return 0;
         }
@@ -93,6 +127,10 @@ struct Host {
                 r.value=entry.result;const auto status=entry.status;if(status!=ERROR_IO_PENDING)entry={};return status;
             }return ERROR_INVALID_HANDLE;
         }
+        #ifdef GUARDIAN_NATIVE_GDI
+        if(c.op==u::Op::ThreadExit)graphics.Exit(p.pid,p.tid);
+        if(c.op==u::Op::Finish&&c.flags)graphics.Clear();
+#endif
         if(c.op==u::Op::ThreadExit){for(auto& v:objects)if(v.id&&v.pid==p.pid&&v.tid==p.tid)Remove(v);for(auto& v:pending)if(v.pid==p.pid&&v.sender==p.tid)v={};return 0;}
         if(c.op==u::Op::Finish){if(c.flags){for(auto& v:objects)if(v.id)Remove(v);pending={};}if(std::any_of(objects.begin(),objects.end(),[](const auto& v){return v.id!=0;})||std::any_of(pending.begin(),pending.end(),[](const auto& v){return v.id!=0;}))return ERROR_BUSY;complete=true;r.completed=1;events.clear();return 0;}
         if(c.op==u::Op::Focus&&!c.window){auto* focused=Find(GetFocus());if(!c.flags)SetFocus(nullptr);r.value=focused&&focused->pid==p.pid&&focused->tid==p.tid?focused->id:0;return 0;}
@@ -131,9 +169,18 @@ struct Host {
         default:return ERROR_NOT_SUPPORTED;
         }
     }
-    bool Exchange(u::Packet& p){
-        if(complete||p.magic!=u::Magic||p.version!=2||p.bytes!=sizeof(p)||p.boot!=boot||p.session!=session||p.sequence!=sequence+1||p.sequence>u::MaxCommands||!p.pid||!p.tid||!guardian::nativegui::Empty(&p.reply,sizeof(p.reply)))return false;
-        ++sequence;p.reply.status=!u::Valid(p.command)?ERROR_INVALID_PARAMETER:overflow?ERROR_NOT_ENOUGH_QUOTA:Execute(p);
+    bool Exchange(WirePacket& p){
+        if(complete||p.magic!=WireMagic||p.version!=WireVersion||p.bytes!=sizeof(p)||p.boot!=boot||p.session!=session||p.sequence!=sequence+1||p.sequence>u::MaxCommands||!p.pid||!p.tid||!guardian::nativegui::Empty(&p.reply,sizeof(p.reply)))return false;
+        ++sequence;
+#ifdef GUARDIAN_NATIVE_GDI
+        if(!g::Empty(&p.graphics,sizeof(p.graphics)))return false;
+        if(p.draw.op!=g::Op::None){u::Command empty;if(std::memcmp(&p.command,&empty,sizeof(empty)))return false;
+            p.graphics.status=graphics.Execute(p.draw,p.graphics,p.pid,p.tid,[&](uint64_t id,uint32_t pid,uint32_t tid){auto* o=Find(id);return o&&o->pid==pid&&o->tid==tid&&o->kind==u::Class::Custom?o->hwnd:nullptr;});p.reply.status=p.graphics.status;
+        }else p.reply.status=!g::Valid(p.draw)||!u::Valid(p.command)?ERROR_INVALID_PARAMETER:overflow?ERROR_NOT_ENOUGH_QUOTA:Execute(p);
+        graphics.Report(p.graphics);
+#else
+        p.reply.status=!u::Valid(p.command)?ERROR_INVALID_PARAMETER:overflow?ERROR_NOT_ENOUGH_QUOTA:Execute(p);
+#endif
         for(auto& o:objects)if(o.id)++p.reply.live[0];for(auto& t:timers)if(t.native)++p.reply.live[1];p.reply.live[2]=uint32_t(events.size());
         p.reply.restrictions=31;p.reply.helperPid=GetCurrentProcessId();std::copy(std::begin(calls),std::end(calls),std::begin(p.reply.calls));return true;
     }
@@ -145,8 +192,12 @@ int Run(){
     WNDCLASSW cls{};cls.lpfnWndProc=Host::Proc;cls.hInstance=GetModuleHandleW(nullptr);cls.lpszClassName=ClassName;cls.hCursor=LoadCursorW(nullptr,MAKEINTRESOURCEW(32512));if(!RegisterClassW(&cls))return 5;
     cls.lpfnWndProc=Host::Channel;cls.lpszClassName=L"Aegis.NativeUser32.Channel";if(!RegisterClassW(&cls))return 5;
     Host host;host.done=CreateEventW(nullptr,FALSE,FALSE,nullptr);host.channel=CreateWindowExW(0,cls.lpszClassName,L"",0,0,0,0,0,HWND_MESSAGE,nullptr,cls.hInstance,&host);if(!host.done||!host.channel)return 5;
-    auto& p=host.packet;DWORD written=0;if(!av::microvm::native_gui::ReadPacket(input,p)||p.magic!=u::Magic||p.version!=2||p.bytes!=sizeof(p)||!p.boot||!p.session||p.sequence||p.pid||p.tid||p.command.op!=u::Op::Hello||!u::Valid(p.command)||!guardian::nativegui::Empty(&p.reply,sizeof(p.reply)))return 6;
-    host.boot=p.boot;host.session=p.session;p.reply.restrictions=31;p.reply.helperPid=GetCurrentProcessId();if(!WriteFile(output,&p,sizeof(p),&written,nullptr)||written!=sizeof(p))return 7;
+    auto& p=host.packet;DWORD written=0;if(!av::microvm::native_gui::ReadPacket(input,p)||p.magic!=WireMagic||p.version!=WireVersion||p.bytes!=sizeof(p)||!p.boot||!p.session||p.sequence||p.pid||p.tid||p.command.op!=u::Op::Hello||!u::Valid(p.command)||!guardian::nativegui::Empty(&p.reply,sizeof(p.reply)))return 6;
+    host.boot=p.boot;host.session=p.session;
+#ifdef GUARDIAN_NATIVE_GDI
+    host.graphics.session=p.session;
+#endif
+    p.reply.restrictions=31;p.reply.helperPid=GetCurrentProcessId();if(!WriteFile(output,&p,sizeof(p),&written,nullptr)||written!=sizeof(p))return 7;
     const auto uiThread=GetCurrentThreadId();std::atomic<int> result{0};
     // The transport never executes a GUI command. Posted tasks still run inside native modal loops.
     std::thread transport([&]{try{for(;;){DWORD put=0;if(!av::microvm::native_gui::ReadPacket(input,p)){result=host.complete?0:8;break;}if(!PostMessageW(host.channel,WM_APP+1,0,0)||WaitForSingleObject(host.done,2000)!=WAIT_OBJECT_0){result=9;break;}if(!WriteFile(output,&p,sizeof(p),&put,nullptr)||put!=sizeof(p)){result=10;break;}}}catch(...){result=12;}PostThreadMessageW(uiThread,WM_QUIT,0,0);});

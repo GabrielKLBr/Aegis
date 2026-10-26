@@ -7,7 +7,7 @@ import native_user32_runtime as runtime
 import nt_compatibility as nt
 import pe_volume
 
-def own_helper(parent,action):
+def own_helper(parent,action,helper_name='guardian-native-user-host.exe'):
     class Entry(ctypes.Structure):
         _fields_=[('size',w.DWORD),('usage',w.DWORD),('pid',w.DWORD),('heap',ctypes.c_size_t),('module',w.DWORD),('threads',w.DWORD),('parent',w.DWORD),('priority',w.LONG),('flags',w.DWORD),('exe',w.WCHAR*260)]
     kernel=ctypes.WinDLL('kernel32',use_last_error=True);kernel.CreateToolhelp32Snapshot.restype=w.HANDLE;kernel.Process32FirstW.argtypes=[w.HANDLE,ctypes.POINTER(Entry)];kernel.Process32NextW.argtypes=kernel.Process32FirstW.argtypes;kernel.CloseHandle.argtypes=[w.HANDLE];kernel.OpenProcess.argtypes=[w.DWORD,w.BOOL,w.DWORD];kernel.OpenProcess.restype=w.HANDLE;kernel.TerminateProcess.argtypes=[w.HANDLE,w.UINT]
@@ -18,7 +18,7 @@ def own_helper(parent,action):
         try:
             found=kernel.Process32FirstW(snapshot,ctypes.byref(entry))
             while found:
-                if entry.parent==parent and entry.exe=='guardian-native-user-host.exe':pids.append(entry.pid)
+                if entry.parent==parent and entry.exe==helper_name:pids.append(entry.pid)
                 found=kernel.Process32NextW(snapshot,ctypes.byref(entry))
         finally:kernel.CloseHandle(snapshot)
         windows=[]

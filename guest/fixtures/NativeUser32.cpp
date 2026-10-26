@@ -1,4 +1,7 @@
 #define _USER32_
+#ifdef GUARDIAN_NATIVE_GDI
+#define _GDI32_
+#endif
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
@@ -8,7 +11,15 @@
 namespace u=guardian::nativeuser;
 extern "C" const int NativeUserAnchor=1410;
 const void* volatile NativeUserRelocation=&NativeUserAnchor;
+#ifdef GUARDIAN_NATIVE_GDI
+#include "guardian/NativeGdi.h"
+namespace g=guardian::nativegdi;
+extern "C" __declspec(dllimport) DWORD GuardianNativeGdiCall(g::Call*) noexcept;
+static DWORD UserService(u::Call* c) noexcept {g::Call request;request.command=c->command;const auto status=GuardianNativeGdiCall(&request);c->reply=request.reply;return status;}
+#else
 extern "C" __declspec(dllimport) DWORD GuardianNativeUserCall(u::Call*) noexcept;
+static DWORD UserService(u::Call* c) noexcept {return GuardianNativeUserCall(c);}
+#endif
 extern "C" LRESULT WINAPI UiDefWindowProcW(HWND,UINT,WPARAM,LPARAM);
 extern "C" BOOL WINAPI UiDestroyWindow(HWND);
 namespace {
@@ -31,7 +42,7 @@ struct Stamp {bool used=false;DWORD tid=0;uint64_t serial=0;MSG msg{};WINDOWPOS 
 struct Quit {DWORD tid=0;int code=0;bool pending=false;};
 Class classes[16]{};Window windows[u::MaxWindows]{};Timer timers[u::MaxTimers]{};Stamp stamps[256]{};Quit quits[16]{};ATOM nextAtom=1;
 Window* Local(HWND h){for(auto& w:windows)if(w.h==h&&h)return &w;return nullptr;}
-bool Call(u::Call& c){const auto status=GuardianNativeUserCall(&c);if(status||c.reply.status){SetLastError(status?status:c.reply.status);return false;}return true;}
+bool Call(u::Call& c){const auto status=UserService(&c);if(status||c.reply.status){SetLastError(status?status:c.reply.status);return false;}return true;}
 bool Query(HWND h,u::Window& w){u::Call c;c.command.op=u::Op::Query;c.command.window=uint64_t(h);if(!Call(c))return false;w=c.reply.window;return true;}
 LRESULT Invoke(HWND h,UINT m,WPARAM wp,LPARAM lp){auto* local=Local(h);const auto proc=local?local->proc:nullptr;if(proc){Suspend unlock;return proc(h,m,wp,lp);}return UiDefWindowProcW(h,m,wp,lp);}
 void Event(const u::Event& e){WINDOWPOS pos{};LPARAM lp=LPARAM(e.lp);if(e.flags&4){pos.hwnd=reinterpret_cast<HWND>(e.window);pos.x=e.rect.left;pos.y=e.rect.top;pos.cx=e.rect.right-e.rect.left;pos.cy=e.rect.bottom-e.rect.top;pos.flags=e.positionFlags;lp=LPARAM(&pos);}const auto value=Invoke(reinterpret_cast<HWND>(e.window),e.message,WPARAM(e.wp),lp);if(e.cookie){u::Call reply;reply.command.op=u::Op::Reply;reply.command.window=e.cookie;reply.command.wp=uint64_t(value);Call(reply);}}
@@ -69,7 +80,7 @@ LRESULT Send(HWND h,UINT m,WPARAM w,LPARAM l){
     if(info.tid==GetCurrentThreadId())return Invoke(h,m,w,l);
     if(!u::ScalarMessage(m))return Fail(ERROR_NOT_SUPPORTED,LRESULT{});
     u::Call c;c.command.op=u::Op::Send;c.command.window=uint64_t(h);c.command.message=m;c.command.wp=w;c.command.lp=uint64_t(l);if(!Call(c))return 0;const auto cookie=c.reply.value;
-    for(;;){u::Call result;result.command.op=u::Op::Result;result.command.window=cookie;const auto status=GuardianNativeUserCall(&result);if(status!=ERROR_IO_PENDING){if(status)return Fail(status,LRESULT{});return LRESULT(result.reply.value);}Drain();{Suspend unlock;Sleep(1);}}
+    for(;;){u::Call result;result.command.op=u::Op::Result;result.command.window=cookie;const auto status=UserService(&result);if(status!=ERROR_IO_PENDING){if(status)return Fail(status,LRESULT{});return LRESULT(result.reply.value);}Drain();{Suspend unlock;Sleep(1);}}
 }
 }
 extern "C" BOOL WINAPI NativeUserEntry(HINSTANCE,DWORD,void*){return TRUE;}
@@ -134,3 +145,7 @@ extern "C" HWND WINAPI UiSetParent(HWND h,HWND parent){Guard guard;u::Call c;c.c
 extern "C" int WINAPI UiMapWindowPoints(HWND from,HWND to,POINT* points,UINT count){Guard guard;if(!points||count>256)return Fail(ERROR_INVALID_PARAMETER,0);u::Window a{},b{};if((from&&!Query(from,a))||(to&&!Query(to,b)))return 0;const auto x=a.originX-b.originX,y=a.originY-b.originY;for(UINT i=0;i<count;++i){points[i].x+=x;points[i].y+=y;}return int(MAKELONG(WORD(x),WORD(y)));}
 extern "C" BOOL WINAPI UiClientToScreen(HWND h,POINT* point){if(!h||!point)return Fail(ERROR_INVALID_PARAMETER,FALSE);SetLastError(0);UiMapWindowPoints(h,nullptr,point,1);return GetLastError()==0;}
 extern "C" BOOL WINAPI UiScreenToClient(HWND h,POINT* point){if(!h||!point)return Fail(ERROR_INVALID_PARAMETER,FALSE);SetLastError(0);UiMapWindowPoints(nullptr,h,point,1);return GetLastError()==0;}
+
+#ifdef GUARDIAN_NATIVE_GDI
+#include "NativeGdiUser.inl"
+#endif

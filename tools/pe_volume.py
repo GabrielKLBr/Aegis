@@ -68,13 +68,13 @@ def validate_volume(data):
 def build(spec,kernel,output):
     profile=spec['profile'];nt.require(profile in nt.PROFILES,'Unsupported profile')
     files,aliases,assemblies=spec['files'],spec.get('aliases',[]),spec.get('assemblies',[])
-    extended=spec.get('phase') in ('14.8','14.9','12F','14.10A','14.10B');header=EXTENDED_HEADER if extended else HEADER
+    extended=spec.get('phase') in ('14.8','14.9','12F','14.10A','14.10B','14.10C');header=EXTENDED_HEADER if extended else HEADER
     nt.require(0<len(files)<=(32 if extended else 16) and len(aliases)<=16 and len(assemblies)<=8,'Volume table budget exceeded')
     data=bytearray((header+4095)&~4095);records=[];pe_inventory=[];names=set()
     for entry in files:
         name=path(entry['path']);nt.require(name not in names,'Duplicate guest path');names.add(name)
         kind={'pe':1,'manifest':2,'data':3}[entry['kind']]
-        nt.require(kind!=3 or spec.get('phase') in ('14.7','14.8','14.9','12F','14.10A','14.10B'),'Data assets require phase 14.7')
+        nt.require(kind!=3 or spec.get('phase') in ('14.7','14.8','14.9','12F','14.10A','14.10B','14.10C'),'Data assets require phase 14.7')
         content=nt.regular(Path(entry['source']),4096 if kind==2 else 8<<20)
         nt.require(content,'Empty file rejected')
         assembly=entry.get('assembly',0);nt.require(type(assembly) is int and 0<=assembly<=len(assemblies),'Assembly index rejected')
@@ -108,7 +108,7 @@ def build(spec,kernel,output):
     validate_volume(data)
     kernel_data=nt.regular(kernel,4<<20);nt.require(b'GuardianExternalPe/1/volume' in kernel_data,'External PE kernel required')
     root_record=records[root]
-    requested_phase=spec.get('phase','14.2');phase='14.9' if requested_phase in ('12F','14.10A','14.10B') else requested_phase;nt.require(phase in ('14.2','14.3','14.4','14.5','14.6','14.7','14.8','14.9'),'Unsupported volume phase')
+    requested_phase=spec.get('phase','14.2');phase='14.9' if requested_phase in ('12F','14.10A','14.10B','14.10C') else requested_phase;nt.require(phase in ('14.2','14.3','14.4','14.5','14.6','14.7','14.8','14.9'),'Unsupported volume phase')
     if phase in ('14.3','14.4','14.5','14.6','14.7','14.8','14.9'):nt.require(b'GuardianNativeNt/1/guest' in kernel_data,'Native NT kernel required')
     if phase in ('14.4','14.5','14.6','14.7','14.8','14.9'):nt.require(b'GuardianWin32/1/guest' in kernel_data,'Win32 kernel required')
     if phase in ('14.5','14.6','14.7','14.8','14.9'):nt.require(b'GuardianCrt/1/guest' in kernel_data,'CRT kernel required')
@@ -141,6 +141,9 @@ def build(spec,kernel,output):
     if requested_phase=='14.10B':
         nt.require(b'GuardianNativeUser32/2/guest' in kernel_data,'Native USER32 kernel required')
         manifest.update({'phase':'14.10B','nativeGuiRuntime':spec['nativeGuiRuntime'],'phase14_10BStarted':True,'phase14_10CStarted':False})
+    if requested_phase=='14.10C':
+        nt.require(b'GuardianNativeGdi/3/guest' in kernel_data,'Native GDI kernel required')
+        manifest.update({'phase':'14.10C','nativeGuiRuntime':spec['nativeGuiRuntime'],'phase14_10CStarted':True,'phase14_10DStarted':False})
     encoded=nt.canonical(manifest)
     binding=struct.pack('<QQ8I',nt.MAGIC,0,1,176,*nt.PROFILES[profile],0,1)+b''.join(bytes.fromhex(s) for s in (
         nt.sha(encoded),manifest['kernelSha256'],manifest['applicationSha256'],manifest['runtimeSha256']))
@@ -168,7 +171,7 @@ def sample(build_dir,config,kernel,output,profile='win10'):
 
 def verify(bundle):
     bundle=Path(bundle);raw=nt.regular(bundle/'manifest.json',4<<20);manifest=json.loads(raw,object_pairs_hook=nt.pairs_unique)
-    nt.require(raw==nt.canonical(manifest) and manifest['phase'] in ('14.2','14.3','14.4','14.5','14.6','14.7','14.8','14.9','12F','14.10A','14.10B'),'Manifest rejected')
+    nt.require(raw==nt.canonical(manifest) and manifest['phase'] in ('14.2','14.3','14.4','14.5','14.6','14.7','14.8','14.9','12F','14.10A','14.10B','14.10C'),'Manifest rejected')
     data=nt.regular(bundle/'runtime.gpv',MAX_BYTES);nt.require(nt.sha(data)==manifest['runtimeSha256'],'Volume digest mismatch')
     profile,root,records=validate_volume(data)
     p=manifest['profile'];nt.require(p in nt.PROFILES and manifest['architecture']=='x64' and manifest['revision'] is None,'Profile rejected')

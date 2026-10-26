@@ -123,6 +123,7 @@ private:
     std::unique_ptr<desktop_session::Backend> desktopBackend_;
     std::function<bool(guardian::nativegui::Packet&)> nativeGuiExchange_;
     std::function<bool(guardian::nativeuser::Packet&)> nativeUserExchange_;
+    std::function<bool(guardian::nativegdi::Packet&)> nativeGdiExchange_;
     std::function<bool()> nativeGuiCompleted_;
     std::unique_ptr<window_session::Bridge> windowBridge_;
     std::filesystem::path windowOutput_;

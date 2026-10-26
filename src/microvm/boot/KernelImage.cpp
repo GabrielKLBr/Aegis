@@ -145,3 +145,5 @@ bool KernelImage::SupportsAnalysisFixture() const noexcept {constexpr char tag[]
 }
 
 namespace av::microvm::boot {bool KernelImage::SupportsNativeUser32() const noexcept {constexpr char tag[]="GuardianNativeUser32/2/guest";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}}
+
+namespace av::microvm::boot {bool KernelImage::SupportsNativeGdi() const noexcept {constexpr char tag[]="GuardianNativeGdi/3/guest";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}}
