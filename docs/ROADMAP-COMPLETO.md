@@ -21,13 +21,16 @@ A 14.6 acrescenta registro persistente, tokens/ACLs e serviços LocalService com
 vida útil própria: [entrega delimitada, testes e limites](PHASE-14.6.md).
 14.7 tem implementação e aceitação gráfica próprias, descritas em [PHASE-14.7.md](PHASE-14.7.md).
 A 14.8 acrescenta o lote delimitado de COM/RPC, Shell, propriedades e controles
-descrito em [PHASE-14.8.md](PHASE-14.8.md). A 14.9 acrescenta rede contida, HTTP, TLS e criptografia conforme [PHASE-14.9.md](PHASE-14.9.md). A 12F acrescenta apresentação em janelas nativas conforme [PHASE-12F.md](PHASE-12F.md). A 14.10A acrescenta a ponte nativa delimitada de [PHASE-14.10A.md](PHASE-14.10A.md); 14.10B–14.10F e 14.11–14.14 continuam planejadas. Os registros abaixo preservam o histórico das
+descrito em [PHASE-14.8.md](PHASE-14.8.md). A 14.9 acrescenta rede contida, HTTP, TLS e criptografia conforme [PHASE-14.9.md](PHASE-14.9.md). A 12F acrescenta apresentação em janelas nativas conforme [PHASE-12F.md](PHASE-12F.md). A 14.10A acrescenta a ponte nativa delimitada de [PHASE-14.10A.md](PHASE-14.10A.md); 14.10B e C têm entregas delimitadas em [PHASE-14.10B.md](PHASE-14.10B.md) e [PHASE-14.10C.md](PHASE-14.10C.md); 14.10D tem entrega delimitada em [PHASE-14.10D.md](PHASE-14.10D.md); 14.10E–14.10G e 14.11–14.14 continuam planejadas. Os registros abaixo preservam o histórico das
 entregas anteriores e suas pendências.
 
 **Prioridade gráfica revisada:** a 12F apresenta pixels desenhados no MiniNT.
 A renderização de operações GUI pelas APIs reais do Windows host fica planejada
-para **14.10A–14.10D**, antes de DirectX e mídia/áudio em **14.10E–14.10F**.
-A 14.10A tem entrega delimitada em [PHASE-14.10A.md](PHASE-14.10A.md); B–F
+para **14.10A–14.10E**, antes de DirectX em **14.10F** e mídia/áudio em **14.10G**.
+Por solicitação do usuário, a 14.10E prioriza ampliar a compatibilidade GDI
+em janelas do host; DirectX e mídia/áudio avançam uma etapa.
+A 14.10A, B, C e D têm entregas delimitadas em [PHASE-14.10A.md](PHASE-14.10A.md),
+[PHASE-14.10B.md](PHASE-14.10B.md) e [PHASE-14.10C.md](PHASE-14.10C.md) e [PHASE-14.10D.md](PHASE-14.10D.md); E–G
 continuam pendentes. Cada lote exige entrega e solicitação próprias; concluir um não autoriza iniciar o seguinte.
 
 **Histórico das entregas:** 12A concluída para a matriz de referência, com validação Windows/WHP e Linux/KVM. [Resultados e limites](PHASE-12A.md). A 12B está em implementação e validação: [recursos, cotas e pendências](PHASE-12B.md). O contrato próprio `resources` passou na matriz Linux (47 Debug, 47 Release e 30 ASan/UBSan), com SMP, volume escalável e pasta independente; a aceitação Windows da revisão e a integração aos perfis existentes continuam pendentes. [Continuação de 20/10](PHASE-12B-RECURSOS.md). A 12C passou na validação Linux em 21/10/2026 (50 Debug, 50 Release e 32 ASan/UBSan), com referências Windows ainda pendentes: [matriz, entrega e diferenças](PHASE-12C.md). A 12D foi autorizada em nova solicitação: sessões e interação passaram em 53 testes Debug, 53 Release e 33 ASan/UBSan na revisão estável da 12D. [Registro da 12D](PHASE-12D.md). A 12E foi implementada e aceita no Linux em 22/10/2026: 56 Debug, 56 Release e 34 ASan/UBSan, com perfis sintéticos funcionais e reproduzíveis. [Entrega e limites](PHASE-12E.md). A aceitação nativa Windows e os requisitos anteriores permanecem pendentes. A fase 13 passou na aceitação Linux em 22/10/2026: 59 Debug, 59 Release e 35 ASan/UBSan, com telemetria, políticas e análise comportamental. [Entrega e limites](PHASE-13.md). A aceitação Windows e os requisitos anteriores continuam abertos; a fase 14 não foi iniciada. Os registros históricos abaixo conservam os resultados e pendências da época.
@@ -516,7 +519,7 @@ A aceitação exige 139 testes Release, 64 Debug e pacote extraído validado.
 O visualizador único continua como alternativa. O conteúdo é rasterizado pelo
 MiniNT e apresentado como imagens; essa entrega não implementa o encaminhamento
 de operações de desenho às APIs nativas do Windows. A evolução solicitada de
-renderização nativa fica em **14.10A–14.10D**, separada da aceitação desta 12F.
+renderização nativa fica em **14.10A–14.10E**, separada da aceitação desta 12F.
 
 **Dependências:** saída gráfica e entrada da fase 11, carregamento e
 inicialização de PEs externos no kernel próprio e o lote USER32/GDI da fase 12
@@ -615,7 +618,7 @@ Aplicativos executam em processos separados dentro do convidado, em modo
 usuário, com suas DLLs carregadas no respectivo processo e atendidos pelo kernel
 MiniNT. O processo gerenciador no host controla a VM; ele não executa livremente
 os imports do programa como chamadas Windows locais. A ponte gráfica planejada
-em **14.10A–14.10D** terá uma lista explícita de operações GUI traduzidas para
+em **14.10A–14.10E** terá uma lista explícita de operações GUI traduzidas para
 APIs Windows em um processo auxiliar restrito. EXE, DLLs importadas e callbacks
 da aplicação continuarão no convidado; não se trata de carregar seu código no
 host ou encaminhar syscalls gerais. DLLs
@@ -868,7 +871,8 @@ timeouts e cancelamento observáveis. Parar ao concluir.
 **Estado:** 14.10A com implementação delimitada em [PHASE-14.10A.md](PHASE-14.10A.md);
 14.10B com entrega delimitada em [PHASE-14.10B.md](PHASE-14.10B.md);
 14.10C com entrega delimitada em [PHASE-14.10C.md](PHASE-14.10C.md);
-14.10D–14.10F pendentes. A solicitação de 26/10/2026
+14.10D com entrega delimitada em [PHASE-14.10D.md](PHASE-14.10D.md);
+14.10E–14.10G pendentes. A solicitação de 26/10/2026
 prioriza fazer o Windows host executar operações de criação e desenho de GUI,
 enquanto a aplicação permanece no MiniNT. A 12F fornece infraestrutura de sessão,
 entrada e janelas, mas sua apresentação de pixels não satisfaz esse requisito.
@@ -879,7 +883,7 @@ o backend escolhido no manifesto, sem converter silenciosamente a sessão atual.
 
 Os lotes abaixo têm critérios próprios. **Parar após cada lote**, executar suas
 verificações, registrar limites e publicar sua entrega pelo fluxo do projeto.
-A entrega de 14.10A não declara as operações de B–F implementadas.
+A entrega de 14.10A não declara as operações de B–G implementadas.
 
 #### 14.10A — Protocolo e processo auxiliar de GUI nativa
 
@@ -935,7 +939,7 @@ concluir.
 **Entrega delimitada:** [PHASE-14.10C.md](PHASE-14.10C.md). DCs e objetos próprios,
 clipping, formas, texto, métricas, DIBs e cópias por GDI real do auxiliar, com
 comparação nativa. Critério: 152 Release, 77 Debug e pacote extraído.
-USER32/GDI completos não são declarados; a 14.10D permanece pendente.
+USER32/GDI completos não são declarados; a 14.10D tem seu escopo próprio descrito abaixo.
 
 **Dependências:** 14.10A–14.10B.
 
@@ -960,6 +964,11 @@ seleção/restauração, falhas parciais e vazamentos. Parar ao concluir.
 
 #### 14.10D — Controles adicionais, diálogos e aceitação da GUI nativa
 
+**Entrega delimitada:** [PHASE-14.10D.md](PHASE-14.10D.md). Controles e menus
+nativos, diálogos no namespace convidado e Flappy original com GDI no host,
+sem fallback. Critério: 158 Release, 83 Debug e pacote extraído.
+A expansão GDI da 14.10E continua pendente.
+
 **Dependências:** 14.8 e 14.10B–14.10C.
 
 **Trabalho:** ampliar controles comuns/menus e diálogos conforme as aplicações
@@ -978,9 +987,47 @@ aprovação do requisito nativo. Executar regressões pertinentes, aceitação W
 Release/Debug e teste do pacote extraído. Publicar o escopo efetivamente aceito;
 não anunciar USER32/GDI completos. Parar ao concluir.
 
-#### 14.10E — DirectX, desenho 2D e codecs de imagem
+#### 14.10E — Compatibilidade GDI ampliada em janelas do host
 
-**Dependências:** 14.10A–14.10D e contratos de dispositivos necessários.
+**Dependências:** 14.10A–14.10D.
+
+**Trabalho:** ampliar a ponte USER32/GDI conforme lacunas medidas em programas
+independentes, antes de iniciar DirectX. Manter um inventário versionado de
+funções, variantes ANSI/Unicode e dependências, indicando para cada uma:
+implementada, implementada com restrições, recusada por política ou pendente.
+Inventário de exports não conta como implementação.
+
+Expandir em lotes estados e contextos gráficos, regiões/clipping, paths,
+curvas e transformações, operações de bitmaps, formatos e modos raster, além
+de texto, Unicode, glifos, espaçamento, métricas e fontes adicionais por
+catálogo controlado. Priorizar as famílias usadas pelo corpus e publicar os
+formatos, flags e combinações aceitos; não prometer GDI universal.
+
+Criação, apresentação e desenho das janelas usam USER32/GDI reais no auxiliar
+do host, incluindo texto e fontes desenhados pelo Windows. Código, DLLs e
+callbacks do aplicativo permanecem no MiniNT. Bitmaps da aplicação podem ser
+transferidos pelo contrato limitado; uma janela previamente rasterizada no
+MiniNT não satisfaz a aceitação nativa.
+
+Cada operação permitida especifica argumentos, tipos e autoria dos objetos,
+permissões, cotas, erros e ciclo de vida. Validar dados nos dois lados da ponte,
+copiar buffers e traduzir IDs próprios, sem encaminhar ponteiros, callbacks ou
+handles reais do host. Desktop, captura de outras janelas, caminhos arbitrários
+de fontes, dispositivos, impressão e escapes de drivers não são liberados
+implicitamente. Uma lista de nomes não garante ausência de escape.
+
+**Conclusão:** ampliar o corpus da 14.10D com programas externos independentes
+e publicar a matriz de APIs. Comparar os mesmos cenários no MiniNT e no Windows
+nativo: pixels, texto, fontes, métricas, DPI, redimensionamento, concorrência e
+perfis NT anunciados. Exigir entradas inválidas, objetos de outras sessões,
+falhas parciais, cotas e vazamentos, regressões Windows Release/Debug e teste
+do pacote extraído. Publicar aplicações aprovadas, cobertura, diferenças e
+lacunas; fallback de pixels não conta como aprovação nativa. Parar ao concluir
+e aguardar solicitação para a 14.10F.
+
+#### 14.10F — DirectX, desenho 2D e codecs de imagem
+
+**Dependências:** 14.10A–14.10E e contratos de dispositivos necessários.
 
 **Trabalho:** priorizar `dxgi.dll`, `d3d9.dll`, `d3d11.dll`, `d2d1.dll`,
 `dwrite.dll` e `windowscodecs.dll` conforme o corpus. Definir backend por software
@@ -992,9 +1039,9 @@ medidos; não confundir identidade de GPU com aceleração ou suporte a drivers.
 backends anunciados, com testes de recursos, formatos, sincronização e falhas.
 Backend ausente gera limitação explícita. Parar ao concluir.
 
-#### 14.10F — Mídia, áudio e dispositivos de aplicação
+#### 14.10G — Mídia, áudio e dispositivos de aplicação
 
-**Dependências:** 14.10A e, conforme a aplicação, 14.10E.
+**Dependências:** 14.10A e, conforme a aplicação, 14.10F.
 
 **Trabalho:** atender `winmm.dll`, `mmdevapi.dll` e famílias de áudio/mídia da
 matriz com buffers, formatos, relógios, sincronização, cancelamento e recuperação
@@ -1186,7 +1233,7 @@ solicitação. Essa ordem não transforma fases antigas pendentes em concluídas
 | Sandbox gerenciável | Fases 9–10: snapshots consistentes, VMs e rede contida. |
 | Aplicações gráficas | Fase 11 e lote de compatibilidade correspondente da fase 12. |
 | Janelas independentes no desktop Windows | Subfase 12F: ponte de apresentação validada, aplicativo no convidado e entrada restrita à sessão. |
-| Janelas, controles e desenho executados pelo Windows host | 14.10A–14.10D, planejadas: operações GUI mediadas, callbacks no MiniNT e aceitação específica do backend nativo. |
+| Janelas, controles e desenho executados pelo Windows host | 14.10A–14.10E, entregas delimitadas e expansão planejada: operações GUI mediadas, callbacks no MiniNT e aceitação específica do backend nativo. |
 | DLLs Windows no MiniNT | 14.1–14.6: perfis NT, carregador e serviços nativos/Win32/CRT comprovados no convidado. |
 | Aplicativos externos de desktop | 14.7–14.12: GUI, COM, rede, gráficos, frameworks e x86 conforme a matriz por perfil. |
 | Compatibilidade ampla mensurada | 14.13–14.14: análise integrada, recuperação e corpus independente com resultados por versão NT. |
@@ -1212,7 +1259,7 @@ PHASE-14.4.md. A 14.5 implementa o corpus CRT original delimitado em
 PHASE-14.5.md. Rethrow/nested C++ e compatibilidade CRT geral continuam abertos.
 A 14.6 implementa a matriz delimitada de segurança/registro/serviços descrita em
 PHASE-14.6.md e PHASE-14.7.md. A 14.8 entrega a matriz delimitada de componentes
-de PHASE-14.8.md. A 14.9 entrega o corpus de rede e criptografia de PHASE-14.9.md. A 12F acrescenta a apresentação nativa delimitada de PHASE-12F.md. A 14.10A entrega o recorte de PHASE-14.10A.md; 14.10B–14.10F e 14.11–14.14 permanecem planejadas. Os resultados históricos e as pendências
+de PHASE-14.8.md. A 14.9 entrega o corpus de rede e criptografia de PHASE-14.9.md. A 12F acrescenta a apresentação nativa delimitada de PHASE-12F.md. A 14.10A entrega o recorte de PHASE-14.10A.md; 14.10B e C entregam os recortes de PHASE-14.10B.md e PHASE-14.10C.md; 14.10D entrega o recorte de PHASE-14.10D.md; 14.10E–14.10G e 14.11–14.14 permanecem planejadas. Os resultados históricos e as pendências
 anteriores permanecem identificados nos respectivos documentos.
 
 ## Referências técnicas para os novos requisitos

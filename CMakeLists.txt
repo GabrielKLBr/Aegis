@@ -716,3 +716,4 @@ include(cmake/GuardianNativeGui.cmake)
 include(cmake/GuardianNativeUser32.cmake)
 
 include(cmake/GuardianNativeGdi.cmake)
+include(cmake/GuardianNativeControls.cmake)

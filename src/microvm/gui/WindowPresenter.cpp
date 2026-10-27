@@ -38,7 +38,7 @@ struct Presenter::State {
     struct Slot {~Slot();State* self=nullptr;HWND window=nullptr;d::Window info{};uint32_t dpi=96,buttons=0;uint16_t surrogate=0;bool syncing=false,geometryPending=false;uint64_t capturedHash=0;d::Rect pendingBounds{};std::shared_ptr<const Frame> frame;size_t image=0;};
     std::thread thread;std::mutex mutex;std::condition_variable readyCondition;std::atomic<DWORD> tid{0};std::atomic<bool> stopping{false};bool ready=false,visible=true,finished=false,processing=false;std::string failure;std::shared_ptr<const Frame> pending;
     std::deque<p::Event> events;std::vector<std::unique_ptr<Slot>> windows;std::vector<Action> actions;size_t action=0;std::shared_ptr<const Frame> current;
-    uint64_t expectedSession=0,session=0,received=0,applied=0,coalesced=0,created=0,destroyed=0,queued=0,geometry=0,dpiChanges=0,painted=0,scriptOrigin=0;std::atomic<uint64_t> delivered{0};std::filesystem::path capturePath;uint32_t captures=0;std::vector<std::string> history;int scriptModifiers=-1;
+    uint64_t expectedSession=0,session=0,received=0,applied=0,coalesced=0,created=0,destroyed=0,queued=0,geometry=0,dpiChanges=0,painted=0,scriptOrigin=0;std::atomic<uint64_t> delivered{0};bool initialAwaited=false,initialPresented=false;std::filesystem::path capturePath;uint32_t captures=0;std::vector<std::string> history;int scriptModifiers=-1;
 #ifdef WINDOW_BRIDGE_TESTING
     std::atomic<uint32_t> resourceFault{0};
     void ResourcePoint(uint32_t stage){if(resourceFault.load()==stage){resourceFault=0;throw std::runtime_error("Requested native resource failure test");}}
@@ -125,8 +125,26 @@ void Presenter::FailNextResourceForTesting(uint32_t stage){state::Require(stage=
 #endif
 Presenter::Presenter(std::vector<Action> actions,bool visible,std::filesystem::path captures):state_(std::make_unique<State>()){state_->visible=visible;state_->capturePath=std::move(captures);state_->actions=std::move(actions);state_->thread=std::thread([this]{state_->Run();});std::unique_lock lock(state_->mutex);state_->readyCondition.wait(lock,[this]{return state_->ready;});if(!state_->failure.empty()){const auto failure=state_->failure;lock.unlock();if(state_->thread.joinable())state_->thread.join();throw std::runtime_error(failure);}}
 Presenter::~Presenter(){try{Finish();}catch(...){}}
-void Presenter::Display(const Frame& frame){state::Require(ValidDisplay(frame),"Native display frame rejected");std::lock_guard lock(state_->mutex);state::Require(!state_->finished&&state_->failure.empty(),"Native presenter unavailable");state::Require(!state_->expectedSession||state_->expectedSession==frame.session,"Native display session rejected");state_->expectedSession=frame.session;if(state_->pending)++state_->coalesced;state_->pending=std::make_shared<Frame>(frame);++state_->received;PostThreadMessageW(state_->tid,Wake,0,0);}
+void Presenter::Display(const Frame& frame){
+    state::Require(ValidDisplay(frame),"Native display frame rejected");
+    std::unique_lock lock(state_->mutex);
+    state::Require(!state_->finished&&state_->failure.empty(),"Native presenter unavailable");
+    state::Require(!state_->expectedSession||state_->expectedSession==frame.session,"Native display session rejected");
+    const bool firstVisible=!state_->initialAwaited&&std::any_of(frame.metadata.windows,frame.metadata.windows+frame.metadata.count,[](const auto& w){return (w.flags&1)!=0;});
+    if(firstVisible)state_->initialAwaited=true;
+    state_->expectedSession=frame.session;
+    if(state_->pending)++state_->coalesced;
+    state_->pending=std::make_shared<Frame>(frame);++state_->received;
+    PostThreadMessageW(state_->tid,Wake,0,0);
+    // The guest must not outrun creation of its first visible windows. Later
+    // frames retain asynchronous coalescing and the original failure contract.
+    if(firstVisible){
+        const bool ready=state_->readyCondition.wait_for(lock,std::chrono::seconds(2),[this]{return (!state_->pending&&!state_->processing)||!state_->failure.empty();});
+        if(!ready&&state_->failure.empty())state_->failure="Initial native frame deadline";
+        state_->initialPresented=ready&&state_->failure.empty();
+    }
+}
 p::Event Presenter::Poll(){std::lock_guard lock(state_->mutex);state::Require(state_->failure.empty(),state_->failure.empty()?"Native presenter failed":state_->failure.c_str());if(state_->events.empty())return {};const auto event=state_->events.front();state_->events.pop_front();++state_->delivered;return event;}
 void Presenter::Finish(const std::filesystem::path& output){if(!state_->finished){{std::unique_lock lock(state_->mutex);state_->readyCondition.wait_for(lock,std::chrono::seconds(2),[this]{return (!state_->pending&&!state_->processing)||!state_->failure.empty();});}state_->stopping=true;EnumThreadWindows(state_->tid,[](HWND h,LPARAM)->BOOL {PostMessageW(h,WM_CANCELMODE,0,0);return TRUE;},0);PostThreadMessageW(state_->tid,WM_QUIT,0,0);if(state_->thread.joinable())state_->thread.join();state_->finished=true;}if(!output.empty())state::AtomicText(output/"native-windows.json",Report());}
-std::string Presenter::Report() const {state::Require(state_->finished,"Stop native presenter before reading its report");std::ostringstream text;text<<"{\"schema\":1,\"phase\":\"12F\",\"session\":"<<state_->session<<",\"framesReceived\":"<<state_->received<<",\"framesApplied\":"<<state_->applied<<",\"framesCoalesced\":"<<state_->coalesced<<",\"created\":"<<state_->created<<",\"destroyed\":"<<state_->destroyed<<",\"liveWindows\":"<<state_->windows.size()<<",\"eventsQueued\":"<<state_->queued<<",\"eventsDelivered\":"<<state_->delivered<<",\"geometryEvents\":"<<state_->geometry<<",\"dpiChanges\":"<<state_->dpiChanges<<",\"paints\":"<<state_->painted<<",\"nativeCaptures\":"<<state_->captures<<",\"scriptConsumed\":"<<state_->action<<",\"scriptTotal\":"<<state_->actions.size()<<",\"failure\":"<<Json(std::wstring(state_->failure.begin(),state_->failure.end()))<<",\"history\":[";for(size_t i=0;i<state_->history.size();++i){if(i)text<<',';text<<state_->history[i];}text<<"]}\n";return text.str();}
+std::string Presenter::Report() const {state::Require(state_->finished,"Stop native presenter before reading its report");std::ostringstream text;text<<"{\"schema\":1,\"phase\":\"12F\",\"session\":"<<state_->session<<",\"framesReceived\":"<<state_->received<<",\"framesApplied\":"<<state_->applied<<",\"framesCoalesced\":"<<state_->coalesced<<",\"created\":"<<state_->created<<",\"destroyed\":"<<state_->destroyed<<",\"liveWindows\":"<<state_->windows.size()<<",\"eventsQueued\":"<<state_->queued<<",\"eventsDelivered\":"<<state_->delivered<<",\"geometryEvents\":"<<state_->geometry<<",\"dpiChanges\":"<<state_->dpiChanges<<",\"paints\":"<<state_->painted<<",\"nativeCaptures\":"<<state_->captures<<",\"initialFrameSynchronized\":"<<(state_->initialPresented?"true":"false")<<",\"scriptConsumed\":"<<state_->action<<",\"scriptTotal\":"<<state_->actions.size()<<",\"failure\":"<<Json(std::wstring(state_->failure.begin(),state_->failure.end()))<<",\"history\":[";for(size_t i=0;i<state_->history.size();++i){if(i)text<<',';text<<state_->history[i];}text<<"]}\n";return text.str();}
 }

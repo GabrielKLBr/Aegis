@@ -16,7 +16,11 @@ bool GdiText(const wchar_t* text,int count,g::Command& c){if(!text)return false;
 }
 extern "C" HDC WINAPI UiGetDC(HWND h){Guard lock;if(!h)return Fail(ERROR_INVALID_WINDOW_HANDLE,HDC{});return NewDc(g::Op::Dc,uint64_t(h));}
 extern "C" int WINAPI UiReleaseDC(HWND h,HDC dc){Guard lock;auto* local=Dc(dc);if(!local||local->window!=h||local->paint)return Fail(ERROR_INVALID_PARAMETER,0);return CloseDc(dc,g::Op::Release);}
-extern "C" HDC WINAPI UiBeginPaint(HWND h,PAINTSTRUCT* paint){Guard lock;if(!h||!paint)return Fail(ERROR_INVALID_PARAMETER,HDC{});return NewDc(g::Op::Paint,uint64_t(h),paint);}
+extern "C" HDC WINAPI UiBeginPaint(HWND h,PAINTSTRUCT* paint){Guard lock;if(!h||!paint)return Fail(ERROR_INVALID_PARAMETER,HDC{});const auto dc=NewDc(g::Op::Paint,uint64_t(h),paint);
+#ifdef GUARDIAN_NATIVE_CONTROLS
+if(dc){auto* window=Local(h);if(window&&window->cls&&window->cls->background){g::Call fill;fill.draw.op=g::Op::Fill;fill.draw.dc=uint64_t(dc);fill.draw.object=uintptr_t(window->cls->background)<=31?uint64_t(UiGetSysColorBrush(int(uintptr_t(window->cls->background))-1)):uint64_t(window->cls->background);Copy(&fill.draw.rect,&paint->rcPaint,sizeof(RECT));Draw(fill);}}
+#endif
+return dc;}
 extern "C" BOOL WINAPI UiEndPaint(HWND h,const PAINTSTRUCT* paint){Guard lock;auto* dc=paint?Dc(paint->hdc):nullptr;if(!dc||dc->window!=h||!dc->paint)return Fail(ERROR_INVALID_PARAMETER,FALSE);return CloseDc(paint->hdc,g::Op::EndPaint);}
 extern "C" HDC WINAPI UiCreateCompatibleDC(HDC h){Guard lock;return NewDc(g::Op::MemoryDc,uint64_t(h));}
 extern "C" BOOL WINAPI UiDeleteDC(HDC h){Guard lock;return CloseDc(h,g::Op::DeleteDc);}

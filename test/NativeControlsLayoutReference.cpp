@@ -1,0 +1,6 @@
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <cstdio>
+#include <cstdlib>
+LRESULT CALLBACK Layout(HWND h,UINT m,WPARAM w,LPARAM l){if(m==WM_WINDOWPOSCHANGING)return 0;if(m==WM_GETMINMAXINFO&&l){reinterpret_cast<MINMAXINFO*>(l)->ptMinTrackSize={1,1};return 0;}return DefWindowProcW(h,m,w,l);}
+int main(int argc,char** argv){if(argc!=3)return 1;const int bird=std::atoi(argv[1]),pipe=std::atoi(argv[2]);if(bird<1||bird>128||pipe<1||pipe>512)return 2;SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);WNDCLASSW cls{};cls.lpfnWndProc=Layout;cls.hInstance=GetModuleHandleW(nullptr);cls.lpszClassName=L"Aegis.SDK.Layout.Reference";if(!RegisterClassW(&cls))return 3;int widths[3]{};const int requested[]={bird,pipe,100};for(unsigned i=0;i<3;++i){const auto hwnd=CreateWindowExW(WS_EX_TOPMOST,cls.lpszClassName,L"Native layout reference",i?WS_VISIBLE|WS_SYSMENU:WS_VISIBLE|WS_POPUP,100,100,requested[i],120,nullptr,nullptr,cls.hInstance,nullptr);if(!hwnd)return 4;MoveWindow(hwnd,110,110,requested[i],120,TRUE);RECT r{};GetWindowRect(hwnd,&r);const auto dpi=GetDpiForWindow(hwnd);widths[i]=MulDiv(r.right-r.left,96,int(dpi));DestroyWindow(hwnd);}UnregisterClassW(cls.lpszClassName,cls.hInstance);std::printf("{\"bird\":%d,\"pipe\":%d,\"score\":%d,\"requestedBird\":%d,\"requestedPipe\":%d}\n",widths[0],widths[1],widths[2],bird,pipe);return 0;}

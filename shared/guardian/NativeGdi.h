@@ -1,8 +1,14 @@
 #pragma once
 #include "NativeUser32.h"
 namespace guardian::nativegdi {
+#ifdef GUARDIAN_NATIVE_CONTROLS
+inline constexpr uint64_t Magic=0x344C5254434E4741ull;
+inline constexpr uint32_t Version=4,MaxSurfaces=32;
+#else
 inline constexpr uint64_t Magic=0x334944474E4741ull;
-inline constexpr uint32_t Version=3,MaxObjects=128,MaxDcs=32,MaxSurfaces=8,MaxPixels=512*512,Chunk=128,MaxBytes=24u<<20;
+inline constexpr uint32_t Version=3,MaxSurfaces=8;
+#endif
+inline constexpr uint32_t MaxObjects=128,MaxDcs=32,MaxPixels=512*512,Chunk=128,MaxBytes=24u<<20;
 #pragma pack(push,4)
 enum class Op:uint32_t {None,Dc,Release,Paint,EndPaint,MemoryDc,DeleteDc,Brush,Pen,Font,Bitmap,Upload,Read,Stock,Select,Delete,Current,Save,Restore,Clip,ClipRegion,Region,Fill,Rectangle,Move,Line,TextColor,BkColor,BkMode,OutputText,FormatText,Extent,Metrics,BitBlt,Stretch,Pixel,Flush,Caps};
 enum class Kind:uint32_t {Dc=3,Brush,Pen,Font,Bitmap,Region};
@@ -23,7 +29,12 @@ inline bool Valid(const Command& c){
     case Op::Dc:case Op::Paint:case Op::MemoryDc:case Op::Release:case Op::EndPaint:case Op::DeleteDc:case Op::Delete:case Op::Save:case Op::Metrics:v.dc=c.dc;break;
     case Op::Brush:v.color=c.color;if(c.color>0xFFFFFF)return false;break;
     case Op::Pen:v.color=c.color;v.args[0]=c.args[0];if(c.color>0xFFFFFF||c.args[0]<1||c.args[0]>16)return false;break;
-    case Op::Font:v.font=c.font;if(c.font.height<-64||c.font.height>-8||c.font.width||c.font.escapement||c.font.orientation||c.font.weight<100||c.font.weight>900||c.font.italic>1||c.font.underline>1||c.font.strike>1||c.font.charset!=1||c.font.out||c.font.clip||c.font.quality!=3||c.font.pitch)return false;break;
+    case Op::Font:v.font=c.font;
+#ifdef GUARDIAN_NATIVE_CONTROLS
+        if(c.font.height<-96||c.font.height>96||c.font.width||c.font.escapement||c.font.orientation||c.font.weight<0||c.font.weight>1000||c.font.italic>1||c.font.underline>1||c.font.strike>1||c.font.charset>1||c.font.out||c.font.clip||c.font.quality>6||c.font.pitch&~0xF3u)return false;break;
+#else
+        if(c.font.height<-64||c.font.height>-8||c.font.width||c.font.escapement||c.font.orientation||c.font.weight<100||c.font.weight>900||c.font.italic>1||c.font.underline>1||c.font.strike>1||c.font.charset!=1||c.font.out||c.font.clip||c.font.quality!=3||c.font.pitch)return false;break;
+#endif
     case Op::Bitmap:v.args[0]=c.args[0];v.args[1]=c.args[1];if(c.args[0]<1||c.args[0]>512||c.args[1]<1||c.args[1]>512)return false;break;
     case Op::Upload:case Op::Read:v.dc=c.dc;v.offset=c.offset;v.count=c.count;if(!c.count||c.count>Chunk||c.offset>MaxPixels-c.count)return false;if(c.op==Op::Upload)for(uint32_t i=0;i<c.count;++i)v.pixels[i]=c.pixels[i];break;
     case Op::Stock:case Op::Restore:case Op::Current:case Op::BkMode:case Op::Caps:v.dc=c.dc;v.args[0]=c.args[0];break;

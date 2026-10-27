@@ -1,0 +1,9 @@
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+#include <cstdio>
+#include <cstring>
+#ifndef NATIVE_CONTROLS_AUTOTEST
+#define NATIVE_CONTROLS_AUTOTEST 0
+#endif
+namespace {HWND edit=nullptr;bool confirmed=false;LRESULT CALLBACK Pad(HWND h,UINT m,WPARAM w,LPARAM l){if(m==WM_NCCREATE)return TRUE;if(m==WM_COMMAND&&LOWORD(w)==201){char text[128]{};GetWindowTextA(edit,text,128);if(std::strcmp(text,"abc")==0){const auto result=MessageBoxA(h,"Texto recebido pelo aplicativo MiniNT", "14.10D Pad confirm",MB_OKCANCEL);confirmed=result==IDOK;std::printf("PAD_RESULT text=abc confirmed=%u\n",unsigned(confirmed));std::fflush(stdout);}return 0;}if(m==WM_PAINT){PAINTSTRUCT p{};const auto dc=BeginPaint(h,&p);TextOutA(dc,15,105,"ANSI text rendered by Windows",28);EndPaint(h,&p);return 0;}if(m==WM_CLOSE){DestroyWindow(h);return 0;}if(m==WM_DESTROY){PostQuitMessage(0);return 0;}return DefWindowProcA(h,m,w,l);}}
+int main(){WNDCLASSA c{};c.lpfnWndProc=Pad;c.lpszClassName="Aegis.SDK.Pad";c.hInstance=GetModuleHandleA(nullptr);if(!RegisterClassA(&c))return 1;const auto h=CreateWindowExA(0,c.lpszClassName,"14.10D Pad",WS_OVERLAPPEDWINDOW,180,180,430,220,nullptr,nullptr,c.hInstance,nullptr);if(!h)return 2;edit=CreateWindowExA(0,"EDIT","",WS_CHILD|WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL,15,15,290,28,h,reinterpret_cast<HMENU>(202),c.hInstance,nullptr);const auto button=CreateWindowExA(0,"BUTTON","Confirm",WS_CHILD|WS_VISIBLE|BS_PUSHBUTTON,15,60,120,30,h,reinterpret_cast<HMENU>(201),c.hInstance,nullptr);if(!edit||!button)return 3;ShowWindow(h,SW_SHOWNOACTIVATE);std::puts("PAD_READY");std::fflush(stdout);if(NATIVE_CONTROLS_AUTOTEST){SetWindowTextA(edit,"abc");char text[4]{};if(GetWindowTextA(edit,text,4)!=3||std::strcmp(text,"abc"))return 4;DestroyWindow(h);}else{MSG msg{};while(GetMessageA(&msg,nullptr,0,0)>0){TranslateMessage(&msg);DispatchMessageA(&msg);}}std::printf("Native controls ANSI pad confirmed=%u PASS\n",unsigned(confirmed));return 0;}

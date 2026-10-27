@@ -1,0 +1,3 @@
+LIBRARY comctl32
+EXPORTS
+    InitCommonControlsEx=user32.InitCommonControlsEx

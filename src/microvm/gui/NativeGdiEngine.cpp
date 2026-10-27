@@ -7,13 +7,17 @@ namespace {
 constexpr uint32_t Bad=ERROR_INVALID_HANDLE,Quota=ERROR_NOT_ENOUGH_QUOTA;
 int Index(g::Kind k){return k==g::Kind::Pen?0:k==g::Kind::Brush?1:k==g::Kind::Font?2:k==g::Kind::Bitmap?3:-1;}
 g::Kind Type(int index){return index==OBJ_PEN?g::Kind::Pen:index==OBJ_BRUSH?g::Kind::Brush:index==OBJ_FONT?g::Kind::Font:index==OBJ_BITMAP?g::Kind::Bitmap:g::Kind{};}
-bool Face(const uint16_t* face){wchar_t name[33]{};for(size_t i=0;i<32;++i){if(face[i]>127)return false;name[i]=wchar_t(face[i]);}if(face[31])return false;return !_wcsicmp(name,L"Consolas")||!_wcsicmp(name,L"Arial")||!_wcsicmp(name,L"Segoe UI");}
+bool Face(const uint16_t* face){wchar_t name[33]{};for(size_t i=0;i<32;++i){if(face[i]>127)return false;name[i]=wchar_t(face[i]);}if(face[31])return false;
+#ifdef GUARDIAN_NATIVE_CONTROLS
+if(!name[0]||!_wcsicmp(name,L"Sans Serif")||!_wcsicmp(name,L"MS Shell Dlg")||!_wcsicmp(name,L"MS Shell Dlg 2"))return true;
+#endif
+return !_wcsicmp(name,L"Consolas")||!_wcsicmp(name,L"Arial")||!_wcsicmp(name,L"Segoe UI");}
 HBITMAP Dib(int width,int height,void** data){BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=width;info.bmiHeader.biHeight=-height;info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;return CreateDIBSection(nullptr,&info,DIB_RGB_COLORS,data,nullptr,0);}
 }
 GdiResource* GdiEngine::Find(uint64_t id){for(auto& r:resources)if(id&&r.id==id)return &r;return nullptr;}
 GdiSurface* GdiEngine::Surface(uint64_t id){for(auto& s:surfaces)if(id&&s.id==id)return &s;return nullptr;}
 GdiResource* GdiEngine::Allocate(g::Kind k,uint32_t pid,uint32_t tid){for(auto& r:resources)if(!r.id){r={};r.id=(uint64_t(k)<<56)|((session&0xFFFFFF)<<32)|next++;r.pid=pid;r.tid=tid;r.kind=k;return &r;}return nullptr;}
-bool GdiEngine::Selected(uint64_t id) const {for(const auto& r:resources)if(r.id&&r.kind==g::Kind::Dc){for(auto v:r.selected)if(v==id)return true;for(int i=0;i<r.depth;++i)for(auto v:r.saved[i])if(v==id)return true;}return false;}
+bool GdiEngine::Selected(uint64_t id) const {for(const auto& item:resources)if(item.id==id&&item.pins)return true;for(const auto& r:resources)if(r.id&&r.kind==g::Kind::Dc){for(auto v:r.selected)if(v==id)return true;for(int i=0;i<r.depth;++i)for(auto v:r.saved[i])if(v==id)return true;}return false;}
 void GdiEngine::Drop(GdiSurface& s){if(s.dc){SelectObject(s.dc,s.old);DeleteDC(s.dc);}if(s.bitmap){DeleteObject(s.bitmap);bytes-=uint64_t(s.width)*s.height*4;}s={};}
 uint32_t GdiEngine::Resize(GdiSurface& s){RECT rect{};if(!GetClientRect(s.hwnd,&rect))return Bad;const auto dpi=GetDpiForWindow(s.hwnd);const int width=std::max(1,MulDiv(rect.right,96,int(dpi))),height=std::max(1,MulDiv(rect.bottom,96,int(dpi)));
     if(width==s.width&&height==s.height)return 0;for(const auto& r:resources)if(r.id&&r.window==s.id)return ERROR_BUSY;
@@ -34,6 +38,13 @@ void GdiEngine::DropWindow(uint64_t id){for(auto& r:resources)if(r.id&&r.window=
 void GdiEngine::Exit(uint32_t pid,uint32_t tid){for(auto& r:resources)if(r.id&&r.pid==pid&&r.tid==tid&&r.kind==g::Kind::Dc)CloseDc(r);for(auto& r:resources)if(r.id&&r.pid==pid&&r.tid==tid)Delete(r);}
 void GdiEngine::Clear(){for(auto& r:resources)if(r.id&&r.kind==g::Kind::Dc)CloseDc(r);for(auto& r:resources)if(r.id)Delete(r);for(auto& s:surfaces)if(s.id)Drop(s);}
 GdiEngine::~GdiEngine(){Clear();}
+#ifdef GUARDIAN_NATIVE_CONTROLS
+HFONT GdiEngine::ControlFont(uint64_t id,uint32_t pid,uint32_t tid){auto* r=Find(id);if(!r||r->kind!=g::Kind::Font||r->pid!=pid||r->tid!=tid)return nullptr;++r->pins;return static_cast<HFONT>(r->object);}
+uint64_t GdiEngine::DefaultControlFont(uint32_t pid,uint32_t tid){return Stock(GetStockObject(DEFAULT_GUI_FONT),g::Kind::Font,pid,tid);}
+void GdiEngine::UnpinFont(uint64_t id){if(auto* r=Find(id);r&&r->pins)--r->pins;}
+uint64_t GdiEngine::SystemBrush(int index,uint32_t pid,uint32_t tid){return Stock(GetSysColorBrush(index),g::Kind::Brush,pid,tid);}
+HBITMAP GdiEngine::IconBitmap(uint64_t id,uint32_t pid,uint32_t tid,int& width,int& height){auto* r=Find(id);if(!r||r->kind!=g::Kind::Bitmap||r->stock||r->pid!=pid||r->tid!=tid||Selected(id)||r->width>64||r->height>64)return nullptr;width=r->width;height=r->height;GdiFlush();return static_cast<HBITMAP>(r->object);}
+#endif
 void GdiEngine::Report(g::Reply& reply) const {for(const auto& r:resources)if(r.id)++reply.live[r.kind==g::Kind::Dc?0:1];for(const auto& s:surfaces)if(s.id)++reply.live[2];std::copy(std::begin(calls),std::end(calls),std::begin(reply.calls));reply.pixelBytes=bytes;reply.uploaded=uploaded;reply.downloaded=downloaded;}
 uint32_t GdiEngine::Execute(const g::Command& c,g::Reply& reply,uint32_t pid,uint32_t tid,const Resolve& resolve){
     if(!g::Valid(c))return ERROR_INVALID_PARAMETER;auto* r=Find(c.dc);auto* object=Find(c.object);auto own=[&](GdiResource* p){return p&&p->pid==pid&&p->tid==tid;};

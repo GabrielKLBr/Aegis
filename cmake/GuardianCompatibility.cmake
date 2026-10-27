@@ -17,7 +17,15 @@ if(BUILD_TESTING)
         target_compile_options(nt_compatibility_tests PRIVATE /W4 /WX /utf-8 /permissive-)
     endif()
     add_test(NAME nt_compatibility_core COMMAND nt_compatibility_tests)
+    if(WIN32 AND TARGET guardian_kernel_pe_gui)
+        add_dependencies(nt_compatibility_tests guardian_kernel_pe_gui guardian_gui_application guardian_gui_user32)
+        add_test(NAME nt_compatibility_inventory COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/test/NtCompatibilityInventoryTests.py" $<TARGET_FILE:nt_compatibility_tests>
+            --package-application $<TARGET_FILE:guardian_gui_application>
+            --package-runtime $<TARGET_FILE:guardian_gui_user32>
+            --package-kernel $<TARGET_FILE:guardian_kernel_pe_gui>)
+    else()
     add_test(NAME nt_compatibility_inventory COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/test/NtCompatibilityInventoryTests.py" $<TARGET_FILE:nt_compatibility_tests>)
+    endif()
     if(WIN32 AND TARGET guardian_kernel_pe_gui)
         add_executable(nt_compatibility_boot_tests test/NtCompatibilityBootTests.cpp)
         target_link_libraries(nt_compatibility_boot_tests PRIVATE ${nt_core})

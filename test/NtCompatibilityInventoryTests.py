@@ -1,6 +1,7 @@
 """Bounded PE graph, ordinal/data/delay/forwarder handling and manifest refusals."""
 from pathlib import Path
 import copy
+import argparse
 import json
 import struct
 import subprocess
@@ -9,6 +10,8 @@ import tempfile
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import nt_compatibility as nt
+
+PACKAGE_FIXTURES = None
 
 
 def fixture(path, imports=(), exports=(), delay=(), executable=True):
@@ -138,10 +141,17 @@ class InventoryTests(unittest.TestCase):
             nt.inventory([app])
 
     def test_package_is_canonical_persistent_and_profile_bound(self):
-        app = fixture(self.root / "app.exe", [("user32.dll", ["GetMessageA"])])
-        dll = fixture(self.root / "user32.dll", exports=[("CreateWindowExA", None), ("GetMessageA", None)])
-        kernel = self.root / "kernel.gk"
-        kernel.write_bytes(b"GuardianExternalGui/1/bounded" + dll.read_bytes())
+        # Packaging needs genuine, compiled inputs rather than another parser fixture.
+        # Malformed PE containers can be quarantined by Windows AV.
+        if PACKAGE_FIXTURES:
+            app, dll, kernel = PACKAGE_FIXTURES
+            self.assertTrue(all(path.is_file() for path in PACKAGE_FIXTURES))
+        else:
+            self.assertNotEqual(sys.platform, "win32", "Provide compiled --package-* references on Windows")
+            app = fixture(self.root / "app.exe", [("user32.dll", ["GetMessageA"])])
+            dll = fixture(self.root / "user32.dll", exports=[("CreateWindowExA", None), ("GetMessageA", None)])
+            kernel = self.root / "kernel.gk"
+            kernel.write_bytes(b"GuardianExternalGui/1/bounded" + dll.read_bytes())
         for profile in nt.PROFILES:
             output = self.root / profile
             manifest = nt.create(profile, kernel, app, dll, output)
@@ -177,4 +187,13 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         native = json.loads(subprocess.check_output([sys.argv.pop(1), "--profiles"], text=True))
         assert native == {key: list(value) for key, value in nt.PROFILES.items()}
+    parser = argparse.ArgumentParser(add_help=False)
+    for name in ("application", "runtime", "kernel"):
+        parser.add_argument("--package-" + name, type=Path)
+    options, remaining = parser.parse_known_args(sys.argv[1:])
+    selected = (options.package_application, options.package_runtime, options.package_kernel)
+    if any(selected):
+        assert all(selected), "All three compiled package references are required"
+        PACKAGE_FIXTURES = tuple(path.resolve() for path in selected)
+    sys.argv[1:] = remaining
     unittest.main()

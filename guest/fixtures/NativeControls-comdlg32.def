@@ -1,0 +1,5 @@
+LIBRARY comdlg32
+EXPORTS
+    GetOpenFileNameW=user32.GetOpenFileNameW
+    GetOpenFileNameA=user32.GetOpenFileNameA
+    CommDlgExtendedError=user32.CommDlgExtendedError

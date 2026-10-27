@@ -1,0 +1,3 @@
+LIBRARY dwmapi
+EXPORTS
+    DwmSetWindowAttribute=user32.DwmSetWindowAttribute

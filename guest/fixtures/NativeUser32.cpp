@@ -8,6 +8,11 @@
 #include <intrin.h>
 #include <limits.h>
 #include "guardian/NativeUser32.h"
+#ifdef GUARDIAN_NATIVE_CONTROLS
+#include "guardian/NativeControls.h"
+namespace nc=guardian::nativecontrols;
+extern "C" HBRUSH WINAPI UiGetSysColorBrush(int);
+#endif
 namespace u=guardian::nativeuser;
 extern "C" const int NativeUserAnchor=1410;
 const void* volatile NativeUserRelocation=&NativeUserAnchor;
@@ -31,11 +36,17 @@ void Unlock(){if(!--depth)_InterlockedExchange64(&lockOwner,0);}
 struct Guard{Guard(){Lock();}~Guard(){Unlock();}};
 struct Suspend {uint32_t saved=depth;Suspend(){depth=0;_InterlockedExchange64(&lockOwner,0);}~Suspend(){Lock();depth=saved;}};
 template<class T>T Fail(DWORD error,T result){SetLastError(error);return result;}
-bool Wide(const wchar_t* s,uint16_t* d){if(!s)return true;for(uint32_t i=0;i<256;++i){d[i]=uint16_t(s[i]);if(!s[i])return u::Text(d);}return false;}
+bool Wide(const wchar_t* s,uint16_t* d){if(!s)return true;for(uint32_t i=0;i<256;++i){d[i]=uint16_t(s[i]);if(!s[i])return
+#ifdef GUARDIAN_NATIVE_CONTROLS
+nc::Text(d);
+#else
+u::Text(d);
+#endif
+}return false;}
 bool Ansi(const char* s,uint16_t* d){return !s||MultiByteToWideChar(1252,0,s,-1,reinterpret_cast<wchar_t*>(d),256)>0;}
 bool Equal(const uint16_t* a,const uint16_t* b){for(uint32_t i=0;i<256;++i){auto x=a[i],y=b[i];if(x>='A'&&x<='Z')x+=32;if(y>='A'&&y<='Z')y+=32;if(x!=y)return false;if(!x)return true;}return false;}
 bool Name(const uint16_t* a,const wchar_t* b){if(uintptr_t(a)<=65535)return false;uint16_t text[256]{};return Wide(b,text)&&Equal(a,text);}
-struct Class {ATOM atom=0;WNDPROC proc=nullptr;uint16_t name[256]{};bool wide=true;};
+struct Class {ATOM atom=0;WNDPROC proc=nullptr;uint16_t name[256]{};bool wide=true;HBRUSH background=nullptr;HICON icon=nullptr;};
 struct Window {HWND h=nullptr,parent=nullptr;Class* cls=nullptr;WNDPROC proc=nullptr;LONG_PTR user=0,id=0;uint32_t tid=0;u::Class kind{};bool destroying=false,wide=true;};
 struct Timer {HWND h=nullptr;UINT_PTR id=0;TIMERPROC proc=nullptr;};
 struct Stamp {bool used=false;DWORD tid=0;uint64_t serial=0;MSG msg{};WINDOWPOS pos{};uint32_t flags=0;};
@@ -43,6 +54,9 @@ struct Quit {DWORD tid=0;int code=0;bool pending=false;};
 Class classes[16]{};Window windows[u::MaxWindows]{};Timer timers[u::MaxTimers]{};Stamp stamps[256]{};Quit quits[16]{};ATOM nextAtom=1;
 Window* Local(HWND h){for(auto& w:windows)if(w.h==h&&h)return &w;return nullptr;}
 bool Call(u::Call& c){const auto status=UserService(&c);if(status||c.reply.status){SetLastError(status?status:c.reply.status);return false;}return true;}
+#ifdef GUARDIAN_NATIVE_CONTROLS
+void NativeRejected(uint32_t api,uint64_t a,uint64_t b,u::Rect rect={}){u::Call c;c.command.op=static_cast<u::Op>(nc::Op::Unsupported);c.command.message=api;c.command.wp=a;c.command.lp=b;c.command.rect=rect;UserService(&c);}
+#endif
 bool Query(HWND h,u::Window& w){u::Call c;c.command.op=u::Op::Query;c.command.window=uint64_t(h);if(!Call(c))return false;w=c.reply.window;return true;}
 LRESULT Invoke(HWND h,UINT m,WPARAM wp,LPARAM lp){auto* local=Local(h);const auto proc=local?local->proc:nullptr;if(proc){Suspend unlock;return proc(h,m,wp,lp);}return UiDefWindowProcW(h,m,wp,lp);}
 void Event(const u::Event& e){WINDOWPOS pos{};LPARAM lp=LPARAM(e.lp);if(e.flags&4){pos.hwnd=reinterpret_cast<HWND>(e.window);pos.x=e.rect.left;pos.y=e.rect.top;pos.cx=e.rect.right-e.rect.left;pos.cy=e.rect.bottom-e.rect.top;pos.flags=e.positionFlags;lp=LPARAM(&pos);}const auto value=Invoke(reinterpret_cast<HWND>(e.window),e.message,WPARAM(e.wp),lp);if(e.cookie){u::Call reply;reply.command.op=u::Op::Reply;reply.command.window=e.cookie;reply.command.wp=uint64_t(value);Call(reply);}}
@@ -50,21 +64,44 @@ void Drain(){for(uint32_t i=0;i<u::MaxEvents;++i){u::Call c;c.command.op=u::Op::
 HWND Create(DWORD ex,const uint16_t* name,const uint16_t* title,DWORD style,int x,int y,int width,int height,HWND parent,HMENU menu,HINSTANCE instance,void* param,bool wide){
     Guard guard;Class* cls=nullptr;u::Class kind=u::Class::Custom;
     if(Name(name,L"BUTTON"))kind=u::Class::Button;else if(Name(name,L"STATIC"))kind=u::Class::Static;else if(Name(name,L"EDIT"))kind=u::Class::Edit;
-    else{for(auto& c:classes)if(c.atom&&((uintptr_t(name)<=65535&&c.atom==ATOM(uintptr_t(name)))||(uintptr_t(name)>65535&&Equal(name,c.name)))){cls=&c;break;}if(!cls)return Fail(ERROR_CANNOT_FIND_WND_CLASS,HWND{});}
+#ifdef GUARDIAN_NATIVE_CONTROLS
+    else if(Name(name,L"LISTBOX"))kind=nc::List;else if(Name(name,L"COMBOBOX"))kind=nc::Combo;
+#endif
+    else{for(auto& c:classes)if(c.atom&&((uintptr_t(name)<=65535&&c.atom==ATOM(uintptr_t(name)))||(uintptr_t(name)>65535&&Equal(name,c.name)))){cls=&c;break;}if(!cls){
+#ifdef GUARDIAN_NATIVE_CONTROLS
+NativeRejected(3,style,0,{x,y,width,height});
+#endif
+return Fail(ERROR_CANNOT_FIND_WND_CLASS,HWND{});}}
+#ifdef GUARDIAN_NATIVE_CONTROLS
+    if(Name(name,L"LISTBOX"))kind=nc::List;else if(Name(name,L"COMBOBOX"))kind=nc::Combo;
+#endif
     if(cls)wide=cls->wide;
-    if(width<=0||height<=0||width>2048||height>2048||x<-8192||x>8192||y<-8192||y>8192)return Fail(ERROR_INVALID_PARAMETER,HWND{});
+    if(width<=0||height<=0||width>2048||height>2048||x<-8192||x>8192||y<-8192||y>8192){
+#ifdef GUARDIAN_NATIVE_CONTROLS
+NativeRejected(4,style,0,{x,y,width,height});
+#endif
+return Fail(ERROR_INVALID_PARAMETER,HWND{});}
     Window* local=nullptr;for(auto& w:windows)if(!w.h){local=&w;break;}
     // The kernel can remove a departed thread's native windows after its last
     // user instruction. Reclaim these expired local records before reporting quota.
     if(!local)for(auto& w:windows){u::Window info;if(!Query(w.h,info)&&GetLastError()==ERROR_INVALID_HANDLE){for(auto& t:timers)if(t.h==w.h)t={};for(auto& stamp:stamps)if(stamp.used&&stamp.msg.hwnd==w.h)stamp={};w={};local=&w;break;}}
     if(!local)return Fail(ERROR_NOT_ENOUGH_QUOTA,HWND{});
     u::Call c;c.command.op=u::Op::Create;c.command.other=uint64_t(parent);c.command.rect={x,y,x+width,y+height};c.command.style=style;c.command.exStyle=ex;c.command.kind=kind;c.command.id=(style&WS_CHILD)?uint32_t(uintptr_t(menu)):0;
-    if(!(style&WS_CHILD)&&menu)return Fail(ERROR_NOT_SUPPORTED,HWND{});Copy(c.command.text,title,sizeof(c.command.text));if(!Call(c))return nullptr;
+#ifdef GUARDIAN_NATIVE_CONTROLS
+    c.command.lp=cls?uint64_t(cls->icon):0;
+#endif
+    #ifndef GUARDIAN_NATIVE_CONTROLS
+    if(!(style&WS_CHILD)&&menu)return Fail(ERROR_NOT_SUPPORTED,HWND{});
+#endif
+    Copy(c.command.text,title,sizeof(c.command.text));if(!Call(c))return nullptr;
     const auto h=reinterpret_cast<HWND>(c.reply.value);*local={h,parent,cls,cls?cls->proc:nullptr,0,LONG_PTR(menu),GetCurrentThreadId(),kind,false,wide};
     CREATESTRUCTW cs{};cs.lpCreateParams=param;cs.hInstance=instance;cs.hMenu=menu;cs.hwndParent=parent;cs.cx=width;cs.cy=height;cs.x=x;cs.y=y;cs.style=LONG(style);cs.lpszName=reinterpret_cast<LPCWSTR>(title);cs.lpszClass=reinterpret_cast<LPCWSTR>(name);cs.dwExStyle=ex;
     char ansiTitle[256]{},ansiClass[256]{};CREATESTRUCTA ca{};
     if(!wide){Copy(&ca,&cs,sizeof(ca));WideCharToMultiByte(1252,0,reinterpret_cast<LPCWSTR>(title),-1,ansiTitle,256,nullptr,nullptr);if(uintptr_t(name)>65535)WideCharToMultiByte(1252,0,reinterpret_cast<LPCWSTR>(name),-1,ansiClass,256,nullptr,nullptr);ca.lpszName=ansiTitle;ca.lpszClass=uintptr_t(name)<=65535?reinterpret_cast<LPCSTR>(name):ansiClass;}
     const auto data=wide?LPARAM(&cs):LPARAM(&ca);
+    #ifdef GUARDIAN_NATIVE_CONTROLS
+    if(!(style&WS_CHILD)&&menu){u::Call attach;attach.command.op=static_cast<u::Op>(nc::Op::Attach);attach.command.window=uint64_t(h);attach.command.other=uint64_t(menu);if(!Call(attach)){UiDestroyWindow(h);return nullptr;}}
+#endif
     if(kind==u::Class::Custom&&(!Invoke(h,WM_NCCREATE,0,data)||Invoke(h,WM_CREATE,0,data)==-1)){UiDestroyWindow(h);return nullptr;}Drain();return h;
 }
 LRESULT TextMessage(HWND h,UINT m,WPARAM w,LPARAM l){
@@ -76,6 +113,9 @@ LRESULT Send(HWND h,UINT m,WPARAM w,LPARAM l){
     u::Window info;if(!Query(h,info))return 0;
     if(info.kind==u::Class::Custom&&info.tid==GetCurrentThreadId())return Invoke(h,m,w,l);
     if(m==WM_SETTEXT||m==WM_GETTEXT||m==WM_GETTEXTLENGTH){if(info.tid!=GetCurrentThreadId())return Fail(ERROR_NOT_SUPPORTED,LRESULT{});return TextMessage(h,m,w,l);}
+#ifdef GUARDIAN_NATIVE_CONTROLS
+    if(info.kind==nc::List||info.kind==nc::Combo){const bool list=info.kind==nc::List;const bool text=m==UINT(list?LB_ADDSTRING:CB_ADDSTRING)||m==UINT(list?LB_INSERTSTRING:CB_INSERTSTRING)||m==UINT(list?LB_GETTEXT:CB_GETLBTEXT);if(text){u::Call c;c.command.op=static_cast<u::Op>(nc::Op::ControlText);c.command.window=uint64_t(h);c.command.message=m;c.command.wp=w;const bool get=m==UINT(list?LB_GETTEXT:CB_GETLBTEXT);if(!get&&!Wide(reinterpret_cast<LPCWSTR>(l),c.command.text))return Fail(ERROR_INVALID_PARAMETER,LRESULT{});if(!Call(c))return LB_ERR;if(get){if(!l)return Fail(ERROR_INVALID_PARAMETER,LRESULT{});Copy(reinterpret_cast<void*>(l),c.reply.text,(size_t(c.reply.value)+1)*2);}Drain();return LRESULT(c.reply.value);}}
+#endif
     if(info.kind!=u::Class::Custom){u::Call c;c.command.op=u::Op::NativeMessage;c.command.window=uint64_t(h);c.command.message=m;c.command.wp=m==EM_GETSEL?0:w;c.command.lp=m==EM_GETSEL?0:uint64_t(l);if(!Call(c))return 0;if(m==EM_GETSEL){if(w)*reinterpret_cast<DWORD*>(w)=LOWORD(c.reply.value);if(l)*reinterpret_cast<DWORD*>(l)=HIWORD(c.reply.value);}Drain();return LRESULT(c.reply.value);}
     if(info.tid==GetCurrentThreadId())return Invoke(h,m,w,l);
     if(!u::ScalarMessage(m))return Fail(ERROR_NOT_SUPPORTED,LRESULT{});
@@ -84,17 +124,39 @@ LRESULT Send(HWND h,UINT m,WPARAM w,LPARAM l){
 }
 }
 extern "C" BOOL WINAPI NativeUserEntry(HINSTANCE,DWORD,void*){return TRUE;}
-extern "C" ATOM WINAPI UiRegisterClassExW(const WNDCLASSEXW* c){Guard guard;if(!c||c->cbSize!=sizeof(*c)||!c->lpfnWndProc||!c->lpszClassName||c->cbClsExtra||c->cbWndExtra||c->lpszMenuName||c->style||c->hIcon||c->hIconSm||c->hCursor||c->hbrBackground)return Fail(ERROR_NOT_SUPPORTED,ATOM{});uint16_t name[256]{};if(!Wide(c->lpszClassName,name))return Fail(ERROR_INVALID_PARAMETER,ATOM{});for(auto& entry:classes)if(entry.atom&&Equal(name,entry.name))return Fail(ERROR_CLASS_ALREADY_EXISTS,ATOM{});for(auto& entry:classes)if(!entry.atom){entry.atom=nextAtom++;entry.proc=c->lpfnWndProc;Copy(entry.name,name,sizeof(name));return entry.atom;}return Fail(ERROR_NOT_ENOUGH_QUOTA,ATOM{});}
+extern "C" ATOM WINAPI UiRegisterClassExW(const WNDCLASSEXW* c){Guard guard;if(!c||c->cbSize!=sizeof(*c)||!c->lpfnWndProc||!c->lpszClassName||c->cbClsExtra||c->cbWndExtra||c->lpszMenuName
+#ifndef GUARDIAN_NATIVE_CONTROLS
+||c->style||c->hIcon||c->hIconSm||c->hCursor||c->hbrBackground
+#else
+||c->style&~(CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS)||c->hCursor
+#endif
+){
+#ifdef GUARDIAN_NATIVE_CONTROLS
+NativeRejected(2,c?c->style:0,c?uint64_t(c->cbClsExtra)|(uint64_t(c->cbWndExtra)<<16)|(uint64_t(bool(c->lpszMenuName))<<32)|(uint64_t(bool(c->hCursor))<<33):uint64_t(-1));
+#endif
+return Fail(ERROR_NOT_SUPPORTED,ATOM{});}uint16_t name[256]{};if(!Wide(c->lpszClassName,name))return Fail(ERROR_INVALID_PARAMETER,ATOM{});for(auto& entry:classes)if(entry.atom&&Equal(name,entry.name))return Fail(ERROR_CLASS_ALREADY_EXISTS,ATOM{});for(auto& entry:classes)if(!entry.atom){entry.atom=nextAtom++;entry.proc=c->lpfnWndProc;
+#ifdef GUARDIAN_NATIVE_CONTROLS
+entry.background=c->hbrBackground;entry.icon=c->hIcon;
+#endif
+Copy(entry.name,name,sizeof(name));return entry.atom;}return Fail(ERROR_NOT_ENOUGH_QUOTA,ATOM{});}
 extern "C" ATOM WINAPI UiRegisterClassExA(const WNDCLASSEXA* c){if(!c)return 0;uint16_t name[256]{};if(!Ansi(c->lpszClassName,name))return 0;WNDCLASSEXW wide{};Copy(&wide,c,sizeof(wide));wide.lpszClassName=reinterpret_cast<LPCWSTR>(name);const auto atom=UiRegisterClassExW(&wide);if(atom){Guard guard;for(auto& entry:classes)if(entry.atom==atom)entry.wide=false;}return atom;}
 extern "C" ATOM WINAPI UiRegisterClassW(const WNDCLASSW* c){if(!c)return 0;WNDCLASSEXW x{};x.cbSize=sizeof(x);x.style=c->style;x.lpfnWndProc=c->lpfnWndProc;x.cbClsExtra=c->cbClsExtra;x.cbWndExtra=c->cbWndExtra;x.hInstance=c->hInstance;x.hIcon=c->hIcon;x.hCursor=c->hCursor;x.hbrBackground=c->hbrBackground;x.lpszMenuName=c->lpszMenuName;x.lpszClassName=c->lpszClassName;return UiRegisterClassExW(&x);}
 extern "C" ATOM WINAPI UiRegisterClassA(const WNDCLASSA* c){if(!c)return 0;WNDCLASSEXA x{};x.cbSize=sizeof(x);x.style=c->style;x.lpfnWndProc=c->lpfnWndProc;x.cbClsExtra=c->cbClsExtra;x.cbWndExtra=c->cbWndExtra;x.hInstance=c->hInstance;x.hIcon=c->hIcon;x.hCursor=c->hCursor;x.hbrBackground=c->hbrBackground;x.lpszMenuName=c->lpszMenuName;x.lpszClassName=c->lpszClassName;return UiRegisterClassExA(&x);}
 extern "C" HWND WINAPI UiCreateWindowExW(DWORD e,LPCWSTR n,LPCWSTR t,DWORD s,int x,int y,int w,int h,HWND p,HMENU m,HINSTANCE i,void* v){uint16_t name[256]{},title[256]{};if((uintptr_t(n)>65535&&!Wide(n,name))||!Wide(t,title))return Fail(ERROR_INVALID_PARAMETER,HWND{});return Create(e,uintptr_t(n)<=65535?reinterpret_cast<const uint16_t*>(n):name,title,s,x,y,w,h,p,m,i,v,true);}
 extern "C" HWND WINAPI UiCreateWindowExA(DWORD e,LPCSTR n,LPCSTR t,DWORD s,int x,int y,int w,int h,HWND p,HMENU m,HINSTANCE i,void* v){uint16_t name[256]{},title[256]{};if((uintptr_t(n)>65535&&!Ansi(n,name))||!Ansi(t,title))return Fail(ERROR_INVALID_PARAMETER,HWND{});return Create(e,uintptr_t(n)<=65535?reinterpret_cast<const uint16_t*>(n):name,title,s,x,y,w,h,p,m,i,v,false);}
 extern "C" BOOL WINAPI UiDestroyWindow(HWND h){Guard guard;auto* local=Local(h);if(!local||local->tid!=GetCurrentThreadId())return Fail(ERROR_INVALID_WINDOW_HANDLE,FALSE);if(local->destroying)return TRUE;local->destroying=true;for(auto& child:windows)if(child.h&&child.parent==h)UiDestroyWindow(child.h);Invoke(h,WM_DESTROY,0,0);Invoke(h,WM_NCDESTROY,0,0);u::Call c;c.command.op=u::Op::Destroy;c.command.window=uint64_t(h);if(!Call(c)){local->destroying=false;return FALSE;}for(auto& t:timers)if(t.h==h)t={};*local={};return TRUE;}
-extern "C" LRESULT WINAPI UiDefWindowProcW(HWND h,UINT m,WPARAM w,LPARAM l){Guard guard;if(m==WM_NCCREATE)return TRUE;if(m==WM_CLOSE){UiDestroyWindow(h);return 0;}if(m==WM_SETTEXT||m==WM_GETTEXT||m==WM_GETTEXTLENGTH)return TextMessage(h,m,w,l);if(m==WM_CREATE||m==WM_DESTROY||m==WM_NCDESTROY||m==WM_PAINT||m==WM_WINDOWPOSCHANGED||m==WM_SIZE||m==WM_MOVE||m==WM_SETFOCUS||m==WM_KILLFOCUS)return 0;return Fail(ERROR_NOT_SUPPORTED,LRESULT{});}
+extern "C" LRESULT WINAPI UiDefWindowProcW(HWND h,UINT m,WPARAM w,LPARAM l){Guard guard;if(m==WM_NCCREATE)return TRUE;
+#ifdef GUARDIAN_NATIVE_CONTROLS
+if(m==WM_SETICON||m==WM_GETICON){u::Call c;c.command.op=static_cast<u::Op>(nc::Op::SetIcon);c.command.window=uint64_t(h);c.command.other=m==WM_SETICON?uint64_t(l):0;c.command.wp=w;c.command.flags=m==WM_GETICON;return Call(c)?LRESULT(c.reply.value):0;}
+#endif
+if(m==WM_CLOSE){UiDestroyWindow(h);return 0;}if(m==WM_SETTEXT||m==WM_GETTEXT||m==WM_GETTEXTLENGTH)return TextMessage(h,m,w,l);if(m==WM_CREATE||m==WM_DESTROY||m==WM_NCDESTROY||m==WM_PAINT||m==WM_WINDOWPOSCHANGED||m==WM_SIZE||m==WM_MOVE||m==WM_SETFOCUS||m==WM_KILLFOCUS)return 0;return Fail(ERROR_NOT_SUPPORTED,LRESULT{});}
 extern "C" LRESULT WINAPI UiDefWindowProcA(HWND h,UINT m,WPARAM w,LPARAM l){Guard guard;if(m==WM_SETTEXT){uint16_t text[256]{};if(!Ansi(reinterpret_cast<LPCSTR>(l),text))return Fail(ERROR_INVALID_PARAMETER,LRESULT{});return TextMessage(h,m,w,LPARAM(text));}if(m==WM_GETTEXT||m==WM_GETTEXTLENGTH){wchar_t text[256]{};TextMessage(h,WM_GETTEXT,256,LPARAM(text));if(m==WM_GETTEXTLENGTH)return WideCharToMultiByte(1252,0,text,-1,nullptr,0,nullptr,nullptr)-1;if(!w||!l||w>INT_MAX)return 0;const auto size=WideCharToMultiByte(1252,0,text,-1,reinterpret_cast<char*>(l),int(w),nullptr,nullptr);return size?size-1:0;}return UiDefWindowProcW(h,m,w,l);}
 extern "C" LRESULT WINAPI UiSendMessageW(HWND h,UINT m,WPARAM w,LPARAM l){Guard guard;auto* local=Local(h);if(local&&local->kind==u::Class::Custom&&!local->wide){char text[256]{};if(m==WM_SETTEXT){if(!WideCharToMultiByte(1252,0,reinterpret_cast<LPCWSTR>(l),-1,text,256,nullptr,nullptr))return 0;return Send(h,m,w,LPARAM(text));}if(m==WM_GETTEXT||m==WM_GETTEXTLENGTH){Send(h,WM_GETTEXT,256,LPARAM(text));if(m==WM_GETTEXTLENGTH)return MultiByteToWideChar(1252,0,text,-1,nullptr,0)-1;if(!w||!l||w>INT_MAX)return 0;const auto count=MultiByteToWideChar(1252,0,text,-1,reinterpret_cast<LPWSTR>(l),int(w));return count?count-1:0;}}return Send(h,m,w,l);}
-extern "C" LRESULT WINAPI UiSendMessageA(HWND h,UINT m,WPARAM w,LPARAM l){Guard guard;auto* local=Local(h);if(local&&local->kind==u::Class::Custom&&!local->wide)return Send(h,m,w,l);if(m==WM_SETTEXT){uint16_t text[256]{};if(!Ansi(reinterpret_cast<LPCSTR>(l),text))return 0;return Send(h,m,w,LPARAM(text));}if(m==WM_GETTEXT||m==WM_GETTEXTLENGTH){wchar_t text[256]{};const auto length=Send(h,WM_GETTEXT,256,LPARAM(text));if(m==WM_GETTEXTLENGTH)return length;if(!w||!l)return 0;const auto result=WideCharToMultiByte(1252,0,text,-1,reinterpret_cast<char*>(l),int(w),nullptr,nullptr);return result?result-1:0;}return Send(h,m,w,l);}
+extern "C" LRESULT WINAPI UiSendMessageA(HWND h,UINT m,WPARAM w,LPARAM l){Guard guard;auto* local=Local(h);if(local&&local->kind==u::Class::Custom&&!local->wide)return Send(h,m,w,l);
+#ifdef GUARDIAN_NATIVE_CONTROLS
+if(local&&(local->kind==nc::List||local->kind==nc::Combo)){const bool list=local->kind==nc::List;if(m==UINT(list?LB_ADDSTRING:CB_ADDSTRING)||m==UINT(list?LB_INSERTSTRING:CB_INSERTSTRING)){uint16_t text[256]{};if(!Ansi(reinterpret_cast<LPCSTR>(l),text))return LB_ERR;return Send(h,m,w,LPARAM(text));}if(m==UINT(list?LB_GETTEXT:CB_GETLBTEXT)){wchar_t text[256]{};const auto length=Send(h,m,w,LPARAM(text));if(length<0)return length;return WideCharToMultiByte(1252,0,text,-1,reinterpret_cast<LPSTR>(l),256,nullptr,nullptr)-1;}}
+#endif
+if(m==WM_SETTEXT){uint16_t text[256]{};if(!Ansi(reinterpret_cast<LPCSTR>(l),text))return 0;return Send(h,m,w,LPARAM(text));}if(m==WM_GETTEXT||m==WM_GETTEXTLENGTH){wchar_t text[256]{};const auto length=Send(h,WM_GETTEXT,256,LPARAM(text));if(m==WM_GETTEXTLENGTH)return length;if(!w||!l)return 0;const auto result=WideCharToMultiByte(1252,0,text,-1,reinterpret_cast<char*>(l),int(w),nullptr,nullptr);return result?result-1:0;}return Send(h,m,w,l);}
 extern "C" BOOL WINAPI UiPostMessageW(HWND h,UINT m,WPARAM w,LPARAM l){Guard guard;u::Call c;c.command.op=u::Op::Post;c.command.window=uint64_t(h);c.command.message=m;c.command.wp=w;c.command.lp=uint64_t(l);return Call(c);}
 extern "C" BOOL WINAPI UiPostMessageA(HWND h,UINT m,WPARAM w,LPARAM l){return UiPostMessageW(h,m,w,l);}
 extern "C" void WINAPI UiPostQuitMessage(int code){Guard guard;const auto tid=GetCurrentThreadId();for(auto& q:quits)if(!q.tid||q.tid==tid){q={tid,code,true};return;}SetLastError(ERROR_NOT_ENOUGH_QUOTA);}
@@ -148,4 +210,7 @@ extern "C" BOOL WINAPI UiScreenToClient(HWND h,POINT* point){if(!h||!point)retur
 
 #ifdef GUARDIAN_NATIVE_GDI
 #include "NativeGdiUser.inl"
+#endif
+#ifdef GUARDIAN_NATIVE_CONTROLS
+#include "NativeControlsUser.inl"
 #endif
