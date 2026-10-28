@@ -73,10 +73,15 @@ def main():
             assert any(w['title']=='12F Main' and w['x']==240 and w['y']==160 for f in native['history'] for w in f['windows'])
             sessions.append(native['session']);state=folder/'session/security-state.bin';proof.append({'case':'normal-'+str(i),'status':'PASS','nativeWindows':native['created'],'inputs':bridge['inputs'],'frames':bridge['frames']})
         assert sessions[0]!=sessions[1],'Cold start reused session namespace'
-        for label,app,text,seconds in (('guest-crash','crash',None,5),('host-deadline','hang',None,1),('bridge-failure','hang','500|12F Main|fail\n',5)):
+        for label,app,text,seconds in (('guest-crash','crash',None,5),('host-deadline','hang',None,3),('bridge-failure','hang','500|12F Main|fail\n',5)):
             folder,bundle,script=prepare(label,build/'guest/integrated'/a.config/('guardian-integrated-'+app+'.exe'),text)
             native=execute(build,a.config,bundle,folder/'session',script,seconds=seconds,expected=False)
             if label=='bridge-failure':assert native['failure']
+            if label=='host-deadline':
+                # Include cold-start rendering within the deadline, and require
+                # the actual watchdog rather than accepting another failure.
+                stopped=json.loads((folder/'session/boot.json').read_bytes())['boots'][0]
+                assert stopped['timedOut'] and not stopped['success'] and native['initialFrameSynchronized']
             proof.append({'case':label,'status':'PASS','nativeWindowsReclaimed':native['destroyed']})
         folder,bundle,_=prepare('viewer-fallback',build/'guest/desktop'/a.config/'guardian-desktop-threads.exe',None)
         command=[str(build/a.config/'guardian-desktop.exe'),str(build/'guest'/a.config/'guardian-kernel-integrated.gk'),str(bundle/'runtime.gpv'),str(bundle/'manifest.json'),str(bundle/'binding.gnt'),str(folder/'session'),'--interactive','--seconds','8']

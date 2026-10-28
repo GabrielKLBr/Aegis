@@ -1,3 +1,7 @@
+#ifdef GUARDIAN_GDI_EXPANDED
+    struct Cursor {uint32_t pid=0,tid=0,resource=32512;int visible=0;};Cursor cursors[32]{};
+    Cursor* CursorFor(uint32_t pid,uint32_t tid,bool create){for(auto& c:cursors)if(c.pid==pid&&c.tid==tid||create&&!c.pid){if(!c.pid){c.pid=pid;c.tid=tid;}return &c;}return nullptr;}
+#endif
     struct Menu {uint64_t id=0,parent=0,window=0;uint32_t pid=0,tid=0,count=0;HMENU handle=nullptr;bool popup=false;uint32_t commands[nc::MaxItems]{};};
     struct Icon {uint64_t id=0;uint32_t pid=0,tid=0;HICON handle=nullptr;bool shared=false;};
     std::array<Menu,nc::MaxMenus> menus{};std::array<Icon,nc::MaxIcons> icons{};
@@ -6,7 +10,11 @@
     uint32_t ExtraCount() const {uint32_t count=0;for(const auto& m:menus)count+=m.id!=0;for(const auto& i:icons)count+=i.id!=0;return count;}
     void DetachMenus(uint64_t id){for(auto& m:menus)if(m.id&&m.window==id){if(auto* o=Find(id))SetMenu(o->hwnd,nullptr);m.window=0;}}
     void ForgetMenu(uint64_t id){for(auto& child:menus)if(child.id&&child.parent==id)ForgetMenu(child.id);for(auto& m:menus)if(m.id==id)m={};}
-    void ClearExtra(uint32_t pid,uint32_t tid){for(auto& m:menus)if(m.id&&!m.parent&&(!pid||m.pid==pid&&m.tid==tid)){const auto id=m.id;DestroyMenu(m.handle);ForgetMenu(id);}for(auto& i:icons)if(i.id&&(!pid||i.pid==pid&&i.tid==tid)){if(!i.shared)DestroyIcon(i.handle);i={};}}
+    void ClearExtra(uint32_t pid,uint32_t tid){
+#ifdef GUARDIAN_GDI_EXPANDED
+for(auto& c:cursors)if(!pid||c.pid==pid&&c.tid==tid)c={};
+#endif
+for(auto& m:menus)if(m.id&&!m.parent&&(!pid||m.pid==pid&&m.tid==tid)){const auto id=m.id;DestroyMenu(m.handle);ForgetMenu(id);}for(auto& i:icons)if(i.id&&(!pid||i.pid==pid&&i.tid==tid)){if(!i.shared)DestroyIcon(i.handle);i={};}}
     bool MenuCommand(uint64_t window,uint32_t command){uint64_t root=0;for(const auto& m:menus)if(m.window==window)root=m.id;if(!root)return false;for(const auto& m:menus)if(m.id&&(m.id==root||m.parent==root))for(unsigned i=0;i<m.count;++i)if(m.commands[i]&&m.commands[i]==command)return true;return false;}
     static LRESULT CALLBACK ControlProc(HWND h,UINT msg,WPARAM w,LPARAM l){auto* o=reinterpret_cast<Object*>(GetWindowLongPtrW(h,GWLP_USERDATA));if(!o||!o->previous)return DefWindowProcW(h,msg,w,l);if(o->ready&&msg==WM_KEYDOWN&&(w==VK_RETURN||w==VK_ESCAPE)){if(auto* parent=o->host->Find(o->parent))o->host->Queue(*parent,msg,w,LPARAM(uint32_t(l)),0);}return CallWindowProcW(o->previous,h,msg,w,l);}
     uint32_t ControlResource(Object& o,const u::Command& c,u::Reply& r,uint32_t pid,uint32_t tid){
@@ -27,6 +35,10 @@
         r.value=uint64_t(SendMessageW(o.hwnd,c.message,WPARAM(c.wp),0));++calls[4];return 0;
     }
     uint32_t Extra(WirePacket& p){const auto& c=p.command;auto& r=p.reply;const auto op=static_cast<nc::Op>(c.op);auto* o=Find(c.window);auto* m=OwnedMenu(c.window,p.pid,p.tid);
+#ifdef GUARDIAN_GDI_EXPANDED
+        if(op==nc::Op::Redraw){if(!o||o->pid!=p.pid||o->tid!=p.tid)return ERROR_INVALID_HANDLE;RECT rect{c.rect.left,c.rect.top,c.rect.right,c.rect.bottom};r.value=c.flags==4?UpdateWindow(o->hwnd):InvalidateRect(o->hwnd,(c.flags&1)?&rect:nullptr,(c.flags&2)!=0);++calls[6];return 0;}
+        if(op==nc::Op::Cursor){auto* cursor=CursorFor(p.pid,p.tid,true);if(!cursor)return ERROR_NOT_ENOUGH_QUOTA;cursor->resource=uint32_t(c.wp);cursor->visible=int(c.lp);POINT pt{};if(GetCursorPos(&pt)){const auto hovered=WindowFromPoint(pt);for(const auto& entry:objects)if(entry.id&&entry.pid==p.pid&&entry.tid==p.tid&&(entry.hwnd==hovered||entry.hwnd==GetAncestor(hovered,GA_ROOT))){SetCursor(cursor->visible<0||!cursor->resource?nullptr:LoadCursorW(nullptr,MAKEINTRESOURCEW(WORD(cursor->resource))));break;}}r.value=1;++calls[7];return 0;}
+#endif
         if(op==nc::Op::Menu){if(ExtraCount()+std::count_if(timers.begin(),timers.end(),[](const auto& t){return t.native!=0;})>=64)return ERROR_NOT_ENOUGH_QUOTA;for(auto& slot:menus)if(!slot.id){const auto handle=c.flags?CreatePopupMenu():CreateMenu();if(!handle)return ERROR_NOT_ENOUGH_MEMORY;slot.id=(9ull<<56)|((session&0xFFFFFF)<<32)|next++;slot.pid=p.pid;slot.tid=p.tid;slot.handle=handle;slot.popup=c.flags!=0;r.value=slot.id;++calls[7];return 0;}return ERROR_NOT_ENOUGH_QUOTA;}
         if(op==nc::Op::Append){if(!m)return ERROR_INVALID_HANDLE;if(m->count==nc::MaxItems)return ERROR_NOT_ENOUGH_QUOTA;auto* sub=c.other?OwnedMenu(c.other,p.pid,p.tid):nullptr;const bool popup=(c.flags&MF_POPUP)!=0,separator=(c.flags&MF_SEPARATOR)!=0;if(popup){if(!sub||!sub->popup||sub==m||m->parent||sub->parent||sub->window||c.wp||std::any_of(menus.begin(),menus.end(),[&](const auto& e){return e.parent==sub->id;}))return ERROR_INVALID_PARAMETER;}else if(c.other||(!separator&&!c.wp)||separator&&(c.wp||c.text[0]))return ERROR_INVALID_PARAMETER;
             if(!AppendMenuW(m->handle,c.flags,popup?UINT_PTR(sub->handle):UINT_PTR(c.wp),separator?nullptr:reinterpret_cast<const wchar_t*>(c.text)))return ERROR_GEN_FAILURE;m->commands[m->count++]=popup?0:uint32_t(c.wp);if(sub)sub->parent=m->id;r.value=1;++calls[7];return 0;}

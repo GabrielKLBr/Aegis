@@ -1,13 +1,29 @@
 namespace {
-struct GdiBitmap {uint64_t id=0;uint32_t* bits=nullptr;uint32_t width=0,height=0,tid=0;uint64_t hash=0;bool dirty=false;};
+struct GdiBitmap {uint64_t id=0;uint32_t* bits=nullptr;uint32_t width=0,height=0,tid=0;uint64_t hash=0;bool dirty=false;
+#ifdef GUARDIAN_GDI_EXPANDED
+void* storage=nullptr;uint32_t stride=0,bitCount=32;bool bottomUp=false;
+#endif
+};
 struct GdiDc {uint64_t id=0,bitmap=0;HWND window=nullptr;bool paint=false;};
 GdiBitmap gdiBitmaps[32]{};GdiDc gdiDcs[g::MaxDcs]{};
 GdiBitmap* Bitmap(uint64_t id){for(auto& b:gdiBitmaps)if(id&&b.id==id)return &b;return nullptr;}
 GdiDc* Dc(HDC dc){for(auto& d:gdiDcs)if(d.id==uint64_t(dc)&&dc)return &d;return nullptr;}
 uint64_t Hash(const GdiBitmap& b){uint64_t hash=14695981039346656037ull;for(uint32_t i=0;i<b.width*b.height;++i){hash^=b.bits[i];hash*=1099511628211ull;}return hash;}
 bool Graphics(g::Call& c){const auto error=GuardianNativeGdiCall(&c);if(error||c.graphics.status){SetLastError(error?error:c.graphics.status);return false;}return true;}
-bool Upload(GdiBitmap* b){if(!b||!b->bits)return true;const auto hash=Hash(*b);if(hash==b->hash)return true;for(uint32_t offset=0;offset<b->width*b->height;){g::Call c;c.draw.op=g::Op::Upload;c.draw.dc=b->id;c.draw.offset=offset;c.draw.count=(b->width*b->height-offset>g::Chunk)?g::Chunk:b->width*b->height-offset;Copy(c.draw.pixels,b->bits+offset,c.draw.count*4);if(!Graphics(c))return false;offset+=c.draw.count;}b->hash=hash;b->dirty=false;return true;}
-bool Download(GdiBitmap& b){if(!b.bits||!b.dirty)return true;if(!Upload(&b))return false;for(uint32_t offset=0;offset<b.width*b.height;){g::Call c;c.draw.op=g::Op::Read;c.draw.dc=b.id;c.draw.offset=offset;c.draw.count=(b.width*b.height-offset>g::Chunk)?g::Chunk:b.width*b.height-offset;if(!Graphics(c))return false;Copy(b.bits+offset,c.graphics.pixels,c.draw.count*4);offset+=c.draw.count;}b.hash=Hash(b);b.dirty=false;return true;}
+#ifdef GUARDIAN_GDI_EXPANDED
+void StorageToPixels(GdiBitmap& b){if(!b.storage)return;const auto* raw=static_cast<const BYTE*>(b.storage);for(uint32_t y=0;y<b.height;++y){const auto* row=raw+(b.bottomUp?b.height-1-y:y)*b.stride;for(uint32_t x=0;x<b.width;++x){const auto* p=row+x*(b.bitCount/8);b.bits[y*b.width+x]=uint32_t(p[0])|(uint32_t(p[1])<<8)|(uint32_t(p[2])<<16)|(b.bitCount==32?uint32_t(p[3])<<24:0);}}}
+void PixelsToStorage(GdiBitmap& b){if(!b.storage)return;auto* raw=static_cast<BYTE*>(b.storage);for(uint32_t y=0;y<b.height;++y){auto* row=raw+(b.bottomUp?b.height-1-y:y)*b.stride;for(uint32_t x=0;x<b.width;++x){auto* p=row+x*(b.bitCount/8);const auto n=b.bits[y*b.width+x];p[0]=BYTE(n);p[1]=BYTE(n>>8);p[2]=BYTE(n>>16);if(b.bitCount==32)p[3]=BYTE(n>>24);}}}
+#endif
+bool Upload(GdiBitmap* b){if(!b||!b->bits)return true;
+#ifdef GUARDIAN_GDI_EXPANDED
+StorageToPixels(*b);
+#endif
+const auto hash=Hash(*b);if(hash==b->hash)return true;for(uint32_t offset=0;offset<b->width*b->height;){g::Call c;c.draw.op=g::Op::Upload;c.draw.dc=b->id;c.draw.offset=offset;c.draw.count=(b->width*b->height-offset>g::Chunk)?g::Chunk:b->width*b->height-offset;Copy(c.draw.pixels,b->bits+offset,c.draw.count*4);if(!Graphics(c))return false;offset+=c.draw.count;}b->hash=hash;b->dirty=false;return true;}
+bool Download(GdiBitmap& b){if(!b.bits||!b.dirty)return true;if(!Upload(&b))return false;for(uint32_t offset=0;offset<b.width*b.height;){g::Call c;c.draw.op=g::Op::Read;c.draw.dc=b.id;c.draw.offset=offset;c.draw.count=(b.width*b.height-offset>g::Chunk)?g::Chunk:b.width*b.height-offset;if(!Graphics(c))return false;Copy(b.bits+offset,c.graphics.pixels,c.draw.count*4);offset+=c.draw.count;}b.hash=Hash(b);b.dirty=false;
+#ifdef GUARDIAN_GDI_EXPANDED
+PixelsToStorage(b);
+#endif
+return true;}
 bool Draw(g::Call& c){if(auto* dc=Dc(reinterpret_cast<HDC>(c.draw.dc))){auto* b=Bitmap(dc->bitmap);if(!Upload(b))return false;if(b)b->dirty=true;}if(c.draw.other){auto* from=Dc(reinterpret_cast<HDC>(c.draw.other));if(from&&!Upload(Bitmap(from->bitmap)))return false;}return Graphics(c);}
 HDC NewDc(g::Op op,uint64_t target,PAINTSTRUCT* paint=nullptr){GdiDc* slot=nullptr;for(auto& d:gdiDcs)if(!d.id){slot=&d;break;}if(!slot)return Fail(ERROR_NOT_ENOUGH_QUOTA,HDC{});g::Call c;c.draw.op=op;c.draw.dc=target;if(!Graphics(c))return nullptr;*slot={c.graphics.value,c.graphics.selected[3],op==g::Op::MemoryDc?nullptr:reinterpret_cast<HWND>(target),op==g::Op::Paint};if(paint){Zero(paint,sizeof(*paint));paint->hdc=reinterpret_cast<HDC>(slot->id);Copy(&paint->rcPaint,&c.graphics.rect,sizeof(RECT));}return reinterpret_cast<HDC>(slot->id);}
 BOOL CloseDc(HDC h,g::Op op){auto* dc=Dc(h);if(!dc)return Fail(ERROR_INVALID_HANDLE,FALSE);g::Call c;c.draw.op=op;c.draw.dc=dc->id;if(!Graphics(c))return FALSE;*dc={};return TRUE;}

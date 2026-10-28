@@ -2,6 +2,10 @@
 #include <algorithm>
 #include <string>
 #include <cstring>
+#ifdef GUARDIAN_GDI_EXPANDED
+#include "guardian/ExpandedGdi.h"
+#include <cmath>
+#endif
 namespace av::microvm::native_gui {
 namespace {
 constexpr uint32_t Bad=ERROR_INVALID_HANDLE,Quota=ERROR_NOT_ENOUGH_QUOTA;
@@ -10,6 +14,9 @@ g::Kind Type(int index){return index==OBJ_PEN?g::Kind::Pen:index==OBJ_BRUSH?g::K
 bool Face(const uint16_t* face){wchar_t name[33]{};for(size_t i=0;i<32;++i){if(face[i]>127)return false;name[i]=wchar_t(face[i]);}if(face[31])return false;
 #ifdef GUARDIAN_NATIVE_CONTROLS
 if(!name[0]||!_wcsicmp(name,L"Sans Serif")||!_wcsicmp(name,L"MS Shell Dlg")||!_wcsicmp(name,L"MS Shell Dlg 2"))return true;
+#endif
+#ifdef GUARDIAN_GDI_EXPANDED
+for(const auto* extra:{L"Tahoma",L"Verdana",L"Times New Roman",L"Courier New",L"Calibri",L"Cambria",L"Georgia"})if(!_wcsicmp(name,extra))return true;
 #endif
 return !_wcsicmp(name,L"Consolas")||!_wcsicmp(name,L"Arial")||!_wcsicmp(name,L"Segoe UI");}
 HBITMAP Dib(int width,int height,void** data){BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=width;info.bmiHeader.biHeight=-height;info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;return CreateDIBSection(nullptr,&info,DIB_RGB_COLORS,data,nullptr,0);}
@@ -47,9 +54,21 @@ HBITMAP GdiEngine::IconBitmap(uint64_t id,uint32_t pid,uint32_t tid,int& width,i
 #endif
 void GdiEngine::Report(g::Reply& reply) const {for(const auto& r:resources)if(r.id)++reply.live[r.kind==g::Kind::Dc?0:1];for(const auto& s:surfaces)if(s.id)++reply.live[2];std::copy(std::begin(calls),std::end(calls),std::begin(reply.calls));reply.pixelBytes=bytes;reply.uploaded=uploaded;reply.downloaded=downloaded;}
 uint32_t GdiEngine::Execute(const g::Command& c,g::Reply& reply,uint32_t pid,uint32_t tid,const Resolve& resolve){
-    if(!g::Valid(c))return ERROR_INVALID_PARAMETER;auto* r=Find(c.dc);auto* object=Find(c.object);auto own=[&](GdiResource* p){return p&&p->pid==pid&&p->tid==tid;};
+#ifdef GUARDIAN_GDI_EXPANDED
+    if(!guardian::expandedgdi::Valid(c))return ERROR_INVALID_PARAMETER;
+    if(guardian::expandedgdi::Extended(c.op))return ExecuteExpanded(c,reply,pid,tid);
+#else
+    if(!g::Valid(c))return ERROR_INVALID_PARAMETER;
+#endif
+    auto* r=Find(c.dc);auto* object=Find(c.object);auto own=[&](GdiResource* p){return p&&p->pid==pid&&p->tid==tid;};
     if(c.op==g::Op::Flush){GdiFlush();for(auto& item:resources)if(item.id&&item.pid==pid&&item.tid==tid&&item.window)Present(item);++calls[uint32_t(c.op)];return 0;}
-    if(c.op==g::Op::Stock){const auto index=c.args[0];if(!((index>=0&&index<=8)||(index>=10&&index<=17)))return ERROR_NOT_SUPPORTED;const auto native=GetStockObject(index);const auto kind=index<=5||index==18?g::Kind::Brush:index<=8?g::Kind::Pen:g::Kind::Font;if(index==15)return ERROR_NOT_SUPPORTED;reply.value=Stock(native,kind,pid,tid);if(!reply.value)return Quota;++calls[uint32_t(c.op)];return 0;}
+    if(c.op==g::Op::Stock){const auto index=c.args[0];if(!((index>=0&&index<=8)||(index>=10&&index<=
+#ifdef GUARDIAN_GDI_EXPANDED
+19
+#else
+17
+#endif
+)))return ERROR_NOT_SUPPORTED;const auto native=GetStockObject(index);const auto kind=index<=5||index==18?g::Kind::Brush:index<=8||index==19?g::Kind::Pen:g::Kind::Font;if(index==15)return ERROR_NOT_SUPPORTED;reply.value=Stock(native,kind,pid,tid);if(!reply.value)return Quota;++calls[uint32_t(c.op)];return 0;}
     if(c.op==g::Op::Brush||c.op==g::Op::Pen||c.op==g::Op::Font||c.op==g::Op::Bitmap||c.op==g::Op::Region){
         const auto kind=c.op==g::Op::Brush?g::Kind::Brush:c.op==g::Op::Pen?g::Kind::Pen:c.op==g::Op::Font?g::Kind::Font:c.op==g::Op::Bitmap?g::Kind::Bitmap:g::Kind::Region;
         if(kind==g::Kind::Font&&!Face(c.font.face))return ERROR_NOT_SUPPORTED;
@@ -75,6 +94,14 @@ uint32_t GdiEngine::Execute(const g::Command& c,g::Reply& reply,uint32_t pid,uin
     if(c.op==g::Op::Delete){if(r->kind==g::Kind::Dc)return Bad;if(r->stock){reply.value=1;return 0;}if(Selected(r->id))return ERROR_BUSY;Delete(*r);reply.value=1;++calls[uint32_t(c.op)];return 0;}
     if(c.op==g::Op::Upload||c.op==g::Op::Read){if(r->kind!=g::Kind::Bitmap||r->stock||!r->pixels||uint64_t(c.offset)+c.count>uint64_t(r->width)*r->height)return ERROR_INVALID_PARAMETER;GdiFlush();if(c.op==g::Op::Upload){if(uploaded+uint64_t(c.count)*4>8u<<20)return Quota;std::memcpy(static_cast<uint32_t*>(r->pixels)+c.offset,c.pixels,c.count*4);uploaded+=c.count*4;}else{std::memcpy(reply.pixels,static_cast<uint32_t*>(r->pixels)+c.offset,c.count*4);downloaded+=c.count*4;}reply.value=c.count;++calls[uint32_t(c.op)];return 0;}
     if(r->kind!=g::Kind::Dc)return Bad;
+#ifdef GUARDIAN_GDI_EXPANDED
+    if(r->pathOpen){
+        if(c.op==g::Op::OutputText||c.op==g::Op::FormatText)return ERROR_NOT_SUPPORTED;
+        const uint32_t cost=c.op==g::Op::Rectangle?5u:c.op==g::Op::Move||c.op==g::Op::Line?1u:0u;
+        if(r->pathPoints+cost>guardian::expandedgdi::MaxPathPoints)return Quota;
+        r->pathPoints+=cost;
+    }
+#endif
     switch(c.op){
     case g::Op::Release:case g::Op::EndPaint:case g::Op::DeleteDc:if((c.op==g::Op::EndPaint)!=r->paint||(c.op==g::Op::DeleteDc)!=(r->window==0))return ERROR_INVALID_PARAMETER;CloseDc(*r);reply.value=1;break;
     case g::Op::Select:{if(!own(object))return Bad;const auto index=Index(object->kind);if(index<0||(index==3&&r->window))return ERROR_NOT_SUPPORTED;if(index==3&&!object->stock&&Selected(object->id)&&r->selected[3]!=object->id)return ERROR_BUSY;const auto previous=SelectObject(r->dc,object->object);if(!previous||previous==HGDI_ERROR)return ERROR_INVALID_PARAMETER;reply.value=r->selected[index];r->selected[index]=object->id;break;}
@@ -93,7 +120,7 @@ uint32_t GdiEngine::Execute(const g::Command& c,g::Reply& reply,uint32_t pid,uin
     case g::Op::OutputText:reply.value=TextOutW(r->dc,c.args[0],c.args[1],reinterpret_cast<LPCWSTR>(c.text),int(c.count));break;
     case g::Op::FormatText:{RECT rect{c.rect.left,c.rect.top,c.rect.right,c.rect.bottom};reply.value=uint64_t(DrawTextW(r->dc,reinterpret_cast<LPCWSTR>(c.text),int(c.count),&rect,c.flags));reply.rect={rect.left,rect.top,rect.right,rect.bottom};break;}
     case g::Op::Extent:{SIZE size{};reply.value=GetTextExtentPoint32W(r->dc,reinterpret_cast<LPCWSTR>(c.text),int(c.count),&size);reply.x=size.cx;reply.y=size.cy;break;}
-    case g::Op::Metrics:{TEXTMETRICW tm{};if(!GetTextMetricsW(r->dc,&tm))return ERROR_GEN_FAILURE;static_assert(sizeof(tm)==sizeof(reply.metrics));std::memcpy(&reply.metrics,&tm,sizeof(tm));GetTextFaceW(r->dc,32,reinterpret_cast<LPWSTR>(reply.face));reply.value=1;break;}
+    case g::Op::Metrics:{TEXTMETRICW tm{};if(!GetTextMetricsW(r->dc,&tm))return ERROR_GEN_FAILURE;static_assert(sizeof(tm)==sizeof(reply.metrics));std::memcpy(&reply.metrics,&tm,57);GetTextFaceW(r->dc,32,reinterpret_cast<LPWSTR>(reply.face));reply.value=1;break;}
     case g::Op::BitBlt:{auto* from=Find(c.other);if(!own(from)||from->kind!=g::Kind::Dc)return Bad;if(c.rect.right-c.rect.left!=c.source.right-c.source.left||c.rect.bottom-c.rect.top!=c.source.bottom-c.source.top)return ERROR_INVALID_PARAMETER;reply.value=BitBlt(r->dc,c.rect.left,c.rect.top,c.rect.right-c.rect.left,c.rect.bottom-c.rect.top,from->dc,c.source.left,c.source.top,SRCCOPY);break;}
     case g::Op::Stretch:if(!own(object)||object->kind!=g::Kind::Bitmap||object->stock||!object->pixels)return Bad;else if(c.source.left<0||c.source.top<0||c.source.right>object->width||c.source.bottom>object->height)return ERROR_INVALID_PARAMETER;else{BITMAPINFO info{};info.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);info.bmiHeader.biWidth=object->width;info.bmiHeader.biHeight=-object->height;info.bmiHeader.biPlanes=1;info.bmiHeader.biBitCount=32;GdiFlush();reply.value=uint64_t(StretchDIBits(r->dc,c.rect.left,c.rect.top,c.rect.right-c.rect.left,c.rect.bottom-c.rect.top,c.source.left,c.source.top,c.source.right-c.source.left,c.source.bottom-c.source.top,object->pixels,&info,DIB_RGB_COLORS,SRCCOPY));}break;
     case g::Op::Pixel:reply.value=GetPixel(r->dc,c.args[0],c.args[1]);break;
@@ -102,4 +129,8 @@ uint32_t GdiEngine::Execute(const g::Command& c,g::Reply& reply,uint32_t pid,uin
     }
     ++calls[uint32_t(c.op)];return 0;
 }
+#ifdef GUARDIAN_GDI_EXPANDED
+#include "ExpandedGdiEngine.inl"
+#endif
+
 }

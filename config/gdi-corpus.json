@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "phase": "14.10E",
+  "upstreamCommit": "20995d729bc64de50c6e555c499d7eab3056dbbd",
+  "authorDownloadPage": "https://www.charlespetzold.com/books/",
+  "sourceProvenance": "pinned public mirror; bytes from author ZIP could not be compared (HTTP 465)",
+  "redistributed": false,
+  "applications": {
+    "bezier": {
+      "sha256": "ea781f30e23c2af660ee1045a541182e3a68260257bdaa9fd1d1f0268fb73aea",
+      "source": "https://github.com/yottaawesome/programming-windows-5th-edition/blob/20995d729bc64de50c6e555c499d7eab3056dbbd/src/Chap05/Bezier/Bezier.c",
+      "author": "Charles Petzold (1998)",
+      "status": "acceptance-candidate",
+      "hostScope": "reviewed window drawing only"
+    },
+    "clover": {
+      "sha256": "6118ad84f4f00cda59e20aa1149f276ef9afe56317b9ac4e7b5daf1951a5f5ac",
+      "source": "https://github.com/yottaawesome/programming-windows-5th-edition/blob/20995d729bc64de50c6e555c499d7eab3056dbbd/src/Chap05/Clover/Clover.c",
+      "author": "Charles Petzold (1998)",
+      "status": "acceptance-candidate",
+      "hostScope": "reviewed window drawing only"
+    },
+    "whatsize": {
+      "sha256": "cc95d6ba5d9717b884883ca403f2421976e0224942b5f8a1edce3dc0e8ab25aa",
+      "source": "https://github.com/yottaawesome/programming-windows-5th-edition/blob/20995d729bc64de50c6e555c499d7eab3056dbbd/src/Chap05/WhatSize/WhatSize.c",
+      "author": "Charles Petzold (1998)",
+      "status": "pending-imports",
+      "hostScope": "reviewed window drawing only"
+    }
+  }
+}

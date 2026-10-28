@@ -1,4 +1,6 @@
-#ifdef GUARDIAN_NATIVE_CONTROLS
+#ifdef GUARDIAN_GDI_EXPANDED
+extern "C" const volatile char GuardianExpandedGdiCapability[]="GuardianExpandedGdi/5/guest";
+#elif defined(GUARDIAN_NATIVE_CONTROLS)
 extern "C" const volatile char GuardianNativeControlsCapability[]="GuardianNativeControls/4/guest";
 #else
 extern "C" const volatile char GuardianNativeGdiCapability[]="GuardianNativeGdi/3/guest";

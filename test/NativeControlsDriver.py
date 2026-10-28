@@ -4,8 +4,8 @@ from ctypes import wintypes as w
 class Entry(ctypes.Structure):
     _fields_=[('size',w.DWORD),('usage',w.DWORD),('pid',w.DWORD),('heap',ctypes.c_size_t),('module',w.DWORD),('threads',w.DWORD),('parent',w.DWORD),('priority',w.LONG),('flags',w.DWORD),('exe',w.WCHAR*260)]
 class Driver:
-    def __init__(self,parent):
-        self.parent=parent;self.pid=None;self.history=[];self.start=time.monotonic();self.inputs=0
+    def __init__(self,parent,helper="guardian-native-controls-host.exe",direct=False):
+        self.parent=parent;self.helper=helper;self.pid=parent if direct else None;self.history=[];self.start=time.monotonic();self.inputs=0
         self.k=ctypes.WinDLL('kernel32',use_last_error=True);self.u=ctypes.WinDLL('user32',use_last_error=True)
         self.callback=ctypes.WINFUNCTYPE(w.BOOL,w.HWND,w.LPARAM)
         signatures={'EnumWindows':([self.callback,w.LPARAM],w.BOOL),'GetWindowThreadProcessId':([w.HWND,ctypes.POINTER(w.DWORD)],w.DWORD),'GetWindowTextW':([w.HWND,w.LPWSTR,ctypes.c_int],ctypes.c_int),'GetClassNameW':([w.HWND,w.LPWSTR,ctypes.c_int],ctypes.c_int),'GetWindowRect':([w.HWND,ctypes.POINTER(w.RECT)],w.BOOL),'GetClientRect':([w.HWND,ctypes.POINTER(w.RECT)],w.BOOL),'IsWindowVisible':([w.HWND],w.BOOL),'IsWindowEnabled':([w.HWND],w.BOOL),'IsWindow':([w.HWND],w.BOOL),'GetDpiForWindow':([w.HWND],w.UINT),'GetDlgItem':([w.HWND,ctypes.c_int],w.HWND),'PostMessageW':([w.HWND,w.UINT,w.WPARAM,w.LPARAM],w.BOOL),'SendMessageTimeoutW':([w.HWND,w.UINT,w.WPARAM,w.LPARAM,w.UINT,w.UINT,ctypes.POINTER(ctypes.c_size_t)],ctypes.c_size_t),'SetWindowPos':([w.HWND,w.HWND,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int,w.UINT],w.BOOL),'GetMenu':([w.HWND],w.HMENU),'GetSubMenu':([w.HMENU,ctypes.c_int],w.HMENU),'GetMenuItemID':([w.HMENU,ctypes.c_int],w.UINT)}
@@ -17,7 +17,7 @@ class Driver:
         try:
             found=self.k.Process32FirstW(handle,ctypes.byref(entry))
             while found:
-                if entry.parent==self.parent and entry.exe=='guardian-native-controls-host.exe':self.pid=entry.pid;return
+                if entry.parent==self.parent and entry.exe==self.helper:self.pid=entry.pid;return
                 found=self.k.Process32NextW(handle,ctypes.byref(entry))
         finally:self.k.CloseHandle(handle)
     def own(self,hwnd):
@@ -44,7 +44,7 @@ class Driver:
         buf=ctypes.create_unicode_buffer(text);self.send(hwnd,0xC,0,ctypes.addressof(buf));self.inputs+=1
     def resize(self,hwnd,width,height):
         assert self.own(hwnd);dpi=self.u.GetDpiForWindow(hwnd);assert self.u.SetWindowPos(hwnd,None,160,120,round(width*dpi/96),round(height*dpi/96),0x14);self.inputs+=1
-    def capture(self,hwnd,path):
+    def capture(self,hwnd,path,presented=False):
         assert self.own(hwnd)
         class Header(ctypes.Structure):_fields_=[('size',w.DWORD),('width',w.LONG),('height',w.LONG),('planes',w.WORD),('bits',w.WORD),('compression',w.DWORD),('bytes',w.DWORD),('x',w.LONG),('y',w.LONG),('used',w.DWORD),('important',w.DWORD)]
         r=w.RECT();assert self.u.GetClientRect(hwnd,ctypes.byref(r));width,height=r.right,r.bottom;assert 0<width<=2048 and 0<height<=2048
@@ -52,7 +52,15 @@ class Driver:
         dc=g.CreateCompatibleDC(None);header=Header();header.size=ctypes.sizeof(header);header.width=width;header.height=-height;header.planes=1;header.bits=32;pixels=ctypes.c_void_p();bitmap=g.CreateDIBSection(None,ctypes.byref(header),0,ctypes.byref(pixels),None,0);assert dc and bitmap
         old=g.SelectObject(dc,bitmap)
         try:
-            assert self.u.PrintWindow(hwnd,dc,1);g.GdiFlush();raw=ctypes.string_at(pixels,width*height*4);rgb=bytearray(width*height*3)
+            if presented:
+                self.u.GetDC.argtypes=[w.HWND];self.u.GetDC.restype=w.HDC;self.u.ReleaseDC.argtypes=[w.HWND,w.HDC]
+                g.BitBlt.argtypes=[w.HDC,ctypes.c_int,ctypes.c_int,ctypes.c_int,ctypes.c_int,w.HDC,ctypes.c_int,ctypes.c_int,w.DWORD]
+                assert self.u.SetWindowPos(hwnd,None,0,0,0,0,0x13)
+                source=self.u.GetDC(hwnd);assert source
+                try:assert g.BitBlt(dc,0,0,width,height,source,0,0,0x00CC0020)
+                finally:self.u.ReleaseDC(hwnd,source)
+            else:assert self.u.PrintWindow(hwnd,dc,1)
+            g.GdiFlush();raw=ctypes.string_at(pixels,width*height*4);rgb=bytearray(width*height*3)
             for i in range(width*height):rgb[i*3:i*3+3]=raw[i*4:i*4+3][::-1]
             path.write_bytes(f'P6\n{width} {height}\n255\n'.encode()+rgb);return sum(max(raw[i:i+3])<90 for i in range(0,len(raw),4))
         finally:g.SelectObject(dc,old);g.DeleteObject(bitmap);g.DeleteDC(dc)

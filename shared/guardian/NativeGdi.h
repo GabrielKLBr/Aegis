@@ -1,7 +1,10 @@
 #pragma once
 #include "NativeUser32.h"
 namespace guardian::nativegdi {
-#ifdef GUARDIAN_NATIVE_CONTROLS
+#ifdef GUARDIAN_GDI_EXPANDED
+inline constexpr uint64_t Magic=0x354944474E4741ull;
+inline constexpr uint32_t Version=5,MaxSurfaces=32;
+#elif defined(GUARDIAN_NATIVE_CONTROLS)
 inline constexpr uint64_t Magic=0x344C5254434E4741ull;
 inline constexpr uint32_t Version=4,MaxSurfaces=32;
 #else
@@ -30,7 +33,9 @@ inline bool Valid(const Command& c){
     case Op::Brush:v.color=c.color;if(c.color>0xFFFFFF)return false;break;
     case Op::Pen:v.color=c.color;v.args[0]=c.args[0];if(c.color>0xFFFFFF||c.args[0]<1||c.args[0]>16)return false;break;
     case Op::Font:v.font=c.font;
-#ifdef GUARDIAN_NATIVE_CONTROLS
+#ifdef GUARDIAN_GDI_EXPANDED
+        if(c.font.height<-96||c.font.height>96||c.font.width<0||c.font.width>96||c.font.escapement<-3600||c.font.escapement>3600||c.font.orientation<-3600||c.font.orientation>3600||c.font.weight<0||c.font.weight>1000||c.font.italic>1||c.font.underline>1||c.font.strike>1||c.font.charset>1||c.font.out||c.font.clip||c.font.quality>6||c.font.pitch&~0xF3u)return false;break;
+#elif defined(GUARDIAN_NATIVE_CONTROLS)
         if(c.font.height<-96||c.font.height>96||c.font.width||c.font.escapement||c.font.orientation||c.font.weight<0||c.font.weight>1000||c.font.italic>1||c.font.underline>1||c.font.strike>1||c.font.charset>1||c.font.out||c.font.clip||c.font.quality>6||c.font.pitch&~0xF3u)return false;break;
 #else
         if(c.font.height<-64||c.font.height>-8||c.font.width||c.font.escapement||c.font.orientation||c.font.weight<100||c.font.weight>900||c.font.italic>1||c.font.underline>1||c.font.strike>1||c.font.charset!=1||c.font.out||c.font.clip||c.font.quality!=3||c.font.pitch)return false;break;

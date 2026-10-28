@@ -28,7 +28,10 @@ constexpr auto WireMagic=guardian::nativeuser::Magic;constexpr uint32_t WireVers
 #include <cstring>
 namespace u=guardian::nativeuser;
 namespace {
-#ifdef GUARDIAN_NATIVE_CONTROLS
+#ifdef GUARDIAN_GDI_EXPANDED
+constexpr wchar_t ClassName[]=L"Aegis.ExpandedGdi.14.10E",Prefix[]=L"[MiniNT native 14.10E] ";
+constexpr const wchar_t* ExpandedClasses[]{ClassName,L"Aegis.ExpandedGdi.14.10E.1",L"Aegis.ExpandedGdi.14.10E.2",L"Aegis.ExpandedGdi.14.10E.3",L"Aegis.ExpandedGdi.14.10E.4",L"Aegis.ExpandedGdi.14.10E.5",L"Aegis.ExpandedGdi.14.10E.6",L"Aegis.ExpandedGdi.14.10E.7"};
+#elif defined(GUARDIAN_NATIVE_CONTROLS)
 constexpr wchar_t ClassName[]=L"Aegis.NativeControls.14.10D",Prefix[]=L"[MiniNT native 14.10D] ";
 #elif defined(GUARDIAN_NATIVE_GDI)
 constexpr wchar_t ClassName[]=L"Aegis.NativeGdi.14.10C",Prefix[]=L"[MiniNT native 14.10C] ";
@@ -36,7 +39,11 @@ constexpr wchar_t ClassName[]=L"Aegis.NativeGdi.14.10C",Prefix[]=L"[MiniNT nativ
 constexpr wchar_t ClassName[]=L"Aegis.NativeUser32.14.10B",Prefix[]=L"[MiniNT native 14.10B] ";
 #endif
 struct Host;
-struct Object {Host* host=nullptr;HWND hwnd=nullptr;uint64_t id=0,parent=0;uint32_t pid=0,tid=0,control=0;u::Class kind{};bool ready=false;WNDPROC previous=nullptr;uint64_t icon=0,smallIcon=0,font=0;};
+struct Object {Host* host=nullptr;HWND hwnd=nullptr;uint64_t id=0,parent=0;uint32_t pid=0,tid=0,control=0;u::Class kind{};bool ready=false;WNDPROC previous=nullptr;uint64_t icon=0,smallIcon=0,font=0;
+#ifdef GUARDIAN_GDI_EXPANDED
+bool paintOutstanding=false,redrawOnSize=false;
+#endif
+};
 struct Pending {uint64_t id=0,result=0,window=0;uint32_t sender=0,receiver=0,pid=0,status=ERROR_IO_PENDING;ULONGLONG until=0;};
 struct Timer {UINT_PTR native=0;uint64_t window=0,id=0;};
 struct Host {
@@ -52,21 +59,38 @@ struct Host {
     static int Physical(int value,UINT dpi){return MulDiv(value,int(dpi),96);}
     void Queue(Object& o,UINT msg,WPARAM wp=0,LPARAM lp=0,uint32_t flags=2,const WINDOWPOS* pos=nullptr){
         if(!o.ready)return;
+#ifdef GUARDIAN_GDI_EXPANDED
+        // Native dragging can generate hundreds of geometry notifications while
+        // the guest is busy. Retain the newest state for each notification type.
+        // Explicitly posted messages and correlated send requests keep order.
+        if(!flags&&(msg==WM_WINDOWPOSCHANGED||msg==WM_MOVE||msg==WM_SIZE))
+            events.erase(std::remove_if(events.begin(),events.end(),[&](const auto& e){return e.window==o.id&&e.message==msg&&!(e.flags&3)&&!e.cookie;}),events.end());
+#endif
         if((msg==WM_PAINT||msg==WM_MOUSEMOVE||msg==WM_TIMER)&&std::any_of(events.begin(),events.end(),[&](const auto& e){return e.window==o.id&&e.message==msg&&e.wp==wp;}))return;
+#ifdef GUARDIAN_GDI_EXPANDED
+        if(msg==WM_PAINT&&o.paintOutstanding)return;
+#endif
         if(events.size()>=u::MaxEvents){overflow=true;return;}
         u::Event e;e.window=o.id;e.message=msg;e.wp=wp;e.lp=uint64_t(lp);e.flags=flags;e.tid=o.tid;e.time=GetTickCount();e.serial=nextEvent++;
         if(pos){const auto dpi=GetDpiForWindow(o.hwnd);e.flags|=4;e.lp=0;e.rect={Logical(pos->x,dpi),Logical(pos->y,dpi),Logical(pos->x+pos->cx,dpi),Logical(pos->y+pos->cy,dpi)};e.positionFlags=pos->flags;}
+#ifdef GUARDIAN_GDI_EXPANDED
+        if(msg==WM_PAINT)o.paintOutstanding=true;
+#endif
         events.push_back(e);
     }
     static LRESULT CALLBACK Proc(HWND h,UINT m,WPARAM w,LPARAM l){
 #ifdef GUARDIAN_NATIVE_CONTROLS
             // Guest geometry is bounded explicitly; native default minimums must not enlarge it.
+
             if(m==WM_WINDOWPOSCHANGING)return 0;
             if(m==WM_GETMINMAXINFO&&l){auto* info=reinterpret_cast<MINMAXINFO*>(l);info->ptMinTrackSize={1,1};return 0;}
 #endif
         auto* o=reinterpret_cast<Object*>(GetWindowLongPtrW(h,GWLP_USERDATA));
         if(m==WM_NCCREATE){o=static_cast<Object*>(reinterpret_cast<CREATESTRUCTW*>(l)->lpCreateParams);SetWindowLongPtrW(h,GWLP_USERDATA,LONG_PTR(o));o->hwnd=h;}
         if(o&&o->host){auto& host=*o->host;
+#ifdef GUARDIAN_GDI_EXPANDED
+            if(m==WM_SETCURSOR&&LOWORD(l)==HTCLIENT){auto* cursor=o->host->CursorFor(o->pid,o->tid,false);SetCursor(cursor&&(cursor->visible<0||!cursor->resource)?nullptr:LoadCursorW(nullptr,MAKEINTRESOURCEW(WORD(cursor?cursor->resource:32512))));return TRUE;}
+#endif
 
             if(m==WM_COMMAND){auto* child=host.Find(reinterpret_cast<HWND>(l));if(child&&child->parent==o->id)host.Queue(*o,m,MAKEWPARAM(child->control,HIWORD(w)),LPARAM(child->id),0);
 #ifdef GUARDIAN_NATIVE_CONTROLS
@@ -145,6 +169,9 @@ struct Host {
             const auto id=(uint64_t(1)<<56)|((session&0xFFFFFF)<<32)|next++;*slot={this,nullptr,id,c.other,p.pid,p.tid,c.id,c.kind,false};
             std::wstring text(reinterpret_cast<const wchar_t*>(c.text));if(!(c.style&WS_CHILD))text=Prefix+text;
             const wchar_t* cls=c.kind==u::Class::Custom?ClassName:c.kind==u::Class::Button?L"BUTTON":c.kind==u::Class::Static?L"STATIC":L"EDIT";
+#ifdef GUARDIAN_GDI_EXPANDED
+            if(c.kind==u::Class::Custom){cls=ExpandedClasses[(c.reserved&3)|((c.reserved&8)>>1)];slot->redrawOnSize=(c.reserved&3)!=0;}
+#endif
 #ifdef GUARDIAN_NATIVE_CONTROLS
             if(c.kind==nc::List){if(c.style&0xFFFFu&~(LBS_NOTIFY|LBS_SORT|LBS_NOINTEGRALHEIGHT|LBS_HASSTRINGS))return ERROR_NOT_SUPPORTED;cls=L"LISTBOX";}
             if(c.kind==nc::Combo){if((c.style&3)!=CBS_DROPDOWNLIST||c.style&0xFFFFu&~(CBS_DROPDOWNLIST|CBS_SORT|CBS_HASSTRINGS))return ERROR_NOT_SUPPORTED;cls=L"COMBOBOX";}
@@ -165,7 +192,14 @@ struct Host {
             if(c.style&WS_VISIBLE)ShowWindow(slot->hwnd,SW_SHOWNOACTIVATE);r.value=id;Describe(*slot,r.window);return 0;
         }
         if(c.op==u::Op::Poll){
-            for(auto it=events.begin();it!=events.end();++it){auto* owner=Find(it->window);if(!owner||owner->pid!=p.pid||it->tid!=p.tid||(c.window&&c.window!=it->window))continue;if((c.flags&2)&&!(it->flags&1)&&it->message!=WM_COMMAND&&it->message!=WM_WINDOWPOSCHANGED&&it->message!=WM_SIZE&&it->message!=WM_MOVE)continue;if(c.lp&&(it->message<c.wp||it->message>c.lp))continue;r.event=*it;r.value=1;if(c.flags&1)events.erase(it);break;}return 0;
+            for(auto it=events.begin();it!=events.end();++it){auto* owner=Find(it->window);if(!owner||owner->pid!=p.pid||it->tid!=p.tid||(c.window&&c.window!=it->window))continue;if((c.flags&2)&&!(it->flags&1)&&it->message!=WM_COMMAND&&it->message!=WM_WINDOWPOSCHANGED&&it->message!=WM_SIZE&&it->message!=WM_MOVE)continue;if(c.lp&&(it->message<c.wp||it->message>c.lp))continue;r.event=*it;r.value=1;if(c.flags&1){
+#ifdef GUARDIAN_GDI_EXPANDED
+                // A resize can arrive while a guest paint callback is running.
+                // Its earlier native invalidation may be consumed by that old
+                // BeginPaint. Repaint after the guest receives the new size.
+                if(it->message==WM_SIZE&&it->wp!=SIZE_MINIMIZED&&owner->redrawOnSize)InvalidateRect(owner->hwnd,nullptr,TRUE);
+#endif
+                events.erase(it);}break;}return 0;
         }
         if(c.op==u::Op::Result||c.op==u::Op::Reply){
             for(auto& entry:pending)if(entry.id==c.window&&entry.pid==p.pid){
@@ -246,7 +280,13 @@ struct Host {
 #ifdef GUARDIAN_NATIVE_GDI
         if(!g::Empty(&p.graphics,sizeof(p.graphics)))return false;
         if(p.draw.op!=g::Op::None){u::Command empty;if(std::memcmp(&p.command,&empty,sizeof(empty)))return false;
+#ifdef GUARDIAN_GDI_EXPANDED
+            const auto paintWindow=p.draw.op==g::Op::EndPaint?graphics.PaintWindow(p.draw.dc,p.pid,p.tid):0;
+#endif
             p.graphics.status=graphics.Execute(p.draw,p.graphics,p.pid,p.tid,[&](uint64_t id,uint32_t pid,uint32_t tid){auto* o=Find(id);return o&&o->pid==pid&&o->tid==tid&&o->kind==u::Class::Custom?o->hwnd:nullptr;});p.reply.status=p.graphics.status;
+#ifdef GUARDIAN_GDI_EXPANDED
+            if(paintWindow&&!p.graphics.status)if(auto* window=Find(paintWindow)){window->paintOutstanding=false;if(graphics.PendingPaint(paintWindow))Queue(*window,WM_PAINT);}
+#endif
         }else p.reply.status=!g::Valid(p.draw)||!
 #ifdef GUARDIAN_NATIVE_CONTROLS
         nc::Valid(p.command)
@@ -270,6 +310,9 @@ int Run(){
     SetErrorMode(SEM_FAILCRITICALERRORS|SEM_NOGPFAULTERRORBOX|SEM_NOOPENFILEERRORBOX);SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     if(av::microvm::native_gui::Restrictions()!=31)return 4;
     WNDCLASSW cls{};cls.lpfnWndProc=Host::Proc;cls.hInstance=GetModuleHandleW(nullptr);cls.lpszClassName=ClassName;cls.hCursor=LoadCursorW(nullptr,MAKEINTRESOURCEW(32512));if(!RegisterClassW(&cls))return 5;
+#ifdef GUARDIAN_GDI_EXPANDED
+    for(unsigned i=1;i<8;++i){cls.lpszClassName=ExpandedClasses[i];cls.style=(i&3)|((i&4)<<1);if(!RegisterClassW(&cls))return 5;}cls.style=0;
+#endif
     cls.lpfnWndProc=Host::Channel;cls.lpszClassName=L"Aegis.NativeUser32.Channel";if(!RegisterClassW(&cls))return 5;
     Host host;host.done=CreateEventW(nullptr,FALSE,FALSE,nullptr);host.channel=CreateWindowExW(0,cls.lpszClassName,L"",0,0,0,0,0,HWND_MESSAGE,nullptr,cls.hInstance,&host);if(!host.done||!host.channel)return 5;
     auto& p=host.packet;DWORD written=0;if(!av::microvm::native_gui::ReadPacket(input,p)||p.magic!=WireMagic||p.version!=WireVersion||p.bytes!=sizeof(p)||!p.boot||!p.session||p.sequence||p.pid||p.tid||p.command.op!=u::Op::Hello||!u::Valid(p.command)||!guardian::nativegui::Empty(&p.reply,sizeof(p.reply)))return 6;

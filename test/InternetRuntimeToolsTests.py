@@ -9,21 +9,28 @@ from InternetLab import echo_pair,Tcp
 import socket,socketserver
 
 def paired_port_checks():
+    # Reservation/retry paths are deterministic; integration tests bind real peers.
+    class Socket:
+        def __init__(self):self.live=True
+        def fileno(self):return 1 if self.live else -1
+    class Server:
+        def __init__(self,address):self.server_address=address;self.socket=Socket()
+        def server_close(self):self.socket.live=False
     sockets=[];attempts=0
     def udp(address,handler):
-        server=socketserver.ThreadingUDPServer(address,handler);sockets.append(server);return server
+        server=Server(address);sockets.append(server);return server
     def tcp(address,handler):
         nonlocal attempts
         attempts+=1
         if attempts==1:raise OSError(10013,'Synthetic protocol-specific reservation')
         assert sockets[0].socket.fileno()==-1,'Rejected UDP candidate leaked'
-        return Tcp(address,handler)
+        return Server(address)
     first,second=echo_pair(tcp,udp)
     try:assert attempts==2 and first.server_address==second.server_address and first.socket.fileno()!=-1 and second.socket.fileno()!=-1
     finally:first.server_close();second.server_close()
     rejected=[]
     def rejected_udp(address,handler):
-        server=socketserver.ThreadingUDPServer(address,handler);rejected.append(server);return server
+        server=Server(address);rejected.append(server);return server
     def blocked_tcp(address,handler):raise OSError(10048,'Synthetic occupied TCP port')
     try:echo_pair(blocked_tcp,rejected_udp)
     except OSError:pass
@@ -34,6 +41,16 @@ def paired_port_checks():
     except OSError as error:assert error.errno==22
     else:raise AssertionError('Unexpected socket error swallowed')
     assert all(server.socket.fileno()==-1 for server in rejected)
+    udp_attempts=0
+    def blocked_udp(address,handler):
+        nonlocal udp_attempts
+        udp_attempts+=1
+        raise OSError(10013,'Synthetic UDP reservation')
+    try:echo_pair(tcp,blocked_udp)
+    except OSError:pass
+    else:raise AssertionError('Exhausted UDP allocation accepted')
+    assert udp_attempts==32 and attempts==2,'UDP failure must not allocate TCP'
+    assert all(49152<=server.server_address[1]<=65535 for server in sockets+rejected)
 
 
 def rejected(action):

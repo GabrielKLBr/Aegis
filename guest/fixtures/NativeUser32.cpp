@@ -18,6 +18,10 @@ extern "C" const int NativeUserAnchor=1410;
 const void* volatile NativeUserRelocation=&NativeUserAnchor;
 #ifdef GUARDIAN_NATIVE_GDI
 #include "guardian/NativeGdi.h"
+#ifdef GUARDIAN_GDI_EXPANDED
+#include "guardian/ExpandedGdi.h"
+namespace e=guardian::expandedgdi;
+#endif
 namespace g=guardian::nativegdi;
 extern "C" __declspec(dllimport) DWORD GuardianNativeGdiCall(g::Call*) noexcept;
 static DWORD UserService(u::Call* c) noexcept {g::Call request;request.command=c->command;const auto status=GuardianNativeGdiCall(&request);c->reply=request.reply;return status;}
@@ -46,7 +50,11 @@ u::Text(d);
 bool Ansi(const char* s,uint16_t* d){return !s||MultiByteToWideChar(1252,0,s,-1,reinterpret_cast<wchar_t*>(d),256)>0;}
 bool Equal(const uint16_t* a,const uint16_t* b){for(uint32_t i=0;i<256;++i){auto x=a[i],y=b[i];if(x>='A'&&x<='Z')x+=32;if(y>='A'&&y<='Z')y+=32;if(x!=y)return false;if(!x)return true;}return false;}
 bool Name(const uint16_t* a,const wchar_t* b){if(uintptr_t(a)<=65535)return false;uint16_t text[256]{};return Wide(b,text)&&Equal(a,text);}
-struct Class {ATOM atom=0;WNDPROC proc=nullptr;uint16_t name[256]{};bool wide=true;HBRUSH background=nullptr;HICON icon=nullptr;};
+struct Class {ATOM atom=0;WNDPROC proc=nullptr;uint16_t name[256]{};bool wide=true;HBRUSH background=nullptr;HICON icon=nullptr;
+#ifdef GUARDIAN_GDI_EXPANDED
+DWORD style=0;
+#endif
+};
 struct Window {HWND h=nullptr,parent=nullptr;Class* cls=nullptr;WNDPROC proc=nullptr;LONG_PTR user=0,id=0;uint32_t tid=0;u::Class kind{};bool destroying=false,wide=true;};
 struct Timer {HWND h=nullptr;UINT_PTR id=0;TIMERPROC proc=nullptr;};
 struct Stamp {bool used=false;DWORD tid=0;uint64_t serial=0;MSG msg{};WINDOWPOS pos{};uint32_t flags=0;};
@@ -76,6 +84,9 @@ return Fail(ERROR_CANNOT_FIND_WND_CLASS,HWND{});}}
     if(Name(name,L"LISTBOX"))kind=nc::List;else if(Name(name,L"COMBOBOX"))kind=nc::Combo;
 #endif
     if(cls)wide=cls->wide;
+#ifdef GUARDIAN_GDI_EXPANDED
+    if(!(style&(WS_CHILD|WS_POPUP))){if(x==CW_USEDEFAULT)x=120;if(y==CW_USEDEFAULT)y=100;if(width==CW_USEDEFAULT)width=640;if(height==CW_USEDEFAULT)height=480;}
+#endif
     if(width<=0||height<=0||width>2048||height>2048||x<-8192||x>8192||y<-8192||y>8192){
 #ifdef GUARDIAN_NATIVE_CONTROLS
 NativeRejected(4,style,0,{x,y,width,height});
@@ -89,6 +100,9 @@ return Fail(ERROR_INVALID_PARAMETER,HWND{});}
     u::Call c;c.command.op=u::Op::Create;c.command.other=uint64_t(parent);c.command.rect={x,y,x+width,y+height};c.command.style=style;c.command.exStyle=ex;c.command.kind=kind;c.command.id=(style&WS_CHILD)?uint32_t(uintptr_t(menu)):0;
 #ifdef GUARDIAN_NATIVE_CONTROLS
     c.command.lp=cls?uint64_t(cls->icon):0;
+#ifdef GUARDIAN_GDI_EXPANDED
+c.command.reserved=cls?cls->style:0;
+#endif
 #endif
     #ifndef GUARDIAN_NATIVE_CONTROLS
     if(!(style&WS_CHILD)&&menu)return Fail(ERROR_NOT_SUPPORTED,HWND{});
@@ -128,7 +142,12 @@ extern "C" ATOM WINAPI UiRegisterClassExW(const WNDCLASSEXW* c){Guard guard;if(!
 #ifndef GUARDIAN_NATIVE_CONTROLS
 ||c->style||c->hIcon||c->hIconSm||c->hCursor||c->hbrBackground
 #else
-||c->style&~(CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS)||c->hCursor
+||c->style&~(CS_HREDRAW|CS_VREDRAW|CS_DBLCLKS)
+#ifdef GUARDIAN_GDI_EXPANDED
+||(c->hCursor&&uint64_t(c->hCursor)!=((11ull<<56)|32512))
+#else
+||c->hCursor
+#endif
 #endif
 ){
 #ifdef GUARDIAN_NATIVE_CONTROLS
@@ -137,6 +156,9 @@ NativeRejected(2,c?c->style:0,c?uint64_t(c->cbClsExtra)|(uint64_t(c->cbWndExtra)
 return Fail(ERROR_NOT_SUPPORTED,ATOM{});}uint16_t name[256]{};if(!Wide(c->lpszClassName,name))return Fail(ERROR_INVALID_PARAMETER,ATOM{});for(auto& entry:classes)if(entry.atom&&Equal(name,entry.name))return Fail(ERROR_CLASS_ALREADY_EXISTS,ATOM{});for(auto& entry:classes)if(!entry.atom){entry.atom=nextAtom++;entry.proc=c->lpfnWndProc;
 #ifdef GUARDIAN_NATIVE_CONTROLS
 entry.background=c->hbrBackground;entry.icon=c->hIcon;
+#ifdef GUARDIAN_GDI_EXPANDED
+entry.style=c->style;
+#endif
 #endif
 Copy(entry.name,name,sizeof(name));return entry.atom;}return Fail(ERROR_NOT_ENOUGH_QUOTA,ATOM{});}
 extern "C" ATOM WINAPI UiRegisterClassExA(const WNDCLASSEXA* c){if(!c)return 0;uint16_t name[256]{};if(!Ansi(c->lpszClassName,name))return 0;WNDCLASSEXW wide{};Copy(&wide,c,sizeof(wide));wide.lpszClassName=reinterpret_cast<LPCWSTR>(name);const auto atom=UiRegisterClassExW(&wide);if(atom){Guard guard;for(auto& entry:classes)if(entry.atom==atom)entry.wide=false;}return atom;}
@@ -186,7 +208,11 @@ extern "C" BOOL WINAPI UiIsWindowVisible(HWND h){Guard guard;u::Window w;return 
 extern "C" BOOL WINAPI UiIsWindowEnabled(HWND h){Guard guard;u::Window w;return Query(h,w)&&w.enabled;}
 extern "C" BOOL WINAPI UiIsWindowUnicode(HWND h){Guard guard;auto* w=Local(h);return w&&w->wide;}
 extern "C" HWND WINAPI UiGetParent(HWND h){Guard guard;u::Window w;return Query(h,w)?reinterpret_cast<HWND>(w.parent):nullptr;}
-extern "C" BOOL WINAPI UiShowWindow(HWND h,int show){Guard guard;if(show!=SW_HIDE&&show!=SW_SHOW&&show!=SW_SHOWNOACTIVATE&&show!=SW_SHOWNORMAL)return Fail(ERROR_NOT_SUPPORTED,FALSE);u::Call c;c.command.op=u::Op::Show;c.command.window=uint64_t(h);c.command.flags=show?1:0;return Call(c)?BOOL(c.reply.value):FALSE;}
+extern "C" BOOL WINAPI UiShowWindow(HWND h,int show){Guard guard;
+#ifdef GUARDIAN_GDI_EXPANDED
+if(show==SW_SHOWDEFAULT)show=SW_SHOWNORMAL;
+#endif
+if(show!=SW_HIDE&&show!=SW_SHOW&&show!=SW_SHOWNOACTIVATE&&show!=SW_SHOWNORMAL)return Fail(ERROR_NOT_SUPPORTED,FALSE);u::Call c;c.command.op=u::Op::Show;c.command.window=uint64_t(h);c.command.flags=show?1:0;return Call(c)?BOOL(c.reply.value):FALSE;}
 extern "C" BOOL WINAPI UiEnableWindow(HWND h,BOOL enable){Guard guard;u::Call c;c.command.op=u::Op::Enable;c.command.window=uint64_t(h);c.command.flags=enable?1:0;return Call(c)?BOOL(c.reply.value):FALSE;}
 extern "C" HWND WINAPI UiSetFocus(HWND h){Guard guard;u::Call c;c.command.op=u::Op::Focus;c.command.window=uint64_t(h);return Call(c)?reinterpret_cast<HWND>(c.reply.value):nullptr;}
 extern "C" HWND WINAPI UiGetDlgItem(HWND h,int id){Guard guard;for(auto& w:windows)if(w.h&&w.parent==h&&w.id==id)return w.h;return nullptr;}
@@ -199,8 +225,13 @@ extern "C" LRESULT WINAPI UiCallWindowProcW(WNDPROC proc,HWND h,UINT m,WPARAM w,
 extern "C" LRESULT WINAPI UiCallWindowProcA(WNDPROC proc,HWND h,UINT m,WPARAM w,LPARAM l){return UiCallWindowProcW(proc,h,m,w,l);}
 extern "C" UINT_PTR WINAPI UiSetTimer(HWND h,UINT_PTR id,UINT ms,TIMERPROC proc){Guard guard;Timer* slot=nullptr;for(auto& t:timers)if(t.h==h&&t.id==id){slot=&t;break;}if(!slot)for(auto& t:timers)if(!t.h){slot=&t;break;}if(!slot)return Fail(ERROR_NOT_ENOUGH_QUOTA,UINT_PTR{});u::Call c;c.command.op=u::Op::Timer;c.command.window=uint64_t(h);c.command.wp=id;c.command.lp=ms;if(!Call(c))return 0;*slot={h,id,proc};return id;}
 extern "C" BOOL WINAPI UiKillTimer(HWND h,UINT_PTR id){Guard guard;u::Call c;c.command.op=u::Op::KillTimer;c.command.window=uint64_t(h);c.command.wp=id;if(!Call(c))return FALSE;for(auto& t:timers)if(t.h==h&&t.id==id)t={};return TRUE;}
+#ifdef GUARDIAN_GDI_EXPANDED
+extern "C" BOOL WINAPI UiInvalidateRect(HWND h,const RECT* rect,BOOL erase){Guard guard;u::Call c;c.command.op=static_cast<u::Op>(nc::Op::Redraw);c.command.window=uint64_t(h);c.command.flags=erase?2u:0u;if(rect){c.command.flags|=1;Copy(&c.command.rect,rect,sizeof(*rect));}return Call(c)?BOOL(c.reply.value):FALSE;}
+extern "C" BOOL WINAPI UiUpdateWindow(HWND h){Guard guard;u::Call c;c.command.op=static_cast<u::Op>(nc::Op::Redraw);c.command.window=uint64_t(h);c.command.flags=4;return Call(c)?BOOL(c.reply.value):FALSE;}
+#else
 extern "C" BOOL WINAPI UiInvalidateRect(HWND h,const RECT* rect,BOOL){Guard guard;if(rect)return Fail(ERROR_NOT_SUPPORTED,FALSE);u::Call c;c.command.op=u::Op::Invalidate;c.command.window=uint64_t(h);return Call(c);}
 extern "C" BOOL WINAPI UiUpdateWindow(HWND h){return UiInvalidateRect(h,nullptr,TRUE);}
+#endif
 
 extern "C" HWND WINAPI UiGetFocus(){Guard guard;u::Call c;c.command.op=u::Op::Focus;c.command.flags=1;return Call(c)?reinterpret_cast<HWND>(c.reply.value):nullptr;}
 extern "C" HWND WINAPI UiSetParent(HWND h,HWND parent){Guard guard;u::Call c;c.command.op=u::Op::Parent;c.command.window=uint64_t(h);c.command.other=uint64_t(parent);if(!Call(c))return nullptr;auto* local=Local(h);if(local)local->parent=parent;Drain();return reinterpret_cast<HWND>(c.reply.value);}
@@ -209,8 +240,28 @@ extern "C" BOOL WINAPI UiClientToScreen(HWND h,POINT* point){if(!h||!point)retur
 extern "C" BOOL WINAPI UiScreenToClient(HWND h,POINT* point){if(!h||!point)return Fail(ERROR_INVALID_PARAMETER,FALSE);SetLastError(0);UiMapWindowPoints(nullptr,h,point,1);return GetLastError()==0;}
 
 #ifdef GUARDIAN_NATIVE_GDI
+#ifdef GUARDIAN_GDI_EXPANDED
+#define UiCreatePen UiLegacyCreatePen
+#define UiBitBlt UiLegacyBitBlt
+#define UiCreateDIBSection UiLegacyCreateDIBSection
+#define UiStretchDIBits UiLegacyStretchDIBits
+#define UiDeleteObject UiLegacyDeleteObject
+#endif
 #include "NativeGdiUser.inl"
+#ifdef GUARDIAN_GDI_EXPANDED
+#undef UiCreatePen
+#undef UiBitBlt
+#undef UiCreateDIBSection
+#undef UiStretchDIBits
+#undef UiDeleteObject
+#endif
 #endif
 #ifdef GUARDIAN_NATIVE_CONTROLS
+#ifdef GUARDIAN_GDI_EXPANDED
+extern "C" BOOL WINAPI UiDeleteObject(HGDIOBJ);
+#endif
 #include "NativeControlsUser.inl"
+#ifdef GUARDIAN_GDI_EXPANDED
+#include "ExpandedGdiUser.inl"
+#endif
 #endif

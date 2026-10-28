@@ -6,7 +6,7 @@ Isolamento e telemetria não representam garantia de indetectabilidade ou de
 proteção completa contra qualquer arquivo malicioso.
 
 Os modos opcionais da [14.10A](docs/PHASE-14.10A.md) , da
-[14.10B](docs/PHASE-14.10B.md), da [14.10C](docs/PHASE-14.10C.md) e da [14.10D](docs/PHASE-14.10D.md) executam conjuntos limitados
+[14.10B](docs/PHASE-14.10B.md), da [14.10C](docs/PHASE-14.10C.md) da [14.10D](docs/PHASE-14.10D.md) e da [14.10E](docs/PHASE-14.10E.md) executam conjuntos limitados
 de operações GUI por APIs do Windows em um auxiliar com token restrito,
 integridade baixa e Job supervisionado. O código da aplicação permanece no
 MiniNT. Esse auxiliar acrescenta superfície de ataque no host; seu perfil não
@@ -28,3 +28,9 @@ Na 14.10D, seletores de arquivo usam somente o namespace convidado; não há
 navegador Shell do host. Fontes/ícones e mensagens de controles usam contratos
 limitados, IDs próprios, retenção dos objetos selecionados e cotas. A política
 de geometria é virtualizada e não comprova equivalência completa de USER32.
+
+Na 14.10E, curvas, paths, regiões, transformações, glifos e descritores usam
+contratos limitados e autoria de objetos. Ponteiros/padding de descritores do
+host não são serializados. Cursores afetam somente os clientes da sessão.
+O conjunto maior de operações GDI exige as mesmas verificações de isolamento,
+cotas, falhas parciais e limpeza; não representa garantia de ausência de escape.

@@ -1,6 +1,6 @@
 """Loopback-only test peers using public synthetic keys, never host trust stores."""
 from pathlib import Path
-import base64,contextlib,hashlib,json,socket,socketserver,ssl,threading,time
+import base64,contextlib,hashlib,json,secrets,socket,socketserver,ssl,threading,time
 
 FIXTURES=Path(__file__).resolve().parent/'fixtures/internet/certificates.json'
 BODY=b'MiniNT HTTP works\n'
@@ -34,17 +34,21 @@ class UdpEcho(socketserver.BaseRequestHandler):
         sock.sendto(data,self.client_address)
 
 def echo_pair(tcp_factory=Tcp,udp_factory=socketserver.ThreadingUDPServer):
-    # TCP and UDP have separate Windows reservations. Bind both before starting
-    # any peer thread; a TCP ephemeral port alone does not reserve UDP access.
+    # Windows allocates UDP ephemeral ports sequentially, including ranges that
+    # TCP reserves. Sample independent candidates and hold both bindings before
+    # starting threads; neither protocol's allocation reserves the other.
     for _ in range(32):
-        udp=udp_factory(('127.0.0.1',0),UdpEcho)
-        try:tcp=tcp_factory(('127.0.0.1',udp.server_address[1]),Echo)
+        udp=None
+        try:
+            udp=udp_factory(('127.0.0.1',49152+secrets.randbelow(16384)),UdpEcho)
+            tcp=tcp_factory(('127.0.0.1',udp.server_address[1]),Echo)
         except OSError as error:
-            udp.server_close()
+            if udp:udp.server_close()
             if error.errno not in (13,98,10013,10048) and getattr(error,'winerror',None) not in (10013,10048):raise
             last=error
         except BaseException:
-            udp.server_close();raise
+            if udp:udp.server_close()
+            raise
         else:
             udp.daemon_threads=True
             return tcp,udp
