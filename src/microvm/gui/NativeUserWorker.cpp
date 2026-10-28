@@ -28,7 +28,10 @@ constexpr auto WireMagic=guardian::nativeuser::Magic;constexpr uint32_t WireVers
 #include <cstring>
 namespace u=guardian::nativeuser;
 namespace {
-#ifdef GUARDIAN_GDI_EXPANDED
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+constexpr wchar_t ClassName[]=L"Aegis.SoftwareGraphics.14.10F",Prefix[]=L"[MiniNT software 14.10F] ";
+constexpr const wchar_t* ExpandedClasses[]{ClassName,L"Aegis.SoftwareGraphics.14.10F.1",L"Aegis.SoftwareGraphics.14.10F.2",L"Aegis.SoftwareGraphics.14.10F.3",L"Aegis.SoftwareGraphics.14.10F.4",L"Aegis.SoftwareGraphics.14.10F.5",L"Aegis.SoftwareGraphics.14.10F.6",L"Aegis.SoftwareGraphics.14.10F.7"};
+#elif defined(GUARDIAN_GDI_EXPANDED)
 constexpr wchar_t ClassName[]=L"Aegis.ExpandedGdi.14.10E",Prefix[]=L"[MiniNT native 14.10E] ";
 constexpr const wchar_t* ExpandedClasses[]{ClassName,L"Aegis.ExpandedGdi.14.10E.1",L"Aegis.ExpandedGdi.14.10E.2",L"Aegis.ExpandedGdi.14.10E.3",L"Aegis.ExpandedGdi.14.10E.4",L"Aegis.ExpandedGdi.14.10E.5",L"Aegis.ExpandedGdi.14.10E.6",L"Aegis.ExpandedGdi.14.10E.7"};
 #elif defined(GUARDIAN_NATIVE_CONTROLS)
@@ -295,6 +298,9 @@ struct Host {
 #endif
         ?ERROR_INVALID_PARAMETER:overflow?ERROR_NOT_ENOUGH_QUOTA:Execute(p);
         graphics.Report(p.graphics);
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+        if(p.command.op==u::Op::Finish)graphics.SoftwareFinal(p.graphics);
+#endif
 #else
         p.reply.status=!u::Valid(p.command)?ERROR_INVALID_PARAMETER:overflow?ERROR_NOT_ENOUGH_QUOTA:Execute(p);
 #endif
@@ -323,7 +329,13 @@ int Run(){
     p.reply.restrictions=31;p.reply.helperPid=GetCurrentProcessId();if(!WriteFile(output,&p,sizeof(p),&written,nullptr)||written!=sizeof(p))return 7;
     const auto uiThread=GetCurrentThreadId();std::atomic<int> result{0};
     // The transport never executes a GUI command. Posted tasks still run inside native modal loops.
-    std::thread transport([&]{try{for(;;){DWORD put=0;if(!av::microvm::native_gui::ReadPacket(input,p)){result=host.complete?0:8;break;}if(!PostMessageW(host.channel,WM_APP+1,0,0)||WaitForSingleObject(host.done,2000)!=WAIT_OBJECT_0){result=9;break;}if(!WriteFile(output,&p,sizeof(p),&put,nullptr)||put!=sizeof(p)){result=10;break;}}}catch(...){result=12;}PostThreadMessageW(uiThread,WM_QUIT,0,0);});
+    std::thread transport([&]{try{for(;;){DWORD put=0;if(!av::microvm::native_gui::ReadPacket(input,p)){result=host.complete?0:8;break;}if(!PostMessageW(host.channel,WM_APP+1,0,0)||WaitForSingleObject(host.done,
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+10000
+#else
+2000
+#endif
+)!=WAIT_OBJECT_0){result=9;break;}if(!WriteFile(output,&p,sizeof(p),&put,nullptr)||put!=sizeof(p)){result=10;break;}}}catch(...){result=12;}PostThreadMessageW(uiThread,WM_QUIT,0,0);});
     MSG msg{};while(GetMessageW(&msg,nullptr,0,0)>0){TranslateMessage(&msg);DispatchMessageW(&msg);}transport.join();return result;
 }
 }

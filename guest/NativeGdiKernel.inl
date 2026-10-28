@@ -1,4 +1,7 @@
-#ifdef GUARDIAN_GDI_EXPANDED
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+#include "guardian/SoftwareGraphics.h"
+extern "C" const volatile char GuardianSoftwareGraphicsCapability[]="GuardianSoftwareGraphics/6/guest";
+#elif defined(GUARDIAN_GDI_EXPANDED)
 extern "C" const volatile char GuardianExpandedGdiCapability[]="GuardianExpandedGdi/5/guest";
 #elif defined(GUARDIAN_NATIVE_CONTROLS)
 extern "C" const volatile char GuardianNativeControlsCapability[]="GuardianNativeControls/4/guest";
@@ -12,6 +15,9 @@ bool NativeGdiExchange() noexcept {auto& p=nativeGdiPacket;p.boot=nativeGdiInfo.
 uint32_t NativeGdiDispatch(RuntimeSlot& slot,uint32_t tid,uint64_t address) noexcept {
     nativegdi::Call call;if(!slot.nativeServices->Read(address,&call,sizeof(call))||!slot.nativeServices->Probe(address,sizeof(call),true))return 998;
     if(call.magic!=nativegdi::Magic||call.version!=nativegdi::Version||call.bytes!=sizeof(call)||!nativegdi::Empty(&call.reply,sizeof(call.reply))||!nativegdi::Empty(&call.graphics,sizeof(call.graphics)))return 87;
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+    if(!softwaregraphics::Valid(call.draw)||!nativecontrols::Valid(call.command))return 87;
+#endif
     if(call.draw.op==nativegdi::Op::None&&(call.command.op==nativeuser::Op::Hello||call.command.op==nativeuser::Op::Finish||call.command.op==nativeuser::Op::ThreadExit))return 87;
     auto event=telemetry::Begin(telemetry::Domain::Control,telemetry::Operation::Query,slot.pid,slot.context.processes->Get(slot.pid)->token.user,"Native GDI service","",call.draw.op==nativegdi::Op::None?uint32_t(call.command.op):256+uint32_t(call.draw.op));if(!telemetry::Before(event))return telemetry::End(event,5);
     if(!NativeGdiStart()||nativeGdiCompleted)return telemetry::End(event,50);nativeGdiPid=slot.pid;nativeGdiTid=tid;nativeGdiPacket={};nativeGdiPacket.command=call.command;nativeGdiPacket.draw=call.draw;if(!NativeGdiExchange())return telemetry::End(event,87);call.reply=nativeGdiPacket.reply;call.graphics=nativeGdiPacket.graphics;call.reply.restrictions=call.reply.helperPid=0;for(auto& n:call.reply.calls)n=0;for(auto& n:call.graphics.calls)n=0;

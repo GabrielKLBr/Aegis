@@ -44,30 +44,40 @@ def exports(output):
         (output/(dll+'.def')).write_text('LIBRARY '+dll+'\nEXPORTS\n'+''.join(lines),encoding='utf-8')
     proof={'phase':'14.9','dlls':{key:sorted(value) for key,value in groups.items()},'implementedExports':len(names),'hostTls':False,'hostKeys':False,'completeWindowsNetworking':False,'tlsVersions':['1.2'],'suites':['ECDHE-ECDSA-AES128-GCM-SHA256','ECDHE-RSA-AES128-GCM-SHA256']};(output/'coverage.json').write_bytes(nt.canonical(proof));return proof
 
-def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False,native_user32=False,native_gdi=False,native_controls=False,native_expanded=False):
+def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False,native_user32=False,native_gdi=False,native_controls=False,native_expanded=False,native_software=False):
     build=Path(build);output=Path(output);folder=build/'guest/internet'/config;application=Path(application) if application else folder/'guardian-internet-crypto.exe';output.parent.mkdir(parents=True,exist_ok=True)
     if native_gui:extras=(*extras,build/'guest/native-gui'/config/'guardian-native-gui.dll')
-    hosts=('kernelbase.dll','kernel32.dll','ntdll.dll','ucrtbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll','advapi32.dll',*(d+'.dll' for d in (*component_runtime.DLLS,*DLLS)))
+    software_dlls=('d2d1.dll','dwrite.dll','windowscodecs.dll','d3d11.dll','dxgi.dll','d3d9.dll','guardian-software-graphics.dll')
+    hosts=('kernelbase.dll','kernel32.dll','ntdll.dll','ucrtbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll','advapi32.dll',*(d+'.dll' for d in (*component_runtime.DLLS,*DLLS)),*(software_dlls if native_software else ()))
     schema,metadata=api_set.build('win10',schema_reference,hosts);schema_path=output.parent/(output.name+'-schema.dll');schema_path.write_bytes(schema)
     table,native=native_nt.syscall_map(build/'guest/desktop'/config/'ntdll.dll','win10',False);table_path=output.parent/(output.name+'-syscalls.bin');table_path.write_bytes(table)
     files=[{'path':'c:\\app\\'+application.name.lower(),'source':str(application),'kind':'pe'}]
     def add(path,source,kind='pe'):files.append({'path':path,'source':str(source),'kind':kind})
-    for name in ('ntdll.dll','kernel32.dll','kernelbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll'):add('c:\\windows\\system32\\'+name,build/('guest/expanded-gdi' if native_expanded and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/native-controls' if native_controls and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/native-gdi' if native_gdi and name in ('user32.dll','win32u.dll','gdi32.dll') else 'guest/native-user32' if native_user32 and name in ('user32.dll','win32u.dll') else 'guest/desktop')/config/name)
+    for name in ('ntdll.dll','kernel32.dll','kernelbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll'):add('c:\\windows\\system32\\'+name,build/('guest/software-graphics' if native_software and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/expanded-gdi' if native_expanded and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/native-controls' if native_controls and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/native-gdi' if native_gdi and name in ('user32.dll','win32u.dll','gdi32.dll') else 'guest/native-user32' if native_user32 and name in ('user32.dll','win32u.dll') else 'guest/desktop')/config/name)
     add('c:\\windows\\system32\\guardian-runtime-api.dll',build/'guest/crt'/config/'guardian-runtime-api.dll');add('c:\\windows\\system32\\advapi32.dll',build/'guest/security'/config/'advapi32.dll')
-    for dll in component_runtime.DLLS:add('c:\\windows\\system32\\'+dll+'.dll',build/('guest/expanded-gdi' if native_expanded and dll in ('comdlg32','comctl32') else 'guest/native-controls' if native_controls and dll in ('comdlg32','comctl32') else 'guest/components')/config/(dll+'.dll'))
+    for dll in component_runtime.DLLS:add('c:\\windows\\system32\\'+dll+'.dll',build/('guest/software-graphics' if native_software and dll in ('combase','comdlg32','comctl32') else 'guest/expanded-gdi' if native_expanded and dll in ('comdlg32','comctl32') else 'guest/native-controls' if native_controls and dll in ('comdlg32','comctl32') else 'guest/components')/config/(dll+'.dll'))
+    if native_software:
+        for name in software_dlls:add('c:\\windows\\system32\\'+name,build/'guest/software-graphics'/config/name)
     for dll in DLLS:add('c:\\windows\\system32\\'+dll+'.dll',folder/(dll+'.dll'))
     for path in extras:add('c:\\app\\'+Path(path).name.lower(),path)
     for path in assets:add('c:\\app\\'+Path(path).name.lower(),path,'data')
-    reference_names=('msvcrt.dll',) if 'msvcrt.dll' in nt.InventoryPe(application).imports() else ('ucrtbase.dll','vcruntime140.dll');inventory=crt_runtime.references(reference,reference_names)
+    reference_names=('msvcrt.dll',) if 'msvcrt.dll' in nt.InventoryPe(application).imports() else ('ucrtbase.dll','vcruntime140.dll');inventory=crt_runtime.references(reference,tuple(dict.fromkeys((*reference_names,'vcruntime140_1.dll','msvcp140.dll'))) if native_software else reference_names)
     for record in inventory:add('c:\\windows\\system32\\'+record['name'],Path(reference)/record['name'])
     add('c:\\windows\\system32\\apisetschema.dll',schema_path);add('c:\\windows\\system32\\guardian-nt-syscalls.bin',table_path,'manifest')
     available={f['path'].rsplit('\\',1)[-1]:f for f in files if f['kind']=='pe'};selected={application.name.lower(),'ntdll.dll','kernel32.dll','kernelbase.dll','guardian-runtime-api.dll','apisetschema.dll',*reference_names,*(Path(path).name.lower() for path in extras)};pending=list(selected)
+    if native_software:
+        for name in (*software_dlls,'ole32.dll','combase.dll'):
+            if name not in selected:selected.add(name);pending.append(name)
     while pending:
-        name=pending.pop();record=available.get(name);nt.require(record is not None,'Outside owned network corpus: '+name);pe=nt.InventoryPe(Path(record['source']));dependencies=set(pe.imports())|{e['forwarder'].rsplit('.',1)[0].lower()+'.dll' for e in pe.export_records() if e['forwarder']}
+        name=pending.pop();record=available.get(name);nt.require(record is not None,('Unsupported software graphics module: ' if native_software else 'Outside owned network corpus: ')+name);pe=nt.InventoryPe(Path(record['source']));dependencies=({row['module'] for row in pe.import_records()} if native_software else set(pe.imports()))|{e['forwarder'].rsplit('.',1)[0].lower()+'.dll' for e in pe.export_records() if e['forwarder']}
         for dependency in dependencies:
             if dependency.startswith(('api-ms-','ext-ms-')):continue
             if dependency not in selected:selected.add(dependency);pending.append(dependency)
     files=[file for file in files if file['kind']!='pe' or file['path'].rsplit('\\',1)[-1] in selected];nt.require(sum(file['kind']=='pe' for file in files)<=24,'Network module budget exceeded')
+    if native_software:
+        import software_graphics_inventory
+        software_graphics_inventory.require_imports(files,schema)
+        inventory=[record for record in inventory if record['name'] in selected]
     if native_expanded:
         import gdi_inventory
         for file in files:
@@ -93,6 +103,9 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
     if native_expanded:
         nt.require(not any((native_controls,native_gdi,native_user32,native_gui,presentation)),'Expanded GDI mode is exclusive')
         spec['phase']='14.10E';spec['nativeGuiRuntime']={'backend':'win32-expanded-gdi','protocol':5,'helperSha256':nt.sha(nt.regular(build/config/'guardian-expanded-gdi-host.exe',16<<20)),'hostHandlesInGuest':False,'guestWindowPixelsRequired':False,'standardUser32Subset':True,'nativeGdiSubset':True,'nativeControlsSubset':True,'logicalDpi':96,'completeWindowsGui':False,'phase14_10FStarted':False}
+    if native_software:
+        nt.require(not any((native_expanded,native_controls,native_gdi,native_user32,native_gui,presentation)),'Software graphics mode is exclusive')
+        spec['phase']='14.10F';spec['nativeGuiRuntime']={'backend':'software-d2d-warp-wic','protocol':6,'helperSha256':nt.sha(nt.regular(build/config/'guardian-software-graphics-host.exe',16<<20)),'hostHandlesInGuest':False,'guestWindowPixelsRequired':False,'standardUser32Subset':True,'nativeGdiSubset':True,'nativeControlsSubset':True,'logicalDpi':96,'completeWindowsGui':False,'hardwareAcceleration':False,'phase14_10GStarted':False}
     return pe_volume.build(spec,kernel or build/'guest'/config/'guardian-kernel-internet.gk',output)
 
 def main():

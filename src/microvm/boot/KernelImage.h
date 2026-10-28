@@ -29,6 +29,7 @@ public:
     bool SupportsNativeGdi() const noexcept;
     bool SupportsNativeControls() const noexcept;
     bool SupportsExpandedGdi() const noexcept;
+    bool SupportsSoftwareGraphics() const noexcept;
     bool SupportsInternet() const noexcept;
     uint64_t Base() const { return PreferredBase; }
     uint64_t Size() const { return imageBytes_; }

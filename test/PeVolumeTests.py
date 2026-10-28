@@ -42,5 +42,19 @@ class VolumeTests(unittest.TestCase):
     def test_manifest_binding(self):
         (self.bundle/'binding.gnt').write_bytes(bytes(176))
         with self.assertRaises(ValueError):pv.verify(self.bundle)
+    def test_image_data_namespace_versions(self):
+        content=self.pe.read_bytes()
+        for version in (1,2):
+            for name in ('c:\\app\\image.png','c:\\app\\image.bmp','c:\\app\\image.jpg','c:\\app\\image.jpeg','c:\\windows\\system32\\image.png','c:\\app\\image.svg'):
+                with self.subTest(version=version,name=name):
+                    header=pv.HEADER if version==1 else pv.EXTENDED_HEADER;offset=(header+4095)&~4095
+                    data=bytearray(offset);data.extend(content);second=(len(data)+4095)&~4095;data.extend(bytes(second-len(data)));data.extend(b'owned encoded input')
+                    struct.pack_into('<Q8IQ',data,0,pv.MAGIC,version,header,len(data),1,2,0,0,0,0)
+                    for index,path,at,blob,kind in ((0,'c:\\app\\owned.exe',offset,content,1),(1,name,second,b'owned encoded input',3)):
+                        entry=48+index*152;data[entry:entry+128]=pv.text(path,128);struct.pack_into('<4IQ',data,entry+128,at,len(blob),kind,0,pv.fnv(blob))
+                    struct.pack_into('<Q',data,40,pv.fnv(data,True))
+                    if version==2 and name.startswith('c:\\app\\') and not name.endswith('.svg'):self.assertEqual(len(pv.validate_volume(data)[2]),2)
+                    else:
+                        with self.assertRaises(ValueError):pv.validate_volume(data)
 
 if __name__=='__main__':unittest.main()

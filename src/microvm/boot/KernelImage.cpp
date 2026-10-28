@@ -149,3 +149,5 @@ namespace av::microvm::boot {bool KernelImage::SupportsNativeUser32() const noex
 namespace av::microvm::boot {bool KernelImage::SupportsNativeGdi() const noexcept {constexpr char tag[]="GuardianNativeGdi/3/guest";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}}
 namespace av::microvm::boot {bool KernelImage::SupportsNativeControls() const noexcept {constexpr char tag[]="GuardianNativeControls/4/guest";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}}
 namespace av::microvm::boot {bool KernelImage::SupportsExpandedGdi() const noexcept {constexpr char tag[]="GuardianExpandedGdi/5/guest";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}}
+
+namespace av::microvm::boot {bool KernelImage::SupportsSoftwareGraphics() const noexcept {constexpr char tag[]="GuardianSoftwareGraphics/6/guest";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}}

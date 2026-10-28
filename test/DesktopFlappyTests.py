@@ -14,7 +14,14 @@ def main():
     for index,(source,bird_width,pipe_width) in enumerate([(settings,20,80),(alternate,28,64),(settings,20,80)]):
         bundle=folder/str(index);manifest=runtime.bundle(a.build,a.config,bundle,a.reference,a.schema_reference,a.application,[source,icon]);assert manifest['applicationSha256']==APPLICATION_SHA;pe_volume.verify(bundle);session=folder/(str(index)+'-session');boot,trace,desktop=execute(a.build,a.config,bundle,session,script);assert 9<=desktop['scriptConsumed']<=len(INPUT.splitlines());frames=desktop['history'];birds=[(f['ns'],w) for f in frames for w in f['windows'] if w['title']=='Bird'];pipes=[w for f in frames for w in f['windows'] if w['title']=='Top Pipe'];assert birds and pipes and all(w['width']==bird_width for _,w in birds) and all(w['width']==pipe_width for w in pipes)
         assert min(w['x'] for w in pipes)<max(w['x'] for w in pipes)
-        after=[w['y'] for ns,w in birds if 500000000<=ns-desktop['scriptOriginNs']<=1400000000];assert len(after)>=2 and any(b<a for a,b in zip(after,after[1:])),'Physical flap must produce upward movement'
+        # Rendering and host scheduling may delay samples beyond the nominal
+        # script times. Inspect the actual delivery-to-close interval; the
+        # original executable must still move upward after physical key input.
+        deliveries=desktop['deliveries'];assert len(deliveries)>=9
+        assert deliveries[0]['dueNs']==desktop['scriptOriginNs']+400000000
+        assert deliveries[8]['dueNs']==desktop['scriptOriginNs']+2400000000
+        start,end=deliveries[0]['deliveredNs'],deliveries[8]['deliveredNs'];assert start<end
+        after=[w['y'] for ns,w in birds if start<=ns<end];assert len(after)>=2 and any(b<a for a,b in zip(after,after[1:])),'Delivered physical flap must produce upward movement before close'
         assert any(any(w['title']=='Score' for w in f['windows']) and any(w['title']=='Bottom Pipe' for w in f['windows']) for f in frames)
         captured=list(session.glob('frame-*.ppm'));assert captured
         glyphs=False

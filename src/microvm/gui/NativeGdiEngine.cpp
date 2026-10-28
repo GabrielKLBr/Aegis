@@ -41,9 +41,21 @@ void GdiEngine::Print(uint64_t id,HWND hwnd,HDC dc){if(auto* s=Surface(id)){RECT
 uint64_t GdiEngine::Stock(HGDIOBJ object,g::Kind kind,uint32_t pid,uint32_t tid){for(auto& r:resources)if(r.id&&r.stock&&r.object==object&&r.pid==pid&&r.tid==tid)return r.id;auto* r=Allocate(kind,pid,tid);if(!r)return 0;r->object=object;r->stock=true;return r->id;}
 void GdiEngine::CloseDc(GdiResource& r){if(r.paint){auto* s=Surface(r.window);if(s)EndPaint(s->hwnd,&r.ps);}if(r.dc){RestoreDC(r.dc,1);if(!r.window)DeleteDC(r.dc);else Present(r);}r={};}
 void GdiEngine::Delete(GdiResource& r){if(!r.stock&&r.object){DeleteObject(r.object);if(r.kind==g::Kind::Bitmap)bytes-=uint64_t(r.width)*r.height*4;}r={};}
-void GdiEngine::DropWindow(uint64_t id){for(auto& r:resources)if(r.id&&r.window==id)CloseDc(r);if(auto* s=Surface(id))Drop(*s);}
-void GdiEngine::Exit(uint32_t pid,uint32_t tid){for(auto& r:resources)if(r.id&&r.pid==pid&&r.tid==tid&&r.kind==g::Kind::Dc)CloseDc(r);for(auto& r:resources)if(r.id&&r.pid==pid&&r.tid==tid)Delete(r);}
-void GdiEngine::Clear(){for(auto& r:resources)if(r.id&&r.kind==g::Kind::Dc)CloseDc(r);for(auto& r:resources)if(r.id)Delete(r);for(auto& s:surfaces)if(s.id)Drop(s);}
+void GdiEngine::DropWindow(uint64_t id){
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+if(software)software->DropWindow(id);
+#endif
+for(auto& r:resources)if(r.id&&r.window==id)CloseDc(r);if(auto* s=Surface(id))Drop(*s);}
+void GdiEngine::Exit(uint32_t pid,uint32_t tid){
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+if(software)software->Exit(pid,tid);
+#endif
+for(auto& r:resources)if(r.id&&r.pid==pid&&r.tid==tid&&r.kind==g::Kind::Dc)CloseDc(r);for(auto& r:resources)if(r.id&&r.pid==pid&&r.tid==tid)Delete(r);}
+void GdiEngine::Clear(){
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+if(software)software->Clear();
+#endif
+for(auto& r:resources)if(r.id&&r.kind==g::Kind::Dc)CloseDc(r);for(auto& r:resources)if(r.id)Delete(r);for(auto& s:surfaces)if(s.id)Drop(s);}
 GdiEngine::~GdiEngine(){Clear();}
 #ifdef GUARDIAN_NATIVE_CONTROLS
 HFONT GdiEngine::ControlFont(uint64_t id,uint32_t pid,uint32_t tid){auto* r=Find(id);if(!r||r->kind!=g::Kind::Font||r->pid!=pid||r->tid!=tid)return nullptr;++r->pins;return static_cast<HFONT>(r->object);}
@@ -52,8 +64,33 @@ void GdiEngine::UnpinFont(uint64_t id){if(auto* r=Find(id);r&&r->pins)--r->pins;
 uint64_t GdiEngine::SystemBrush(int index,uint32_t pid,uint32_t tid){return Stock(GetSysColorBrush(index),g::Kind::Brush,pid,tid);}
 HBITMAP GdiEngine::IconBitmap(uint64_t id,uint32_t pid,uint32_t tid,int& width,int& height){auto* r=Find(id);if(!r||r->kind!=g::Kind::Bitmap||r->stock||r->pid!=pid||r->tid!=tid||Selected(id)||r->width>64||r->height>64)return nullptr;width=r->width;height=r->height;GdiFlush();return static_cast<HBITMAP>(r->object);}
 #endif
-void GdiEngine::Report(g::Reply& reply) const {for(const auto& r:resources)if(r.id)++reply.live[r.kind==g::Kind::Dc?0:1];for(const auto& s:surfaces)if(s.id)++reply.live[2];std::copy(std::begin(calls),std::end(calls),std::begin(reply.calls));reply.pixelBytes=bytes;reply.uploaded=uploaded;reply.downloaded=downloaded;}
+void GdiEngine::Report(g::Reply& reply) const {for(const auto& r:resources)if(r.id)++reply.live[r.kind==g::Kind::Dc?0:1];for(const auto& s:surfaces)if(s.id)++reply.live[2];std::copy(std::begin(calls),std::end(calls),std::begin(reply.calls));reply.pixelBytes=bytes;reply.uploaded=uploaded;reply.downloaded=downloaded;
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+if(software){reply.live[1]+=software->Live();reply.pixelBytes+=software->Bytes();}
+#endif
+}
 uint32_t GdiEngine::Execute(const g::Command& c,g::Reply& reply,uint32_t pid,uint32_t tid,const Resolve& resolve){
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+    if(guardian::softwaregraphics::Extended(c.op)){
+        if(!software)software=std::make_unique<SoftwareGraphicsEngine>(session);
+        ++calls[0];
+        return software->Execute(c,reply,pid,tid,[&](uint64_t id,bool dc,uint32_t owner,uint32_t thread){
+            SoftwareGraphicsEngine::Binding binding;
+            if(dc){const auto* r=Find(id);if(!r||r->pid!=owner||r->tid!=thread||r->kind!=g::Kind::Dc||!r->window)return binding;id=r->window;}
+            const auto hwnd=resolve(id,owner,thread);auto* s=Surface(id);if(!hwnd||!s)return binding;
+            const auto resized=Resize(*s);
+            if(resized){
+                // A host resize may arrive while the guest owns BeginPaint.
+                // Keep that lease's DC alive until EndPaint; the queued size
+                // notification schedules a paint of the new surface afterward.
+                if(resized!=ERROR_BUSY)return binding;bool leased=false;
+                for(const auto& item:resources)if(item.id&&item.kind==g::Kind::Dc&&item.window==id&&item.pid==owner&&item.tid==thread)leased=true;
+                if(!leased)return binding;
+            }
+            binding={hwnd,s->dc,s->width,s->height,id};return binding;
+        },[&](uint64_t id){GdiResource target;target.window=id;Present(target);});
+    }
+#endif
 #ifdef GUARDIAN_GDI_EXPANDED
     if(!guardian::expandedgdi::Valid(c))return ERROR_INVALID_PARAMETER;
     if(guardian::expandedgdi::Extended(c.op))return ExecuteExpanded(c,reply,pid,tid);

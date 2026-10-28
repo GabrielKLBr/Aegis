@@ -34,3 +34,10 @@ contratos limitados e autoria de objetos. Ponteiros/padding de descritores do
 host não são serializados. Cursores afetam somente os clientes da sessão.
 O conjunto maior de operações GDI exige as mesmas verificações de isolamento,
 cotas, falhas parciais e limpeza; não representa garantia de ausência de escape.
+
+Na [14.10F](docs/PHASE-14.10F.md), o auxiliar também executa Direct2D,
+DirectWrite, codecs internos WIC e D3D11 WARP por comandos limitados. Não
+recebe ponteiros, módulos de shader/driver, caminhos do host ou interfaces
+COM do convidado. Há cotas de imagens/texturas e erros separados de API e
+transporte. Esses componentes aumentam a superfície de ataque; os testes
+de compatibilidade não comprovam contenção para executar malware real.

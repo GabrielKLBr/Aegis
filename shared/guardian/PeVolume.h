@@ -31,6 +31,8 @@ template<size_t N> inline bool Text(const char (&text)[N],bool empty=false) noex
 }
 inline bool Equal(const char* a,const char* b) noexcept {for(uint32_t i=0;i<128;++i){if(a[i]!=b[i])return false;if(!a[i])return true;}return false;}
 inline bool Prefix(const char* a,const char* prefix) noexcept {for(uint32_t i=0;i<128;++i){if(!prefix[i])return true;if(a[i]!=prefix[i])return false;}return false;}
+inline bool Suffix(const char* name,const char* suffix) noexcept {uint32_t length=0,tail=0;while(length<128&&name[length])++length;while(tail<128&&suffix[tail])++tail;return length<128&&tail<128&&length>=tail&&Equal(name+length-tail,suffix);}
+inline bool DataPath(const char* name,uint32_t version) noexcept {return Prefix(name,"c:\\app\\")&&(Suffix(name,".txt")||Suffix(name,".ico")||Suffix(name,".dat")||Suffix(name,".bin")||version==2&&(Suffix(name,".cfg")||Suffix(name,".der")||Suffix(name,".png")||Suffix(name,".bmp")||Suffix(name,".jpg")||Suffix(name,".jpeg")));}
 inline bool Canonical(const char* text,char* out,bool directory=false) noexcept {
     if(!text)return false;uint32_t n=0,component=0;
     for(;n<127&&text[n];++n){char ch=text[n];if(ch>='A'&&ch<='Z')ch=char(ch+32);if(ch=='/')ch='\\';
@@ -54,7 +56,7 @@ inline bool Valid(const uint8_t* data,uint32_t bytes) noexcept {
         if(!Text(f.path)||!Canonical(f.path,normalized)||!Equal(normalized,f.path)||f.assembly>h.assemblies||
             (f.kind!=Kind::Pe&&f.kind!=Kind::Manifest&&f.kind!=Kind::Data)||!f.bytes||f.bytes>(f.kind==Kind::Manifest?4096u:MaxFileBytes)||
             (f.offset&4095)||f.offset<previous||f.offset>bytes||f.bytes>bytes-f.offset||Hash(data+f.offset,f.bytes)!=f.hash)return false;
-        if(f.kind==Kind::Data){if(!Prefix(f.path,"c:\\app\\"))return false;uint32_t length=0;while(f.path[length])++length;if(length<4||f.path[length-4]!='.'||(!Equal(f.path+length-3,"txt")&&!Equal(f.path+length-3,"ico")&&!Equal(f.path+length-3,"dat")&&!Equal(f.path+length-3,"bin")&&!(h.version==2&&(Equal(f.path+length-3,"cfg")||Equal(f.path+length-3,"der")))))return false;}
+        if(f.kind==Kind::Data&&!DataPath(f.path,h.version))return false;
         if(f.assembly&&!Prefix(f.path,h.identities[f.assembly-1].directory))return false;
         for(uint32_t j=0;j<i;++j)if(Equal(f.path,FileAt(h,j).path))return false;
         previous=f.offset+f.bytes;

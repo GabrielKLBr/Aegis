@@ -1,0 +1,3345 @@
+{
+  "schema": 1,
+  "phase": "14.10F",
+  "protocol": 6,
+  "targetNt": [
+    10,
+    0,
+    19045
+  ],
+  "fullDirectX": false,
+  "hardwareAcceleration": false,
+  "shadersAvailable": false,
+  "classes": {
+    "ID2D1Factory": [
+      "GraphicsFactory"
+    ],
+    "ID2D1HwndRenderTarget": [
+      "Target",
+      "HwndTarget"
+    ],
+    "ID2D1DCRenderTarget": [
+      "Target",
+      "DcTarget"
+    ],
+    "ID2D1SolidColorBrush": [
+      "SolidBrush"
+    ],
+    "ID2D1Bitmap": [
+      "D2DBitmap"
+    ],
+    "IDWriteFactory": [
+      "WriteFactory"
+    ],
+    "IDWriteTextFormat": [
+      "TextFormat"
+    ],
+    "IWICImagingFactory": [
+      "WicFactory"
+    ],
+    "IWICStream": [
+      "WicStream"
+    ],
+    "IWICBitmapDecoder": [
+      "WicDecoder"
+    ],
+    "IWICBitmapFrameDecode": [
+      "WicSource",
+      "WicFrame"
+    ],
+    "IWICFormatConverter": [
+      "WicSource",
+      "WicConverter"
+    ],
+    "ID3D11Device": [
+      "D3DDevice"
+    ],
+    "ID3D11DeviceContext": [
+      "D3DContext"
+    ],
+    "ID3D11Texture2D": [
+      "D3DTexture"
+    ],
+    "ID3D11RenderTargetView": [
+      "D3DView"
+    ],
+    "ID3D11Query": [
+      "D3DQuery"
+    ],
+    "IDXGIFactory": [
+      "DxgiFactory"
+    ],
+    "IDXGIAdapter": [
+      "DxgiAdapter"
+    ],
+    "IDXGIDevice": [
+      "DxgiDevice"
+    ],
+    "IDXGISwapChain": [
+      "DxgiSwapChain"
+    ]
+  },
+  "entries": [
+    {
+      "interface": "ID2D1Factory",
+      "method": "ReloadSystemMetrics",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "GetDesktopDpi",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateRectangleGeometry",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateRoundedRectangleGeometry",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateEllipseGeometry",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateGeometryGroup",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateTransformedGeometry",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreatePathGeometry",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateStrokeStyle",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateDrawingStateBlock",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateWicBitmapRenderTarget",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateHwndRenderTarget",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateDxgiSurfaceRenderTarget",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Factory",
+      "method": "CreateDCRenderTarget",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetFactory",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateBitmap",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateBitmapFromWicBitmap",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateSharedBitmap",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateBitmapBrush",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateSolidColorBrush",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateGradientStopCollection",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateLinearGradientBrush",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateRadialGradientBrush",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateCompatibleRenderTarget",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateLayer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CreateMesh",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "DrawLine",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "DrawRectangle",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "FillRectangle",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "DrawRoundedRectangle",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "FillRoundedRectangle",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "DrawEllipse",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "FillEllipse",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "DrawGeometry",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "FillGeometry",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "FillMesh",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "FillOpacityMask",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "DrawBitmap",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "DrawText",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "DrawTextLayout",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "DrawGlyphRun",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "SetTransform",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetTransform",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "SetAntialiasMode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetAntialiasMode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "SetTextAntialiasMode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetTextAntialiasMode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "SetTextRenderingParams",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetTextRenderingParams",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "SetTags",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetTags",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "PushLayer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "PopLayer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "Flush",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "SaveDrawingState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "RestoreDrawingState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "PushAxisAlignedClip",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "PopAxisAlignedClip",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "Clear",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "BeginDraw",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "EndDraw",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetPixelFormat",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "SetDpi",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetDpi",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetPixelSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetMaximumBitmapSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "IsSupported",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "CheckWindowState",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "Resize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1HwndRenderTarget",
+      "method": "GetHwnd",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetFactory",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateBitmap",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateBitmapFromWicBitmap",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateSharedBitmap",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateBitmapBrush",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateSolidColorBrush",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateGradientStopCollection",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateLinearGradientBrush",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateRadialGradientBrush",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateCompatibleRenderTarget",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateLayer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "CreateMesh",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "DrawLine",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "DrawRectangle",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "FillRectangle",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "DrawRoundedRectangle",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "FillRoundedRectangle",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "DrawEllipse",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "FillEllipse",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "DrawGeometry",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "FillGeometry",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "FillMesh",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "FillOpacityMask",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "DrawBitmap",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "DrawText",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "DrawTextLayout",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "DrawGlyphRun",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "SetTransform",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetTransform",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "SetAntialiasMode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetAntialiasMode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "SetTextAntialiasMode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetTextAntialiasMode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "SetTextRenderingParams",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetTextRenderingParams",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "SetTags",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetTags",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "PushLayer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "PopLayer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "Flush",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "SaveDrawingState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "RestoreDrawingState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "PushAxisAlignedClip",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "PopAxisAlignedClip",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "Clear",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "BeginDraw",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "EndDraw",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetPixelFormat",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "SetDpi",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetDpi",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetPixelSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "GetMaximumBitmapSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "IsSupported",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1DCRenderTarget",
+      "method": "BindDC",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1SolidColorBrush",
+      "method": "GetFactory",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1SolidColorBrush",
+      "method": "SetOpacity",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1SolidColorBrush",
+      "method": "SetTransform",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1SolidColorBrush",
+      "method": "GetOpacity",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1SolidColorBrush",
+      "method": "GetTransform",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1SolidColorBrush",
+      "method": "SetColor",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1SolidColorBrush",
+      "method": "GetColor",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1Bitmap",
+      "method": "GetFactory",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1Bitmap",
+      "method": "GetSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1Bitmap",
+      "method": "GetPixelSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1Bitmap",
+      "method": "GetPixelFormat",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1Bitmap",
+      "method": "GetDpi",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID2D1Bitmap",
+      "method": "CopyFromBitmap",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Bitmap",
+      "method": "CopyFromRenderTarget",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID2D1Bitmap",
+      "method": "CopyFromMemory",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "GetSystemFontCollection",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateCustomFontCollection",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "RegisterFontCollectionLoader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "UnregisterFontCollectionLoader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateFontFileReference",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateCustomFontFileReference",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateFontFace",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateRenderingParams",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateMonitorRenderingParams",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateCustomRenderingParams",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "RegisterFontFileLoader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "UnregisterFontFileLoader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateTextFormat",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateTypography",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "GetGdiInterop",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateTextLayout",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateGdiCompatibleTextLayout",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateEllipsisTrimmingSign",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateTextAnalyzer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateNumberSubstitution",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteFactory",
+      "method": "CreateGlyphRunAnalysis",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "SetTextAlignment",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "SetParagraphAlignment",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "SetWordWrapping",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "SetReadingDirection",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "SetFlowDirection",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "SetIncrementalTabStop",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "SetTrimming",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "SetLineSpacing",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetTextAlignment",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetParagraphAlignment",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetWordWrapping",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetReadingDirection",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetFlowDirection",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetIncrementalTabStop",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetTrimming",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetLineSpacing",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetFontCollection",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetFontFamilyNameLength",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetFontFamilyName",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetFontWeight",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetFontStyle",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetFontStretch",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetFontSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetLocaleNameLength",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDWriteTextFormat",
+      "method": "GetLocaleName",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateDecoderFromFilename",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateDecoderFromStream",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateDecoderFromFileHandle",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateComponentInfo",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateDecoder",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateEncoder",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreatePalette",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateFormatConverter",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateBitmapScaler",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateBitmapClipper",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateBitmapFlipRotator",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateStream",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateColorContext",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateColorTransformer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateBitmap",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateBitmapFromSource",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateBitmapFromSourceRect",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateBitmapFromMemory",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateBitmapFromHBITMAP",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateBitmapFromHICON",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateComponentEnumerator",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateFastMetadataEncoderFromDecoder",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateFastMetadataEncoderFromFrameDecode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateQueryWriter",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICImagingFactory",
+      "method": "CreateQueryWriterFromReader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "Read",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "Write",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "Seek",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "SetSize",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "CopyTo",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "Commit",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "Revert",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "LockRegion",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "UnlockRegion",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "Stat",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "Clone",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "InitializeFromIStream",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "InitializeFromFilename",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "InitializeFromMemory",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICStream",
+      "method": "InitializeFromIStreamRegion",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "QueryCapability",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "Initialize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "GetContainerFormat",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "GetDecoderInfo",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "CopyPalette",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "GetMetadataQueryReader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "GetPreview",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "GetColorContexts",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "GetThumbnail",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "GetFrameCount",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICBitmapDecoder",
+      "method": "GetFrame",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICBitmapFrameDecode",
+      "method": "GetSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICBitmapFrameDecode",
+      "method": "GetPixelFormat",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICBitmapFrameDecode",
+      "method": "GetResolution",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICBitmapFrameDecode",
+      "method": "CopyPalette",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapFrameDecode",
+      "method": "CopyPixels",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICBitmapFrameDecode",
+      "method": "GetMetadataQueryReader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapFrameDecode",
+      "method": "GetColorContexts",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICBitmapFrameDecode",
+      "method": "GetThumbnail",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICFormatConverter",
+      "method": "GetSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICFormatConverter",
+      "method": "GetPixelFormat",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICFormatConverter",
+      "method": "GetResolution",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICFormatConverter",
+      "method": "CopyPalette",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IWICFormatConverter",
+      "method": "CopyPixels",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICFormatConverter",
+      "method": "Initialize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IWICFormatConverter",
+      "method": "CanConvert",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateBuffer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateTexture1D",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateTexture2D",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateTexture3D",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateShaderResourceView",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateUnorderedAccessView",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateRenderTargetView",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateDepthStencilView",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateInputLayout",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateVertexShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateGeometryShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateGeometryShaderWithStreamOutput",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreatePixelShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateHullShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateDomainShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateComputeShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateClassLinkage",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateBlendState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateDepthStencilState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateRasterizerState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateSamplerState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateQuery",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreatePredicate",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateCounter",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CreateDeferredContext",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "OpenSharedResource",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CheckFormatSupport",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CheckMultisampleQualityLevels",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CheckCounterInfo",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CheckCounter",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "CheckFeatureSupport",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "GetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "SetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "SetPrivateDataInterface",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "GetFeatureLevel",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "GetCreationFlags",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "GetDeviceRemovedReason",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "GetImmediateContext",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "SetExceptionMode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Device",
+      "method": "GetExceptionMode",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GetDevice",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "SetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "SetPrivateDataInterface",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "VSSetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "PSSetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "PSSetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "PSSetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "VSSetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DrawIndexed",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "Draw",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "Map",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "Unmap",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "PSSetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "IASetInputLayout",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "IASetVertexBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "IASetIndexBuffer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DrawIndexedInstanced",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DrawInstanced",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GSSetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GSSetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "IASetPrimitiveTopology",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "VSSetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "VSSetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "Begin",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "End",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GetData",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "SetPredication",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GSSetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GSSetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "OMSetRenderTargets",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "OMSetRenderTargetsAndUnorderedAccessViews",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "OMSetBlendState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "OMSetDepthStencilState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "SOSetTargets",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DrawAuto",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DrawIndexedInstancedIndirect",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DrawInstancedIndirect",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "Dispatch",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DispatchIndirect",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "RSSetState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "RSSetViewports",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "RSSetScissorRects",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CopySubresourceRegion",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CopyResource",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "UpdateSubresource",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CopyStructureCount",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "ClearRenderTargetView",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "ClearUnorderedAccessViewUint",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "ClearUnorderedAccessViewFloat",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "ClearDepthStencilView",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GenerateMips",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "SetResourceMinLOD",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GetResourceMinLOD",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "ResolveSubresource",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "ExecuteCommandList",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "HSSetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "HSSetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "HSSetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "HSSetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DSSetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DSSetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DSSetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DSSetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CSSetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CSSetUnorderedAccessViews",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CSSetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CSSetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CSSetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "VSGetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "PSGetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "PSGetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "PSGetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "VSGetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "PSGetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "IAGetInputLayout",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "IAGetVertexBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "IAGetIndexBuffer",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GSGetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GSGetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "IAGetPrimitiveTopology",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "VSGetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "VSGetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GetPredication",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GSGetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GSGetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "OMGetRenderTargets",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "OMGetRenderTargetsAndUnorderedAccessViews",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "OMGetBlendState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "OMGetDepthStencilState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "SOGetTargets",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "RSGetState",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "RSGetViewports",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "RSGetScissorRects",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "HSGetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "HSGetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "HSGetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "HSGetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DSGetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DSGetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DSGetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "DSGetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CSGetShaderResources",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CSGetUnorderedAccessViews",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CSGetShader",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CSGetSamplers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "CSGetConstantBuffers",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "ClearState",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "Flush",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GetType",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "GetContextFlags",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11DeviceContext",
+      "method": "FinishCommandList",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Texture2D",
+      "method": "GetDevice",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Texture2D",
+      "method": "GetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Texture2D",
+      "method": "SetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Texture2D",
+      "method": "SetPrivateDataInterface",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Texture2D",
+      "method": "GetType",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Texture2D",
+      "method": "SetEvictionPriority",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Texture2D",
+      "method": "GetEvictionPriority",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Texture2D",
+      "method": "GetDesc",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11RenderTargetView",
+      "method": "GetDevice",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11RenderTargetView",
+      "method": "GetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11RenderTargetView",
+      "method": "SetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11RenderTargetView",
+      "method": "SetPrivateDataInterface",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11RenderTargetView",
+      "method": "GetResource",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11RenderTargetView",
+      "method": "GetDesc",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Query",
+      "method": "GetDevice",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Query",
+      "method": "GetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Query",
+      "method": "SetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Query",
+      "method": "SetPrivateDataInterface",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "ID3D11Query",
+      "method": "GetDataSize",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "ID3D11Query",
+      "method": "GetDesc",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIFactory",
+      "method": "SetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIFactory",
+      "method": "SetPrivateDataInterface",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIFactory",
+      "method": "GetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIFactory",
+      "method": "GetParent",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIFactory",
+      "method": "EnumAdapters",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIFactory",
+      "method": "MakeWindowAssociation",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIFactory",
+      "method": "GetWindowAssociation",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIFactory",
+      "method": "CreateSwapChain",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIFactory",
+      "method": "CreateSoftwareAdapter",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "Native outputs and arbitrary software adapter modules are unavailable; explicit failing HRESULT and null output."
+    },
+    {
+      "interface": "IDXGIAdapter",
+      "method": "SetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIAdapter",
+      "method": "SetPrivateDataInterface",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIAdapter",
+      "method": "GetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIAdapter",
+      "method": "GetParent",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIAdapter",
+      "method": "EnumOutputs",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "Native outputs and arbitrary software adapter modules are unavailable; explicit failing HRESULT and null output."
+    },
+    {
+      "interface": "IDXGIAdapter",
+      "method": "GetDesc",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIAdapter",
+      "method": "CheckInterfaceSupport",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIDevice",
+      "method": "SetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIDevice",
+      "method": "SetPrivateDataInterface",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIDevice",
+      "method": "GetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIDevice",
+      "method": "GetParent",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIDevice",
+      "method": "GetAdapter",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIDevice",
+      "method": "CreateSurface",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIDevice",
+      "method": "QueryResourceResidency",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGIDevice",
+      "method": "SetGPUThreadPriority",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGIDevice",
+      "method": "GetGPUThreadPriority",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "SetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "SetPrivateDataInterface",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "GetPrivateData",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "GetParent",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "GetDevice",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "Present",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "GetBuffer",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "SetFullscreenState",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "GetFullscreenState",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "GetDesc",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "ResizeBuffers",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "ResizeTarget",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "GetContainingOutput",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "Native outputs and arbitrary software adapter modules are unavailable; explicit failing HRESULT and null output."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "GetFrameStatistics",
+      "status": "pending",
+      "availability": "exported_refusal",
+      "contract": "E_NOTIMPL for HRESULT; diagnostic and deferred error for unsupported void calls; neutral scalar is not implementation."
+    },
+    {
+      "interface": "IDXGISwapChain",
+      "method": "GetLastPresentCount",
+      "status": "implemented_with_restrictions",
+      "availability": "typed_guest_override",
+      "contract": "Only the formats, ownership, thread, geometry and resource limits in docs/PHASE-14.10F.md; declarations are not execution proof."
+    }
+  ],
+  "pendingBackends": [
+    "Direct3D9",
+    "Direct3D12",
+    "OpenGL"
+  ],
+  "commonIUnknown": "Guest identity, references, affinity and cleanup; no host COM pointer crosses IPC."
+}

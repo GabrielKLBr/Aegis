@@ -48,7 +48,8 @@ bool WhpAvailable() {
 #endif
 }
 void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu,const StorageOptions& storage,const net::Options& networking,const gui::Options& graphics,const hardware::Profile* hardware,const hardware::DriverOptions& driver,const storage::SparseOptions* scalable,const guardian::environment::Info* environment,const guardian::telemetry::Policy* analysisPolicy,uint32_t analysisScenario,std::span<const uint8_t> externalGui,const guardian::nt::Info* compatibility,std::span<const uint8_t> externalVolume,std::span<const uint8_t> securityState,const desktop_session::Options& desktop,const internet_session::Policy* internet) {
-    Require(!desktop.nativeGdi||((desktop.expandedGdi?image.SupportsExpandedGdi():desktop.nativeControls?image.SupportsNativeControls():image.SupportsNativeGdi())&&!desktop.nativeUser32&&!desktop.nativeGui&&!desktop.integrated&&!desktop.interactive&&desktop.script.empty()&&desktop.gdiExchange&&desktop.nativeCompleted&&desktop.nativeInfo.boot==bootId&&desktop.nativeInfo.session),"Native GDI options rejected");
+    Require(!desktop.nativeGdi||((desktop.softwareGraphics?image.SupportsSoftwareGraphics():desktop.expandedGdi?image.SupportsExpandedGdi():desktop.nativeControls?image.SupportsNativeControls():image.SupportsNativeGdi())&&!desktop.nativeUser32&&!desktop.nativeGui&&!desktop.integrated&&!desktop.interactive&&desktop.script.empty()&&desktop.gdiExchange&&desktop.nativeCompleted&&desktop.nativeInfo.boot==bootId&&desktop.nativeInfo.session),"Native GDI options rejected");
+    Require(!desktop.softwareGraphics||desktop.expandedGdi,"Software graphics require expanded GDI");
     Require(!desktop.expandedGdi||desktop.nativeControls,"Expanded GDI requires controls");
     Require(!desktop.nativeControls||desktop.nativeGdi,"Native controls require their GDI mode");
     Require(desktop.nativeGdi||!desktop.gdiExchange,"Native GDI callbacks require mode");

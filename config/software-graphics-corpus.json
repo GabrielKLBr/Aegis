@@ -1,0 +1,9 @@
+{
+  "phase":"14.10F",
+  "commit":"434f6002bdf9cf9829406c3ff2b33387982d6168",
+  "files":{
+    "Direct2DHelloWorld.cpp":{"sha256":"4101d18434741638a581076f94e4fa8cc37de5fa9e8681fa4634698345a4b5dd","source":"https://raw.githubusercontent.com/microsoft/Windows-classic-samples/434f6002bdf9cf9829406c3ff2b33387982d6168/Samples/Win7Samples/multimedia/Direct2D/Direct2DHelloWorld/Direct2DHelloWorld.cpp"},
+    "Direct2DHelloWorld.h":{"sha256":"c7313e39c4f4b52270be0b02c3933d17f9e937a3baaefdda85738b28d04249ff","source":"https://raw.githubusercontent.com/microsoft/Windows-classic-samples/434f6002bdf9cf9829406c3ff2b33387982d6168/Samples/Win7Samples/multimedia/Direct2D/Direct2DHelloWorld/Direct2DHelloWorld.h"}
+  },
+  "sourcesAndExecutablesRedistributed":false
+}

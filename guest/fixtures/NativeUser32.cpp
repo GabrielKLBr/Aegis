@@ -51,11 +51,18 @@ bool Ansi(const char* s,uint16_t* d){return !s||MultiByteToWideChar(1252,0,s,-1,
 bool Equal(const uint16_t* a,const uint16_t* b){for(uint32_t i=0;i<256;++i){auto x=a[i],y=b[i];if(x>='A'&&x<='Z')x+=32;if(y>='A'&&y<='Z')y+=32;if(x!=y)return false;if(!x)return true;}return false;}
 bool Name(const uint16_t* a,const wchar_t* b){if(uintptr_t(a)<=65535)return false;uint16_t text[256]{};return Wide(b,text)&&Equal(a,text);}
 struct Class {ATOM atom=0;WNDPROC proc=nullptr;uint16_t name[256]{};bool wide=true;HBRUSH background=nullptr;HICON icon=nullptr;
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+HINSTANCE instance=nullptr;uint32_t extra=0;
+#endif
 #ifdef GUARDIAN_GDI_EXPANDED
 DWORD style=0;
 #endif
 };
-struct Window {HWND h=nullptr,parent=nullptr;Class* cls=nullptr;WNDPROC proc=nullptr;LONG_PTR user=0,id=0;uint32_t tid=0;u::Class kind{};bool destroying=false,wide=true;};
+struct Window {HWND h=nullptr,parent=nullptr;Class* cls=nullptr;WNDPROC proc=nullptr;LONG_PTR user=0,id=0;uint32_t tid=0;u::Class kind{};bool destroying=false,wide=true;
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+BYTE extra[32]{};
+#endif
+};
 struct Timer {HWND h=nullptr;UINT_PTR id=0;TIMERPROC proc=nullptr;};
 struct Stamp {bool used=false;DWORD tid=0;uint64_t serial=0;MSG msg{};WINDOWPOS pos{};uint32_t flags=0;};
 struct Quit {DWORD tid=0;int code=0;bool pending=false;};
@@ -138,7 +145,13 @@ LRESULT Send(HWND h,UINT m,WPARAM w,LPARAM l){
 }
 }
 extern "C" BOOL WINAPI NativeUserEntry(HINSTANCE,DWORD,void*){return TRUE;}
-extern "C" ATOM WINAPI UiRegisterClassExW(const WNDCLASSEXW* c){Guard guard;if(!c||c->cbSize!=sizeof(*c)||!c->lpfnWndProc||!c->lpszClassName||c->cbClsExtra||c->cbWndExtra||c->lpszMenuName
+extern "C" ATOM WINAPI UiRegisterClassExW(const WNDCLASSEXW* c){Guard guard;if(!c||c->cbSize!=sizeof(*c)||!c->lpfnWndProc||!c->lpszClassName||c->cbClsExtra||
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+c->cbWndExtra<0||c->cbWndExtra>32||
+#else
+c->cbWndExtra||
+#endif
+c->lpszMenuName
 #ifndef GUARDIAN_NATIVE_CONTROLS
 ||c->style||c->hIcon||c->hIconSm||c->hCursor||c->hbrBackground
 #else
@@ -153,7 +166,10 @@ extern "C" ATOM WINAPI UiRegisterClassExW(const WNDCLASSEXW* c){Guard guard;if(!
 #ifdef GUARDIAN_NATIVE_CONTROLS
 NativeRejected(2,c?c->style:0,c?uint64_t(c->cbClsExtra)|(uint64_t(c->cbWndExtra)<<16)|(uint64_t(bool(c->lpszMenuName))<<32)|(uint64_t(bool(c->hCursor))<<33):uint64_t(-1));
 #endif
-return Fail(ERROR_NOT_SUPPORTED,ATOM{});}uint16_t name[256]{};if(!Wide(c->lpszClassName,name))return Fail(ERROR_INVALID_PARAMETER,ATOM{});for(auto& entry:classes)if(entry.atom&&Equal(name,entry.name))return Fail(ERROR_CLASS_ALREADY_EXISTS,ATOM{});for(auto& entry:classes)if(!entry.atom){entry.atom=nextAtom++;entry.proc=c->lpfnWndProc;
+return Fail(ERROR_NOT_SUPPORTED,ATOM{});}uint16_t name[256]{};if(!Wide(c->lpszClassName,name))return Fail(ERROR_INVALID_PARAMETER,ATOM{});for(auto& entry:classes)if(entry.atom&&Equal(name,entry.name))return Fail(ERROR_CLASS_ALREADY_EXISTS,ATOM{});if(!nextAtom)return Fail(ERROR_NOT_ENOUGH_QUOTA,ATOM{});for(auto& entry:classes)if(!entry.atom){entry.atom=nextAtom++;entry.proc=c->lpfnWndProc;
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+entry.instance=c->hInstance?c->hInstance:GetModuleHandleW(nullptr);entry.extra=uint32_t(c->cbWndExtra);
+#endif
 #ifdef GUARDIAN_NATIVE_CONTROLS
 entry.background=c->hbrBackground;entry.icon=c->hIcon;
 #ifdef GUARDIAN_GDI_EXPANDED
@@ -164,6 +180,10 @@ Copy(entry.name,name,sizeof(name));return entry.atom;}return Fail(ERROR_NOT_ENOU
 extern "C" ATOM WINAPI UiRegisterClassExA(const WNDCLASSEXA* c){if(!c)return 0;uint16_t name[256]{};if(!Ansi(c->lpszClassName,name))return 0;WNDCLASSEXW wide{};Copy(&wide,c,sizeof(wide));wide.lpszClassName=reinterpret_cast<LPCWSTR>(name);const auto atom=UiRegisterClassExW(&wide);if(atom){Guard guard;for(auto& entry:classes)if(entry.atom==atom)entry.wide=false;}return atom;}
 extern "C" ATOM WINAPI UiRegisterClassW(const WNDCLASSW* c){if(!c)return 0;WNDCLASSEXW x{};x.cbSize=sizeof(x);x.style=c->style;x.lpfnWndProc=c->lpfnWndProc;x.cbClsExtra=c->cbClsExtra;x.cbWndExtra=c->cbWndExtra;x.hInstance=c->hInstance;x.hIcon=c->hIcon;x.hCursor=c->hCursor;x.hbrBackground=c->hbrBackground;x.lpszMenuName=c->lpszMenuName;x.lpszClassName=c->lpszClassName;return UiRegisterClassExW(&x);}
 extern "C" ATOM WINAPI UiRegisterClassA(const WNDCLASSA* c){if(!c)return 0;WNDCLASSEXA x{};x.cbSize=sizeof(x);x.style=c->style;x.lpfnWndProc=c->lpfnWndProc;x.cbClsExtra=c->cbClsExtra;x.cbWndExtra=c->cbWndExtra;x.hInstance=c->hInstance;x.hIcon=c->hIcon;x.hCursor=c->hCursor;x.hbrBackground=c->hbrBackground;x.lpszMenuName=c->lpszMenuName;x.lpszClassName=c->lpszClassName;return UiRegisterClassExA(&x);}
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+extern "C" BOOL WINAPI UiUnregisterClassW(LPCWSTR name,HINSTANCE instance){Guard guard;uint16_t text[256]{};if(uintptr_t(name)>65535&&!Wide(name,text))return Fail(ERROR_INVALID_PARAMETER,FALSE);if(!instance)instance=GetModuleHandleW(nullptr);for(auto& entry:classes)if(entry.atom&&entry.instance==instance&&((uintptr_t(name)<=65535&&entry.atom==ATOM(uintptr_t(name)))||(uintptr_t(name)>65535&&Equal(text,entry.name)))){for(const auto& window:windows)if(window.h&&window.cls==&entry)return Fail(ERROR_CLASS_HAS_WINDOWS,FALSE);if(entry.background)return Fail(ERROR_NOT_SUPPORTED,FALSE);entry={};return TRUE;}return Fail(ERROR_CLASS_DOES_NOT_EXIST,FALSE);}
+extern "C" BOOL WINAPI UiUnregisterClassA(LPCSTR name,HINSTANCE instance){if(uintptr_t(name)<=65535)return UiUnregisterClassW(reinterpret_cast<LPCWSTR>(name),instance);uint16_t text[256]{};if(!Ansi(name,text))return Fail(ERROR_INVALID_PARAMETER,FALSE);return UiUnregisterClassW(reinterpret_cast<LPCWSTR>(text),instance);}
+#endif
 extern "C" HWND WINAPI UiCreateWindowExW(DWORD e,LPCWSTR n,LPCWSTR t,DWORD s,int x,int y,int w,int h,HWND p,HMENU m,HINSTANCE i,void* v){uint16_t name[256]{},title[256]{};if((uintptr_t(n)>65535&&!Wide(n,name))||!Wide(t,title))return Fail(ERROR_INVALID_PARAMETER,HWND{});return Create(e,uintptr_t(n)<=65535?reinterpret_cast<const uint16_t*>(n):name,title,s,x,y,w,h,p,m,i,v,true);}
 extern "C" HWND WINAPI UiCreateWindowExA(DWORD e,LPCSTR n,LPCSTR t,DWORD s,int x,int y,int w,int h,HWND p,HMENU m,HINSTANCE i,void* v){uint16_t name[256]{},title[256]{};if((uintptr_t(n)>65535&&!Ansi(n,name))||!Ansi(t,title))return Fail(ERROR_INVALID_PARAMETER,HWND{});return Create(e,uintptr_t(n)<=65535?reinterpret_cast<const uint16_t*>(n):name,title,s,x,y,w,h,p,m,i,v,false);}
 extern "C" BOOL WINAPI UiDestroyWindow(HWND h){Guard guard;auto* local=Local(h);if(!local||local->tid!=GetCurrentThreadId())return Fail(ERROR_INVALID_WINDOW_HANDLE,FALSE);if(local->destroying)return TRUE;local->destroying=true;for(auto& child:windows)if(child.h&&child.parent==h)UiDestroyWindow(child.h);Invoke(h,WM_DESTROY,0,0);Invoke(h,WM_NCDESTROY,0,0);u::Call c;c.command.op=u::Op::Destroy;c.command.window=uint64_t(h);if(!Call(c)){local->destroying=false;return FALSE;}for(auto& t:timers)if(t.h==h)t={};*local={};return TRUE;}
@@ -217,9 +237,17 @@ extern "C" BOOL WINAPI UiEnableWindow(HWND h,BOOL enable){Guard guard;u::Call c;
 extern "C" HWND WINAPI UiSetFocus(HWND h){Guard guard;u::Call c;c.command.op=u::Op::Focus;c.command.window=uint64_t(h);return Call(c)?reinterpret_cast<HWND>(c.reply.value):nullptr;}
 extern "C" HWND WINAPI UiGetDlgItem(HWND h,int id){Guard guard;for(auto& w:windows)if(w.h&&w.parent==h&&w.id==id)return w.h;return nullptr;}
 extern "C" int WINAPI UiGetDlgCtrlID(HWND h){Guard guard;auto* w=Local(h);return w?int(w->id):0;}
-extern "C" LONG_PTR WINAPI UiGetWindowLongPtrW(HWND h,int index){Guard guard;auto* w=Local(h);if(!w)return Fail(ERROR_INVALID_WINDOW_HANDLE,LONG_PTR{});if(index==GWLP_USERDATA)return w->user;if(index==GWLP_WNDPROC)return LONG_PTR(w->proc);if(index==GWLP_ID)return w->id;u::Window info;if(!Query(h,info))return 0;if(index==GWL_STYLE)return info.style;if(index==GWL_EXSTYLE)return info.exStyle;if(index==GWLP_HWNDPARENT)return LONG_PTR(info.parent);return Fail(ERROR_NOT_SUPPORTED,LONG_PTR{});}
+extern "C" LONG_PTR WINAPI UiGetWindowLongPtrW(HWND h,int index){Guard guard;auto* w=Local(h);if(!w)return Fail(ERROR_INVALID_WINDOW_HANDLE,LONG_PTR{});
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+if(index>=0){if(!w->cls||uint32_t(index)>w->cls->extra||sizeof(LONG_PTR)>w->cls->extra-uint32_t(index))return Fail(ERROR_INVALID_INDEX,LONG_PTR{});LONG_PTR value=0;CopyMemory(&value,w->extra+index,sizeof(value));return value;}
+#endif
+if(index==GWLP_USERDATA)return w->user;if(index==GWLP_WNDPROC)return LONG_PTR(w->proc);if(index==GWLP_ID)return w->id;u::Window info;if(!Query(h,info))return 0;if(index==GWL_STYLE)return info.style;if(index==GWL_EXSTYLE)return info.exStyle;if(index==GWLP_HWNDPARENT)return LONG_PTR(info.parent);return Fail(ERROR_NOT_SUPPORTED,LONG_PTR{});}
 extern "C" LONG_PTR WINAPI UiGetWindowLongPtrA(HWND h,int index){return UiGetWindowLongPtrW(h,index);}
-extern "C" LONG_PTR WINAPI UiSetWindowLongPtrW(HWND h,int index,LONG_PTR value){Guard guard;auto* w=Local(h);if(!w||w->tid!=GetCurrentThreadId())return Fail(ERROR_INVALID_WINDOW_HANDLE,LONG_PTR{});if(index==GWL_STYLE){u::Call c;c.command.op=u::Op::Style;c.command.window=uint64_t(h);c.command.style=uint32_t(value);if(!Call(c))return 0;Drain();return LONG_PTR(c.reply.value);}if(index==GWLP_USERDATA){const auto old=w->user;w->user=value;return old;}if(index==GWLP_WNDPROC&&w->kind==u::Class::Custom){const auto old=w->proc;w->proc=reinterpret_cast<WNDPROC>(value);return LONG_PTR(old);}return Fail(ERROR_NOT_SUPPORTED,LONG_PTR{});}
+extern "C" LONG_PTR WINAPI UiSetWindowLongPtrW(HWND h,int index,LONG_PTR value){Guard guard;auto* w=Local(h);if(!w||w->tid!=GetCurrentThreadId())return Fail(ERROR_INVALID_WINDOW_HANDLE,LONG_PTR{});
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+if(index>=0){if(!w->cls||uint32_t(index)>w->cls->extra||sizeof(LONG_PTR)>w->cls->extra-uint32_t(index))return Fail(ERROR_INVALID_INDEX,LONG_PTR{});LONG_PTR old=0;CopyMemory(&old,w->extra+index,sizeof(old));CopyMemory(w->extra+index,&value,sizeof(value));return old;}
+#endif
+if(index==GWL_STYLE){u::Call c;c.command.op=u::Op::Style;c.command.window=uint64_t(h);c.command.style=uint32_t(value);if(!Call(c))return 0;Drain();return LONG_PTR(c.reply.value);}if(index==GWLP_USERDATA){const auto old=w->user;w->user=value;return old;}if(index==GWLP_WNDPROC&&w->kind==u::Class::Custom){const auto old=w->proc;w->proc=reinterpret_cast<WNDPROC>(value);return LONG_PTR(old);}return Fail(ERROR_NOT_SUPPORTED,LONG_PTR{});}
 extern "C" LONG_PTR WINAPI UiSetWindowLongPtrA(HWND h,int index,LONG_PTR v){return UiSetWindowLongPtrW(h,index,v);}
 extern "C" LRESULT WINAPI UiCallWindowProcW(WNDPROC proc,HWND h,UINT m,WPARAM w,LPARAM l){return proc?proc(h,m,w,l):UiDefWindowProcW(h,m,w,l);}
 extern "C" LRESULT WINAPI UiCallWindowProcA(WNDPROC proc,HWND h,UINT m,WPARAM w,LPARAM l){return UiCallWindowProcW(proc,h,m,w,l);}

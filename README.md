@@ -25,7 +25,10 @@ com comparação da mesma aplicação no MiniNT e nativamente: [contrato e teste
 A **14.10D** acrescenta controles, menus, diálogos no namespace convidado e
 aceitação do Flappy com GUI nativa: [contrato e testes](docs/PHASE-14.10D.md).
 A **14.10E** amplia curvas, regiões, paths, transformações, bitmaps e texto em janelas do host, com corpus independente e matriz de APIs: [contrato e testes](docs/PHASE-14.10E.md).
-DirectX permanece na **14.10F**: [roadmap](docs/ROADMAP-COMPLETO.md#subfase-1410--gui-nativa-no-host-directx-mídia-e-áudio).
+A **14.10F** acrescenta Direct2D/DirectWrite por software, PNG/BMP/JPEG e
+operações limitadas de texturas D3D11 WARP/DXGI:
+[contratos, testes e pendências](docs/PHASE-14.10F.md).
+Shaders, pipeline 3D e DirectX completo permanecem pendentes.
 
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem

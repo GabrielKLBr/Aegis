@@ -1,7 +1,10 @@
 #pragma once
 #include "NativeUser32.h"
 namespace guardian::nativegdi {
-#ifdef GUARDIAN_GDI_EXPANDED
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+inline constexpr uint64_t Magic=0x365746534E4741ull;
+inline constexpr uint32_t Version=6,MaxSurfaces=32;
+#elif defined(GUARDIAN_GDI_EXPANDED)
 inline constexpr uint64_t Magic=0x354944474E4741ull;
 inline constexpr uint32_t Version=5,MaxSurfaces=32;
 #elif defined(GUARDIAN_NATIVE_CONTROLS)

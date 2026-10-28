@@ -96,9 +96,23 @@ HRESULT LocalClass(REFCLSID cls,uint64_t& endpoint){
     if(e)return e==1168?CO_E_SERVER_EXEC_FAILURE:Error(e);endpoint=r.endpoint;return S_OK;
 }
 }
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+#include <wincodec.h>
+#endif
 extern "C" HRESULT WINAPI CmpCoGetClassObject(REFCLSID cls,DWORD context,COSERVERINFO* remote,REFIID iid,void** out){
     if(!out)return E_INVALIDARG;*out=nullptr;if(!Apt())return CO_E_NOTINITIALIZED;
     if(remote||context&~(CLSCTX_INPROC_SERVER|CLSCTX_LOCAL_SERVER)||!context)return E_INVALIDARG;
+#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+    if((context&CLSCTX_INPROC_SERVER)&&(Guid(cls,CLSID_WICImagingFactory)||Guid(cls,CLSID_WICImagingFactory2))){
+        const auto h=LoadLibraryW(L"windowscodecs.dll");if(!h)return HRESULT_FROM_WIN32(GetLastError());
+        using Get=HRESULT(WINAPI*)(REFCLSID,REFIID,void**);const auto get=reinterpret_cast<Get>(GetProcAddress(h,"DllGetClassObject"));
+        const auto result=get?get(cls,iid,out):CLASS_E_CLASSNOTAVAILABLE;
+        if(FAILED(result)){FreeLibrary(h);return result;}
+        bool stored=false;{Guard lock;for(auto& module:modules)if(!module.h&&!module.busy){module.h=h;stored=true;break;}}
+        if(!stored){if(*out){static_cast<IUnknown*>(*out)->Release();*out=nullptr;}FreeLibrary(h);return E_OUTOFMEMORY;}
+        return result;
+    }
+#endif
     if(context&CLSCTX_INPROC_SERVER){wchar_t path[128]{},model[32]{};if(ClassPath(cls,L"InprocServer32",path,model)){
         if(!GuestImage(path))return REGDB_E_CLASSNOTREG;
         if(!Text(model,L"Both")&&!Text(model,L"Free")&&!Text(model,L"Apartment"))return CO_E_NOT_SUPPORTED;

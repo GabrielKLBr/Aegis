@@ -21,7 +21,7 @@ A 14.6 acrescenta registro persistente, tokens/ACLs e serviços LocalService com
 vida útil própria: [entrega delimitada, testes e limites](PHASE-14.6.md).
 14.7 tem implementação e aceitação gráfica próprias, descritas em [PHASE-14.7.md](PHASE-14.7.md).
 A 14.8 acrescenta o lote delimitado de COM/RPC, Shell, propriedades e controles
-descrito em [PHASE-14.8.md](PHASE-14.8.md). A 14.9 acrescenta rede contida, HTTP, TLS e criptografia conforme [PHASE-14.9.md](PHASE-14.9.md). A 12F acrescenta apresentação em janelas nativas conforme [PHASE-12F.md](PHASE-12F.md). A 14.10A acrescenta a ponte nativa delimitada de [PHASE-14.10A.md](PHASE-14.10A.md); 14.10B e C têm entregas delimitadas em [PHASE-14.10B.md](PHASE-14.10B.md) e [PHASE-14.10C.md](PHASE-14.10C.md); 14.10D tem entrega delimitada em [PHASE-14.10D.md](PHASE-14.10D.md); 14.10E tem entrega delimitada em [PHASE-14.10E.md](PHASE-14.10E.md); 14.10F–14.10G e 14.11–14.14 continuam planejadas. Os registros abaixo preservam o histórico das
+descrito em [PHASE-14.8.md](PHASE-14.8.md). A 14.9 acrescenta rede contida, HTTP, TLS e criptografia conforme [PHASE-14.9.md](PHASE-14.9.md). A 12F acrescenta apresentação em janelas nativas conforme [PHASE-12F.md](PHASE-12F.md). A 14.10A acrescenta a ponte nativa delimitada de [PHASE-14.10A.md](PHASE-14.10A.md); 14.10B e C têm entregas delimitadas em [PHASE-14.10B.md](PHASE-14.10B.md) e [PHASE-14.10C.md](PHASE-14.10C.md); 14.10D tem entrega delimitada em [PHASE-14.10D.md](PHASE-14.10D.md); 14.10E tem entrega delimitada em [PHASE-14.10E.md](PHASE-14.10E.md); 14.10F tem entrega delimitada em [PHASE-14.10F.md](PHASE-14.10F.md); 14.10G e 14.11–14.14 continuam planejadas. Os registros abaixo preservam o histórico das
 entregas anteriores e suas pendências.
 
 **Prioridade gráfica revisada:** a 12F apresenta pixels desenhados no MiniNT.
@@ -1031,6 +1031,15 @@ e aguardar solicitação para a 14.10F.
 
 #### 14.10F — DirectX, desenho 2D e codecs de imagem
 
+**Entrega delimitada:** [PHASE-14.10F.md](PHASE-14.10F.md). Direct2D por software,
+texto DirectWrite, PNG/BMP/JPEG e operações de textura D3D11 WARP com
+apresentação DXGI por cópia em janela própria. O mesmo EXE SDK e uma amostra
+independente são comparados ao Windows nativo. Shaders, Draw, pipeline 3D,
+recursos compartilhados, aceleração física e DirectX completo permanecem
+pendentes. D3D9 não tem backend; D3D12/OpenGL aguardam lotes posteriores.
+A matriz COM registra explicitamente os métodos recusados.
+Parar após validar e publicar esta entrega; aguardar solicitação para G.
+
 **Dependências:** 14.10A–14.10E e contratos de dispositivos necessários.
 
 **Trabalho:** priorizar `dxgi.dll`, `d3d9.dll`, `d3d11.dll`, `d2d1.dll`,
@@ -1263,7 +1272,7 @@ PHASE-14.4.md. A 14.5 implementa o corpus CRT original delimitado em
 PHASE-14.5.md. Rethrow/nested C++ e compatibilidade CRT geral continuam abertos.
 A 14.6 implementa a matriz delimitada de segurança/registro/serviços descrita em
 PHASE-14.6.md e PHASE-14.7.md. A 14.8 entrega a matriz delimitada de componentes
-de PHASE-14.8.md. A 14.9 entrega o corpus de rede e criptografia de PHASE-14.9.md. A 12F acrescenta a apresentação nativa delimitada de PHASE-12F.md. A 14.10A entrega o recorte de PHASE-14.10A.md; 14.10B e C entregam os recortes de PHASE-14.10B.md e PHASE-14.10C.md; 14.10D entrega o recorte de PHASE-14.10D.md; 14.10E entrega o recorte de PHASE-14.10E.md; 14.10F–14.10G e 14.11–14.14 permanecem planejadas. Os resultados históricos e as pendências
+de PHASE-14.8.md. A 14.9 entrega o corpus de rede e criptografia de PHASE-14.9.md. A 12F acrescenta a apresentação nativa delimitada de PHASE-12F.md. A 14.10A entrega o recorte de PHASE-14.10A.md; 14.10B e C entregam os recortes de PHASE-14.10B.md e PHASE-14.10C.md; 14.10D entrega o recorte de PHASE-14.10D.md; 14.10E entrega o recorte de PHASE-14.10E.md; 14.10F entrega o recorte de PHASE-14.10F.md; 14.10G e 14.11–14.14 permanecem planejadas. Os resultados históricos e as pendências
 anteriores permanecem identificados nos respectivos documentos.
 
 ## Referências técnicas para os novos requisitos
