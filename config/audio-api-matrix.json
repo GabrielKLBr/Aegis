@@ -1,0 +1,466 @@
+{
+  "schema": 1,
+  "phase": "14.10G",
+  "entries": [
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutOpen",
+      "status": "implemented_with_restrictions",
+      "contract": "PCM 16-bit, mono/stereo, 22050/44100/48000 Hz; default output only; CALLBACK_NULL; max four streams, eight headers/stream, 256 KiB/header and 1 MiB/session. Position bytes/samples/ms. No capture, loop or driver messages.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutWrite",
+      "status": "implemented_with_restrictions",
+      "contract": "PCM 16-bit, mono/stereo, 22050/44100/48000 Hz; default output only; CALLBACK_NULL; max four streams, eight headers/stream, 256 KiB/header and 1 MiB/session. Position bytes/samples/ms. No capture, loop or driver messages.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutReset",
+      "status": "implemented_with_restrictions",
+      "contract": "PCM 16-bit, mono/stereo, 22050/44100/48000 Hz; default output only; CALLBACK_NULL; max four streams, eight headers/stream, 256 KiB/header and 1 MiB/session. Position bytes/samples/ms. No capture, loop or driver messages.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutPause",
+      "status": "implemented_with_restrictions",
+      "contract": "PCM 16-bit, mono/stereo, 22050/44100/48000 Hz; default output only; CALLBACK_NULL; max four streams, eight headers/stream, 256 KiB/header and 1 MiB/session. Position bytes/samples/ms. No capture, loop or driver messages.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutRestart",
+      "status": "implemented_with_restrictions",
+      "contract": "PCM 16-bit, mono/stereo, 22050/44100/48000 Hz; default output only; CALLBACK_NULL; max four streams, eight headers/stream, 256 KiB/header and 1 MiB/session. Position bytes/samples/ms. No capture, loop or driver messages.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutGetPosition",
+      "status": "implemented_with_restrictions",
+      "contract": "PCM 16-bit, mono/stereo, 22050/44100/48000 Hz; default output only; CALLBACK_NULL; max four streams, eight headers/stream, 256 KiB/header and 1 MiB/session. Position bytes/samples/ms. No capture, loop or driver messages.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutClose",
+      "status": "implemented_with_restrictions",
+      "contract": "PCM 16-bit, mono/stereo, 22050/44100/48000 Hz; default output only; CALLBACK_NULL; max four streams, eight headers/stream, 256 KiB/header and 1 MiB/session. Position bytes/samples/ms. No capture, loop or driver messages.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutPrepareHeader",
+      "status": "implemented_with_restrictions",
+      "contract": "Guest header/state management and virtual output capabilities; guest clock for timeGetTime.",
+      "execution": "Guest-local state; native completion is polled by a guest worker",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutUnprepareHeader",
+      "status": "implemented_with_restrictions",
+      "contract": "Guest header/state management and virtual output capabilities; guest clock for timeGetTime.",
+      "execution": "Guest-local state; native completion is polled by a guest worker",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutGetDevCapsW",
+      "status": "implemented_with_restrictions",
+      "contract": "Guest header/state management and virtual output capabilities; guest clock for timeGetTime.",
+      "execution": "Guest-local state; native completion is polled by a guest worker",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "timeGetTime",
+      "status": "implemented_with_restrictions",
+      "contract": "Guest header/state management and virtual output capabilities; guest clock for timeGetTime.",
+      "execution": "Guest-local state; native completion is polled by a guest worker",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "waveOutGetNumDevs",
+      "status": "implemented_with_restrictions",
+      "contract": "One virtual output backed by current host default render endpoint; zero on failure.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "winmm.dll",
+      "name": "PlaySoundW",
+      "status": "implemented_with_restrictions",
+      "contract": "Synchronous PCM RIFF/WAV, guest filename or guest memory; max 256 KiB PCM. No async, aliases, resources, loops or default host sounds.",
+      "execution": "Guest WAV parsing/read; native PCM playback through WinMM",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDeviceEnumerator::EnumAudioEndpoints",
+      "status": "implemented_with_restrictions",
+      "contract": "Only virtual default eRender, active state, IAudioClient; synthetic device ID, no host identifiers/properties.",
+      "execution": "Guest COM objects and virtual device identity; host checks default render endpoint availability",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDeviceEnumerator::GetDefaultAudioEndpoint",
+      "status": "implemented_with_restrictions",
+      "contract": "Only virtual default eRender, active state, IAudioClient; synthetic device ID, no host identifiers/properties.",
+      "execution": "Guest COM objects and virtual device identity; host checks default render endpoint availability",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDeviceEnumerator::GetDevice",
+      "status": "implemented_with_restrictions",
+      "contract": "Only virtual default eRender, active state, IAudioClient; synthetic device ID, no host identifiers/properties.",
+      "execution": "Guest COM objects and virtual device identity; host checks default render endpoint availability",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDeviceCollection::GetCount",
+      "status": "implemented_with_restrictions",
+      "contract": "Only virtual default eRender, active state, IAudioClient; synthetic device ID, no host identifiers/properties.",
+      "execution": "Guest COM objects and virtual device identity; host checks default render endpoint availability",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDeviceCollection::Item",
+      "status": "implemented_with_restrictions",
+      "contract": "Only virtual default eRender, active state, IAudioClient; synthetic device ID, no host identifiers/properties.",
+      "execution": "Guest COM objects and virtual device identity; host checks default render endpoint availability",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDevice::GetId",
+      "status": "implemented_with_restrictions",
+      "contract": "Only virtual default eRender, active state, IAudioClient; synthetic device ID, no host identifiers/properties.",
+      "execution": "Guest COM objects and virtual device identity; host checks default render endpoint availability",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDevice::GetState",
+      "status": "implemented_with_restrictions",
+      "contract": "Only virtual default eRender, active state, IAudioClient; synthetic device ID, no host identifiers/properties.",
+      "execution": "Guest COM objects and virtual device identity; host checks default render endpoint availability",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDevice::Activate",
+      "status": "implemented_with_restrictions",
+      "contract": "Only virtual default eRender, active state, IAudioClient; synthetic device ID, no host identifiers/properties.",
+      "execution": "Guest COM objects and virtual device identity; host checks default render endpoint availability",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::Initialize",
+      "status": "implemented_with_restrictions",
+      "contract": "Native shared WASAPI PCM conversion; 20–500 ms buffer; PCM subset above; copied buffers max 256 KiB; polling. No exclusive/loopback/events/custom sessions. Failures/device invalidation propagate; reopen via a new client.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::GetBufferSize",
+      "status": "implemented_with_restrictions",
+      "contract": "Native shared WASAPI PCM conversion; 20–500 ms buffer; PCM subset above; copied buffers max 256 KiB; polling. No exclusive/loopback/events/custom sessions. Failures/device invalidation propagate; reopen via a new client.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::GetCurrentPadding",
+      "status": "implemented_with_restrictions",
+      "contract": "Native shared WASAPI PCM conversion; 20–500 ms buffer; PCM subset above; copied buffers max 256 KiB; polling. No exclusive/loopback/events/custom sessions. Failures/device invalidation propagate; reopen via a new client.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::Start",
+      "status": "implemented_with_restrictions",
+      "contract": "Native shared WASAPI PCM conversion; 20–500 ms buffer; PCM subset above; copied buffers max 256 KiB; polling. No exclusive/loopback/events/custom sessions. Failures/device invalidation propagate; reopen via a new client.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::Stop",
+      "status": "implemented_with_restrictions",
+      "contract": "Native shared WASAPI PCM conversion; 20–500 ms buffer; PCM subset above; copied buffers max 256 KiB; polling. No exclusive/loopback/events/custom sessions. Failures/device invalidation propagate; reopen via a new client.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::Reset",
+      "status": "implemented_with_restrictions",
+      "contract": "Native shared WASAPI PCM conversion; 20–500 ms buffer; PCM subset above; copied buffers max 256 KiB; polling. No exclusive/loopback/events/custom sessions. Failures/device invalidation propagate; reopen via a new client.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioRenderClient::GetBuffer",
+      "status": "implemented_with_restrictions",
+      "contract": "Native shared WASAPI PCM conversion; 20–500 ms buffer; PCM subset above; copied buffers max 256 KiB; polling. No exclusive/loopback/events/custom sessions. Failures/device invalidation propagate; reopen via a new client.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioRenderClient::ReleaseBuffer",
+      "status": "implemented_with_restrictions",
+      "contract": "Native shared WASAPI PCM conversion; 20–500 ms buffer; PCM subset above; copied buffers max 256 KiB; polling. No exclusive/loopback/events/custom sessions. Failures/device invalidation propagate; reopen via a new client.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClock::GetPosition",
+      "status": "implemented_with_restrictions",
+      "contract": "Native shared WASAPI PCM conversion; 20–500 ms buffer; PCM subset above; copied buffers max 256 KiB; polling. No exclusive/loopback/events/custom sessions. Failures/device invalidation propagate; reopen via a new client.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClock::GetFrequency",
+      "status": "implemented_with_restrictions",
+      "contract": "Native shared WASAPI PCM conversion; 20–500 ms buffer; PCM subset above; copied buffers max 256 KiB; polling. No exclusive/loopback/events/custom sessions. Failures/device invalidation propagate; reopen via a new client.",
+      "execution": "Native operation through copied PCM and owned IDs",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::IsFormatSupported",
+      "status": "implemented_with_restrictions",
+      "contract": "Guest virtual device contract: preferred PCM stereo 48 kHz; render/clock services; fixed-frequency characteristic.",
+      "execution": "Guest-local validation, allocations and service wrappers",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::GetMixFormat",
+      "status": "implemented_with_restrictions",
+      "contract": "Guest virtual device contract: preferred PCM stereo 48 kHz; render/clock services; fixed-frequency characteristic.",
+      "execution": "Guest-local validation, allocations and service wrappers",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::GetService",
+      "status": "implemented_with_restrictions",
+      "contract": "Guest virtual device contract: preferred PCM stereo 48 kHz; render/clock services; fixed-frequency characteristic.",
+      "execution": "Guest-local validation, allocations and service wrappers",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClock::GetCharacteristics",
+      "status": "implemented_with_restrictions",
+      "contract": "Guest virtual device contract: preferred PCM stereo 48 kHz; render/clock services; fixed-frequency characteristic.",
+      "execution": "Guest-local validation, allocations and service wrappers",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDevice::OpenPropertyStore",
+      "status": "denied_by_policy",
+      "contract": "Host endpoint properties are private; returns E_ACCESSDENIED.",
+      "execution": "No host access",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDeviceEnumerator::RegisterEndpointNotificationCallback",
+      "status": "pending",
+      "contract": "Not implemented; E_NOTIMPL, not a successful no-op.",
+      "execution": "No implementation",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IMMDeviceEnumerator::UnregisterEndpointNotificationCallback",
+      "status": "pending",
+      "contract": "Not implemented; E_NOTIMPL, not a successful no-op.",
+      "execution": "No implementation",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::GetStreamLatency",
+      "status": "pending",
+      "contract": "Not implemented; E_NOTIMPL, not a successful no-op.",
+      "execution": "No implementation",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::GetDevicePeriod",
+      "status": "pending",
+      "contract": "Not implemented; E_NOTIMPL, not a successful no-op.",
+      "execution": "No implementation",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioClient::SetEventHandle",
+      "status": "pending",
+      "contract": "Not implemented; E_NOTIMPL, not a successful no-op.",
+      "execution": "No implementation",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mmdevapi.dll",
+      "name": "IAudioCaptureClient::GetBuffer",
+      "status": "denied_by_policy",
+      "contract": "Capture/loopback not available; capture endpoint request returns E_ACCESSDENIED, capture service E_NOINTERFACE.",
+      "execution": "No host access",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Método COM"
+    },
+    {
+      "dll": "mfplat.dll",
+      "name": "MFStartup",
+      "status": "pending",
+      "contract": "Media Foundation not available; imports rejected before boot.",
+      "execution": "No implementation",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "mfplat.dll",
+      "name": "MFShutdown",
+      "status": "pending",
+      "contract": "Media Foundation not available; imports rejected before boot.",
+      "execution": "No implementation",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "mfplat.dll",
+      "name": "MFCreateMemoryBuffer",
+      "status": "pending",
+      "contract": "Media Foundation not available; imports rejected before boot.",
+      "execution": "No implementation",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    },
+    {
+      "dll": "mfreadwrite.dll",
+      "name": "MFCreateSourceReaderFromByteStream",
+      "status": "pending",
+      "contract": "Compressed media/video codecs remain a later lot; imports rejected before boot.",
+      "execution": "No implementation",
+      "phase": "14.10G",
+      "category": "Áudio e mídia",
+      "kind": "Export"
+    }
+  ]
+}

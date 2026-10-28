@@ -626,3 +626,8 @@ docs/                        UI screenshots
   and AMSI integration. The minifilter + ELAM path is also what an MVI product
   uses to legitimately register with Windows Security.
 ```
+
+A 14.10G acrescenta reprodução PCM/WAV e um recorte WinMM/WASAPI no modo
+`--audio`, com buffers copiados e saída padrão mediada por auxiliar restrito.
+Captura e mídia comprimida permanecem indisponíveis.
+[Contratos e limitações](docs/PHASE-14.10G.md).

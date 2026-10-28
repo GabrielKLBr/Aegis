@@ -41,3 +41,8 @@ recebe ponteiros, módulos de shader/driver, caminhos do host ou interfaces
 COM do convidado. Há cotas de imagens/texturas e erros separados de API e
 transporte. Esses componentes aumentam a superfície de ataque; os testes
 de compatibilidade não comprovam contenção para executar malware real.
+
+A 14.10G acrescenta reprodução PCM/WAV e um recorte WinMM/WASAPI no modo
+`--audio`, com buffers copiados e saída padrão mediada por auxiliar restrito.
+Captura e mídia comprimida permanecem indisponíveis.
+[Contratos e limitações](docs/PHASE-14.10G.md).

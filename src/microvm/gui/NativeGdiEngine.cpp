@@ -47,11 +47,17 @@ if(software)software->DropWindow(id);
 #endif
 for(auto& r:resources)if(r.id&&r.window==id)CloseDc(r);if(auto* s=Surface(id))Drop(*s);}
 void GdiEngine::Exit(uint32_t pid,uint32_t tid){
+#ifdef GUARDIAN_AUDIO
+if(audio)audio->Exit(pid,tid);
+#endif
 #ifdef GUARDIAN_SOFTWARE_GRAPHICS
 if(software)software->Exit(pid,tid);
 #endif
 for(auto& r:resources)if(r.id&&r.pid==pid&&r.tid==tid&&r.kind==g::Kind::Dc)CloseDc(r);for(auto& r:resources)if(r.id&&r.pid==pid&&r.tid==tid)Delete(r);}
 void GdiEngine::Clear(){
+#ifdef GUARDIAN_AUDIO
+if(audio)audio->Clear();
+#endif
 #ifdef GUARDIAN_SOFTWARE_GRAPHICS
 if(software)software->Clear();
 #endif
@@ -64,13 +70,20 @@ void GdiEngine::UnpinFont(uint64_t id){if(auto* r=Find(id);r&&r->pins)--r->pins;
 uint64_t GdiEngine::SystemBrush(int index,uint32_t pid,uint32_t tid){return Stock(GetSysColorBrush(index),g::Kind::Brush,pid,tid);}
 HBITMAP GdiEngine::IconBitmap(uint64_t id,uint32_t pid,uint32_t tid,int& width,int& height){auto* r=Find(id);if(!r||r->kind!=g::Kind::Bitmap||r->stock||r->pid!=pid||r->tid!=tid||Selected(id)||r->width>64||r->height>64)return nullptr;width=r->width;height=r->height;GdiFlush();return static_cast<HBITMAP>(r->object);}
 #endif
-void GdiEngine::Report(g::Reply& reply) const {for(const auto& r:resources)if(r.id)++reply.live[r.kind==g::Kind::Dc?0:1];for(const auto& s:surfaces)if(s.id)++reply.live[2];std::copy(std::begin(calls),std::end(calls),std::begin(reply.calls));reply.pixelBytes=bytes;reply.uploaded=uploaded;reply.downloaded=downloaded;
+void GdiEngine::Report(g::Reply& reply) const {
+#ifdef GUARDIAN_AUDIO
+if(audio){reply.live[1]+=audio->Live();reply.pixelBytes+=audio->Bytes();}
+#endif
+for(const auto& r:resources)if(r.id)++reply.live[r.kind==g::Kind::Dc?0:1];for(const auto& s:surfaces)if(s.id)++reply.live[2];std::copy(std::begin(calls),std::end(calls),std::begin(reply.calls));reply.pixelBytes+=bytes;reply.uploaded=uploaded;reply.downloaded=downloaded;
 #ifdef GUARDIAN_SOFTWARE_GRAPHICS
 if(software){reply.live[1]+=software->Live();reply.pixelBytes+=software->Bytes();}
 #endif
 }
 uint32_t GdiEngine::Execute(const g::Command& c,g::Reply& reply,uint32_t pid,uint32_t tid,const Resolve& resolve){
 #ifdef GUARDIAN_SOFTWARE_GRAPHICS
+#ifdef GUARDIAN_AUDIO
+    if(guardian::audio::Extended(c.op)){if(!audio)audio=std::make_unique<AudioEngine>(session);return audio->Execute(c,reply,pid,tid);}
+#endif
     if(guardian::softwaregraphics::Extended(c.op)){
         if(!software)software=std::make_unique<SoftwareGraphicsEngine>(session);
         ++calls[0];

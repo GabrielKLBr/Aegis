@@ -98,13 +98,24 @@ HRESULT LocalClass(REFCLSID cls,uint64_t& endpoint){
 }
 #ifdef GUARDIAN_SOFTWARE_GRAPHICS
 #include <wincodec.h>
+#ifdef GUARDIAN_AUDIO
+#include <mmdeviceapi.h>
+#endif
 #endif
 extern "C" HRESULT WINAPI CmpCoGetClassObject(REFCLSID cls,DWORD context,COSERVERINFO* remote,REFIID iid,void** out){
     if(!out)return E_INVALIDARG;*out=nullptr;if(!Apt())return CO_E_NOTINITIALIZED;
     if(remote||context&~(CLSCTX_INPROC_SERVER|CLSCTX_LOCAL_SERVER)||!context)return E_INVALIDARG;
 #ifdef GUARDIAN_SOFTWARE_GRAPHICS
-    if((context&CLSCTX_INPROC_SERVER)&&(Guid(cls,CLSID_WICImagingFactory)||Guid(cls,CLSID_WICImagingFactory2))){
-        const auto h=LoadLibraryW(L"windowscodecs.dll");if(!h)return HRESULT_FROM_WIN32(GetLastError());
+    if((context&CLSCTX_INPROC_SERVER)&&(Guid(cls,CLSID_WICImagingFactory)||Guid(cls,CLSID_WICImagingFactory2)
+#ifdef GUARDIAN_AUDIO
+        ||Guid(cls,__uuidof(MMDeviceEnumerator))
+#endif
+    )){
+        const auto h=LoadLibraryW(
+#ifdef GUARDIAN_AUDIO
+        Guid(cls,__uuidof(MMDeviceEnumerator))?L"mmdevapi.dll":
+#endif
+        L"windowscodecs.dll");if(!h)return HRESULT_FROM_WIN32(GetLastError());
         using Get=HRESULT(WINAPI*)(REFCLSID,REFIID,void**);const auto get=reinterpret_cast<Get>(GetProcAddress(h,"DllGetClassObject"));
         const auto result=get?get(cls,iid,out):CLASS_E_CLASSNOTAVAILABLE;
         if(FAILED(result)){FreeLibrary(h);return result;}

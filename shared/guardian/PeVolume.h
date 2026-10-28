@@ -32,7 +32,7 @@ template<size_t N> inline bool Text(const char (&text)[N],bool empty=false) noex
 inline bool Equal(const char* a,const char* b) noexcept {for(uint32_t i=0;i<128;++i){if(a[i]!=b[i])return false;if(!a[i])return true;}return false;}
 inline bool Prefix(const char* a,const char* prefix) noexcept {for(uint32_t i=0;i<128;++i){if(!prefix[i])return true;if(a[i]!=prefix[i])return false;}return false;}
 inline bool Suffix(const char* name,const char* suffix) noexcept {uint32_t length=0,tail=0;while(length<128&&name[length])++length;while(tail<128&&suffix[tail])++tail;return length<128&&tail<128&&length>=tail&&Equal(name+length-tail,suffix);}
-inline bool DataPath(const char* name,uint32_t version) noexcept {return Prefix(name,"c:\\app\\")&&(Suffix(name,".txt")||Suffix(name,".ico")||Suffix(name,".dat")||Suffix(name,".bin")||version==2&&(Suffix(name,".cfg")||Suffix(name,".der")||Suffix(name,".png")||Suffix(name,".bmp")||Suffix(name,".jpg")||Suffix(name,".jpeg")));}
+inline bool DataPath(const char* name,uint32_t version) noexcept {return Prefix(name,"c:\\app\\")&&(Suffix(name,".txt")||Suffix(name,".ico")||Suffix(name,".dat")||Suffix(name,".bin")||version==2&&(Suffix(name,".cfg")||Suffix(name,".der")||Suffix(name,".png")||Suffix(name,".bmp")||Suffix(name,".jpg")||Suffix(name,".jpeg")||Suffix(name,".wav")));}
 inline bool Canonical(const char* text,char* out,bool directory=false) noexcept {
     if(!text)return false;uint32_t n=0,component=0;
     for(;n<127&&text[n];++n){char ch=text[n];if(ch>='A'&&ch<='Z')ch=char(ch+32);if(ch=='/')ch='\\';

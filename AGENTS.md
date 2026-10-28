@@ -23,3 +23,10 @@ no repositório público. Publicações de builds usam apenas o repositório pri
 Se testes, autenticação ou o envio falharem, preservar o trabalho e registrar
 o ponto pendente com clareza; não afirmar que houve publicação. Instruções
 posteriores do usuário podem alterar esta preferência.
+
+## Escopo das validações
+
+Por solicitação do usuário em 28/10/2026, validar apenas a fase ou subfase
+em trabalho, incluindo seu pacote e suas dependências no fluxo dessa fase.
+Não repetir as baterias completas das fases anteriores a cada entrega.
+Registrar esse escopo nos resultados, sem anunciar uma regressão completa.

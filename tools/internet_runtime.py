@@ -44,20 +44,22 @@ def exports(output):
         (output/(dll+'.def')).write_text('LIBRARY '+dll+'\nEXPORTS\n'+''.join(lines),encoding='utf-8')
     proof={'phase':'14.9','dlls':{key:sorted(value) for key,value in groups.items()},'implementedExports':len(names),'hostTls':False,'hostKeys':False,'completeWindowsNetworking':False,'tlsVersions':['1.2'],'suites':['ECDHE-ECDSA-AES128-GCM-SHA256','ECDHE-RSA-AES128-GCM-SHA256']};(output/'coverage.json').write_bytes(nt.canonical(proof));return proof
 
-def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False,native_user32=False,native_gdi=False,native_controls=False,native_expanded=False,native_software=False):
+def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False,native_user32=False,native_gdi=False,native_controls=False,native_expanded=False,native_software=False,native_audio=False):
     build=Path(build);output=Path(output);folder=build/'guest/internet'/config;application=Path(application) if application else folder/'guardian-internet-crypto.exe';output.parent.mkdir(parents=True,exist_ok=True)
+    if native_audio:native_software=True
+    software_folder='guest/audio' if native_audio else 'guest/software-graphics'
     if native_gui:extras=(*extras,build/'guest/native-gui'/config/'guardian-native-gui.dll')
-    software_dlls=('d2d1.dll','dwrite.dll','windowscodecs.dll','d3d11.dll','dxgi.dll','d3d9.dll','guardian-software-graphics.dll')
+    software_dlls=('d2d1.dll','dwrite.dll','windowscodecs.dll','d3d11.dll','dxgi.dll','d3d9.dll','guardian-software-graphics.dll',*(('winmm.dll','mmdevapi.dll') if native_audio else ()))
     hosts=('kernelbase.dll','kernel32.dll','ntdll.dll','ucrtbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll','advapi32.dll',*(d+'.dll' for d in (*component_runtime.DLLS,*DLLS)),*(software_dlls if native_software else ()))
     schema,metadata=api_set.build('win10',schema_reference,hosts);schema_path=output.parent/(output.name+'-schema.dll');schema_path.write_bytes(schema)
     table,native=native_nt.syscall_map(build/'guest/desktop'/config/'ntdll.dll','win10',False);table_path=output.parent/(output.name+'-syscalls.bin');table_path.write_bytes(table)
     files=[{'path':'c:\\app\\'+application.name.lower(),'source':str(application),'kind':'pe'}]
     def add(path,source,kind='pe'):files.append({'path':path,'source':str(source),'kind':kind})
-    for name in ('ntdll.dll','kernel32.dll','kernelbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll'):add('c:\\windows\\system32\\'+name,build/('guest/software-graphics' if native_software and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/expanded-gdi' if native_expanded and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/native-controls' if native_controls and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/native-gdi' if native_gdi and name in ('user32.dll','win32u.dll','gdi32.dll') else 'guest/native-user32' if native_user32 and name in ('user32.dll','win32u.dll') else 'guest/desktop')/config/name)
+    for name in ('ntdll.dll','kernel32.dll','kernelbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll'):add('c:\\windows\\system32\\'+name,build/(software_folder if native_software and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/expanded-gdi' if native_expanded and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/native-controls' if native_controls and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/native-gdi' if native_gdi and name in ('user32.dll','win32u.dll','gdi32.dll') else 'guest/native-user32' if native_user32 and name in ('user32.dll','win32u.dll') else 'guest/desktop')/config/name)
     add('c:\\windows\\system32\\guardian-runtime-api.dll',build/'guest/crt'/config/'guardian-runtime-api.dll');add('c:\\windows\\system32\\advapi32.dll',build/'guest/security'/config/'advapi32.dll')
-    for dll in component_runtime.DLLS:add('c:\\windows\\system32\\'+dll+'.dll',build/('guest/software-graphics' if native_software and dll in ('combase','comdlg32','comctl32') else 'guest/expanded-gdi' if native_expanded and dll in ('comdlg32','comctl32') else 'guest/native-controls' if native_controls and dll in ('comdlg32','comctl32') else 'guest/components')/config/(dll+'.dll'))
+    for dll in component_runtime.DLLS:add('c:\\windows\\system32\\'+dll+'.dll',build/(software_folder if native_software and dll in ('combase','comdlg32','comctl32') else 'guest/expanded-gdi' if native_expanded and dll in ('comdlg32','comctl32') else 'guest/native-controls' if native_controls and dll in ('comdlg32','comctl32') else 'guest/components')/config/(dll+'.dll'))
     if native_software:
-        for name in software_dlls:add('c:\\windows\\system32\\'+name,build/'guest/software-graphics'/config/name)
+        for name in software_dlls:add('c:\\windows\\system32\\'+name,build/software_folder/config/name)
     for dll in DLLS:add('c:\\windows\\system32\\'+dll+'.dll',folder/(dll+'.dll'))
     for path in extras:add('c:\\app\\'+Path(path).name.lower(),path)
     for path in assets:add('c:\\app\\'+Path(path).name.lower(),path,'data')
@@ -105,7 +107,11 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
         spec['phase']='14.10E';spec['nativeGuiRuntime']={'backend':'win32-expanded-gdi','protocol':5,'helperSha256':nt.sha(nt.regular(build/config/'guardian-expanded-gdi-host.exe',16<<20)),'hostHandlesInGuest':False,'guestWindowPixelsRequired':False,'standardUser32Subset':True,'nativeGdiSubset':True,'nativeControlsSubset':True,'logicalDpi':96,'completeWindowsGui':False,'phase14_10FStarted':False}
     if native_software:
         nt.require(not any((native_expanded,native_controls,native_gdi,native_user32,native_gui,presentation)),'Software graphics mode is exclusive')
-        spec['phase']='14.10F';spec['nativeGuiRuntime']={'backend':'software-d2d-warp-wic','protocol':6,'helperSha256':nt.sha(nt.regular(build/config/'guardian-software-graphics-host.exe',16<<20)),'hostHandlesInGuest':False,'guestWindowPixelsRequired':False,'standardUser32Subset':True,'nativeGdiSubset':True,'nativeControlsSubset':True,'logicalDpi':96,'completeWindowsGui':False,'hardwareAcceleration':False,'phase14_10GStarted':False}
+        spec['phase']='14.10F';spec['nativeGuiRuntime']={'backend':'software-d2d-warp-wic','protocol':6,'helperSha256':nt.sha(nt.regular(build/config/('guardian-audio-host.exe' if native_audio else 'guardian-software-graphics-host.exe'),16<<20)),'hostHandlesInGuest':False,'guestWindowPixelsRequired':False,'standardUser32Subset':True,'nativeGdiSubset':True,'nativeControlsSubset':True,'logicalDpi':96,'completeWindowsGui':False,'hardwareAcceleration':False,'phase14_10GStarted':False}
+    if native_audio:
+        spec['phase']='14.10G';spec['nativeGuiRuntime'].update(backend='win32-audio-pcm',protocol=7,helperSha256=nt.sha(nt.regular(build/config/'guardian-audio-host.exe',16<<20)))
+        spec['nativeGuiRuntime'].pop('phase14_10GStarted',None)
+        spec['audioRuntime']={'playbackOnly':True,'pcmRates':[22050,44100,48000],'pcmBits':16,'maxStreams':4,'maxBytes':1048576,'capture':False,'mediaFoundation':False}
     return pe_volume.build(spec,kernel or build/'guest'/config/'guardian-kernel-internet.gk',output)
 
 def main():

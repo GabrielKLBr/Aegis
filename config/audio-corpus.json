@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "phase": "14.10G",
+  "application": "Whisky audio diagnostics",
+  "source": "https://raw.githubusercontent.com/frankea/Whisky/9cdd0f90c4c2fb6c1235ecaa57f5e8fa7ff56888/scripts/whisky_audio_test.c",
+  "sha256": "bd18a9c945f578b55bce1bf16549a6c44ecc293aa847032235b97c4ee556b900",
+  "license": "GPL-3.0-or-later",
+  "redistributed": false,
+  "arguments": [],
+  "mode": "600 ms stereo PCM silence; default output, CALLBACK_NULL; unchanged source and identical native/guest EXE"
+}

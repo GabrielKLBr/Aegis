@@ -1,0 +1,15 @@
+LIBRARY winmm
+EXPORTS
+waveOutOpen=AudioWaveOutOpen
+waveOutPrepareHeader=AudioWaveOutPrepareHeader
+waveOutWrite=AudioWaveOutWrite
+waveOutUnprepareHeader=AudioWaveOutUnprepareHeader
+waveOutClose=AudioWaveOutClose
+waveOutReset=AudioWaveOutReset
+waveOutPause=AudioWaveOutPause
+waveOutRestart=AudioWaveOutRestart
+waveOutGetPosition=AudioWaveOutGetPosition
+waveOutGetNumDevs=AudioWaveOutGetNumDevs
+waveOutGetDevCapsW=AudioWaveOutGetDevCapsW
+PlaySoundW=AudioPlaySoundW
+timeGetTime=AudioTimeGetTime

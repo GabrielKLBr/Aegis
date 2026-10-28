@@ -28,7 +28,10 @@ constexpr auto WireMagic=guardian::nativeuser::Magic;constexpr uint32_t WireVers
 #include <cstring>
 namespace u=guardian::nativeuser;
 namespace {
-#ifdef GUARDIAN_SOFTWARE_GRAPHICS
+#ifdef GUARDIAN_AUDIO
+constexpr wchar_t ClassName[]=L"Aegis.Audio.14.10G",Prefix[]=L"[MiniNT audio 14.10G] ";
+constexpr const wchar_t* ExpandedClasses[]{ClassName,L"Aegis.Audio.1",L"Aegis.Audio.2",L"Aegis.Audio.3",L"Aegis.Audio.4",L"Aegis.Audio.5",L"Aegis.Audio.6",L"Aegis.Audio.7"};
+#elif defined(GUARDIAN_SOFTWARE_GRAPHICS)
 constexpr wchar_t ClassName[]=L"Aegis.SoftwareGraphics.14.10F",Prefix[]=L"[MiniNT software 14.10F] ";
 constexpr const wchar_t* ExpandedClasses[]{ClassName,L"Aegis.SoftwareGraphics.14.10F.1",L"Aegis.SoftwareGraphics.14.10F.2",L"Aegis.SoftwareGraphics.14.10F.3",L"Aegis.SoftwareGraphics.14.10F.4",L"Aegis.SoftwareGraphics.14.10F.5",L"Aegis.SoftwareGraphics.14.10F.6",L"Aegis.SoftwareGraphics.14.10F.7"};
 #elif defined(GUARDIAN_GDI_EXPANDED)
@@ -300,6 +303,9 @@ struct Host {
         graphics.Report(p.graphics);
 #ifdef GUARDIAN_SOFTWARE_GRAPHICS
         if(p.command.op==u::Op::Finish)graphics.SoftwareFinal(p.graphics);
+#ifdef GUARDIAN_AUDIO
+        if(p.command.op==u::Op::Finish)graphics.AudioFinal(p.graphics);
+#endif
 #endif
 #else
         p.reply.status=!u::Valid(p.command)?ERROR_INVALID_PARAMETER:overflow?ERROR_NOT_ENOUGH_QUOTA:Execute(p);

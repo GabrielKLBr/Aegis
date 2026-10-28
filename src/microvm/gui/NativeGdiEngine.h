@@ -3,6 +3,9 @@
 #include <Windows.h>
 #include <array>
 #include <functional>
+#ifdef GUARDIAN_AUDIO
+#include "AudioEngine.h"
+#endif
 #ifdef GUARDIAN_SOFTWARE_GRAPHICS
 #include "SoftwareGraphicsEngine.h"
 #endif
@@ -23,6 +26,11 @@ public:
 #ifdef GUARDIAN_SOFTWARE_GRAPHICS
     std::unique_ptr<SoftwareGraphicsEngine> software;
     void SoftwareFinal(g::Reply& reply) const {if(software)software->Final(reply);}
+#endif
+
+#ifdef GUARDIAN_AUDIO
+    std::unique_ptr<AudioEngine> audio;
+    void AudioFinal(g::Reply& r) const {if(audio)audio->Final(r);}
 #endif
     using Resolve=std::function<HWND(uint64_t,uint32_t,uint32_t)>;
     std::array<GdiResource,g::MaxObjects> resources{};std::array<GdiSurface,g::MaxSurfaces> surfaces{};
