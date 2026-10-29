@@ -1110,6 +1110,14 @@ Não anunciar todo .NET/WinRT por um exemplo aprovado. Parar ao concluir.
 
 ### Subfase 14.12 — Aplicações x86 e perfis NT adicionais
 
+**Primeiro lote 14.12A em 29/10/2026:** PE32 em modo de compatibilidade x86,
+DLLs próprias de 32 bits, TEB/PEB32, busca de DLLs em SysWOW64 e USER32 nativo
+com callbacks stdcall no MiniNT para NT 10.0.19045. O console externo é
+independente; a GUI validada neste lote é própria.
+[Implementação, provas e limites](PHASE-14.12.md).
+**A fase ampla continua aberta:** corpus GUI independente, redirecionamento de
+arquivos/registro, TLS/SEH x86, mais APIs e aceitação de perfis adicionais.
+
 **Dependências:** 14.1–14.8; demais famílias conforme o aplicativo.
 
 **Trabalho:** adicionar PE32, execução x86 e camada de compatibilidade equivalente
@@ -1298,7 +1306,7 @@ PHASE-14.4.md. A 14.5 implementa o corpus CRT original delimitado em
 PHASE-14.5.md. Rethrow/nested C++ e compatibilidade CRT geral continuam abertos.
 A 14.6 implementa a matriz delimitada de segurança/registro/serviços descrita em
 PHASE-14.6.md e PHASE-14.7.md. A 14.8 entrega a matriz delimitada de componentes
-de PHASE-14.8.md. A 14.9 entrega o corpus de rede e criptografia de PHASE-14.9.md. A 12F acrescenta a apresentação nativa delimitada de PHASE-12F.md. A 14.10A entrega o recorte de PHASE-14.10A.md; 14.10B e C entregam os recortes de PHASE-14.10B.md e PHASE-14.10C.md; 14.10D entrega o recorte de PHASE-14.10D.md; 14.10E entrega o recorte de PHASE-14.10E.md; 14.10F entrega o recorte de PHASE-14.10F.md; 14.10G entrega o recorte de PHASE-14.10G.md; mídia comprimida e 14.11–14.14 permanecem planejadas. Os resultados históricos e as pendências
+de PHASE-14.8.md. A 14.9 entrega o corpus de rede e criptografia de PHASE-14.9.md. A 12F acrescenta a apresentação nativa delimitada de PHASE-12F.md. A 14.10A entrega o recorte de PHASE-14.10A.md; 14.10B e C entregam os recortes de PHASE-14.10B.md e PHASE-14.10C.md; 14.10D entrega o recorte de PHASE-14.10D.md; 14.10E entrega o recorte de PHASE-14.10E.md; 14.10F entrega o recorte de PHASE-14.10F.md; 14.10G entrega o recorte de PHASE-14.10G.md; mídia comprimida e a aceitação ampla de 14.11–14.14 permanecem abertas. A 14.11 entrega os contratos limitados de PHASE-14.11.md; a 14.12A entrega o núcleo x86 de PHASE-14.12.md. Os resultados históricos e as pendências
 anteriores permanecem identificados nos respectivos documentos.
 
 ## Referências técnicas para os novos requisitos

@@ -6,6 +6,13 @@
 #define NOMINMAX
 #include <Windows.h>
 #include <intrin.h>
+#ifdef GUARDIAN_COMPAT32
+static __int64 CompatExchange64(volatile __int64* pointer,__int64 value){
+    auto previous=_InterlockedCompareExchange64(pointer,0,0);
+    for(;;){const auto observed=_InterlockedCompareExchange64(pointer,value,previous);if(observed==previous)return previous;previous=observed;}
+}
+#define _InterlockedExchange64 CompatExchange64
+#endif
 #include <limits.h>
 #include "guardian/NativeUser32.h"
 #ifdef GUARDIAN_NATIVE_CONTROLS
@@ -27,7 +34,12 @@ extern "C" __declspec(dllimport) DWORD GuardianNativeGdiCall(g::Call*) noexcept;
 static DWORD UserService(u::Call* c) noexcept {g::Call request;request.command=c->command;const auto status=GuardianNativeGdiCall(&request);c->reply=request.reply;return status;}
 #else
 extern "C" __declspec(dllimport) DWORD GuardianNativeUserCall(u::Call*) noexcept;
+#ifdef GUARDIAN_COMPAT32
+#include "Compat32User.inl"
+static DWORD UserService(u::Call* c) noexcept {return CompatUserCall(c);}
+#else
 static DWORD UserService(u::Call* c) noexcept {return GuardianNativeUserCall(c);}
+#endif
 #endif
 extern "C" LRESULT WINAPI UiDefWindowProcW(HWND,UINT,WPARAM,LPARAM);
 extern "C" BOOL WINAPI UiDestroyWindow(HWND);

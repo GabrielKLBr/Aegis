@@ -496,6 +496,20 @@ PUBLIC PeProcessBootstrap
 PeProcessBootstrap LABEL BYTE
     mov r12,rcx
     sub rsp,28h
+IFDEF GUARDIAN_COMPAT32
+    mov eax,0c0h
+    syscall
+    test eax,eax
+    jz PeLoaderFailed
+    sub rsp,8
+    mov DWORD PTR [rsp],0
+    mov DWORD PTR [rsp+4],r12d
+    mov dx,43h
+    mov fs,dx
+    push 1bh
+    push rax
+    retfq
+ENDIF
     xor ebx,ebx
 IFDEF GUARDIAN_RUNTIME_KERNEL
     mov eax,83h

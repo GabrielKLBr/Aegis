@@ -19,6 +19,9 @@ uint16_t CpuReadTables(void* gdt, void* idt) noexcept;
 void CpuEnterUser(uint64_t rip, uint64_t rsp) noexcept;
 void CpuUserResume() noexcept;
 void CpuSyscallEntry() noexcept;
+#ifdef GUARDIAN_COMPAT32
+void CpuIsr128() noexcept;
+#endif
 void CpuProbeUd() noexcept;
 void CpuProbePf() noexcept;
 void CpuTriggerDoubleFault() noexcept;

@@ -121,6 +121,9 @@ struct DynamicPending {uint32_t tid=0,index=0,added=0,removing=0,kind=0;};
 native::Services nativeServicesInstance;
 #endif
 struct RuntimeSlot {Context context{};pe::Loader image;pe::Source sources[pe::MaxModules]{};uint32_t pid=0;uint64_t loaderLock=0;bool terminating=false;DynamicPending pending{};
+#ifdef GUARDIAN_COMPAT32
+    uint32_t compatAllocations[64]{};
+#endif
 #ifdef GUARDIAN_FRAMEWORKS
     char frameworkRootName[128]{};
 #endif
@@ -277,6 +280,10 @@ bool ScalableStart(RuntimeSlot& slot,uint64_t entry,uint64_t argument,uint64_t& 
 #endif
 }
 uint32_t PeMappingChecks(guardian::processes::Manager& processes,guardian::memory::Manager& memory,void (*check)(bool,uint32_t) noexcept) noexcept {
+#ifdef GUARDIAN_COMPAT32
+    // The legacy embedded mapping fixtures are AMD64. PE32 gets its own tests.
+    (void)processes;(void)memory;(void)check;return 0;
+#else
     using namespace guardian;uint32_t checks=0;
 #ifdef GUARDIAN_COMPLETE_KERNEL
     auto& mappingLoader=MappingLoader();::new(static_cast<void*>(&mappingLoader)) pe::Loader{};
@@ -309,6 +316,7 @@ uint32_t PeMappingChecks(guardian::processes::Manager& processes,guardian::memor
     verify(memory.physical.Statistics().free==free && processes.Counts().consistent);
     const char message[]="PE loader mapping checks PASS\n";for(char ch:message)if(ch)__outbyte(0xE9,static_cast<uint8_t>(ch));
     return checks;
+#endif
 }
 bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager& m,uint32_t pid,uint64_t& startup,const char* childCommand,const char* application) noexcept {
     using namespace guardian;
@@ -318,8 +326,14 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
 #if !defined(GUARDIAN_ENVIRONMENT_KERNEL) && !defined(GUARDIAN_ANALYSIS_KERNEL)
     (void)application;
 #endif
+#ifdef GUARDIAN_COMPAT32
+    if(childCommand)return false;
+#endif
     if(Find(pid))return false;RuntimeSlot* slot=nullptr;for(auto& s:runtimes)if(!s.pid){slot=&s;break;}if(!slot)return false;
     slot->pid=pid;slot->context={&p,&m,pid};slot->terminating=false;slot->loaderLock=0;slot->pending={};auto& runtimeContext=slot->context;auto& loader=slot->image;
+#ifdef GUARDIAN_COMPAT32
+    for(auto& region:slot->compatAllocations)region=0;
+#endif
 #ifdef GUARDIAN_NATIVE_NT
     slot->nativePeb=0;slot->nativeReady=false;slot->nativeTid=0;
 #endif
@@ -426,6 +440,10 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
     // The initial thread uses the private bootstrap data page. Workers get
     // separately allocated TEB/TLS pages; only the PEB is shared.
     uint8_t zero[256]{};for(uint32_t at=0;at<4096;at+=sizeof(zero))if(!Write(&runtimeContext,cpu::UserData+at,zero,sizeof(zero)))return false;
+#ifdef GUARDIAN_COMPAT32
+    uint32_t self32=uint32_t(cpu::UserData),peb32=self32+0x400,base32=uint32_t(loader.Get(0)->base);
+    if(!Write(&runtimeContext,self32+0x18,&self32,4)||!Write(&runtimeContext,self32+0x30,&peb32,4)||!Write(&runtimeContext,peb32+8,&base32,4))return false;
+#endif
 #ifdef GUARDIAN_SCALABLE_PE
     if(!ScalableStart(*slot,loader.Get(0)->entry,0,slot->initialTeb,startup))return false;
     uint64_t value=loader.Get(0)->base;if(!Write(&runtimeContext,cpu::UserData+0x410,&value,8))return false;
@@ -565,7 +583,12 @@ bool PeProcessPassed() noexcept {for(const auto& s:runtimes)if(s.pid)return fals
     if(!NativeGuiFinish())return false;
 #endif
 #ifdef GUARDIAN_NATIVE_USER32
+#ifdef GUARDIAN_COMPAT32
+    const auto userFinished=NativeUserFinish();
+    if(runtimeCode||!runtimeClean||!allClean||!userFinished)return false;
+#else
     if(runtimeCode||!runtimeClean||!allClean||!NativeUserFinish())return false;
+#endif
 #endif
 #ifdef GUARDIAN_NATIVE_GDI
 #ifdef GUARDIAN_FRAMEWORKS
@@ -953,4 +976,7 @@ uint32_t RefreshThread(RuntimeSlot& slot,uint32_t tid,uint64_t startup) noexcept
 #include "Win32Kernel.inl"
 #endif
 #include "NativeKernel.inl"
+#endif
+#ifdef GUARDIAN_COMPAT32
+#include "Compat32Kernel.inl"
 #endif

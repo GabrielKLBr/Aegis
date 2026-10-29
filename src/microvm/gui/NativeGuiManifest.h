@@ -2,6 +2,6 @@
 #include <string>
 #include <string_view>
 namespace av::microvm::native_gui {
-struct Manifest {std::string phase,backend,helperSha256,protocol;};
+struct Manifest {std::string phase,backend,helperSha256,protocol,architecture,profile;};
 Manifest ReadManifest(std::string_view);
 }

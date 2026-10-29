@@ -17,6 +17,10 @@ bool PeOwnsProcess(uint32_t pid) noexcept;
 bool PeExecutable(uint32_t pid,uint64_t rip) noexcept;
 bool PeExitProcess(uint32_t pid,uint32_t code,bool fault=false) noexcept;
 bool PeProcessPassed() noexcept;
+#ifdef GUARDIAN_COMPAT32
+struct TrapFrame;
+bool PeCompatDispatch(uint32_t,uint32_t,uint64_t,const TrapFrame&,uint32_t&) noexcept;
+#endif
 bool PeIsRoot(uint32_t pid) noexcept;
 bool PeProcessTerminating(uint32_t pid) noexcept;
 uint64_t PeInitialTeb(uint32_t pid) noexcept;

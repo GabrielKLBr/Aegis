@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "repository": "leachim6/hello-world",
+  "path": "c/C.c",
+  "gitBlobSha1": "358144dcae9f9d86727b6dd71c124577282c8429",
+  "sha256": "d49bac5897d6e6fe25bb2006e60190b09f1af58fd163b70b22f6deafa8438733",
+  "sourceModified": false,
+  "redistributed": false,
+  "executedOnHost": false,
+  "scope": "Independent C console program, compiled x86 with an owned guest startup and literal-only CRT subset"
+}

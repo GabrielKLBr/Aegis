@@ -30,6 +30,7 @@ public:
     bool SupportsNativeControls() const noexcept;
     bool SupportsExpandedGdi() const noexcept;
     bool SupportsAudio() const noexcept;
+    bool SupportsCompat32() const noexcept;
     bool SupportsFrameworks() const noexcept;
     bool SupportsSoftwareGraphics() const noexcept;
     bool SupportsInternet() const noexcept;

@@ -43,7 +43,7 @@ inline bool Canonical(const char* text,char* out,bool directory=false) noexcept 
     if(!n||out[n-1]=='.'||out[n-1]==' ')return false;
     if(directory&&out[n-1]!='\\'){if(n==127)return false;out[n++]='\\';out[n]=0;}
     if(!directory&&!component)return false;
-    return Prefix(out,"c:\\app\\")||Prefix(out,"c:\\windows\\system32\\")||Prefix(out,"c:\\windows\\winsxs\\");
+    return Prefix(out,"c:\\app\\")||Prefix(out,"c:\\windows\\system32\\")||Prefix(out,"c:\\windows\\syswow64\\")||Prefix(out,"c:\\windows\\winsxs\\");
 }
 inline bool Valid(const uint8_t* data,uint32_t bytes) noexcept {
     if(!data||bytes<sizeof(Header)||bytes>MaxBytes)return false;

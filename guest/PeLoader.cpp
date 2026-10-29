@@ -61,8 +61,13 @@ bool Loader::Headers(uint32_t index) noexcept {
     if(U16(raw)!=0x5A4D)return Fail(Error::InvalidImage);
     const auto nt=U32(raw+60);if(nt<64 || !Range(nt,24,source.bytes) || U32(raw+nt)!=0x4550)return Fail(Error::InvalidImage);
     const auto* file=raw+nt+4;const auto sections=U16(file+2),optional=U16(file+16),characteristics=U16(file+18);
+
+#ifdef GUARDIAN_COMPAT32
+    if(U16(file)!=0x14C || !(characteristics&2))return Fail(Error::Unsupported);m.x86=true;
+#else
     if(U16(file)!=0x8664 || !(characteristics&2))return Fail(Error::Unsupported);
-    if(!sections || sections>MaxSections || optional<240 || !Range(nt+24,optional,source.bytes))return Fail(Error::InvalidImage);
+#endif
+    if(!sections || sections>MaxSections || optional<(m.x86?224u:240u) || !Range(nt+24,optional,source.bytes))return Fail(Error::InvalidImage);
     const auto* opt=file+20;
     bool managed=false;
 #ifdef GUARDIAN_FRAMEWORKS
@@ -74,8 +79,8 @@ bool Loader::Headers(uint32_t index) noexcept {
 #endif
     const auto alignment=U32(opt+32);
     if((characteristics&1)&&!managed)return Fail(Error::Unsupported);
-    if(U16(opt)!=0x20B || (alignment!=4096&&!(managed&&alignment==8192)) || U32(opt+36)!=512 || U32(opt+108)!=16)return Fail(Error::Unsupported);
-    m.size=U32(opt+56);m.headers=U32(opt+60);m.preferred=U64(opt+24);m.sectionCount=sections;m.dll=(characteristics&0x2000)!=0;
+    if(U16(opt)!=(m.x86?0x10B:0x20B) || (alignment!=4096&&!(managed&&alignment==8192)) || U32(opt+36)!=512 || U32(opt+(m.x86?92:108))!=16)return Fail(Error::Unsupported);
+    m.size=U32(opt+56);m.headers=U32(opt+60);m.preferred=m.x86?U32(opt+28):U64(opt+24);m.sectionCount=sections;m.dll=(characteristics&0x2000)!=0;
     const auto entry=U32(opt+16),table=nt+24+optional;
     if(!m.size || m.size>MaxImageBytes || (m.size&4095) || !m.headers || (m.headers&511) || m.headers>source.bytes || m.headers>m.size ||
         !Range(table,uint32_t(sections)*40,m.headers) || !m.preferred || (m.preferred&0xFFFF) || m.preferred>0x0000800000000000ull-m.size)return Fail(Error::InvalidImage);
@@ -93,10 +98,12 @@ bool Loader::Headers(uint32_t index) noexcept {
         previous=s.rva+Pages(s.bytes);
     }
     if((managed?((previous+alignment-1)&~(alignment-1)):previous)!=m.size || (!m.dll && !entry&&!managed) || (entry && !Span(m,entry,1,ReadFlag|ExecuteFlag)))return Fail(Error::InvalidImage);
+    if(m.x86&&(m.base+m.size>0x80000000ull||m.preferred+m.size>0x100000000ull))return Fail(Error::InvalidImage);
     m.entry=entry?m.base+entry:0;
-    for(uint32_t i=0;i<16;++i){auto& d=m.directories[i];d={U32(opt+112+i*8),U32(opt+116+i*8)};
+    for(uint32_t i=0;i<16;++i){auto& d=m.directories[i];d={U32(opt+(m.x86?96:112)+i*8),U32(opt+(m.x86?100:116)+i*8)};
         if(bool(d.rva)!=bool(d.bytes))return Fail(Error::InvalidImage);
         if constexpr(peprofile::Extended){if(i==4){if(d.bytes&&((d.rva&7)||!Range(d.rva,d.bytes,source.bytes)))return Fail(Error::InvalidImage);continue;}}
+        if(m.x86&&d.bytes&&(i==3||i==9||i==10||i==13||i==14))return Fail(Error::Unsupported);
         if(d.bytes&&!Span(m,d.rva,d.bytes))return Fail(Error::InvalidImage);
         if(d.bytes && i!=0 && i!=1 && i!=3 && i!=5 && i!=6 && i!=9 && i!=12 &&
            !(peprofile::Extended&&(i==2||i==13))
@@ -127,8 +134,8 @@ bool Loader::Relocate(Module& m) noexcept {
         const auto page=U32(block),size=U32(block+4);
         if((page&4095) || size<8 || (size&1) || size>d.bytes-offset)return Fail(Error::InvalidImage);
         for(uint32_t i=8;i<size;i+=2){uint8_t b[2]{};if(!Read(m,d.rva+offset+i,b,2))return false;const auto type=U16(b)>>12;
-            if(!type)continue;if(type!=10)return Fail(Error::Unsupported);
-            const uint64_t target=uint64_t(page)+(U16(b)&4095);if(target>UINT32_MAX || !Span(m,static_cast<uint32_t>(target),8))return Fail(Error::InvalidImage);
+            if(!type)continue;if(type!=(m.x86?3:10))return Fail(Error::Unsupported);
+            const uint64_t target=uint64_t(page)+(U16(b)&4095);if(target>UINT32_MAX || !Span(m,static_cast<uint32_t>(target),m.x86?4u:8u))return Fail(Error::InvalidImage);
             if(count==peprofile::Relocations)return Fail(Error::Limit);
 #ifdef GUARDIAN_SCALABLE_PE
             uint32_t bucket=(static_cast<uint32_t>(target)*2654435761u)%(peprofile::Relocations*2);
@@ -140,8 +147,8 @@ bool Loader::Relocate(Module& m) noexcept {
 #else
             for(uint32_t j=0;j<count;++j)if(targets[j]==target)return Fail(Error::InvalidImage);targets[count++]=static_cast<uint32_t>(target);
 #endif
-            uint64_t value=0;if(!Read(m,static_cast<uint32_t>(target),&value,8))return false;value+=delta;
-            if(!Write(m,static_cast<uint32_t>(target),&value,8))return false;++m.relocated;
+            uint64_t value=0;if(!Read(m,static_cast<uint32_t>(target),&value,m.x86?4u:8u))return false;value+=delta;
+            if(!Write(m,static_cast<uint32_t>(target),&value,m.x86?4u:8u))return false;++m.relocated;
         }offset+=size;
     }return true;
 }
@@ -197,22 +204,22 @@ bool Loader::Imports(Module& m) noexcept {
     for(uint32_t at=0;at+20<=d.bytes;at+=20){uint8_t h[20]{};if(!Read(m,d.rva+at,h,20))return false;
         const auto lookup=U32(h),name=U32(h+12),iat=U32(h+16);
         if(!lookup && !name && !iat && !U32(h+4) && !U32(h+8))return true;
-        if(!name || !iat || ((!peprofile::Extended||!lookup)&&(U32(h+4)||U32(h+8))) || (iat&7) || (lookup&7))return Fail(Error::InvalidImage);
+        if(!name || !iat || ((!peprofile::Extended||!lookup)&&(U32(h+4)||U32(h+8))) || (iat&(m.x86?3:7)) || (lookup&(m.x86?3:7)))return Fail(Error::InvalidImage);
         char dll[64]{};if(!String(m,name,dll,sizeof(dll)) || !Name(dll))return Fail(Error::InvalidImage);
         uint32_t source=UINT32_MAX;for(uint32_t i=0;i<count_;++i)if(&modules_[i]==&m)source=i;
         const auto dep=Find(dll,source<count_?sources_[source].name:nullptr);if(dep==UINT32_MAX)return Fail(Error::MissingModule);
         if(!LoadOne(dep))return false;if(!modules_[dep].dll)return Fail(Error::InvalidImage);m.dependencies|=1u<<dep;
-        bool ended=false;for(uint32_t i=0;i<peprofile::Imports;++i){const auto step=i*8;const uint64_t from=uint64_t(lookup?lookup:iat)+step,to=uint64_t(iat)+step;
+        bool ended=false;for(uint32_t i=0;i<peprofile::Imports;++i){const auto width=m.x86?4u:8u;const auto step=i*width;const uint64_t from=uint64_t(lookup?lookup:iat)+step,to=uint64_t(iat)+step;
             if(from>UINT32_MAX || to>UINT32_MAX)return Fail(Error::InvalidImage);uint64_t thunk=0,address=0;
-            if(!Read(m,static_cast<uint32_t>(from),&thunk,8) || to<m.headers || !Span(m,static_cast<uint32_t>(to),8) ||
-                Span(m,static_cast<uint32_t>(to),8,ReadFlag|ExecuteFlag))return Fail(Error::InvalidImage);
+            if(!Read(m,static_cast<uint32_t>(from),&thunk,width) || to<m.headers || !Span(m,static_cast<uint32_t>(to),width) ||
+                Span(m,static_cast<uint32_t>(to),width,ReadFlag|ExecuteFlag))return Fail(Error::InvalidImage);
             if(!thunk){ended=true;break;}
-            if(thunk>>63){if(thunk&0x7FFFFFFFFFFF0000ull)return Fail(Error::InvalidImage);
+            if(thunk>>(m.x86?31:63)){if(thunk&(m.x86?0x7FFF0000ull:0x7FFFFFFFFFFF0000ull))return Fail(Error::InvalidImage);
                 if(!Symbol(modules_[dep],nullptr,static_cast<uint16_t>(thunk),address))return false;}
             else {if(thunk>UINT32_MAX-2)return Fail(Error::InvalidImage);char symbol[peprofile::SymbolCharacters]{};
                 if(!String(m,static_cast<uint32_t>(thunk)+2,symbol,sizeof(symbol)))return false;
                 if(!symbol[0])return Fail(Error::InvalidImage);if(!Symbol(modules_[dep],symbol,0,address))return false;}
-            if(!Write(m,static_cast<uint32_t>(to),&address,8))return false;++m.imports;
+            if(!Write(m,static_cast<uint32_t>(to),&address,width))return false;++m.imports;
         }if(!ended)return Fail(Error::Limit);
     }return Fail(Error::InvalidImage);
 }

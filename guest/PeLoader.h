@@ -32,7 +32,7 @@ struct Module {
     uint64_t tlsTemplate=0,tlsIndexAddress=0,tlsCallbacks[8]{};
     uint32_t tlsBytes=0,tlsZeroBytes=0,tlsCallbackCount=0,tlsIndex=0;
     uint32_t relocated=0,imports=0,functions=0,dependencies=0;
-    bool dll=false,mapped=false;
+    bool dll=false,mapped=false,x86=false;
 };
 class Loader {
 public:

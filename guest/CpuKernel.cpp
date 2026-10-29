@@ -36,7 +36,11 @@ struct Gate { uint16_t low, selector; uint8_t ist, attributes; uint16_t middle; 
 struct Tss { uint32_t zero; uint64_t rsp[3], zero2, ist[7], zero3; uint16_t zero4, ioMap; };
 #pragma pack(pop)
 static_assert(sizeof(Tss) == 104 && sizeof(Gate) == 16 && sizeof(TablePointer) == 10);
+#ifdef GUARDIAN_COMPAT32
+alignas(16) uint64_t gdt[9];
+#else
 alignas(16) uint64_t gdt[8];
+#endif
 alignas(4096) Gate idt[256];
 alignas(16) Tss tss;
 alignas(4096) uint64_t pml4[512], pdpt[512], pd[512], userPt[512];
@@ -138,6 +142,12 @@ void InitializeCpu() noexcept {
     for (unsigned i = 0; i < 256; ++i) GateAt(i, CpuIsrTable[33]);
     for (unsigned i = 0; i < 32; ++i) GateAt(i, CpuIsrTable[i], i == 8 ? 1 : (i == 2 ? 2 : 0));
     GateAt(cpu::TimerVector, CpuIsrTable[32]);
+#ifdef GUARDIAN_COMPAT32
+    // A dedicated DPL3 interrupt gate preserves the compatibility-mode CS.
+    GateAt(0x80,reinterpret_cast<uint64_t>(&::CpuIsr128));idt[0x80].attributes=0xEE;
+    const uint64_t teb32=cpu::UserData;
+    gdt[8]=0x00CFF2000000FFFFull|((teb32&0xFFFFFF)<<16)|(((teb32>>24)&255)<<56);
+#endif
     const TablePointer gdtr{sizeof(gdt) - 1, reinterpret_cast<uint64_t>(gdt)}, idtr{sizeof(idt) - 1, reinterpret_cast<uint64_t>(idt)};
     CpuLoadTables(&gdtr, &idtr);
     TablePointer readGdt{}, readIdt{};

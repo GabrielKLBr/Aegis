@@ -26,7 +26,7 @@ def path(value,directory=False):
     value=value.lower().replace('/','\\')
     if directory and not value.endswith('\\'):value+='\\'
     nt.require(directory or not value.endswith('\\'),'File path has trailing separator')
-    nt.require(value.startswith(('c:\\app\\','c:\\windows\\system32\\','c:\\windows\\winsxs\\')),'Guest path outside volume namespace')
+    nt.require(value.startswith(('c:\\app\\','c:\\windows\\system32\\','c:\\windows\\syswow64\\','c:\\windows\\winsxs\\')),'Guest path outside volume namespace')
     nt.require(not any(c in value[2:] for c in ':"*?<>|') and all(p and p not in ('.','..') and not p.endswith(('.',' ')) for p in value[3:].rstrip('\\').split('\\')),'Guest path rejected')
     text(value,128)
     return value

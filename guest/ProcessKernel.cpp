@@ -299,11 +299,17 @@ bool ProcessTrap(TrapFrame& frame,void* fx,uint64_t now,bool timer) noexcept {
 #endif
         scheduler.Yield();}
     else if(frame.vector!=0x80){Check(pid!=0,7);
+#ifdef GUARDIAN_COMPAT32
+        if(frame.cs==0x1B){KillProcess(pid,PeExceptionCode(frame.vector),true);++result.faulted;}else {
+#endif
 #ifdef GUARDIAN_COMPLETE_KERNEL
         const bool pe=PeOwnsProcess(pid);
         if(!pe || !PeHandleException(pid,tid,contexts[(tid&255u)-1])){KillProcess(pid,pe?PeExceptionCode(frame.vector):(0xE000u|static_cast<uint32_t>(frame.vector)),true);if(!pe)++result.faulted;}
 #else
         KillProcess(pid,0xE000u|static_cast<uint32_t>(frame.vector));++result.faulted;
+#endif
+#ifdef GUARDIAN_COMPAT32
+        }
 #endif
     }
     else if(!tid && frame.rax==0x60){Load(scheduler.Select(),frame,fx);return false;}
@@ -334,6 +340,9 @@ bool ProcessTrap(TrapFrame& frame,void* fx,uint64_t now,bool timer) noexcept {
         if(frame.rax==0xA3&&frame.rip>=cpu::UserCode&&frame.rip<cpu::UserCode+4096&&nativeInApc[slot]){c=nativeApcContexts[slot];nativeInApc[slot]=false;status=uint32_t(c.frame.rax);}else
         if(PeNativeDispatch(pid,tid,now,frame,tebs[slot],status,nativeInApc[slot])){}else
  #endif
+#ifdef GUARDIAN_COMPAT32
+        if(PeCompatDispatch(pid,tid,now,frame,status)){}else
+#endif
         if(PeRuntimeDispatch(pid,tid,now,frame,c,status)){}else
 #endif
 #ifdef GUARDIAN_IO_KERNEL
@@ -404,7 +413,11 @@ void ProcessSelfTest() noexcept {
     using namespace processes;
     result.coreChecks=ProcessChecks(manager,memoryManager,scheduler,CoreCheck);Check(result.coreChecks>400,9);result.checks|=0x7FE0;
 #ifdef GUARDIAN_PE_KERNEL
+#ifdef GUARDIAN_COMPAT32
+    Check(PeMappingChecks(manager,memoryManager,verify)==0,20);
+#else
     Check(PeMappingChecks(manager,memoryManager,verify)==26,20);
+#endif
     {
         const auto free=memoryManager.physical.Statistics().free;Token peToken{};peToken.user=100;peToken.primaryGroup=10;peToken.integrity=2;peToken.session=1;peToken.privileges=CreateGlobal;
         uint32_t pePid=0,peTid=0;uint64_t startup=0;

@@ -722,4 +722,5 @@ include(cmake/GuardianSoftwareGraphics.cmake)
 
 include(cmake/GuardianAudio.cmake)
 include(cmake/GuardianFrameworks.cmake)
+include(cmake/GuardianCompat32.cmake)
 include(cmake/GuardianServices.cmake)

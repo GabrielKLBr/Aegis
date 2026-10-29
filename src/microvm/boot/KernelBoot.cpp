@@ -336,7 +336,7 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
         vm_.MapIoTrapDetailed(guardian::net::Port,[this](MicroVm&,const MicroVm::IoAccess& a){NetworkControl(a);});
     }
     vm_.StrictIo(true);
-    frameworkConsole_=image.SupportsFrameworks();consoleDecoder_={};
+    frameworkConsole_=image.SupportsFrameworks()||image.SupportsCompat32();consoleDecoder_={};
     vm_.MapIoTrapDetailed(DebugPort, [this](MicroVm&, const MicroVm::IoAccess& access) {
         if (!ValidIo(access)) return;
         const auto ch = static_cast<uint8_t>(access.value);

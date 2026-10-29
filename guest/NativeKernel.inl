@@ -12,6 +12,10 @@ bool NativeCode(const RuntimeSlot& slot,const char* name,uint64_t ip) noexcept {
 }
 }
 bool PeNativePrepare(uint32_t pid,guardian::threads::Scheduler& scheduler) noexcept {
+#ifdef GUARDIAN_COMPAT32
+    const auto& binding=*reinterpret_cast<const guardian::nt::Info*>(guardian::nt::InfoGpa);
+    auto* compatibilitySlot=Find(pid);return binding.profile==1&&compatibilitySlot&&DesktopStart(*compatibilitySlot,scheduler);
+#else
     using namespace guardian;auto* slot=Find(pid);if(!slot)return false;auto& c=slot->context;
     uint32_t size=0;const auto* bytes=slot->catalog.File("c:\\windows\\system32\\guardian-nt-syscalls.bin",size);
     if(!bytes||size!=sizeof(native::SyscallMap))return false;memcpy(&slot->nativeMap,bytes,size);
@@ -61,6 +65,7 @@ bool PeNativePrepare(uint32_t pid,guardian::threads::Scheduler& scheduler) noexc
     slot->nativeReady=slot->nativeServices->Initialize(*c.memory,*c.processes,scheduler,pid,target,slot->nativePeb,bridge);
 #endif
     PeNativeTick(0);return slot->nativeReady;
+#endif
 }
 bool PeNativeLegacy(uint32_t pid,uint64_t ip) noexcept {using namespace guardian;const auto* slot=Find(pid);return slot&&
     ((ip>=cpu::UserCode&&ip<cpu::UserCode+4096)||NativeCode(*slot,"guardian-runtime-api.dll",ip)||NativeCode(*slot,"user32.dll",ip));}

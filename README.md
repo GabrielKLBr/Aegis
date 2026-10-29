@@ -37,6 +37,11 @@ O lote seguinte acrescenta Form, Button, Label e TextBox selecionados, com
 janelas/controles reais no Windows e eventos interpretados no MiniNT.
 CLR e WinForms completos, WPF, WinUI e instaladores MSI continuam pendentes.
 
+O primeiro lote da **14.12 (14.12A)** acrescenta execução x86/PE32 no kernel x64,
+DLLs próprias de 32 bits e janelas USER32 nativas para NT 10.0.19045:
+[escopo, validação e continuação](docs/PHASE-14.12.md).
+WOW64 completo, corpus GUI independente e perfis NT adicionais permanecem abertos.
+
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem
 recriar seus dados compilados: [preparação a partir dos fontes](docs/GITHUB-AEGIS.md).

@@ -65,7 +65,8 @@ bool Broker::Exchange(g::Packet& p){auto& s=*state_;s.attempted=true;
 }
 bool Broker::CompleteUnused(){
     auto& s=*state_;if(s.idleFinish)return Completed();
-    if(s.attempted||s.sequence||s.finished||!s.failure.empty()||!s.audio)return false;
+    if(s.attempted||s.sequence||s.finished||!s.failure.empty()||(!s.audio&&!s.user32))return false;
+    if(s.user32&&!s.gdi){u::Packet request;request.boot=s.boot;request.session=s.session;request.sequence=1;request.pid=1;request.tid=1;request.command.op=u::Op::Finish;request.command.flags=1;s.idleFinish=true;return Exchange(request)&&Completed();}
     g::Packet p;p.magic=0x374455414E4741ull;p.version=7;p.boot=s.boot;p.session=s.session;
     p.sequence=1;p.pid=1;p.tid=1;p.command.op=u::Op::Finish;p.command.flags=1;
     s.idleFinish=true;return Exchange(p)&&Completed();

@@ -32,7 +32,7 @@ bool Catalog::Open(const uint8_t* data,uint32_t bytes,uint32_t profile,Source* s
     uint32_t selected=h->root;if(root){char canonical[128]{};if(!pevolume::Canonical(root,canonical))return false;selected=UINT32_MAX;
         for(uint32_t i=0;i<h->files;++i)if(pevolume::FileAt(*h,i).kind==pevolume::Kind::Pe&&Equal(canonical,pevolume::FileAt(*h,i).path))selected=i;if(selected==UINT32_MAX)return false;}
     add(selected);for(uint32_t i=0;i<h->files;++i)if(i!=selected&&pevolume::FileAt(*h,i).kind==pevolume::Kind::Pe)add(i);
-#ifdef GUARDIAN_WIN32_NATIVE
+#if defined(GUARDIAN_WIN32_NATIVE) && !defined(GUARDIAN_COMPAT32)
     uint32_t schemaBytes=0;const auto* schema=File("c:\\windows\\system32\\apisetschema.dll",schemaBytes);
     if(!schema||!schema_.OpenPe(schema,schemaBytes,profile==2?2u:6u))return false;
 #endif
@@ -58,6 +58,9 @@ uint32_t Catalog::FindDepth(const char* input,const char* importer,uint32_t dept
     if(!extension){uint32_t n=0;while(name[n])++n;if(!requestedLeaf[0]||n>123)return UINT32_MAX;
         name[n++]='.';name[n++]='d';name[n++]='l';name[n++]='l';name[n]=0;}
     bool path=false;for(uint32_t i=0;name[i];++i)if(name[i]=='\\'||name[i]==':')path=true;
+    #ifdef GUARDIAN_COMPAT32
+    if(path&&pevolume::Prefix(name,"c:\\windows\\system32\\")){char redirected[128]{};if(!Join("c:\\windows\\syswow64\\",name+20,redirected))return UINT32_MAX;return Exact(redirected);}
+#endif
     if(path){char canonical[128]{};return pevolume::Canonical(name,canonical)?Exact(canonical):UINT32_MAX;}
     for(uint32_t i=0;name[i];++i)if(!Word(name[i]))return UINT32_MAX;
     if(name[0]=='.')return UINT32_MAX;
@@ -78,7 +81,13 @@ uint32_t Catalog::FindDepth(const char* input,const char* importer,uint32_t dept
 #endif
 #endif
         ){
-        char full[128]{};return Join("c:\\windows\\system32\\",name,full)?Exact(full):UINT32_MAX;
+        char full[128]{};return Join(
+#ifdef GUARDIAN_COMPAT32
+    "c:\\windows\\syswow64\\",
+#else
+    "c:\\windows\\system32\\",
+#endif
+    name,full)?Exact(full):UINT32_MAX;
     }
     const auto mask=ActiveMask();uint32_t selected=UINT32_MAX;
     for(uint32_t a=0;a<header_->assemblies;++a)if(mask&(1u<<a)){
@@ -88,7 +97,13 @@ uint32_t Catalog::FindDepth(const char* input,const char* importer,uint32_t dept
     char directory[128]{},full[128]{};uint32_t length=0;
     const auto* root=RootName();const auto* leaf=Leaf(root);while(root+length<leaf){directory[length]=root[length];++length;}
     if(Join(directory,name,full)){selected=Exact(full);if(selected!=UINT32_MAX)return selected;}
-    return Join("c:\\windows\\system32\\",name,full)?Exact(full):UINT32_MAX;
+    return Join(
+#ifdef GUARDIAN_COMPAT32
+    "c:\\windows\\syswow64\\",
+#else
+    "c:\\windows\\system32\\",
+#endif
+    name,full)?Exact(full):UINT32_MAX;
 }
 const uint8_t* Catalog::File(const char* path,uint32_t& bytes) const noexcept {
     bytes=0;if(!header_)return nullptr;char full[128]{};if(!pevolume::Canonical(path,full))return nullptr;
