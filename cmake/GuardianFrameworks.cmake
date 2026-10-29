@@ -35,7 +35,7 @@ add_custom_command(TARGET guardian_kernel_frameworks POST_BUILD COMMAND "${Pytho
 
 add_library(guardian_framework_mscoree SHARED guest/fixtures/FrameworkCli.cpp guest/Memory.cpp guest/StackProbe.asm guest/fixtures/FrameworkMscoree.def)
 guardian_external_flags(guardian_framework_mscoree)
-target_link_libraries(guardian_framework_mscoree PRIVATE guardian_desktop_kernel32)
+target_link_libraries(guardian_framework_mscoree PRIVATE guardian_desktop_kernel32 guardian_audio_user32)
 target_link_options(guardian_framework_mscoree PRIVATE /ENTRY:FrameworkCliEntry)
 set_target_properties(guardian_framework_mscoree PROPERTIES OUTPUT_NAME mscoree RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/guest/frameworks/$<CONFIG>" ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/guest/frameworks-imports/$<CONFIG>")
 add_custom_target(guardian_framework_runtime DEPENDS guardian_audio_runtime guardian_kernel_frameworks guardian_framework_mscoree guardian-cli-inspect guardian_whp_memory)

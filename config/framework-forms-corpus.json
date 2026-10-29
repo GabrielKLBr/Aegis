@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "target": ".NET Framework 4 x64 CIL subset; NT 10.0.19045 GUI broker",
+  "name": "Rosetta Code / Window creation / C#",
+  "page": "https://rosettacode.org/wiki/Window_creation",
+  "mirror": "https://rosettagit.org/tasks/window-creation/",
+  "sourceRepository": "ad-si/RosettaGit",
+  "sourcePath": "content/tasks/window_creation.md",
+  "gitBlobSha1": "0a5f38640975da19b1b8dfbc23159b0d70c2869e",
+  "sourceSha256": "59bbabc8d0efc23a9b5eaa43094437955410e071144ec0219a3d83ab4811c43e",
+  "licenseAsPublishedByMirror": "GFDL-1.3-or-later",
+  "redistributed": false,
+  "modifications": "None; exact C# fenced block with final newline",
+  "hostExecution": false,
+  "scenario": "Form.Text, Form.Show, Disposed delegate, Application.Run(), Application.Exit()"
+}

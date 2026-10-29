@@ -1076,7 +1076,7 @@ de recursos. Parar ao concluir.
 
 **Entrega inicial delimitada:** [PHASE-14.11.md](PHASE-14.11.md), interpretador
 CIL de console próprio, contratos WinRT escalares, recursos de versão e
-instalação portátil no convidado. CLR/CoreCLR completos, WinForms/WPF, WinUI,
+instalação portátil no convidado. CLR/CoreCLR completos, WinForms completo/WPF, WinUI,
 Windows App SDK e instaladores MSI/SetupAPI continuam pendentes desta subfase
 ampla; esse recorte não os declara concluídos. Parar após validar/publicar o lote.
 
@@ -1084,6 +1084,15 @@ ampla; esse recorte não os declara concluídos. Parar após validar/publicar o 
 arrays, boxing e operações selecionadas de String implementados e validados
 na mesma 14.11 (56/56 Release e Debug). Isso não encerra a subfase ampla: ainda faltam GC/EH/dispatch,
 BCL e contratos de GUI/runtime exigidos pelos aplicativos alvo dos frameworks.
+
+**Primeiro alvo gráfico escolhido:** contratos .NET Framework 4 x64 no perfil
+NT 10.0.19045, exemplo independente Rosetta Code Window creation (C#), fixado por
+hash, e controles de aceitação próprios. Form/Button/Label/TextBox selecionados
+usam janelas e controles do Windows; CIL e eventos permanecem no MiniNT. A matriz
+inclui abrir, receber entrada, fechar, instalar, retomar e remover, sem mouse ou
+teclado do desktop. Esse recorte não carrega o CLR Microsoft, não implementa
+WinForms completo e não conclui WPF/WinUI. Ver reprodução e limites no documento
+da 14.11; validar/publicar este lote e parar antes da próxima continuação.
 
 **Dependências:** 14.5–14.10, conforme cada framework.
 

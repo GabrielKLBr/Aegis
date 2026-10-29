@@ -154,7 +154,7 @@ def build(spec,kernel,output):
         nt.require(b'GuardianSoftwareGraphics/6/guest' in kernel_data,'Software graphics kernel required')
         manifest.update({'phase':'14.10F','nativeGuiRuntime':spec['nativeGuiRuntime'],'phase14_10FStarted':True,'phase14_10GStarted':False})
     if requested_phase=='14.11':
-        nt.require(b'GuardianFramework/1/cil-console' in kernel_data,'Framework kernel required')
+        nt.require(b'GuardianFramework/2/cil-forms' in kernel_data,'Framework kernel required')
         manifest.update({'phase':'14.11','frameworkRuntime':spec['frameworkRuntime'],'nativeGuiRuntime':spec['nativeGuiRuntime'],'audioRuntime':spec['audioRuntime']})
     if requested_phase=='14.10G':
         nt.require(b'GuardianAudio/7/guest' in kernel_data,'Audio kernel required')

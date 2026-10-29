@@ -2,7 +2,8 @@
 
 Entrega inicial delimitada para Windows x64/WHP, pelo executável de laboratório
 `guardian-desktop.exe --frameworks`. O kernel próprio
-`guardian-kernel-frameworks.gk` contém o contrato `GuardianFramework/1/cil-console`.
+`guardian-kernel-frameworks.gk` contém agora o contrato `GuardianFramework/2/cil-forms`
+(`GuardianFramework/1/cil-console` nas duas entregas anteriores).
 Esta entrega não conclui a compatibilidade ampla com os frameworks previstos no
 roadmap. A integração desses novos contratos ao scanner/serviço continua na 14.13.
 
@@ -64,7 +65,7 @@ conformidade completa. WinRT é testado no perfil 10.0.19045; no 6.1 retorna
 a matriz gráfica/de áudio a todos os perfis.
 
 **Pendentes da 14.11 ampla:** CLR/CoreCLR reais, .NET Framework/.NET modernos,
-WinForms, WPF, WinUI 3, Windows App SDK e frameworks de terceiros além do recorte
+WinForms completo, WPF, WinUI 3, Windows App SDK e frameworks de terceiros além do recorte
 de CIL descrito. `clr.dll`, `coreclr.dll`, `msi.dll` e `setupapi.dll` não são
 fornecidos por esta entrega. Imports/pacotes reconhecidos sem suporte recebem
 diagnóstico; dependências desconhecidas também passam pela validação de imports.
@@ -143,8 +144,8 @@ o bootstrap nativo gerado pelo ILASM: eles verificam as regras do interpretador,
 sem anunciar suporte ao bootstrap CLR nativo. O pacote inclui os fontes `.il`
 necessários para reproduzir esses casos.
 
-**Estado da fase ampla:** permanece aberta. Esta base ainda não executa
-WinForms/WPF/WinUI ou CLR/CoreCLR completos. A conclusão exige definir aplicações
+**Estado após a base de objetos:** a fase ampla permanece aberta. Essa entrega
+ainda não executava WinForms/WPF/WinUI ou CLR/CoreCLR completos. A conclusão exige definir aplicações
 alvo por framework, fazê-las executar seus cenários no convidado e verificar
 instalação, encerramento e comportamento nos perfis NT anunciados.
 
@@ -155,3 +156,74 @@ referência nula, limites de arrays e alocações, falha de inicializador e trê
 programas IL inválidos (escrita readonly, campo de outra classe e local tipado
 incompatível). A matriz anterior de 38 casos fica preservada como histórico;
 esta ampliação não é uma regressão completa das outras fases.
+
+## Continuação — WinForms selecionado com janelas do Windows
+
+Primeiro alvo escolhido: contratos de **.NET Framework 4 x64** no perfil
+**NT 10.0.19045**, usando o interpretador próprio e a ponte USER32/GDI existente.
+Não se carrega `System.Windows.Forms.dll` nem o CLR Microsoft: referências de
+metadata aceitas são resolvidas para implementações próprias explicitamente
+permitidas. `mscorlib`, `System` e `System.Windows.Forms` têm AssemblyRef major 4;
+tipos da interface também são vinculados ao nome correto do assembly.
+
+O exemplo independente é **Rosetta Code, Window creation, C#**, sem alterações,
+fixado pelo blob de origem e SHA-256 em `config/framework-forms-corpus.json`.
+Seu cenário cria uma Form, define título, registra Disposed com um delegate,
+exibe a janela, entra em `Application.Run()` e chama `Application.Exit()` ao
+fechá-la. `tools/framework_forms_corpus.py` baixa e verifica esse fonte em uma
+pasta local. O exemplo e o EXE compilado não são redistribuídos pelo pacote;
+nenhuma entrada externa gerenciada é executada no host.
+
+Contratos deste lote:
+
+- `Form`, `Button`, `Label`, `TextBox` e `Control.ControlCollection.Add`;
+- Text, Left, Top, Width, Height, Visible e IsDisposed nas assinaturas aceitas;
+- Show/Hide, Close/Dispose, Application.Run(Form), Run(), Exit() e DoEvents();
+- EventHandler com método estático ou de instância de classe própria,
+  `ldftn` como token de metadata opaco, Button.Click e Component.Disposed;
+- inscrição/remoção de eventos com identidade de alvo/método e snapshot da
+  lista de handlers durante a emissão; callbacks permanecem na thread convidada;
+- janelas customizadas do broker e controles BUTTON/STATIC/EDIT nativos, com
+  texto/fontes fornecidos pelo Windows. HWNDs do host não chegam ao interpretador.
+
+O teste de entrada enumera somente janelas do auxiliar filho do launcher em
+teste, confirma suas classes nativas e consulta a fonte do EDIT. Envia BM_CLICK
+apenas ao botão desse processo. Fechamentos usam WM_CLOSE na janela identificada;
+não há movimentação de mouse nem digitação no desktop. Os testes verificam
+callbacks, texto Unicode, remoção de handlers, objetos descartados, liberação
+dos recursos e encerramento do auxiliar. Erros de callback e cotas continuam
+inconclusivos; agora também passam pelo encerramento normal do processo e do
+canal gráfico antes de registrar a falha.
+
+Continuam valendo os limites do heap gerenciado. Cada evento tem até oito
+handlers; textos de interface têm até 255 unidades UTF-16, sem NUL embutido ou
+controles fora do contrato. Dimensões são limitadas a 1024 e posições a 8192.
+O loop aceita até 4096 mensagens e 15 segundos por Run, dentro do prazo do
+launcher. Não há GC, layout automático, designer, herança de Form, dispatch
+virtual customizado, timers gerenciados, drawing/structs de System.Drawing,
+diálogos e controles adicionais, delegates genéricos, EH ou interoperabilidade
+CLR nativa. Chamadas/assinaturas fora da lista são recusadas; não há fallback
+para executar a aplicação no host. O suporte gráfico não é anunciado nos
+perfis NT 6.1/10.0.22631 por estes resultados.
+
+Reprodução do lote, sem repetir as baterias anteriores:
+
+```text
+python tools/validate_framework_forms.py --build BUILD --config Release --output NOVO --reference CRT --schema-reference SCHEMA --asan-runtime ASAN_BIN --corpus CACHE_LOCAL
+```
+
+Repita em Debug. `tools/package_phase14_11.py --forms` exige os recibos desse
+lote e os hashes atuais. O parser recebe o seed de interface com metadata de
+tipos aninhados/delegates sob AddressSanitizer; mutantes não são executados.
+Instalação/retomada/remoção são exercitadas no convidado tanto pelo controle
+próprio como pelo exemplo independente. Os recibos acompanham a build privada.
+
+Este lote amplia a 14.11; **a fase ampla permanece aberta**. Os próximos blocos
+ainda precisam implementar o runtime/BCL e os contratos gráficos requeridos
+por aplicações maiores e pelos demais frameworks, antes de anunciar compatibilidade.
+
+Aceitação deste lote em 29/10/2026: **20/20 Release e 20/20 Debug**, com fontes
+e binários estáveis. Em cada configuração, o parser passou 20 mil mutações e
+5120 truncamentos sob AddressSanitizer. O exemplo externo completou a instalação,
+execução gráfica, retomada e remoção no convidado. Os dois conjuntos anteriores
+(38 e 56 casos) permanecem registros históricos, sem repetição nesta rodada.

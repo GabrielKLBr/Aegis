@@ -140,7 +140,7 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
         spec['nativeGuiRuntime'].pop('phase14_10GStarted',None)
         spec['audioRuntime']={'playbackOnly':True,'pcmRates':[22050,44100,48000],'pcmBits':16,'maxStreams':4,'maxBytes':1048576,'capture':False,'mediaFoundation':False}
     if frameworks:
-        spec['phase']='14.11';spec['frameworkRuntime']={'contract':'minint-cil-console-v1','microsoftClr':False,'hostManagedExecution':False,'completeDotNet':False,'completeWinRT':False,'installer':'guest-only'}
+        spec['phase']='14.11';spec['frameworkRuntime']={'contract':'minint-cil-forms-v2','microsoftClr':False,'hostManagedExecution':False,'completeDotNet':False,'completeWinRT':False,'completeWinForms':False,'managedForms':'Form/Button/Label/TextBox-selected-contracts','installer':'guest-only'}
     return pe_volume.build(spec,kernel or build/'guest'/config/'guardian-kernel-internet.gk',output)
 
 def main():

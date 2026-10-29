@@ -6,17 +6,24 @@ namespace c=guardian::cli;
 extern "C" const int GuardianCliAnchor=1411;
 const void* volatile GuardianCliRelocation=&GuardianCliAnchor;
 namespace {
-enum class Kind:uint32_t {Integer,String,Null,Args,Object,Array,Text,BoxI4,BoxBool};
+enum class Kind:uint32_t {Integer,String,Null,Args,Object,Array,Text,BoxI4,BoxBool,Method};
 struct Value {Kind kind=Kind::Integer;int64_t number=0;};
 struct Frame {Value stack[c::MaxStack]{},locals[c::MaxLocals]{},args[c::MaxArgs+1]{};uint32_t top=0;};
-struct Object {uint32_t type=0;Value fields[c::MaxFields]{};};
+struct Peer {
+    c::FormsKind kind=c::FormsKind::None;HWND window=nullptr;uint32_t parent=0,collection=0;
+    int x=20,y=20,width=100,height=24;wchar_t text[256]{};
+    bool visible=true,disposed=false,closing=false;uint32_t clicks[8]{},disposedHandlers[8]{},clickCount=0,disposedCount=0;
+};
+struct Object {uint32_t type=0;Value fields[c::MaxFields]{};Peer peer;};
 struct Array {c::Type element=c::Type::Void;uint32_t length=0;Value values[c::MaxElements]{};};
 struct Text {uint32_t length=0;uint16_t data[c::MaxChars+1]{};};
+struct VM;VM* activeVM=nullptr;
 struct VM {
     c::Image image;Frame frames[c::MaxFrames]{};uint32_t instructions=0;uint32_t output=0;
     Object objects[c::MaxObjects]{};Array arrays[c::MaxArrays]{};Text texts[c::MaxStrings]{};
     Value statics[c::MaxFields]{};uint8_t initialized[c::MaxTypes+1]{};
     uint32_t objectCount=0,arrayCount=0,textCount=0;
+    uint32_t guiDepth=0,guiThread=0,guiMain=0,eventArgs=0,guiMessages=0;bool guiExit=false,guiRunning=false,guiClass=false;
     static bool Reference(c::Type type){return type==c::Type::String||type==c::Type::Object||type==c::Type::Args||type==c::Type::I4Array||type==c::Type::ObjectArray;}
     static bool IsString(Value value){return value.kind==Kind::String||value.kind==Kind::Text;}
     Object* GetObject(Value value){return value.kind==Kind::Object&&value.number>0&&value.number<=objectCount?&objects[uint32_t(value.number)-1]:nullptr;}
@@ -43,6 +50,8 @@ struct VM {
     }
     bool Conforms(c::Type type,Value value,uint32_t classToken=0){
         if(classToken>>24==2){if(value.kind==Kind::Null)return true;const auto* object=GetObject(value);return object&&object->type==(classToken&0xFFFFFF);}
+        if(classToken>>24==1&&image.NativeType(classToken)!=c::FormsKind::None){if(value.kind==Kind::Null)return true;const auto* object=GetObject(value);const auto expected=image.NativeType(classToken);return object&&(object->peer.kind==expected||((expected==c::FormsKind::Control||expected==c::FormsKind::Component)&&c::FormsControl(object->peer.kind)));}
+        if(type==c::Type::NativeInt)return value.kind==Kind::Method;
         if(type==c::Type::I4||type==c::Type::Bool)return value.kind==Kind::Integer;
         if(type==c::Type::Args||type==c::Type::I4Array||type==c::Type::ObjectArray){if(value.kind==Kind::Null)return true;if(type==c::Type::Args&&value.kind==Kind::Args)return true;const auto* array=GetArray(value);return array&&array->element==(type==c::Type::Args?c::Type::String:type==c::Type::I4Array?c::Type::I4:c::Type::Object);}
         if(type==c::Type::String)return IsString(value)||value.kind==Kind::Null;
@@ -52,7 +61,7 @@ struct VM {
     bool Print(Value value,c::Type type){
         if(value.kind==Kind::Null)return type==c::Type::String||type==c::Type::Object||Error(c::Error::Stack);
         if(IsString(value)){if(type!=c::Type::String&&type!=c::Type::Object)return Error(c::Error::Stack);uint16_t text[c::MaxChars]{};uint32_t count=0;if(!TextValue(value,text,count))return false;char bytes[2048]{};uint32_t at=0;for(uint32_t i=0;i<count;++i){uint32_t point=text[i];if(point>=0xD800&&point<=0xDBFF){const auto low=text[++i];point=0x10000+((point-0xD800)<<10)+(low-0xDC00);}if(point<128)bytes[at++]=char(point);else if(point<2048){bytes[at++]=char(0xC0|(point>>6));bytes[at++]=char(0x80|(point&63));}else if(point<65536){bytes[at++]=char(0xE0|(point>>12));bytes[at++]=char(0x80|((point>>6)&63));bytes[at++]=char(0x80|(point&63));}else{bytes[at++]=char(0xF0|(point>>18));bytes[at++]=char(0x80|((point>>12)&63));bytes[at++]=char(0x80|((point>>6)&63));bytes[at++]=char(0x80|(point&63));}}return PrintBytes(bytes,at);}
-        if(value.kind==Kind::Object&&type==c::Type::Object){const auto* object=GetObject(value);char name[128]{};if(!object||!image.TypeName(0x02000000|object->type,name))return Error(c::Error::Stack);uint32_t length=0;while(name[length])++length;return PrintBytes(name,length);}
+        if(value.kind==Kind::Object&&type==c::Type::Object){const auto* object=GetObject(value);char name[128]{};if(!object||!image.TypeName(object->type>>24?object->type:0x02000000|object->type,name))return Error(c::Error::Stack);uint32_t length=0;while(name[length])++length;return PrintBytes(name,length);}
         if(value.kind==Kind::Array&&type==c::Type::Object){const auto* array=GetArray(value);if(!array)return Error(c::Error::Stack);const auto* name=array->element==c::Type::I4?"System.Int32[]":array->element==c::Type::String?"System.String[]":"System.Object[]";uint32_t length=0;while(name[length])++length;return PrintBytes(name,length);}
         if(value.kind==Kind::Args&&type==c::Type::Object)return PrintBytes("System.String[]",15);
         if(value.kind==Kind::BoxI4||value.kind==Kind::BoxBool){if(type!=c::Type::Object)return Error(c::Error::Stack);if(value.number<=0||value.number>objectCount)return Error(c::Error::Stack);return Print(objects[uint32_t(value.number)-1].fields[0],value.kind==Kind::BoxI4?c::Type::I4:c::Type::Bool);}
@@ -72,11 +81,13 @@ struct VM {
         if(args[0].kind!=Kind::Null&&args[1].kind!=Kind::Null){uint16_t a[c::MaxChars]{},b[c::MaxChars]{};uint32_t na=0,nb=0;if(!TextValue(args[0],a,na)||!TextValue(args[1],b,nb))return false;equal=na==nb;for(uint32_t i=0;equal&&i<na;++i)equal=a[i]==b[i];}
         result={Kind::Integer,c::Equal(name,"op_Inequality")?!equal:equal};return true;
     }
+    #include "FrameworkForms.inl"
     bool Call(uint32_t token,const Value* args,uint32_t count,Value& result,uint32_t depth,bool initializer=false){
         if(depth>=c::MaxFrames)return Error(c::Error::Quota);
         if(token>>24==10){char type[128]{},name[128]{};c::Signature sig;if(!image.Member(token,type,name,sig)||count!=sig.count+(sig.instance?1u:0u))return Error(c::Error::Token,token);
             if(sig.instance){if(!count||args[0].kind==Kind::Null)return Error(c::Error::Null);}
             for(uint32_t i=0;i<sig.count;++i)if(!Conforms(sig.args[i],args[i+(sig.instance?1:0)],sig.argClass[i]))return Error(c::Error::Stack);
+            if(image.NativeCall(token,name,sig))return FormsCall(image.NativeType(image.MemberType(token)),name,args,count,result,depth);
             if(c::Equal(type,"System.Object")&&c::Equal(name,".ctor"))return count==1&&GetObject(args[0])!=nullptr||Error(c::Error::Stack);
             if(c::Equal(type,"System.Console")){if(count&&!Print(args[0],sig.args[0]))return false;return !c::Equal(name,"WriteLine")||PrintBytes("\n",1);}
             if(c::Equal(type,"System.String"))return StringCall(name,args,count,result);
@@ -106,6 +117,7 @@ struct VM {
             if(op.op==0x25){if(!f.top||!push(f.stack[f.top-1]))return Error(c::Error::Stack);continue;}
             if(op.op==0x26){if(!pop(a))return false;continue;}
             if(op.op==0x72){if(!push({Kind::String,op.arg}))return false;continue;}
+            if(op.op==0xFE06){if(!push({Kind::Method,op.arg}))return false;continue;}
             if(op.op==0x8E){if(!pop(a))return false;if(a.kind==Kind::Null)return Error(c::Error::Null);const auto* array=GetArray(a);if(a.kind!=Kind::Args&&!array)return Error(c::Error::Stack);if(!push({Kind::Integer,array?array->length:0}))return false;continue;}
             if(op.op==0x8C||op.op==0xA5){c::Type type;if(!image.Element(op.arg,type)||!pop(a))return Error(c::Error::Token);const auto boxed=type==c::Type::Bool?Kind::BoxBool:Kind::BoxI4;
                 if(op.op==0x8C){if(a.kind!=Kind::Integer)return Error(c::Error::Stack);if(objectCount>=c::MaxObjects)return Error(c::Error::Quota);auto& box=objects[objectCount++];box.type=boxed==Kind::BoxI4?0xFFFFFFFFu:0xFFFFFFFEu;box.fields[0]=a;a={boxed,objectCount};}else{if(a.kind==Kind::Null)return Error(c::Error::Null);if(a.kind!=boxed||a.number<=0||a.number>objectCount)return Error(c::Error::Stack);a=objects[uint32_t(a.number)-1].fields[0];}if(!push(a))return false;continue;}
@@ -119,8 +131,9 @@ struct VM {
                 if(store&&!pop(b))return false;if(!InitType(field.owner,depth))return false;Value* target=nullptr;
                 if(field.isStatic)target=&statics[field.index];else {if(!pop(a))return false;if(a.kind==Kind::Null)return Error(c::Error::Null);auto* object=GetObject(a);if(!object||object->type!=field.owner)return Error(c::Error::Stack);target=&object->fields[field.index];}
                 if(store){if(!Conforms(field.type,b,field.classToken)||field.readOnly&&(!image.MethodNamed(token,field.isStatic?".cctor":".ctor")||owner!=field.owner))return Error(c::Error::Stack);*target=b;}else if(!push(*target))return false;continue;}
-            if(op.op==0x73){c::Signature ctor;c::Body unused;if(!image.Method(op.arg,ctor,unused)||!ctor.instance||f.top<ctor.count||objectCount>=c::MaxObjects)return Error(c::Error::Quota);
-                const auto type=image.Owner(6,op.arg&0xFFFFFF);if(!InitType(type,depth))return false;auto& object=objects[objectCount++];object.type=type;Value objectValue{Kind::Object,objectCount};
+            if(op.op==0x73){c::Signature ctor;c::Body unused;char nativeType[128]{},name[128]{};const bool native=op.arg>>24==10;
+                if(!(native?image.Member(op.arg,nativeType,name,ctor):image.Method(op.arg,ctor,unused))||!ctor.instance||f.top<ctor.count||objectCount>=c::MaxObjects)return Error(c::Error::Quota);
+                const auto type=native?image.MemberType(op.arg):image.Owner(6,op.arg&0xFFFFFF);if(!native&&!InitType(type,depth))return false;auto& object=objects[objectCount++];object.type=type;if(native)object.peer.kind=image.NativeType(type);Value objectValue{Kind::Object,objectCount};
                 for(uint32_t i=0;i<image.Fields();++i){c::Image::FieldInfo field;if(!image.Field(0x04000000|(i+1),field))return Error(c::Error::Token);if(field.owner==type&&Reference(field.type))object.fields[i]={Kind::Null,0};}
                 Value arguments[c::MaxArgs+1]{};arguments[0]=objectValue;for(uint32_t i=ctor.count;i;--i)if(!pop(arguments[i]))return false;Value unusedResult;if(!Call(op.arg,arguments,ctor.count+1,unusedResult,depth+1)||!push(objectValue))return false;continue;}
             if(op.op==0x28||op.op==0x6F){c::Signature called;c::Body unused;char type[128]{},name[128]{};if(op.arg>>24==6){if(!image.Method(op.arg,called,unused))return false;}else if(!image.Member(op.arg,type,name,called))return Error(c::Error::Token,op.arg);const auto n=called.count+(called.instance?1u:0u);if(n>c::MaxArgs+1||f.top<n)return Error(c::Error::Stack);Value arguments[c::MaxArgs+1]{};for(uint32_t i=n;i;--i)if(!pop(arguments[i-1]))return false;Value returned;if(op.op==0x6F&&(!called.instance||arguments[0].kind==Kind::Null))return Error(c::Error::Null);if(!Call(op.arg,arguments,n,returned,depth+1))return false;if(called.result!=c::Type::Void&&!push(returned))return false;continue;}
@@ -144,6 +157,7 @@ int Run(const void* bytes,uint32_t count,bool mapped){
     bool ok=vm->image.Open(bytes,count,mapped)&&vm->image.Validate();Value result;uint32_t exit=0;
     if(ok){for(uint32_t i=0;i<vm->image.Fields();++i){c::Image::FieldInfo field;if(!vm->image.Field(0x04000000|(i+1),field)){ok=false;break;}if(field.isStatic&&VM::Reference(field.type))vm->statics[i]={Kind::Null,0};}}
     if(ok){c::Signature signature;c::Body body;ok=vm->image.Method(vm->image.entry,signature,body);Value args[1]{{Kind::Args,0}};if(ok&&signature.count&&!EmptyArguments())ok=vm->Error(c::Error::Arguments);if(ok)ok=vm->Call(vm->image.entry,args,signature.count,result,0);if(ok&&signature.result==c::Type::I4){ok=result.kind==Kind::Integer;exit=uint32_t(result.number);}}
+    if(!vm->CleanupForms())ok=false;
     if(!ok){const auto* name=c::Name(vm->image.error);char message[160]="MININT_CIL rejected: ";uint32_t n=21;for(uint32_t i=0;name[i]&&n<150;++i)message[n++]=name[i];message[n++]='\n';DWORD wrote=0;WriteFile(GetStdHandle(STD_ERROR_HANDLE),message,n,&wrote,nullptr);exit=0x80131515;}
     vm->~VM();HeapFree(GetProcessHeap(),0,vm);return int(exit);
 }

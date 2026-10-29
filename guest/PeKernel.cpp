@@ -568,7 +568,14 @@ bool PeProcessPassed() noexcept {for(const auto& s:runtimes)if(s.pid)return fals
     if(runtimeCode||!runtimeClean||!allClean||!NativeUserFinish())return false;
 #endif
 #ifdef GUARDIAN_NATIVE_GDI
+#ifdef GUARDIAN_FRAMEWORKS
+    // A rejected managed callback still closes its broker session. Preserve the
+    // runtime failure instead of skipping cleanup through short-circuiting.
+    const auto graphicsFinished=NativeGdiFinish();
+    if(runtimeCode||!runtimeClean||!allClean||!graphicsFinished)return false;
+#else
     if(runtimeCode||!runtimeClean||!allClean||!NativeGdiFinish())return false;
+#endif
 #endif
 #endif
 #ifdef GUARDIAN_WIN32_NATIVE

@@ -33,7 +33,9 @@ Shaders, pipeline 3D e DirectX completo permanecem pendentes.
 A entrega inicial da **14.11** acrescenta CIL de console limitado, contratos
 WinRT escalares e instalação portátil no convidado:
 [escopo, reprodução e pendências](docs/PHASE-14.11.md).
-CLR completo, WinForms, WPF, WinUI e instaladores MSI continuam pendentes.
+O lote seguinte acrescenta Form, Button, Label e TextBox selecionados, com
+janelas/controles reais no Windows e eventos interpretados no MiniNT.
+CLR e WinForms completos, WPF, WinUI e instaladores MSI continuam pendentes.
 
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem

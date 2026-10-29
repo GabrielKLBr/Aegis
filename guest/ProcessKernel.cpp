@@ -348,7 +348,9 @@ bool ProcessTrap(TrapFrame& frame,void* fx,uint64_t now,bool timer) noexcept {
 #ifdef GUARDIAN_PE_KERNEL
             if(PeOwnsProcess(pid)){
 #ifdef GUARDIAN_LIFETIME_KERNEL
+#ifndef GUARDIAN_FRAMEWORKS
                 if(PeIsRoot(pid))Check(frame.rdx==0,0x100+static_cast<uint32_t>(frame.rdx&255));
+#endif
                 KillProcess(pid,static_cast<uint32_t>(frame.rdx));
 #else
                 Check(frame.rdx==0,0x100+static_cast<uint32_t>(frame.rdx&255));KillProcess(pid,0);

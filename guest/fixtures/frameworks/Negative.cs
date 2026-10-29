@@ -17,7 +17,7 @@ class Negative
     static extern bool Beep(uint frequency,uint duration);
     static void Main() { Beep(440,1); }
 #elif CIL_WINFORMS
-    static void Main() { System.Windows.Forms.Application.Run(); }
+    static void Main() { new System.Windows.Forms.WebBrowser(); }
 #elif CIL_WPF
     static void Main() { new System.Windows.Application().Run(); }
 #elif CIL_STATIC
