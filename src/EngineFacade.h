@@ -23,11 +23,13 @@ struct ScanState {
     std::mutex            mtx;          // guards the fields below
     std::wstring          currentFile;
     std::wstring          rootPath;
+    std::wstring          error;
     std::vector<Detection> detections;
 };
 
 class Engine {
 public:
+    explicit Engine(bool serviceManaged = false) : serviceManaged_(serviceManaged) {}
     ~Engine() { Cancel(); Join(); }
 
     bool   LoadSignatures(const std::wstring& path) { return db_.Load(path); }
@@ -52,6 +54,7 @@ private:
     SignatureDatabase db_;
     ScanState         state_;
     std::thread       worker_;
+    bool              serviceManaged_ = false;
 };
 
 } // namespace av

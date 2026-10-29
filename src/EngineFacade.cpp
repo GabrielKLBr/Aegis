@@ -1,5 +1,6 @@
 // EngineFacade.cpp
 #include "EngineFacade.h"
+#include "services/Services.h"
 
 namespace av
 {
@@ -23,10 +24,37 @@ void Engine::StartScan(const std::wstring &root, std::function<void()> onUpdate,
         state_.detections.clear();
         state_.currentFile.clear();
         state_.rootPath = root;
+        state_.error.clear();
     }
 
     worker_ = std::thread([this, root, onUpdate, onDone]() {
-        Walk(root, onUpdate);
+        try {
+            if (serviceManaged_) {
+                auto update = [this, &onUpdate](const services::Json& value) {
+                    if (value.value("type", "") != "scan") return;
+                    state_.filesScanned = value.at("filesScanned").get<uint64_t>();
+                    state_.threatsFound = value.at("threatsFound").get<uint64_t>();
+                    state_.suspicious = value.at("suspicious").get<uint64_t>();
+                    state_.inconclusive = value.at("inconclusive").get<uint64_t>();
+                    state_.unknown = value.at("unknown").get<uint64_t>();
+                    {
+                        std::lock_guard lock(state_.mtx);
+                        state_.currentFile = services::Wide(value.value("currentFile", ""));
+                        state_.error = services::Wide(value.value("error", ""));
+                        for (const auto& detection : value.at("detections"))
+                            if (state_.detections.size() < 4096)
+                                state_.detections.push_back({services::Wide(detection.at("file")), services::Wide(detection.at("threat")), services::Wide(detection.at("reason"))});
+                    }
+                    if (onUpdate) onUpdate();
+                };
+                const auto result = services::Call(services::Kind::Antivirus, services::Operation::Scan, root, update, &state_.cancel);
+                update(result);
+            } else Walk(root, onUpdate);
+        } catch (const std::exception& error) {
+            ++state_.inconclusive;
+            std::lock_guard lock(state_.mtx);
+            state_.error = state_.cancel ? L"Análise cancelada; resultados incompletos." : services::Wide(error.what());
+        }
         state_.running = false;
         if (onUpdate)
             onUpdate();
@@ -65,7 +93,7 @@ void Engine::Walk(const std::wstring &dir, const std::function<void()> &onUpdate
             {
                 const auto &f = r.at("findings").front();
                 std::lock_guard lock(state_.mtx);
-                state_.detections.push_back({dir, Utf8ToWide(f.at("rule").get<std::string>()),
+                if (state_.detections.size() < 4096) state_.detections.push_back({dir, Utf8ToWide(f.at("rule").get<std::string>()),
                                              Utf8ToWide(f.at("classification").get<std::string>())});
             }
         }

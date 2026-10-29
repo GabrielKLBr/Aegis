@@ -3,6 +3,11 @@
 Data de referência: 26/10/2026.
 Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
 
+**Infraestrutura Windows solicitada em 28/10/2026:** controles independentes das
+engines por serviços reais, com análise em processos restritos do usuário.
+[Escopo, uso e validação](WINDOWS_ENGINE_SERVICES.md). Esta entrega é separada
+dos frameworks da 14.11 e não os declara concluídos.
+
 **Revisão Windows atual:** a continuação da 12B até a 13 passou na matriz
 MSVC/WHP: 80 testes distintos Debug, com retestes documentados, e 80/80 Release
 em uma suíte completa, sem ignorados. [Correções, evidências e limites](REVISAO-WINDOWS-FASES12B-13-20261023.md).

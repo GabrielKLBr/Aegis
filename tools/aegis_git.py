@@ -207,9 +207,12 @@ def check_publish(root):
     allowed = {p.relative_to(root).as_posix() for p in source_files(root)}
     # Audit every reachable commit on this branch so deleted builds cannot hide in history.
     commits = git(root, "rev-list", "HEAD").splitlines()
+    checked = set()
     for commit in commits:
-        names = git(root, "ls-tree", "-rz", "--name-only", commit).split("\0")
-        for name in filter(None, names):
+        records = git(root, "ls-tree", "-rz", commit).split("\0")
+        for record in filter(None, records):
+            metadata, name = record.split("\t", 1)
+            object_id = metadata.split(" ", 2)[2]
             parts = Path(name).parts
             permitted = (len(parts) == 1 and name in ROOT_FILES) or (
                 parts[0] in SOURCE_DIRS and Path(name).suffix.lower() in SOURCE_EXTENSIONS
@@ -217,11 +220,18 @@ def check_publish(root):
                             for p in parts[1:-1]))
             if not permitted:
                 raise Error("Histórico contém arquivo excluído da publicação: " + name)
+            # Git object contents are immutable. Check every historical path,
+            # but read identical contents once per audit. PNG and text remain
+            # separate because text must also pass the NUL/credential checks.
+            key = (object_id, Path(name).suffix == ".png")
+            if key in checked:
+                continue
             data = subprocess.run(["git", "-C", str(root), "show", f"{commit}:{name}"],
                                   check=True, capture_output=True).stdout
             if (data[:2] == b"MZ" or data[:4] in (b"\x7fELF", b"PK\x03\x04", b"!<ar")
                     or (Path(name).suffix != ".png" and (b"\0" in data or SECRET.search(data)))):
                 raise Error("Histórico contém binário/possível segredo: " + name)
+            checked.add(key)
     tracked = set(filter(None, git(root, "ls-files", "-z").split("\0")))
     if tracked - allowed:
         raise Error("Índice contém arquivos fora dos fontes")

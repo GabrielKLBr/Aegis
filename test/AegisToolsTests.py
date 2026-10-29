@@ -95,6 +95,43 @@ class ToolsTests(unittest.TestCase):
         with self.assertRaisesRegex(ag.Error, "Histórico"):
             ag.check_publish(self.root)
 
+    def test_history_reads_identical_blob_once(self):
+        self.init()
+        self.write("README.md", "owned")
+        self.write("src/stable.cpp", "int owned() { return 0; }")
+        self.commit()
+        for _ in range(3):
+            ag.git(self.root, "commit", "--allow-empty", "-m", "owned unchanged tree")
+        original = subprocess.run
+        with patch.object(ag.subprocess, "run", wraps=original) as calls:
+            ag.check_publish(self.root)
+        reads = [call for call in calls.call_args_list if len(call.args[0]) > 3 and call.args[0][3] == "show"]
+        self.assertEqual(len(reads), 2)
+
+    def test_history_cache_still_checks_every_path(self):
+        self.init()
+        self.write("private.txt", "identical owned bytes")
+        self.commit()
+        self.write("docs/allowed.txt", "identical owned bytes")
+        ag.git(self.root, "rm", "private.txt")
+        self.commit()
+        with self.assertRaisesRegex(ag.Error, "Histórico contém arquivo excluído"):
+            ag.check_publish(self.root)
+
+    def test_history_cache_keeps_png_and_text_checks_separate(self):
+        self.init()
+        self.write("README.md", "owned")
+        data = b"\x89PNG\r\n\x1a\n\0" + ("gh" + "p_" + "x" * 36).encode()
+        self.write("src/unsafe.txt", data)
+        self.commit()
+        self.write("docs/image.png", data)
+        ag.git(self.root, "rm", "src/unsafe.txt")
+        self.commit()
+        ag.git(self.root, "rm", "docs/image.png")
+        ag.git(self.root, "commit", "-m", "owned remove")
+        with self.assertRaisesRegex(ag.Error, "Histórico contém binário/possível segredo"):
+            ag.check_publish(self.root)
+
     def test_unsafe_remote_is_rejected(self):
         self.init()
         ag.git(self.root, "remote", "add", "origin", "https://example.invalid/a/b.git")

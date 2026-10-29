@@ -15,7 +15,9 @@
 #define _WIN32_WINNT  0x0A00
 #define NTDDI_VERSION 0x0A000004
 
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #include <windowsx.h>
 #include <d2d1.h>
@@ -32,6 +34,7 @@
 #include "Common.h"
 #include "EngineFacade.h"
 #include "Sandbox.h"
+#include "services/Services.h"
 
 #include <thread>
 #include <mutex>
@@ -51,7 +54,10 @@ using D2D1::RoundedRect;
 static const UINT WM_APP_PROGRESS = WM_APP + 1;
 static const UINT WM_APP_DONE     = WM_APP + 2;
 static const UINT WM_APP_SBX_DONE = WM_APP + 3;
+static const UINT WM_APP_SERVICE_DONE = WM_APP + 4;
 static const UINT_PTR TIMER_ANIM  = 1;
+static const UINT_PTR TIMER_SERVICES = 2;
+static constexpr int ID_SERVICE_INSTALL = 2000, ID_SERVICE_AV = 2001, ID_SERVICE_SANDBOX = 2002;
 
 static bool PtIn(const D2D1_RECT_F& r, float x, float y) {
     return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
@@ -97,7 +103,12 @@ struct App {
     Page page = Page::Dashboard;
     int  hoverNav = -1;
     int  hoverBtn = -1;     // 0 quickscan, 1 choose, 2 cancel
-    bool toggles[3] = { true, true, false };
+    av::services::Status services[2];
+    HWND serviceButtons[3]{};
+    bool serviceBusy = false;
+    std::thread serviceThread;
+    std::wstring serviceMessage;
+    std::mutex serviceMtx;
     float animAngle = 0.0f;
     std::wstring lastScanText = L"No scans yet";
 
@@ -106,17 +117,57 @@ struct App {
     D2D1_RECT_F quickBtn{}, chooseBtn{}, cancelBtn{}, toggleRect[3]{};
     D2D1_RECT_F sbxAnalyzeBtn{}, sbxSampleBtn{}, sbxVmBtn{};
 
-    av::Engine engine;
+    av::Engine engine{true};
 
     // sandbox state
     std::atomic<bool>     sbxRunning{false};
+    std::atomic<bool>     sbxCancel{false};
     std::wstring          sbxFile;
     std::mutex            sbxMtx;
-    av::SandboxReport     sbxReport;
+    av::services::Json    sbxReport;
     bool                  sbxHasReport = false;
     std::thread           sbxThread;
 };
 static App g;
+
+static void RefreshServices() {
+    g.services[0] = av::services::Query(av::services::Kind::Antivirus);
+    g.services[1] = av::services::Query(av::services::Kind::Sandbox);
+    for (int i = 0; i < 2; ++i) {
+        const auto& state = g.services[i];
+        const bool stable = state.state == SERVICE_RUNNING || state.state == SERVICE_STOPPED;
+        SetWindowTextW(g.serviceButtons[i + 1], state.Running() ? L"Desligar" : L"Ligar");
+        EnableWindow(g.serviceButtons[i + 1], !g.serviceBusy && state.installed && !state.error && stable);
+    }
+    EnableWindow(g.serviceButtons[0], !g.serviceBusy && !g.engine.IsRunning() && !g.sbxRunning);
+    SetWindowTextW(g.serviceButtons[0], g.services[0].installed || g.services[1].installed ? L"Reparar serviços..." : L"Instalar serviços...");
+}
+
+static void ServiceAction(int action) {
+    if (g.serviceBusy) return;
+    if (action == ID_SERVICE_INSTALL && (g.engine.IsRunning() || g.sbxRunning)) return;
+    if (g.serviceThread.joinable()) g.serviceThread.join();
+    g.serviceBusy = true;
+    { std::lock_guard lock(g.serviceMtx); g.serviceMessage = action == ID_SERVICE_INSTALL ? L"Aguardando a autorização do Windows..." : L"Atualizando o serviço..."; }
+    RefreshServices();
+    const bool stop = action != ID_SERVICE_INSTALL && g.services[action - ID_SERVICE_AV].Running();
+    g.serviceThread = std::thread([action, stop] {
+        std::wstring message;
+        try {
+            if (action == ID_SERVICE_INSTALL) {
+                const auto result = av::services::Setup(g.hwnd);
+                if (result) av::services::WinError("Instalação dos serviços", result);
+                message = L"Serviços instalados. Use Ligar para iniciar cada engine.";
+            } else {
+                av::services::SetRunning(action == ID_SERVICE_AV ? av::services::Kind::Antivirus : av::services::Kind::Sandbox, !stop);
+                message = stop ? L"Serviço desligado; as análises dele foram encerradas." : L"Serviço ligado.";
+            }
+        } catch (const std::exception& error) { message = av::services::Wide(error.what()); }
+        { std::lock_guard lock(g.serviceMtx); g.serviceMessage = message; }
+        PostMessageW(g.hwnd, WM_APP_SERVICE_DONE, 0, 0);
+    });
+    InvalidateRect(g.hwnd, nullptr, FALSE);
+}
 
 static float S(float v) { return v * g.scale; }
 
@@ -333,7 +384,7 @@ static void Button(const D2D1_RECT_F& r, const std::wstring& label,
 // ---------------------------------------------------------------------------
 // Layout + paint
 // ---------------------------------------------------------------------------
-static const wchar_t* kNav[5] = { L"Dashboard", L"Scan", L"Sandbox", L"Quarantine", L"Settings" };
+static const wchar_t* kNav[5] = { L"Dashboard", L"Scan", L"Sandbox", L"Quarantine", L"Configurações" };
 
 static void PaintSidebar(float W, float H) {
     (void)W;
@@ -362,7 +413,7 @@ static void PaintSidebar(float W, float H) {
     }
 
     // footer
-    Text(L"v1.0  •  Engine ready", g.fSmall.Get(),
+    Text(g.services[0].Running() || g.services[1].Running() ? L"v1.0  •  Serviços ativos" : L"v1.0  •  Engines desligadas", g.fSmall.Get(),
          RectF(S(20), H - S(40), S(210), H - S(16)), T.textDim);
 }
 
@@ -390,10 +441,10 @@ static void PaintDashboard(float W, float H) {
     FillRound(hero, S(16), T.card);
 
     if (!scanning) {
-        DrawShieldCheck(x + S(64), hy + S(84), S(40), T.good);
-        Text(L"You're protected", g.fH1.Get(),
+        DrawShieldCheck(x + S(64), hy + S(84), S(40), g.services[0].Running() ? T.good : T.textDim);
+        Text(g.services[0].Running() ? L"Engine do antivírus ligada" : L"Engine do antivírus desligada", g.fH1.Get(),
              RectF(x + S(130), hy + S(44), W - S(60), hy + S(78)), T.text);
-        Text(L"Real-time protection is on  •  " + g.lastScanText, g.fBody.Get(),
+        Text(g.lastScanText, g.fBody.Get(),
              RectF(x + S(130), hy + S(84), W - S(60), hy + S(110)), T.textDim);
     } else {
         DrawSpinner(x + S(64), hy + S(84), S(34), g.animAngle, T.accent);
@@ -538,157 +589,89 @@ static void PaintQuarantine(float W, float H) {
 }
 
 static void PaintSettings(float W, float H) {
-    float x = S(220) + S(36);
-    float top = S(34);
-    Text(L"Settings", g.fTitle.Get(), RectF(x, top, W - S(36), top + S(40)), T.text);
-    Text(L"Protection preferences", g.fBody.Get(),
-         RectF(x, top + S(40), W - S(36), top + S(64)), T.textDim);
-
-    const wchar_t* labels[3] = { L"Real-time protection", L"Cloud-assisted lookups",
-                                 L"Scan notifications" };
-    const wchar_t* subs[3] = { L"Watch folders and scan files as they change",
-                               L"Check unknown files against an online reputation service",
-                               L"Show a toast when a threat is found" };
-    float y = top + S(84);
-    for (int i = 0; i < 3; ++i) {
-        D2D1_RECT_F card = RectF(x, y, W - S(36), y + S(66));
+    const float x = S(256), top = S(34);
+    Text(L"Configurações", g.fTitle.Get(), RectF(x, top, W - S(36), top + S(40)), T.text);
+    Text(L"Serviços das engines", g.fBody.Get(), RectF(x, top + S(42), W - S(36), top + S(68)), T.textDim);
+    for (int i = 0; i < 2; ++i) {
+        const float y = top + S(float(88 + i * 120));
+        const auto card = RectF(x, y, W - S(36), y + S(100));
         FillRound(card, S(12), T.card);
-        Text(labels[i], g.fH2.Get(),
-             RectF(card.left + S(18), y + S(12), card.right - S(90), y + S(34)), T.text);
-        Text(subs[i], g.fSmall.Get(),
-             RectF(card.left + S(18), y + S(36), card.right - S(90), y + S(58)), T.textDim);
-
-        // toggle
-        D2D1_RECT_F tg = RectF(card.right - S(74), y + S(20), card.right - S(26), y + S(46));
-        g.toggleRect[i] = tg;
-        bool on = g.toggles[i];
-        FillRound(tg, S(13), on ? T.good : T.stroke);
-        float knobX = on ? tg.right - S(13) : tg.left + S(13);
-        auto wb = Brush(ColorF(ColorF::White));
-        g.rt->FillEllipse(D2D1::Ellipse(Point2F(knobX, (tg.top + tg.bottom)/2), S(10), S(10)), wb.Get());
-        y += S(78);
+        const auto& state = g.services[i];
+        std::wstring status;
+        if (state.error) status = L"Não foi possível consultar: " + av::services::ErrorText(state.error);
+        else if (!state.installed) status = L"Ainda não instalado";
+        else if (state.state == SERVICE_RUNNING) status = L"Ligado";
+        else if (state.state == SERVICE_STOPPED) status = L"Desligado";
+        else if (state.state == SERVICE_START_PENDING) status = L"Iniciando...";
+        else if (state.state == SERVICE_STOP_PENDING) status = L"Encerrando...";
+        else status = L"Indisponível";
+        Text(i == 0 ? L"Engine do antivírus" : L"Engine do sandbox MiniNT", g.fH2.Get(),
+            RectF(x + S(18), y + S(12), card.right - S(140), y + S(38)), T.text);
+        Text(status, g.fBody.Get(), RectF(x + S(18), y + S(42), card.right - S(140), y + S(65)),
+            state.Running() ? T.good : T.textDim);
+        Text(i == 0 ? L"Análises de arquivos e pastas" : L"Execuções isoladas e sessões gráficas preparadas", g.fSmall.Get(),
+            RectF(x + S(18), y + S(70), card.right - S(18), y + S(92)), T.textDim);
+        SetWindowPos(g.serviceButtons[i + 1], nullptr, int(card.right - S(122)), int(y + S(28)), int(S(104)), int(S(34)), SWP_NOACTIVATE | SWP_NOZORDER);
     }
-    (void)H;
+    const float y = top + S(336);
+    SetWindowPos(g.serviceButtons[0], nullptr, int(x), int(y), int(S(196)), int(S(38)), SWP_NOACTIVATE | SWP_NOZORDER);
+    Text(L"Instalação inicial com autorização de administrador.\nAo fechar o app, os serviços ligados continuam disponíveis.", g.fSmall.Get(),
+        RectF(x, y + S(50), W - S(36), y + S(100)), T.textDim);
+    std::wstring message;
+    { std::lock_guard lock(g.serviceMtx); message = g.serviceMessage; }
+    Text(message, g.fSmall.Get(), RectF(x, y + S(108), W - S(36), H - S(18)), T.accentHi);
 }
 
-static std::wstring FmtBytesW(unsigned long long n) {
-    const wchar_t* u[] = { L"B", L"KB", L"MB", L"GB" };
-    double v = (double)n; int i = 0;
-    while (v >= 1024.0 && i < 3) { v /= 1024.0; ++i; }
-    wchar_t b[40]; swprintf(b, 40, L"%.1f %ls", v, u[i]); return b;
-}
 static std::wstring BaseName(const std::wstring& p) {
     size_t s = p.find_last_of(L"\\/");
     return (s == std::wstring::npos) ? p : p.substr(s + 1);
 }
 
 static void PaintSandbox(float W, float H) {
-    float x = S(220) + S(36);
-    float top = S(34);
-    bool running = g.sbxRunning.load();
-
-    Text(L"Sandbox", g.fTitle.Get(), RectF(x, top, W - S(36), top + S(40)), T.text);
-    Text(L"Detonate a file in isolation and watch what it does", g.fBody.Get(),
-         RectF(x, top + S(40), W - S(36), top + S(62)), T.textDim);
-    Text(L"In-OS triage container (job + low-integrity token + hidden desktop). For "
-         L"destructive malware like MEMZ, use “Detonate in VM” — a disposable VM.",
-         g.fSmall.Get(), RectF(x, top + S(62), W - S(36), top + S(80)), T.accentHi);
-
-    // action buttons
-    float by = top + S(90);
-    g.sbxAnalyzeBtn = RectF(x, by, x + S(168), by + S(44));
-    g.sbxSampleBtn  = RectF(x + S(184), by, x + S(184) + S(160), by + S(44));
-    g.sbxVmBtn      = RectF(x + S(360), by, x + S(360) + S(176), by + S(44));
+    const float x = S(256), top = S(34), by = top + S(90);
+    const bool running = g.sbxRunning.load();
+    Text(L"Sandbox MiniNT", g.fTitle.Get(), RectF(x, top, W - S(36), top + S(40)), T.text);
+    Text(L"Execuções supervisionadas pelo serviço AegisSandbox", g.fBody.Get(),
+        RectF(x, top + S(42), W - S(36), top + S(66)), T.textDim);
+    g.sbxAnalyzeBtn = g.sbxSampleBtn = g.sbxVmBtn = RectF(0, 0, 0, 0);
     if (!running) {
-        Button(g.sbxAnalyzeBtn, L"Analyze a file…", T.accent, ColorF(ColorF::White), g.hoverBtn == 3);
-        Button(g.sbxSampleBtn,  L"Run test sample",  T.cardHi, T.text, g.hoverBtn == 4);
-        Button(g.sbxVmBtn,      L"Detonate in VM",   T.cardHi, T.text, g.hoverBtn == 5);
+        g.sbxAnalyzeBtn = RectF(x, by, x + S(168), by + S(44));
+        g.sbxSampleBtn = RectF(x + S(184), by, x + S(344), by + S(44));
+        g.sbxVmBtn = RectF(x + S(360), by, x + S(536), by + S(44));
+        Button(g.sbxAnalyzeBtn, L"Analisar um arquivo...", T.accent, ColorF(ColorF::White), g.hoverBtn == 3);
+        Button(g.sbxSampleBtn, L"Executar exemplo", T.cardHi, T.text, g.hoverBtn == 4);
+        Button(g.sbxVmBtn, L"Sessão com GUI...", T.cardHi, T.text, g.hoverBtn == 5);
     } else {
-        g.sbxAnalyzeBtn = g.sbxSampleBtn = g.sbxVmBtn = RectF(0,0,0,0);
+        g.sbxVmBtn = RectF(x, by, x + S(168), by + S(44));
+        Button(g.sbxVmBtn, L"Cancelar", T.danger, ColorF(ColorF::White), g.hoverBtn == 5);
     }
-
-    D2D1_RECT_F card = RectF(x, by + S(60), W - S(36), H - S(34));
+    const auto card = RectF(x, by + S(60), W - S(36), H - S(34));
     FillRound(card, S(12), T.card);
-    float ly = card.top + S(16);
-    auto line = [&](const std::wstring& s, IDWriteTextFormat* f, const ColorF& c, float h) {
-        Text(s, f, RectF(card.left + S(18), ly, card.right - S(16), ly + h), c);
-        ly += h;
+    float y = card.top + S(18);
+    auto line = [&](const std::wstring& text, const ColorF& color = T.textDim) {
+        Text(text, g.fBody.Get(), RectF(x + S(18), y, card.right - S(18), y + S(38)), color); y += S(40);
     };
-
-    if (running) {
-        DrawSpinner(card.left + S(40), ly + S(28), S(20), g.animAngle, T.accent);
-        Text(L"Analyzing " + BaseName(g.sbxFile) + L"…", g.fH2.Get(),
-             RectF(card.left + S(76), ly + S(14), card.right - S(16), ly + S(44)), T.text);
-        Text(L"Executing in the container and recording behavior", g.fSmall.Get(),
-             RectF(card.left + S(76), ly + S(40), card.right - S(16), ly + S(60)), T.textDim);
-        return;
-    }
-
-    av::SandboxReport rep; bool has;
-    { std::lock_guard<std::mutex> lk(g.sbxMtx); rep = g.sbxReport; has = g.sbxHasReport; }
-
+    if (running) { line(L"Executando " + BaseName(g.sbxFile) + L"...", T.accentHi); line(L"Desligar o serviço também encerra a sessão e seus processos."); return; }
+    av::services::Json report; bool has = false;
+    { std::lock_guard lock(g.sbxMtx); report = g.sbxReport; has = g.sbxHasReport; }
     if (!has) {
-        line(L"No analysis yet.", g.fH2.Get(), T.textDim, S(26));
-        line(L"Pick a file (or the bundled test sample). It runs in a restricted", g.fBody.Get(), T.textDim, S(22));
-        line(L"container; file writes are confined and everything is killed on exit.", g.fBody.Get(), T.textDim, S(22));
-        return;
+        line(L"O arquivo é executado dentro do MiniNT, usando WHP.");
+        line(L"Analisar arquivo: backend simples com importações limitadas.");
+        line(L"Sessão com GUI: selecione um bundle preparado da 14.10G.");
+        line(L"Uma execução concluída não determina que o arquivo é seguro."); return;
     }
-    if (!rep.error.empty()) {
-        Text(rep.error, g.fBody.Get(),
-             RectF(card.left + S(18), card.top + S(16), card.right - S(18), card.bottom - S(16)),
-             T.danger);
-        return;
-    }
-
-    // summary
-    line(L"Containment:  " + rep.containment, g.fSmall.Get(), T.textDim, S(22));
-    std::wstring stat = L"Processes " + std::to_wstring(rep.totalProcesses) +
-                        L"     File events " + std::to_wstring(rep.fileEvents.size()) +
-                        L"     Peak mem " + FmtBytesW(rep.peakMemoryBytes) +
-                        L"     Exit " + (rep.timedOut ? L"timeout" : std::to_wstring((int)rep.exitCode));
-    line(stat, g.fH2.Get(), rep.timedOut ? T.danger : T.text, S(30));
-    ly += S(6);
-
-    // two columns: processes (left), files (right)
-    float colW = (card.right - card.left - S(48)) / 2.0f;
-    float colTop = ly;
-    float lyR = colTop;
-    Text(L"Process activity", g.fH2.Get(),
-         RectF(card.left + S(18), colTop, card.left + S(18) + colW, colTop + S(24)), T.accentHi);
-    Text(L"File activity", g.fH2.Get(),
-         RectF(card.left + S(30) + colW, colTop, card.right - S(16), colTop + S(24)), T.accentHi);
-    ly = colTop + S(28);
-    lyR = colTop + S(28);
-
-    int shownP = 0;
-    for (auto& p : rep.processes) {
-        if (ly > card.bottom - S(70)) break;
-        ColorF c = (p.action == L"start") ? T.text : T.textDim;
-        std::wstring s = L"[" + p.action + L"] " + (p.image.empty() ? L"pid " + std::to_wstring(p.pid) : p.image);
-        Text(s, g.fSmall.Get(), RectF(card.left + S(18), ly, card.left + S(18) + colW, ly + S(20)), c);
-        ly += S(20); ++shownP;
-    }
-    if (shownP == 0) Text(L"(none)", g.fSmall.Get(), RectF(card.left + S(18), ly, card.left + colW, ly + S(20)), T.textDim);
-
-    int shownF = 0;
-    for (auto& f : rep.fileEvents) {
-        if (lyR > card.bottom - S(70)) break;
-        ColorF c = (f.action == L"created") ? T.good : T.textDim;
-        std::wstring s = L"[" + f.action + L"] " + BaseName(f.path);
-        Text(s, g.fSmall.Get(), RectF(card.left + S(30) + colW, lyR, card.right - S(16), lyR + S(20)), c);
-        lyR += S(20); ++shownF;
-    }
-    if (shownF == 0) Text(L"(none)", g.fSmall.Get(), RectF(card.left + S(30) + colW, lyR, card.right - S(16), lyR + S(20)), T.textDim);
-
-    // observations at the bottom
-    float oy = card.bottom - S(58);
-    Text(L"Observations", g.fH2.Get(), RectF(card.left + S(18), oy, card.right - S(16), oy + S(22)), T.accentHi);
-    oy += S(24);
-    int shownO = 0;
-    for (auto& o : rep.observations) {
-        if (shownO >= 2) break;
-        Text(L"• " + o, g.fSmall.Get(), RectF(card.left + S(18), oy, card.right - S(16), oy + S(18)), T.text);
-        oy += S(18); ++shownO;
+    const auto error = report.value("error", std::string());
+    if (!error.empty()) { Text(av::services::Wide(error), g.fBody.Get(), RectF(x + S(18), y, card.right - S(18), card.bottom - S(18)), T.danger); return; }
+    line(L"Backend: " + av::services::Wide(report.value("backend", "MiniNT")), T.text);
+    line(report.value("complete", false) ? L"Execução concluída. Veredito de malware ainda depende da análise." : L"Execução incompleta; cobertura insuficiente.", T.accentHi);
+    line(L"Código de saída: " + std::to_wstring(report.value("exitCode", 0)));
+    if (report.contains("output")) line(L"Relatórios: " + av::services::Wide(report.at("output").get<std::string>()));
+    else {
+        line(L"Eventos: " + std::to_wstring(report.value("events", av::services::Json::array()).size()) +
+             L"  •  Arquivos virtuais: " + std::to_wstring(report.value("virtualFiles", av::services::Json::array()).size()));
+        const auto unresolved = report.value("unresolved", av::services::Json::array());
+        if (!unresolved.empty()) line(L"Importações ainda não implementadas: " + std::to_wstring(unresolved.size()), T.danger);
+        if (report.contains("console")) line(av::services::Wide(report.at("console").get<std::string>()));
     }
 }
 
@@ -701,6 +684,8 @@ static void OnPaint() {
     float W = (float)(rc.right - rc.left);
     float H = (float)(rc.bottom - rc.top);
 
+    g.quickBtn = g.chooseBtn = g.cancelBtn = g.sbxAnalyzeBtn = g.sbxSampleBtn = g.sbxVmBtn = RectF(0,0,0,0);
+    for (const auto button : g.serviceButtons) ShowWindow(button, g.page == Page::Settings ? SW_SHOW : SW_HIDE);
     PaintSidebar(W, H);
     switch (g.page) {
         case Page::Dashboard:  PaintDashboard(W, H); break;
@@ -753,6 +738,8 @@ static std::wstring PickFolder() {
 
 static void StartScan(const std::wstring& folder) {
     if (folder.empty() || g.engine.IsRunning()) return;
+    RefreshServices();
+    if (!g.services[0].Running()) { g.page = Page::Settings; InvalidateRect(g.hwnd, nullptr, FALSE); return; }
     g.lastScanText = L"Scanning " + folder;
     g.engine.StartScan(folder,
         []() { PostMessageW(g.hwnd, WM_APP_PROGRESS, 0, 0); },
@@ -780,50 +767,35 @@ static std::wstring PickFile() {
     return result;
 }
 
-static void StartSandbox(const std::wstring& file) {
+static void StartSandbox(const std::wstring& file, bool bundle = false) {
     if (file.empty() || g.sbxRunning.load()) return;
+    RefreshServices();
+    if (!g.services[1].Running()) { g.page = Page::Settings; InvalidateRect(g.hwnd, nullptr, FALSE); return; }
     if (g.sbxThread.joinable()) g.sbxThread.join();
-    g.sbxFile = file;
-    { std::lock_guard<std::mutex> lk(g.sbxMtx); g.sbxHasReport = false; }
+    g.sbxFile = file; g.sbxCancel = false;
+    { std::lock_guard lock(g.sbxMtx); g.sbxHasReport = false; }
     g.sbxRunning = true;
-    g.sbxThread = std::thread([file]() {
-        av::Sandbox sb;
-        av::SandboxReport r = sb.Run(file);
-        { std::lock_guard<std::mutex> lk(g.sbxMtx); g.sbxReport = r; g.sbxHasReport = true; }
-        g.sbxRunning = false;
-        PostMessageW(g.hwnd, WM_APP_SBX_DONE, 0, 0);
+    g.sbxThread = std::thread([file, bundle] {
+        av::services::Json report;
+        try { report = av::services::Call(av::services::Kind::Sandbox,
+            bundle ? av::services::Operation::DesktopBundle : av::services::Operation::Detonate,
+            file, {}, &g.sbxCancel, 60000); }
+        catch (const std::exception& error) { report = {{"error", g.sbxCancel ? "Análise cancelada; resultados incompletos." : error.what()}, {"complete", false}}; }
+        { std::lock_guard lock(g.sbxMtx); g.sbxReport = std::move(report); g.sbxHasReport = true; }
+        g.sbxRunning = false; PostMessageW(g.hwnd, WM_APP_SBX_DONE, 0, 0);
     });
     SetTimer(g.hwnd, TIMER_ANIM, 16, nullptr);
 }
-
 static void RunTestSample() {
-    wchar_t exe[MAX_PATH]; GetModuleFileNameW(nullptr, exe, MAX_PATH);
-    std::wstring dir(exe); dir = dir.substr(0, dir.find_last_of(L"\\/"));
-    std::wstring sample = dir + L"\\sample_behavior.exe";
-    if (GetFileAttributesW(sample.c_str()) != INVALID_FILE_ATTRIBUTES) {
-        StartSandbox(sample);
-    } else {
-        std::lock_guard<std::mutex> lk(g.sbxMtx);
-        g.sbxReport = av::SandboxReport{};
-        g.sbxReport.error = L"sample_behavior.exe not found next to avui.exe (build the sample target).";
-        g.sbxHasReport = true;
-        InvalidateRect(g.hwnd, nullptr, FALSE);
-    }
+    StartSandbox((av::services::Executable().parent_path() / L"guardian-service-sample.exe").wstring());
+}
+static void OpenInVm() {
+    if (g.sbxRunning) { g.sbxCancel = true; return; }
+    const auto folder = PickFolder();
+    if (!folder.empty()) StartSandbox(folder, true);
 }
 
-static void OpenInVm() {
-    std::wstring file = g.sbxFile;
-    if (file.empty()) file = PickFile();
-    if (file.empty()) return;
-    std::wstring err;
-    if (!av::LaunchWindowsSandbox(file, err)) {
-        std::lock_guard<std::mutex> lk(g.sbxMtx);
-        g.sbxReport = av::SandboxReport{};
-        g.sbxReport.error = err;
-        g.sbxHasReport = true;
-        InvalidateRect(g.hwnd, nullptr, FALSE);
-    }
-}
+
 
 // ---------------------------------------------------------------------------
 // Input
@@ -851,9 +823,6 @@ static void OnClick(float x, float y) {
     if (PtIn(g.sbxAnalyzeBtn, x, y)) { std::wstring f = PickFile(); if (!f.empty()) StartSandbox(f); return; }
     if (PtIn(g.sbxSampleBtn, x, y))  { RunTestSample(); return; }
     if (PtIn(g.sbxVmBtn, x, y))      { OpenInVm(); return; }
-    if (g.page == Page::Settings)
-        for (int i = 0; i < 3; ++i)
-            if (PtIn(g.toggleRect[i], x, y)) { g.toggles[i] = !g.toggles[i]; InvalidateRect(g.hwnd, nullptr, FALSE); return; }
 }
 
 // ---------------------------------------------------------------------------
@@ -865,6 +834,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         g.hwnd = hwnd;
         g.scale = (float)GetDpiForWindow(hwnd) / 96.0f;
         CreateDeviceIndependentResources();
+        for (int i = 0; i < 3; ++i) {
+            g.serviceButtons[i] = CreateWindowExW(0, L"BUTTON", L"", WS_CHILD | WS_TABSTOP | BS_PUSHBUTTON,
+                0, 0, 1, 1, hwnd, reinterpret_cast<HMENU>(INT_PTR(ID_SERVICE_INSTALL + i)), GetModuleHandleW(nullptr), nullptr);
+            SendMessageW(g.serviceButtons[i], WM_SETFONT, reinterpret_cast<WPARAM>(GetStockObject(DEFAULT_GUI_FONT)), TRUE);
+        }
+        RefreshServices(); SetTimer(hwnd, TIMER_SERVICES, 1000, nullptr);
         return 0;
 
     case WM_DPICHANGED: {
@@ -910,7 +885,16 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         }
         break;
 
+    case WM_COMMAND:
+        if (HIWORD(wp) == BN_CLICKED && LOWORD(wp) >= ID_SERVICE_INSTALL && LOWORD(wp) <= ID_SERVICE_SANDBOX) {
+            ServiceAction(LOWORD(wp)); return 0;
+        }
+        break;
+    case WM_APP_SERVICE_DONE:
+        if (g.serviceThread.joinable()) g.serviceThread.join();
+        g.serviceBusy = false; RefreshServices(); InvalidateRect(hwnd, nullptr, FALSE); return 0;
     case WM_TIMER:
+        if (wp == TIMER_SERVICES) { RefreshServices(); InvalidateRect(hwnd, nullptr, FALSE); return 0; }
         if (wp == TIMER_ANIM) {
             g.animAngle += 6.0f;
             if (g.animAngle >= 360.0f) g.animAngle -= 360.0f;
@@ -929,6 +913,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         g.lastScanText = L"Last scan: " + std::to_wstring(st.filesScanned.load()) +
                          L" files, " + std::to_wstring(st.threatsFound.load()) + L" threats, " + std::to_wstring(st.suspicious.load()) + L" suspicious, " +
                           std::to_wstring(st.inconclusive.load()) + L" inconclusive";
+        { std::lock_guard lock(st.mtx); if (!st.error.empty()) g.lastScanText = st.error; }
         InvalidateRect(hwnd, nullptr, FALSE);
         return 0;
     }
@@ -939,8 +924,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         InvalidateRect(hwnd, nullptr, FALSE);
         return 0;
 
+    case WM_CLOSE:
+        if (g.serviceBusy) { MessageBeep(MB_ICONINFORMATION); return 0; }
+        DestroyWindow(hwnd); return 0;
     case WM_DESTROY:
+        KillTimer(hwnd, TIMER_SERVICES);
         g.engine.Cancel(); g.engine.Join();
+        g.sbxCancel = true;
+        if (g.serviceThread.joinable()) g.serviceThread.join();
         if (g.sbxThread.joinable()) g.sbxThread.join();
         PostQuitMessage(0);
         return 0;
@@ -955,10 +946,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow) {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
-    // Load the signature database from next to the executable.
-    wchar_t exe[MAX_PATH]; GetModuleFileNameW(nullptr, exe, MAX_PATH);
-    std::wstring dir(exe); dir = dir.substr(0, dir.find_last_of(L"\\/"));
-    g.engine.LoadSignatures(dir + L"\\signatures.txt");
+
 
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(wc);
@@ -981,6 +969,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int nCmdShow) {
 
     MSG msg;
     while (GetMessage(&msg, nullptr, 0, 0)) {
+        if (IsDialogMessageW(hwnd, &msg)) continue;
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
