@@ -15,7 +15,7 @@ def main():
     for config,folder in (('Release',a.release),('Debug',a.debug)):
         proof=json.loads((folder/'validation.json').read_bytes())
         if not (proof['phase']=='14.11' and proof['status']=='PASS' and proof['configuration']==config
-                and proof['tests']==38 and proof['passed']==38 and proof['stableSourcesAndBinaries']
+                and proof['tests']==56 and proof['passed']==56 and proof['stableSourcesAndBinaries']
                 and proof['earlierPhasesRevalidated'] is False and proof['hostManagedExecution'] is False
                 and proof['inputs']==validation.inputs() and proof['binaries']==validation.binaries(build,config)):
             raise ValueError('Stale, incomplete or mismatched phase evidence: '+config)
@@ -27,12 +27,13 @@ def main():
         for name,digest in accepted[config]['binaries'].items():
             copy(build/name,name)
             if validation.sha(out/name)!=digest:raise ValueError('Binary changed during packaging: '+name)
-        for name in ('results.json','validation.json','parser.log'):copy(folder/name,'validation/'+config+'/'+name)
+        for name in ('results.json','validation.json','parser.log','parser-managed.log'):copy(folder/name,'validation/'+config+'/'+name)
         for file in (folder/'inputs').glob('*.exe'):copy(file,'validation/'+config+'/inputs/'+file.name)
     for file in (validation.ROOT/'tools').glob('*.py'):copy(file,'tools/'+file.name)
     copy(validation.ROOT/'CMakeLists.txt','CMakeLists.txt')
-    for file in (validation.ROOT/'guest/fixtures/frameworks').glob('*.cs'):
-        copy(file,'guest/fixtures/frameworks/'+file.name)
+    for file in (validation.ROOT/'guest/fixtures/frameworks').glob('*'):
+
+        if file.suffix in ('.cs','.il'):copy(file,'guest/fixtures/frameworks/'+file.name)
     for file in (validation.ROOT/'config').rglob('*'):
         if file.is_file():copy(file,'config/'+file.relative_to(validation.ROOT/'config').as_posix())
     for file in (validation.ROOT/'test/frameworks').rglob('*'):

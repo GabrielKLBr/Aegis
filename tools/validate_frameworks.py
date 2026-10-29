@@ -48,6 +48,8 @@ def main():
         r=subprocess.run(args,capture_output=True,encoding='utf-8',errors='replace',timeout=30)
         (fixtures/(name+'-compile.log')).write_text(r.stdout+r.stderr,encoding='utf-8');nt.require(r.returncode==0,'C# compilation failed: '+name);return target
     console=compile_cs('console',root/'guest/fixtures/frameworks/Console.cs')
+    managed_source=root/'guest/fixtures/frameworks/Managed.cs'
+    managed=compile_cs('managed',managed_source)
     mono_source=root/'test/frameworks/mono/test-1.cs';content=mono_source.read_bytes();origin=json.loads((mono_source.parent/'ORIGIN.json').read_bytes())
     record('external-source-pin',hashlib.sha1(b'blob '+str(len(content)).encode()+b'\0'+content).hexdigest()==origin['gitBlobSha1'])
     license=(mono_source.parent/'LICENSE.txt').read_bytes()
@@ -60,16 +62,42 @@ def main():
         if name=='WINFORMS':refs=[a.csc.parent/'System.Windows.Forms.dll']
         if name=='WPF':refs=[a.csc.parent/'WPF'/dll for dll in ('PresentationFramework.dll','PresentationCore.dll','WindowsBase.dll')]+[a.csc.parent/'System.Xaml.dll']
         negative[name]=compile_cs(name.lower(),source,'CIL_'+name,refs)
-    for name in ('I8','FILE','PINVOKE','WINFORMS','WPF','STATIC'):
+    for name in ('I8','FILE','PINVOKE','WINFORMS','WPF'):
         result=runtime.inspect(build,a.config,negative[name]);record('unsupported-'+name.lower(),result['status']=='UNSUPPORTED',diagnostic=result['diagnostic'])
     for name in ('msi','msix','appx','winmd'):
         fake=fixtures/('unsupported.'+name);fake.write_bytes(b'not-an-executable')
         result=runtime.inspect(build,a.config,fake);record('unsupported-'+name,result['status']=='UNSUPPORTED',diagnostic=result['diagnostic'])
+    managed_negative={name:compile_cs('managed-'+name.lower(),managed_source,'MANAGED_'+name) for name in
+        ('NULL','BOUNDS','NEGATIVE_INDEX','OBJECT_QUOTA','ARRAY_QUOTA','STRING_QUOTA','LONG_ARRAY','NULL_CALL','CCTOR_FAILURE')}
+    # The only managed host execution is this owned, bounded console reference.
+    native_managed=subprocess.run([str(managed)],capture_output=True,encoding='utf-8',errors='replace',timeout=15)
+    (fixtures/'native-managed.log').write_text(native_managed.stdout+native_managed.stderr,encoding='utf-8')
+    record('native-owned-managed',native_managed.returncode==0 and 'MANAGED_OBJECTS_ARRAYS_PASS' in native_managed.stdout)
+    invalid={}
+    invalid_source=(root/'guest/fixtures/frameworks/InvalidManaged.il').read_text(encoding='utf-8')
+    for label,instruction in (('readonly','stfld int32 First::ReadOnly'),('field-owner','stfld int32 Second::Other'),('typed-local',None)):
+        source=fixtures/('invalid-'+label+'.il');target=source.with_suffix('.exe')
+        if label=='typed-local':
+            text=invalid_source.replace('.maxstack 2\n        newobj instance void First::.ctor()', '.maxstack 2\n        .locals init (class Second slot)\n        newobj instance void First::.ctor()')
+            text=text.replace('ldc.i4.s 99\n        // Only the owning constructor may write this field.\n        stfld int32 First::ReadOnly','stloc.0')
+        else:text=invalid_source.replace('stfld int32 First::ReadOnly\n        ldc.i4.0',instruction+'\n        ldc.i4.0')
+        source.write_text(text,encoding='utf-8')
+        result=subprocess.run([str(a.csc.parent/'ilasm.exe'),str(source),'/exe','/pe64','/x64','/output='+str(target)],capture_output=True,encoding='utf-8',errors='replace',timeout=15)
+        (fixtures/('invalid-'+label+'-compile.log')).write_text(result.stdout+result.stderr,encoding='utf-8')
+        nt.require(result.returncode==0,'Invalid IL fixture assembly failed')
+        # These owned IL negatives test interpreter semantics. Remove ILASM's
+        # unused native CLR bootstrap; native bootstrap execution stays unsupported.
+        raw=bytearray(target.read_bytes());optional=struct.unpack_from('<I',raw,60)[0]+24
+        struct.pack_into('<I',raw,optional+16,0)
+        for directory in (1,5,12):struct.pack_into('<II',raw,optional+112+directory*8,0,0)
+        target.write_bytes(raw);invalid[label]=target
     environment=os.environ.copy()
     if a.asan_runtime:environment['PATH']=str(a.asan_runtime.resolve())+os.pathsep+environment.get('PATH','')
     environment['ASAN_OPTIONS']='halt_on_error=1:symbolize=0'
     fuzz=subprocess.run([str(build/a.config/'guardian-framework-tests.exe'),str(console)],env=environment,capture_output=True,encoding='utf-8',errors='replace',timeout=60)
     (out/'parser.log').write_text(fuzz.stdout+fuzz.stderr,encoding='utf-8');record('parser-and-utf8',fuzz.returncode==0,output=fuzz.stdout.strip())
+    fuzz_managed=subprocess.run([str(build/a.config/'guardian-framework-tests.exe'),str(managed)],env=environment,capture_output=True,encoding='utf-8',errors='replace',timeout=60)
+    (out/'parser-managed.log').write_text(fuzz_managed.stdout+fuzz_managed.stderr,encoding='utf-8');record('parser-managed-heap',fuzz_managed.returncode==0,output=fuzz_managed.stdout.strip())
     # Only these owned SDK clients run natively, from a directory with no guest DLL.
     native=out/'native-reference';native.mkdir()
     for name,marker in (('winrt','WINRT_SCALARS_PASS'),('version-client','VERSION_RESOURCE_PASS')):
@@ -101,6 +129,11 @@ def main():
         if not record(name,ok,exit=result.returncode,expectedSuccess=success,target=profile):print((result.stdout+result.stderr)[-1800:],flush=True)
         return folder/'run/security-state.bin'
     case('cil-console',console,'CIL_CONSOLE_PASS',also=('ação e Unicode 🎉','55\n120\n59\nTrue\n-2147483648\n'))
+    case('managed-objects-arrays',managed,'MANAGED_OBJECTS_ARRAYS_PASS',also=(native_managed.stdout.strip(),))
+    case('static-initializer',negative['STATIC'],'STATIC_INITIALIZER_PASS',also=('STATIC_CTOR_RUN',))
+    for name,diagnostic in (('NULL','cli-null-reference'),('BOUNDS','cli-index-range'),('NEGATIVE_INDEX','cli-index-range'),('OBJECT_QUOTA','cli-quota'),('ARRAY_QUOTA','cli-quota'),('STRING_QUOTA','cli-quota'),('LONG_ARRAY','cli-quota'),('NULL_CALL','cli-null-reference'),('CCTOR_FAILURE','cli-arithmetic-error')):
+        case('managed-'+name.lower(),managed_negative[name],diagnostic,success=False)
+    for name,application in invalid.items():case('invalid-managed-'+name,application,'invalid-cli-stack',success=False)
     for profile in ('win10','win7','win11'):case('external-cil-'+profile,mono,'Hello, World!',profile)
     case('winrt',fw/'guardian-framework-winrt.exe','WINRT_SCALARS_PASS')
     def properties(text):return [line for line in text.splitlines() if line.startswith('PROPERTY_')]
@@ -111,10 +144,10 @@ def main():
     case('winrt-nt61',fw/'guardian-framework-winrt.exe','WINRT_NT61_UNSUPPORTED_PASS','win7')
     case('version-resource',fw/'guardian-framework-version-client.exe','VERSION_RESOURCE_PASS')
     case('package-copy-boundary',fw/'guardian-framework-copy-client.exe','PACKAGE_COPY_BOUNDARY_PASS')
-    for label,payload in (('cil',mono),('native',fw/'guardian-framework-version-client.exe')):
+    for label,payload in (('cil',mono),('managed',managed),('native',fw/'guardian-framework-version-client.exe')):
         state=None
         for mode in ('install','resume','uninstall'):
-            child_marker='Hello, World!' if label=='cil' else 'VERSION_RESOURCE_PASS'
+            child_marker='Hello, World!' if label=='cil' else 'MANAGED_OBJECTS_ARRAYS_PASS' if label=='managed' else 'VERSION_RESOURCE_PASS'
             state=case('portable-'+label+'-'+mode,payload,'PORTABLE_'+mode.upper()+'_PASS',portable=mode,state=state,also=() if mode=='uninstall' else (child_marker,))
     for name,diagnostic in (('DIVZERO','cli-arithmetic-error'),('LOOP','cli-instruction-limit'),('DEPTH','cli-quota'),('OUTPUT','cli-output-failed'),('CONTROL','cli-output-failed')):
         case('runtime-'+name.lower(),negative[name],diagnostic,success=False)
@@ -125,7 +158,7 @@ def main():
     record('phase-mode-binding',result.returncode!=0 and not (wrong/'boot.json').exists())
     passed=sum(row['passed'] for row in rows);stable=source_inputs==inputs() and binary_inputs==binaries(build,a.config)
     ok=passed==len(rows) and stable
-    receipt={'schema':1,'phase':'14.11','status':'PASS' if ok else 'FAIL','configuration':a.config,'tests':len(rows),'passed':passed,'stableSourcesAndBinaries':stable,'inputs':source_inputs,'binaries':binary_inputs,'earlierPhasesRevalidated':False,'hostManagedExecution':False,'sanitizer':'MSVC AddressSanitizer' if a.asan_runtime else 'not-requested'}
+    receipt={'schema':1,'phase':'14.11','status':'PASS' if ok else 'FAIL','configuration':a.config,'tests':len(rows),'passed':passed,'stableSourcesAndBinaries':stable,'inputs':source_inputs,'binaries':binary_inputs,'earlierPhasesRevalidated':False,'hostManagedExecution':False,'ownedManagedReferenceExecutedOnHost':True,'sanitizer':'MSVC AddressSanitizer' if a.asan_runtime else 'not-requested'}
     (out/'validation.json').write_text(json.dumps(receipt,indent=2)+'\n',encoding='utf-8')
     print(json.dumps({'passed':passed,'total':len(rows),'stableSourcesAndBinaries':stable,'output':str(out)},ensure_ascii=False));return 0 if ok else 1
 if __name__=='__main__':raise SystemExit(main())

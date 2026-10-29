@@ -9,9 +9,11 @@ roadmap. A integração desses novos contratos ao scanner/serviço continua na 1
 ## Implementado
 
 - **CIL de console:** `mscoree.dll` própria interpreta um subconjunto de IL em
-  PE32+ x64, ILONLY, com referência a `mscorlib` v4. Métodos estáticos, operações
-  inteiras de 32 bits, comparações, saltos, chamadas/recursão limitadas, strings
-  UTF-16 e `Console.Write/WriteLine` nas assinaturas aceitas. `Main(string[])`
+  PE32+ x64, ILONLY, com referência a `mscorlib` v4. Métodos estáticos e de
+  instância não virtuais, construtores, campos de instância/estáticos,
+  inicializadores de tipo, operações inteiras de 32 bits, comparações, saltos,
+  chamadas/recursão limitadas, strings UTF-16 e `Console.Write/WriteLine` nas
+  assinaturas aceitas. `Main(string[])`
   recebe somente uma lista vazia; argumentos adicionais são diagnosticados.
   Não carrega o CLR Microsoft nem executa código gerenciado no host.
 - **WinRT local ao convidado:** HSTRING e string references, inicialização por
@@ -49,8 +51,8 @@ aritmético e saída inválida interrompem o cenário e deixam a análise inconc
 UTF-8 de console é validado incrementalmente, incluindo sequências truncadas,
 surrogates, encodings excessivamente longos e controles de terminal proibidos.
 
-Campos, inicializadores estáticos, EH, P/Invoke, I8, generics, JIT, GC e BCL
-completos não são implementados. O validador estático não é um verificador CLI
+EH, P/Invoke, I8, generics, JIT, GC e BCL completos não são implementados.
+O validador estático não é um verificador CLI
 completo: tipos/pilha, orçamento e outros requisitos também são verificados em
 execução. Uma inspeção aceita não equivale a garantir que o programa funcionará.
 
@@ -107,3 +109,49 @@ instalou, iniciou, imprimiu seu resultado, retomou de estado persistido e foi
 removido no perfil 10.0.19045. Os outros dois perfis cobrem o cenário de console;
 não representam toda a instalação/GUI desses sistemas. Recibos e hashes acompanham
 a build privada. A validação é limitada à 14.11 e às suas dependências usadas.
+
+## Continuação — base de objetos gerenciados
+
+O lote seguinte implementa objetos de classes próprias que derivam diretamente
+de `System.Object`, métodos de instância não virtuais, construtores, campos e
+`readonly`. O interpretador verifica o tipo concreto ao atribuir referências a
+locais, argumentos, retornos e campos tipados. Um campo de outra classe ou uma
+escrita `readonly` fora do construtor são recusados durante a execução.
+Inicializadores estáticos executam uma vez por tipo/processo; falha do
+inicializador interrompe o cenário. Não há herança customizada nem dispatch
+virtual neste recorte.
+
+Também estão disponíveis arrays unidimensionais de Int32, String e Object,
+comprimento, leitura/escrita com verificação de limites, boxing/unboxing de
+Int32/Boolean com identidade de referência e operações selecionadas de String:
+concatenação de duas a quatro strings, comprimento, igualdade ordinal e
+`IsNullOrEmpty`. A saída de objetos sem override usa o nome do tipo; arrays
+usam os nomes dos tipos de elementos. APIs de string não enumeradas continuam
+sem suporte.
+
+Limites adicionais por processo: 32 tipos, 64 campos, 32 alocações de objetos
+incluindo boxing, 16 arrays com até 256 elementos cada e 64 strings dinâmicas
+com até 512 unidades UTF-16 cada. As alocações permanecem até o encerramento do
+processo; isso **não é um coletor de lixo**. Excesso de cota é inconclusivo,
+inclusive se os objetos já não estiverem referenciados pelo programa.
+
+`Managed.cs` é um controle próprio e inofensivo, executado no CLR do host apenas
+para obter uma saída de referência, depois comparada com o MiniNT. Entradas
+externas e fixtures IL inválidos nunca são executados no host. O ASan exercita
+os seeds de console e de objetos separadamente. Os testes IL negativos removem
+o bootstrap nativo gerado pelo ILASM: eles verificam as regras do interpretador,
+sem anunciar suporte ao bootstrap CLR nativo. O pacote inclui os fontes `.il`
+necessários para reproduzir esses casos.
+
+**Estado da fase ampla:** permanece aberta. Esta base ainda não executa
+WinForms/WPF/WinUI ou CLR/CoreCLR completos. A conclusão exige definir aplicações
+alvo por framework, fazê-las executar seus cenários no convidado e verificar
+instalação, encerramento e comportamento nos perfis NT anunciados.
+
+Validação desta continuação em 29/10/2026: **56/56 Release e 56/56 Debug**,
+com hashes estáveis de fontes e binários. Inclui comparação exata da saída do
+controle gerenciado com o CLR nativo, instalação/retomada/remoção desse controle,
+referência nula, limites de arrays e alocações, falha de inicializador e três
+programas IL inválidos (escrita readonly, campo de outra classe e local tipado
+incompatível). A matriz anterior de 38 casos fica preservada como histórico;
+esta ampliação não é uma regressão completa das outras fases.

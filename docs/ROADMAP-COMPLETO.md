@@ -1080,6 +1080,11 @@ instalação portátil no convidado. CLR/CoreCLR completos, WinForms/WPF, WinUI,
 Windows App SDK e instaladores MSI/SetupAPI continuam pendentes desta subfase
 ampla; esse recorte não os declara concluídos. Parar após validar/publicar o lote.
 
+**Continuação da base gerenciada:** objetos, campos, construtores, inicializadores,
+arrays, boxing e operações selecionadas de String implementados e validados
+na mesma 14.11 (56/56 Release e Debug). Isso não encerra a subfase ampla: ainda faltam GC/EH/dispatch,
+BCL e contratos de GUI/runtime exigidos pelos aplicativos alvo dos frameworks.
+
 **Dependências:** 14.5–14.10, conforme cada framework.
 
 **Trabalho:** validar runtimes .NET/CLR selecionados, WinForms/WPF, WinRT,

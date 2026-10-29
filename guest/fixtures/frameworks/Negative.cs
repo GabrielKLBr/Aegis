@@ -21,8 +21,9 @@ class Negative
 #elif CIL_WPF
     static void Main() { new System.Windows.Application().Run(); }
 #elif CIL_STATIC
-    static Negative() { Console.WriteLine("MUST_NOT_RUN_STATIC_CTOR"); }
-    static void Main() { Console.WriteLine("MUST_NOT_RUN"); }
+    static int initializations;
+    static Negative() { initializations++; Console.WriteLine("STATIC_CTOR_RUN"); }
+    static int Main() { if (initializations != 1) return 1; Console.WriteLine("STATIC_INITIALIZER_PASS"); return 0; }
 #elif CIL_OUTPUT
     static void Main() { while(true) Console.WriteLine("0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789"); }
 #elif CIL_CONTROL

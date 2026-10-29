@@ -23,7 +23,7 @@ SOURCE_DIRS = {"src", "shared", "guest", "test", "cmake", "tools", "docs", "conf
 ROOT_FILES = {".gitignore", ".gitattributes", "AGENTS.md", "CMakeLists.txt", "README.md", "SECURITY.md",
               "LICENSE", "LICENSE.md", "signatures.txt", "build.bat", "build-mingw.bat",
               "Build-Kernel.ps1", "Build-Linux.sh"}
-SOURCE_EXTENSIONS = {".c", ".cs", ".cpp", ".h", ".hpp", ".inl", ".inc", ".asm", ".s", ".py",
+SOURCE_EXTENSIONS = {".c", ".cs", ".il", ".cpp", ".h", ".hpp", ".inl", ".inc", ".asm", ".s", ".py",
                      ".md", ".txt", ".json", ".cmake", ".def", ".inf", ".rc", ".manifest",
                      ".ps1", ".sh", ".bat", ".yml", ".yaml", ".svg", ".png"}
 SECRET = re.compile(rb"(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|"
