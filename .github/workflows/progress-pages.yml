@@ -2,7 +2,7 @@ name: Host API progress
 on:
   push:
     branches: [main]
-    paths: ['config/**', 'tools/progress.py', '.github/workflows/progress-pages.yml']
+    paths: ['config/**', 'guest/fixtures/**', 'shared/guardian/FormsContracts.h', 'tools/**', '.github/workflows/progress-pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -B tools/progress.py --output build-progress
+      - run: python -B tools/windows_api_progress.py --output build-progress
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
