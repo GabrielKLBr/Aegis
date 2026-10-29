@@ -53,7 +53,11 @@ uint32_t Services::Close(uint64_t id) noexcept {
     auto* h=Find(id);if(!h){if(bridge_.extraClose&&(id&0xFFFFFFFF00000000ull)==0x5365000000000000ull)return bridge_.extraClose(bridge_.context,id);return processes_->Close(pid_,id);}uint32_t result=0;
     if(h->kind==1)DropSection(h->index);
     else if(h->kind==4)result=processes_->Close(pid_,h->raw);
-    else if(h->kind==2){storage::Command c;c.op=storage::Op::Close;c.handle=h->raw;result=Files().Execute(pid_,processes_->Get(pid_)->token,c);}
+    else if(h->kind==2
+#ifdef GUARDIAN_FRAMEWORKS
+        ||(h->kind==5&&h->raw)
+#endif
+        ){storage::Command c;c.op=storage::Op::Close;c.handle=h->raw;result=Files().Execute(pid_,processes_->Get(pid_)->token,c);}
     if(!result)*h={};return result;
 }
 uint32_t Services::Process(uint64_t handle,uint32_t& pid,uint32_t rights) noexcept {if(handle==CurrentProcess){pid=pid_;return 0;}auto* h=Find(handle);if(h&&h->kind==4)handle=h->raw;processes::Object* p=nullptr;const auto status=processes_->Resolve(pid_,handle,processes::Kind::Process,rights,p);if(!status)pid=p->target;return status;}

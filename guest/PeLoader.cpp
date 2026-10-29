@@ -1,4 +1,7 @@
 #include "PeLoader.h"
+#ifdef GUARDIAN_FRAMEWORKS
+#include "guardian/Cli.h"
+#endif
 #include "guardian/Telemetry.h"
 namespace guardian::pe {
 namespace {
@@ -58,10 +61,20 @@ bool Loader::Headers(uint32_t index) noexcept {
     if(U16(raw)!=0x5A4D)return Fail(Error::InvalidImage);
     const auto nt=U32(raw+60);if(nt<64 || !Range(nt,24,source.bytes) || U32(raw+nt)!=0x4550)return Fail(Error::InvalidImage);
     const auto* file=raw+nt+4;const auto sections=U16(file+2),optional=U16(file+16),characteristics=U16(file+18);
-    if(U16(file)!=0x8664 || !(characteristics&2) || (characteristics&1))return Fail(Error::Unsupported);
+    if(U16(file)!=0x8664 || !(characteristics&2))return Fail(Error::Unsupported);
     if(!sections || sections>MaxSections || optional<240 || !Range(nt+24,optional,source.bytes))return Fail(Error::InvalidImage);
     const auto* opt=file+20;
-    if(U16(opt)!=0x20B || U32(opt+32)!=4096 || U32(opt+36)!=512 || U32(opt+108)!=16)return Fail(Error::Unsupported);
+    bool managed=false;
+#ifdef GUARDIAN_FRAMEWORKS
+    if(U16(opt)==0x20B&&U32(opt+108)==16&&U32(opt+116+14*8)){
+        cli::Image check;
+        if((characteristics&0x2000)||U32(opt+16)||!check.Open(source.data,source.bytes)||!check.Validate())return Fail(Error::Unsupported);
+        managed=true;
+    }
+#endif
+    const auto alignment=U32(opt+32);
+    if((characteristics&1)&&!managed)return Fail(Error::Unsupported);
+    if(U16(opt)!=0x20B || (alignment!=4096&&!(managed&&alignment==8192)) || U32(opt+36)!=512 || U32(opt+108)!=16)return Fail(Error::Unsupported);
     m.size=U32(opt+56);m.headers=U32(opt+60);m.preferred=U64(opt+24);m.sectionCount=sections;m.dll=(characteristics&0x2000)!=0;
     const auto entry=U32(opt+16),table=nt+24+optional;
     if(!m.size || m.size>MaxImageBytes || (m.size&4095) || !m.headers || (m.headers&511) || m.headers>source.bytes || m.headers>m.size ||
@@ -79,7 +92,7 @@ bool Loader::Headers(uint32_t index) noexcept {
         for(uint32_t j=0;j<i;++j){const auto& p=m.sections[j];if(s.rawBytes && p.rawBytes && s.raw<p.raw+p.rawBytes && p.raw<s.raw+s.rawBytes)return Fail(Error::InvalidImage);}
         previous=s.rva+Pages(s.bytes);
     }
-    if(previous!=m.size || (!m.dll && !entry) || (entry && !Span(m,entry,1,ReadFlag|ExecuteFlag)))return Fail(Error::InvalidImage);
+    if((managed?((previous+alignment-1)&~(alignment-1)):previous)!=m.size || (!m.dll && !entry&&!managed) || (entry && !Span(m,entry,1,ReadFlag|ExecuteFlag)))return Fail(Error::InvalidImage);
     m.entry=entry?m.base+entry:0;
     for(uint32_t i=0;i<16;++i){auto& d=m.directories[i];d={U32(opt+112+i*8),U32(opt+116+i*8)};
         if(bool(d.rva)!=bool(d.bytes))return Fail(Error::InvalidImage);
@@ -90,12 +103,19 @@ bool Loader::Headers(uint32_t index) noexcept {
 #ifdef GUARDIAN_NATIVE_NT
            &&i!=10
 #endif
+#ifdef GUARDIAN_FRAMEWORKS
+           &&!(managed&&i==14)
+#endif
            )return Fail(Error::Unsupported);}
     return true;
 }
 bool Loader::Relocate(Module& m) noexcept {
     const auto& d=m.directories[5];const uint64_t delta=m.base-m.preferred;
-    if(delta && !d.bytes)return Fail(Error::InvalidImage);
+    if(delta && !d.bytes){
+#ifdef GUARDIAN_FRAMEWORKS
+        if(m.directories[14].bytes)return true;
+#endif
+        return Fail(Error::InvalidImage);}
 #ifdef GUARDIAN_SCALABLE_PE
     auto* targets=relocationTargets_;
     for(auto& target:relocationTargets_)target=0;
@@ -309,6 +329,9 @@ bool Loader::LoadOne(uint32_t index) noexcept {
 #else
     if(!Relocate(m) || (peprofile::Extended&&!Resources(m,index==0)) || !Imports(m) ||
        (peprofile::Extended&&!DelayImports(m)) || !Tls(m,index) || !Exports(m) || !Exceptions(m) || !Seal(m))return false;
+#endif
+#ifdef GUARDIAN_FRAMEWORKS
+    if(m.directories[14].bytes){const auto shim=Find("mscoree.dll");uint64_t address=0;if(shim==UINT32_MAX||!LoadOne(shim)||!Symbol(modules_[shim],"_CorExeMain",0,address))return Fail(Error::MissingSymbol);m.dependencies|=1u<<shim;m.entry=address;}
 #endif
     m.state=2;return true;
 }

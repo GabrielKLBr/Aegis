@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/mono/mono",
+  "path": "mcs/tests/test-1.cs",
+  "gitBlobSha1": "29e46214b9208cfa32ef18299c2e02966a33428c",
+  "license": "MIT",
+  "licensePath": "LICENSE",
+  "licenseGitBlobSha1": "9251a04cf166a4d3bb91fa9b6c911927593856b8",
+  "purpose": "Independent C# console program compiled for x64 and executed only inside MiniNT",
+  "upstreamModified": false
+}

@@ -1,4 +1,8 @@
 #include "PeKernel.h"
+#ifdef GUARDIAN_FRAMEWORKS
+#include "guardian/FrameworkFiles.h"
+namespace {bool FrameworkReference(uint32_t,const guardian::processes::Token&,const char*,char*) noexcept;}
+#endif
 #ifdef GUARDIAN_INTERNET_NATIVE
 #include "guardian/Internet.h"
 namespace {void InternetExit(uint32_t) noexcept;}
@@ -117,6 +121,9 @@ struct DynamicPending {uint32_t tid=0,index=0,added=0,removing=0,kind=0;};
 native::Services nativeServicesInstance;
 #endif
 struct RuntimeSlot {Context context{};pe::Loader image;pe::Source sources[pe::MaxModules]{};uint32_t pid=0;uint64_t loaderLock=0;bool terminating=false;DynamicPending pending{};
+#ifdef GUARDIAN_FRAMEWORKS
+    char frameworkRootName[128]{};
+#endif
 #ifdef GUARDIAN_NATIVE_NT
     native::Services* nativeServices=nullptr;native::SyscallMap nativeMap;uint64_t nativePeb=0;uint32_t nativeTid=0;bool nativeReady=false;
 #ifdef GUARDIAN_WIN32_NATIVE
@@ -379,7 +386,14 @@ bool PePrepareProcess(guardian::processes::Manager& p,guardian::memory::Manager&
     char childPath[128]{};if(application){uint32_t n=0;bool path=false;for(uint32_t i=0;application[i];++i)if(application[i]==':'||application[i]=='\\')path=true;
         if(!path){const char prefix[]="c:\\app\\";for(char ch:prefix)if(ch)childPath[n++]=ch;}for(uint32_t i=0;application[i];++i){if(n==127)return false;childPath[n++]=application[i];}selectedRoot=childPath;}
 #endif
+#ifdef GUARDIAN_FRAMEWORKS
+    char packageRoot[128]{};const bool installed=selectedRoot&&FrameworkReference(pid,p.Get(pid)->token,selectedRoot,packageRoot);
+    if(installed)selectedRoot=packageRoot;
+#endif
     if(!slot->catalog.Open(volume,descriptor->volumeBytes,binding->profile,slot->sources,sourceCount,selectedRoot))return false;
+#ifdef GUARDIAN_FRAMEWORKS
+    if(installed){if(!pevolume::Canonical(childPath,slot->frameworkRootName))return false;slot->sources[0].name=slot->frameworkRootName;}
+#endif
     constexpr bool allowHandlers=true;
 #else
 #ifdef GUARDIAN_COMPLETE_KERNEL

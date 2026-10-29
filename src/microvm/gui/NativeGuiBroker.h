@@ -14,6 +14,8 @@ public:
     bool Exchange(guardian::nativeuser::Packet&);
     bool Exchange(guardian::nativegdi::Packet&);
     bool Completed() const;
+    // Explicit controller shutdown for an application that never requested GUI.
+    bool CompleteUnused();
     void Finish(const std::filesystem::path& output={});
 #ifdef NATIVE_GUI_TESTING
     void StallForTesting();void KillForTesting();uint32_t ProcessForTesting() const;

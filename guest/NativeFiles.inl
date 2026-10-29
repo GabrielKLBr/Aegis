@@ -10,7 +10,28 @@ uint32_t Services::Files(Op op,const uint64_t* a) noexcept {
         const auto disposition=op==Op::CreateFile?a[7]:1;if(!disposition)return Unsupported;c.disposition=disposition==2?1u:((disposition==3||disposition==5)?2u:0u);
         if(disposition>=4&&!(access&storage::Write))return Denied;
 #ifdef GUARDIAN_DESKTOP_NATIVE
-        if(!(access&(storage::Write|storage::Delete))&&(disposition==1||disposition==3)&&bridge_.catalog){storage::Kind kind{};const auto exists=Files().QueryKind(token,c.path,kind);if(exists==storage::NotFound){uint32_t read=0,total=0;if(bridge_.catalog(bridge_.context,c.path,0,nullptr,0,read,total)){auto audit=telemetry::Begin(telemetry::Domain::File,telemetry::Operation::Open,pid_,token.user,c.path);if(!telemetry::Before(audit))return telemetry::End(audit,Denied);auto* immutable=New(5,uint32_t(a[1]),0,total);if(!immutable)return telemetry::End(audit,NoMemory);Copy(immutable->path,c.path,128);Output(a[0],immutable->id);IoStatus io{0,1};Write(a[3],&io,sizeof(io));audit.related=immutable->id;return telemetry::End(audit,0);}}}
+#ifdef GUARDIAN_FRAMEWORKS
+        char backing[128]{};
+        if(bridge_.fileReference&&bridge_.fileReference(bridge_.context,c.path,backing)){
+            if(disposition==2)return storage::Collision;
+            if(access&(storage::Write|storage::Delete)||(disposition!=1&&disposition!=3))return Denied;
+            uint32_t read=0,total=0;if(!bridge_.catalog||!bridge_.catalog(bridge_.context,backing,0,nullptr,0,read,total))return Invalid;
+            c.op=storage::Op::Open;status=Files().Execute(pid_,token,c);if(status)return status;
+            auto* immutable=New(5,uint32_t(a[1]),c.handle,total);
+            if(!immutable){storage::Command close;close.op=storage::Op::Close;close.handle=c.handle;Files().Execute(pid_,token,close);return NoMemory;}
+            Copy(immutable->path,backing,128);Output(a[0],immutable->id);IoStatus io{0,1};Write(a[3],&io,sizeof(io));return 0;
+        }
+#endif
+        if(!(access&(storage::Write|storage::Delete))&&(disposition==1||disposition==3)&&bridge_.catalog){storage::Kind kind{};const auto exists=Files().QueryKind(token,c.path,kind);bool packagePath=exists==storage::NotFound;
+#ifdef GUARDIAN_FRAMEWORKS
+            // A packaged file may have a longer leaf than the writable VFS ABI.
+            // Such a leaf cannot shadow a VFS node; still enforce the parent's ACL.
+            if(exists==storage::Invalid){char canonical[128]{},parent[128]{};if(pevolume::Canonical(c.path,canonical)){
+                uint32_t end=0,leaf=0;for(;canonical[end];++end)if(canonical[end]=='\\')leaf=end+1;
+                if(leaf>3&&end-leaf>=storage::NameBytes){Copy(parent,canonical,leaf-1);packagePath=Files().CheckAccess(token,parent,storage::List|storage::Read)==0;}
+            }}
+#endif
+            if(packagePath){uint32_t read=0,total=0;if(bridge_.catalog(bridge_.context,c.path,0,nullptr,0,read,total)){auto audit=telemetry::Begin(telemetry::Domain::File,telemetry::Operation::Open,pid_,token.user,c.path);if(!telemetry::Before(audit))return telemetry::End(audit,Denied);auto* immutable=New(5,uint32_t(a[1]),0,total);if(!immutable)return telemetry::End(audit,NoMemory);Copy(immutable->path,c.path,128);Output(a[0],immutable->id);IoStatus io{0,1};Write(a[3],&io,sizeof(io));audit.related=immutable->id;return telemetry::End(audit,0);}}}
 #endif
         auto* h=New(2,uint32_t(a[1]));if(!h)return NoMemory;
         storage::Command exists;exists.op=storage::Op::QueryAcl;exists.length=sizeof(processes::Security);Copy(exists.path,c.path,128);const auto existence=Files().Execute(pid_,token,exists);const bool existed=existence==0;

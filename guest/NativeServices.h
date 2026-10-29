@@ -2,6 +2,10 @@
 #include "guardian/NativeNt.h"
 #include "ProcessManager.h"
 #include "Volume.h"
+#ifdef GUARDIAN_FRAMEWORKS
+#include "guardian/FrameworkFiles.h"
+#include "guardian/PeVolume.h"
+#endif
 #ifdef GUARDIAN_DESKTOP_NATIVE
 #include "guardian/Exception.h"
 #endif
@@ -15,6 +19,10 @@ struct Bridge {
 #ifdef GUARDIAN_DESKTOP_NATIVE
     uint32_t (*threadContext)(void*,uint32_t,exceptions::Context&,bool) noexcept=nullptr;
     bool (*catalog)(void*,const char*,uint64_t,void*,uint32_t,uint32_t&,uint32_t&) noexcept=nullptr;
+#ifdef GUARDIAN_FRAMEWORKS
+    bool (*fileReference)(void*,const char*,char*) noexcept=nullptr;
+    bool (*packageFile)(void*,const char*,frameworks::FileReference&) noexcept=nullptr;
+#endif
 #endif
 };
 class Services {

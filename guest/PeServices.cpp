@@ -1,4 +1,7 @@
 #include "PeServices.h"
+#ifdef GUARDIAN_FRAMEWORKS
+#include "guardian/ConsoleUtf8.h"
+#endif
 #include "ProcessManager.h"
 namespace guardian::runtime {
 namespace {
@@ -72,7 +75,9 @@ uint32_t Services::Execute(uint32_t pid,const processes::Token& token,Command& c
         const auto status=Call(pid,token,io);if(!status){Bytes(c.data,io.data,sizeof(storage::Space));c.transferred=sizeof(storage::Space);}return c.status=status;
     }
     if(c.op==runtime::Op::ConsoleWrite){if(c.handle!=Console || c.flags || c.length>512)return c.status=Invalid;
-#ifdef GUARDIAN_CRT_NATIVE
+#ifdef GUARDIAN_FRAMEWORKS
+        if(!guardian::ConsoleUtf8(c.data,c.length))return c.status=Invalid;
+#elif defined(GUARDIAN_CRT_NATIVE)
         for(uint32_t i=0;i<c.length;++i)if((c.data[i]<32&&c.data[i]!=10&&c.data[i]!=9&&c.data[i]!=13)||c.data[i]>126)return c.status=Invalid;
 #else
         for(uint32_t i=0;i<c.length;++i)if((c.data[i]<32 && c.data[i]!=10 && c.data[i]!=9) || c.data[i]>126)return c.status=Invalid;

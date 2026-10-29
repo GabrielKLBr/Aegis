@@ -152,4 +152,5 @@ namespace av::microvm::boot {bool KernelImage::SupportsExpandedGdi() const noexc
 
 namespace av::microvm::boot {bool KernelImage::SupportsSoftwareGraphics() const noexcept {constexpr char tag[]="GuardianSoftwareGraphics/6/guest";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}}
 
-namespace av::microvm::boot {bool KernelImage::SupportsAudio() const noexcept {constexpr char tag[]="GuardianAudio/7/guest";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}}
+namespace av::microvm::boot {bool KernelImage::SupportsAudio() const noexcept {constexpr char tag[]="GuardianAudio/7/guest";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}
+bool KernelImage::SupportsFrameworks() const noexcept {constexpr char tag[]="GuardianFramework/1/cil-console";return std::search(file_.begin(),file_.end(),std::begin(tag),std::end(tag)-1)!=file_.end();}}

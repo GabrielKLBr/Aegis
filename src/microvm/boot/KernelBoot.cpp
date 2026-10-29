@@ -27,12 +27,12 @@ std::string Narrow(const std::wstring& s) {
     return out;
 #endif
 }
-std::string Quoted(const std::string& value) {
+std::string Quoted(const std::string& value,bool utf8=false) {
     std::string out = "\"";
     constexpr char hex[] = "0123456789abcdef";
     for (const unsigned char ch : value) {
         if (ch == '"' || ch == '\\') { out += '\\'; out += static_cast<char>(ch); }
-        else if (ch < 32 || ch > 126) { out += "\\u00"; out += hex[ch >> 4]; out += hex[ch & 15]; }
+        else if (ch < 32 || (ch > 126&&!utf8)) { out += "\\u00"; out += hex[ch >> 4]; out += hex[ch & 15]; }
         else out += static_cast<char>(ch);
     }
     return out + '"';
@@ -336,10 +336,11 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
         vm_.MapIoTrapDetailed(guardian::net::Port,[this](MicroVm&,const MicroVm::IoAccess& a){NetworkControl(a);});
     }
     vm_.StrictIo(true);
+    frameworkConsole_=image.SupportsFrameworks();consoleDecoder_={};
     vm_.MapIoTrapDetailed(DebugPort, [this](MicroVm&, const MicroVm::IoAccess& access) {
         if (!ValidIo(access)) return;
         const auto ch = static_cast<uint8_t>(access.value);
-        if (console_.size() >= 4096 || (ch < 32 && ch != '\n' && ch != '\r' && ch != '\t') || ch > 126) {
+        if (console_.size() >= (frameworkConsole_?73728u:4096u) || (frameworkConsole_?!consoleDecoder_.Put(ch):((ch < 32 && ch != '\n' && ch != '\r' && ch != '\t') || ch > 126))) {
             vm_.FailExecution(L"Console text/budget rejected"); return;
         }
         console_ += static_cast<char>(ch);
@@ -609,7 +610,7 @@ BootResult KernelBootSession::Run(std::chrono::milliseconds timeout, bool suspen
     r.threadMode=cpuOptions_.threads;r.threadReportValid=threadReportValid_;r.threads=threadReport_;
     r.processMode=cpuOptions_.processes;r.processReportValid=processReportValid_;r.processes=processReport_;
     r.wallMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_).count();
-    r.stopStatus = channel_.Status(); r.diagnostic = channel_.Diagnostic(); r.console = console_;
+    r.stopStatus = channel_.Status(); r.diagnostic = channel_.Diagnostic(); r.console = console_;r.frameworkConsole=frameworkConsole_;
     r.exception = vm_.LastExceptionVector(); r.rip = vm_.LastExceptionRip();
     r.memoryFault = vm_.LastMemoryAccessFault(); r.faultGpa = vm_.LastMemoryAccessGpa();
     r.storageMode=cpuOptions_.storage;r.storageReportValid=storageReportValid_;r.storage=storageReport_;
@@ -662,6 +663,7 @@ BootResult KernelBootSession::Run(std::chrono::milliseconds timeout, bool suspen
     if(cpuOptions_.network)r.success=r.success&&networkReportValid_&&networkReport_.checks==(analysisKernel_?1u:guardian::net::RequiredChecks)&&(!analysisKernel_||networkReport_.userCalls>=1)&&networkReport_.sent==r.networkSent&&networkReport_.received==r.networkReceived&&networkReport_.denied==r.networkDenied;
     if(networkBackend_)networkBackend_->Export();
     if(internetBackend_&&!internetReport_.empty())state::AtomicText(internetReport_,internetBackend_->Json());
+    if(frameworkConsole_&&(consoleDecoder_.failed||consoleDecoder_.remaining)){r.success=false;r.error="Invalid or incomplete UTF-8 console output";r.frameworkConsole=false;}
     if (!r.success && !r.paused) {
         if (!channel_.Error().empty()) r.error = channel_.Error();
         else if (!vm_.Error().empty()) r.error = Narrow(vm_.Error());
@@ -696,7 +698,7 @@ void WriteBootReport(const std::filesystem::path& path, const std::vector<BootRe
             << ",\"cpl\":" << r.cpl << ",\"timedOut\":" << r.timedOut << ",\"hostPrivateBytes\":" << r.hostPrivateBytes
             << ",\"privateBytesValid\":" << r.privateBytesValid << ",\"exception\":" << r.exception
             << ",\"rip\":" << r.rip << ",\"exceptionExitBitmap\":" << r.exceptionExitBitmap << ",\"memoryFault\":" << r.memoryFault << ",\"faultGpa\":" << r.faultGpa
-            << ",\"diagnostic\":" << Quoted(r.diagnostic) << ",\"console\":" << Quoted(r.console) << ",\"error\":" << Quoted(r.error)
+            << ",\"diagnostic\":" << Quoted(r.diagnostic) << ",\"console\":" << Quoted(r.console,r.frameworkConsole) << ",\"error\":" << Quoted(r.error)
             << ",\"cpuMode\":" << r.cpuMode << ",\"cpuReportValid\":" << r.cpuReportValid;
         out<<",\"resourceMode\":"<<r.resourceMode<<",\"resourceReportValid\":"<<r.resourceReportValid;
         if(r.resourceMode){const auto& p=r.resource;out<<",\"resource\":{\"vcpus\":"<<p.vcpus<<",\"readyMask\":"<<p.readyMask<<",\"topologyMask\":"<<p.topologyMask<<",\"doneMask\":"<<p.doneMask<<",\"fpuMask\":"<<p.fpuMask<<",\"counter\":"<<p.counter<<",\"capacityBytes\":"<<p.capacity<<",\"fileBytes\":"<<p.fileBytes<<",\"allocatedBytes\":"<<p.space.allocated<<",\"freeBytes\":"<<p.space.free<<",\"availableBytes\":"<<p.space.available<<",\"checks\":"<<p.checks<<",\"status\":"<<p.status<<"}";}

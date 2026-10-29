@@ -96,6 +96,10 @@ const uint8_t* Catalog::File(const char* path,uint32_t& bytes) const noexcept {
     return nullptr;
 }
 bool Catalog::Manifest(const uint8_t* data,uint32_t bytes,uint32_t& mask,uint32_t& mode) const noexcept {
+#ifdef GUARDIAN_FRAMEWORKS
+    // The ordinary C# compiler embeds a UTF-8 BOM in its asInvoker manifest.
+    if(bytes>=3&&data[0]==0xEF&&data[1]==0xBB&&data[2]==0xBF){data+=3;bytes-=3;}
+#endif
     mask=mode=0;if(!header_||!data||!bytes||bytes>4096)return false;
     // A deliberately bounded XML subset: UTF-8 ASCII, no DTD/entities, nested
     // assembly identities and documented supportedOS GUIDs. Unknown security,

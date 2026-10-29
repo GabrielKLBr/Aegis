@@ -32,6 +32,17 @@ bool PeNativePrepare(uint32_t pid,guardian::threads::Scheduler& scheduler) noexc
 #endif
     if(!Write(&c,slot->nativePeb,peb,sizeof(peb))||!Write(&c,slot->initialTeb+0x60,&slot->nativePeb,8)||!c.memory->NativeSharedData(c.processes->Get(pid)->space,shared))return false;
     native::Bridge bridge;bridge.context=slot;
+#ifdef GUARDIAN_FRAMEWORKS
+    bridge.fileReference=[](void* raw,const char* path,char* source) noexcept {const auto& slot=*static_cast<RuntimeSlot*>(raw);return FrameworkReference(slot.pid,slot.context.processes->Get(slot.pid)->token,path,source);};
+    bridge.packageFile=[](void* raw,const char* path,frameworks::FileReference& out) noexcept {
+        const auto& slot=*static_cast<RuntimeSlot*>(raw);char source[128]{};
+        if(!FrameworkReference(slot.pid,slot.context.processes->Get(slot.pid)->token,path,source))memcpy(source,path,128);
+        const auto* header=slot.catalog.VolumeHeader();if(!header)return false;
+        for(uint32_t i=0;i<header->files;++i){const auto& file=pevolume::FileAt(*header,i);
+            if(file.kind!=pevolume::Kind::Manifest&&pevolume::Equal(file.path,source)){out={};out.fileBytes=file.bytes;out.hash=file.hash;memcpy(out.source,source,128);return true;}}
+        return false;
+    };
+#endif
     bridge.executable=[](void* raw,uint64_t pc) noexcept {return static_cast<RuntimeSlot*>(raw)->image.Executable(pc);};
 #ifdef GUARDIAN_DESKTOP_NATIVE
     bridge.threadContext=[](void* raw,uint32_t thread,exceptions::Context& context,bool write) noexcept {return ProcessDesktopContext(static_cast<RuntimeSlot*>(raw)->pid,thread,context,write);};

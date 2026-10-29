@@ -5,6 +5,13 @@ uint32_t Services::FlushSection(Section& s) noexcept {
 }
 uint32_t Services::Win32(uint32_t op,uint64_t* a) noexcept {
     if(!memory_||!a)return Denied;const auto& token=processes_->Get(pid_)->token;
+#ifdef GUARDIAN_FRAMEWORKS
+    // Package metadata remains guest data; this never queries a host path.
+    if(op==80){char source[128]{};if(!Read(a[0],source,128)||!Probe(a[1],sizeof(frameworks::FileReference),true))return AccessViolation;
+        char canonical[128]{};if(!pevolume::Text(source)||!pevolume::Canonical(source,canonical)||!pevolume::Equal(source,canonical)||!pevolume::Prefix(source,"c:\\app\\")||!bridge_.packageFile)return Invalid;frameworks::FileReference reference;
+        if(!bridge_.packageFile(bridge_.context,source,reference))return Unsupported;
+        return Write(a[1],&reference,sizeof(reference))?0:AccessViolation;}
+#endif
 #ifdef GUARDIAN_DESKTOP_NATIVE
     if(op==10){storage::Command rename;rename.op=storage::Op::Rename;auto status=ObjectName(a[0],rename.path,2);if(status)return status;status=ObjectName(a[1],rename.other,2);return status?status:Files().Execute(pid_,token,rename);}
 #endif

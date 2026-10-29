@@ -1,0 +1,3 @@
+LIBRARY mscoree
+EXPORTS
+    _CorExeMain=MiniCorExeMain

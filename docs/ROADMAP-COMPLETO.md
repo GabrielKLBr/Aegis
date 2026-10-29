@@ -1074,6 +1074,12 @@ de recursos. Parar ao concluir.
 
 ### Subfase 14.11 — Frameworks e instalação de aplicações
 
+**Entrega inicial delimitada:** [PHASE-14.11.md](PHASE-14.11.md), interpretador
+CIL de console próprio, contratos WinRT escalares, recursos de versão e
+instalação portátil no convidado. CLR/CoreCLR completos, WinForms/WPF, WinUI,
+Windows App SDK e instaladores MSI/SetupAPI continuam pendentes desta subfase
+ampla; esse recorte não os declara concluídos. Parar após validar/publicar o lote.
+
 **Dependências:** 14.5–14.10, conforme cada framework.
 
 **Trabalho:** validar runtimes .NET/CLR selecionados, WinForms/WPF, WinRT,

@@ -44,15 +44,34 @@ def exports(output):
         (output/(dll+'.def')).write_text('LIBRARY '+dll+'\nEXPORTS\n'+''.join(lines),encoding='utf-8')
     proof={'phase':'14.9','dlls':{key:sorted(value) for key,value in groups.items()},'implementedExports':len(names),'hostTls':False,'hostKeys':False,'completeWindowsNetworking':False,'tlsVersions':['1.2'],'suites':['ECDHE-ECDSA-AES128-GCM-SHA256','ECDHE-RSA-AES128-GCM-SHA256']};(output/'coverage.json').write_bytes(nt.canonical(proof));return proof
 
-def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False,native_user32=False,native_gdi=False,native_controls=False,native_expanded=False,native_software=False,native_audio=False):
+def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False,native_user32=False,native_gdi=False,native_controls=False,native_expanded=False,native_software=False,native_audio=False,frameworks=False,profile="win10"):
     build=Path(build);output=Path(output);folder=build/'guest/internet'/config;application=Path(application) if application else folder/'guardian-internet-crypto.exe';output.parent.mkdir(parents=True,exist_ok=True)
+    if frameworks:native_audio=True;extras=(*extras,build/"guest/frameworks"/config/"mscoree.dll")
     if native_audio:native_software=True
     software_folder='guest/audio' if native_audio else 'guest/software-graphics'
     if native_gui:extras=(*extras,build/'guest/native-gui'/config/'guardian-native-gui.dll')
     software_dlls=('d2d1.dll','dwrite.dll','windowscodecs.dll','d3d11.dll','dxgi.dll','d3d9.dll','guardian-software-graphics.dll',*(('winmm.dll','mmdevapi.dll') if native_audio else ()))
     hosts=('kernelbase.dll','kernel32.dll','ntdll.dll','ucrtbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll','advapi32.dll',*(d+'.dll' for d in (*component_runtime.DLLS,*DLLS)),*(software_dlls if native_software else ()))
-    schema,metadata=api_set.build('win10',schema_reference,hosts);schema_path=output.parent/(output.name+'-schema.dll');schema_path.write_bytes(schema)
-    table,native=native_nt.syscall_map(build/'guest/desktop'/config/'ntdll.dll','win10',False);table_path=output.parent/(output.name+'-syscalls.bin');table_path.write_bytes(table)
+    if frameworks and profile=='win7':
+        # Owned profile namespace, not a relabeled schema from another NT version.
+        mapping=dict(api_set.OWNED)
+        # Explicit adapter contracts needed by the selected redistributable CRT.
+        # These aliases describe our package; they do not assert that Windows 7
+        # shipped this namespace or that every export implements the native API.
+        core=('errorhandling-l1-1-0','debug-l1-1-0','processenvironment-l1-1-0',
+              'string-l1-1-0','localization-l1-2-0','datetime-l1-1-0',
+              'rtlsupport-l1-1-0','processthreads-l1-1-1','console-l1-1-0',
+              'handle-l1-1-0','file-l1-2-0','namedpipe-l1-1-0','timezone-l1-1-0',
+              'file-l2-1-0','synch-l1-2-0','profile-l1-1-0','util-l1-1-0',
+              'interlocked-l1-1-0')
+        for name in core:mapping['api-ms-win-core-'+name]={'':'kernelbase.dll'}
+        for name in ('runtime','string','heap','stdio','convert'):
+            mapping['api-ms-win-crt-'+name+'-l1-1-0']={'':'ucrtbase.dll'}
+        for name in ('api-ms-win-core-winrt-l1-1-0','api-ms-win-core-winrt-string-l1-1-0'):mapping[name]={'':'combase.dll'}
+        schema=api_set.pe(api_set.encode(2,mapping));metadata={'schemaVersion':2,'contracts':len(mapping),'source':'owned 14.11 bounded profile package mappings','referenceSha256':None,'exactTargetReference':False}
+    else:schema,metadata=api_set.build(profile,schema_reference,hosts)
+    schema_path=output.parent/(output.name+'-schema.dll');schema_path.write_bytes(schema)
+    table,native=native_nt.syscall_map(build/'guest/desktop'/config/'ntdll.dll',profile,False);table_path=output.parent/(output.name+'-syscalls.bin');table_path.write_bytes(table)
     files=[{'path':'c:\\app\\'+application.name.lower(),'source':str(application),'kind':'pe'}]
     def add(path,source,kind='pe'):files.append({'path':path,'source':str(source),'kind':kind})
     for name in ('ntdll.dll','kernel32.dll','kernelbase.dll','user32.dll','gdi32.dll','gdi32full.dll','win32u.dll','dwmapi.dll'):add('c:\\windows\\system32\\'+name,build/(software_folder if native_software and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/expanded-gdi' if native_expanded and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/native-controls' if native_controls and name in ('user32.dll','win32u.dll','gdi32.dll','dwmapi.dll') else 'guest/native-gdi' if native_gdi and name in ('user32.dll','win32u.dll','gdi32.dll') else 'guest/native-user32' if native_user32 and name in ('user32.dll','win32u.dll') else 'guest/desktop')/config/name)
@@ -66,10 +85,18 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
     reference_names=('msvcrt.dll',) if 'msvcrt.dll' in nt.InventoryPe(application).imports() else ('ucrtbase.dll','vcruntime140.dll');inventory=crt_runtime.references(reference,tuple(dict.fromkeys((*reference_names,'vcruntime140_1.dll','msvcp140.dll'))) if native_software else reference_names)
     for record in inventory:add('c:\\windows\\system32\\'+record['name'],Path(reference)/record['name'])
     add('c:\\windows\\system32\\apisetschema.dll',schema_path);add('c:\\windows\\system32\\guardian-nt-syscalls.bin',table_path,'manifest')
+    if frameworks:
+        add('c:\\windows\\system32\\version.dll',build/'guest/frameworks'/config/'version.dll')
+        for file in files:
+            if file['path'].endswith('\\combase.dll'):file['source']=str(build/'guest/frameworks'/config/'combase.dll')
+            if file['path'].endswith(('\\kernelbase.dll','\\kernel32.dll')):file['source']=str(build/'guest/frameworks'/config/file['path'].rsplit('\\',1)[-1])
+            if file['path'].endswith('\\mscoree.dll'):file['path']='c:\\windows\\system32\\mscoree.dll'
     available={f['path'].rsplit('\\',1)[-1]:f for f in files if f['kind']=='pe'};selected={application.name.lower(),'ntdll.dll','kernel32.dll','kernelbase.dll','guardian-runtime-api.dll','apisetschema.dll',*reference_names,*(Path(path).name.lower() for path in extras)};pending=list(selected)
-    if native_software:
+    if native_software and not frameworks:
         for name in (*software_dlls,'ole32.dll','combase.dll'):
             if name not in selected:selected.add(name);pending.append(name)
+    if frameworks:
+        selected.add('combase.dll');pending.append('combase.dll')
     while pending:
         name=pending.pop();record=available.get(name);nt.require(record is not None,('Unsupported software graphics module: ' if native_software else 'Outside owned network corpus: ')+name);pe=nt.InventoryPe(Path(record['source']));dependencies=({row['module'] for row in pe.import_records()} if native_software else set(pe.imports()))|{e['forwarder'].rsplit('.',1)[0].lower()+'.dll' for e in pe.export_records() if e['forwarder']}
         for dependency in dependencies:
@@ -89,7 +116,7 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
         if file['kind']=='pe':
             for imported in nt.InventoryPe(Path(file['source'])).import_records():
                 if imported['module'] in network_exports:nt.require(imported['symbol'] in network_exports[imported['module']],'Missing owned network export: '+imported['module']+'!'+imported['symbol'])
-    spec={'phase':'14.9','profile':'win10','root':files[0]['path'],'files':files,'nativeRuntime':native,'win32Runtime':{'apiSet':metadata},'crtRuntime':{'originalReferences':inventory,'completeWindowsCrt':False},'securityRuntime':{'ownedAdvapi32':True,'persistentStateBytes':65536},'desktopRuntime':{'width':1280,'height':720,'hostCallbacks':False,'completeWindowsGui':False},'componentRuntime':{'hostActivation':False,'completeCOM':False,'completeNDR':False},'internetRuntime':{'hostTls':False,'hostCredentials':False,'defaultNetwork':'offline','tlsVersions':['1.2'],'socketQuota':16,'payload':2048,'completeWindowsNetworking':False}}
+    spec={'phase':'14.9','profile':profile,'root':files[0]['path'],'files':files,'nativeRuntime':native,'win32Runtime':{'apiSet':metadata},'crtRuntime':{'originalReferences':inventory,'completeWindowsCrt':False},'securityRuntime':{'ownedAdvapi32':True,'persistentStateBytes':65536},'desktopRuntime':{'width':1280,'height':720,'hostCallbacks':False,'completeWindowsGui':False},'componentRuntime':{'hostActivation':False,'completeCOM':False,'completeNDR':False},'internetRuntime':{'hostTls':False,'hostCredentials':False,'defaultNetwork':'offline','tlsVersions':['1.2'],'socketQuota':16,'payload':2048,'completeWindowsNetworking':False}}
     if presentation:spec['phase']='12F';spec['presentationRuntime']={'independentWindows':True,'guestCallbacks':True,'hostHandlesInGuest':False,'logicalDpi':96,'maxClient':[1280,720],'frameByteLimit':16<<20}
     if native_gui:
         spec['phase']='14.10A';spec['nativeGuiRuntime']={'backend':'win32-gdi-helper','protocol':1,'helperSha256':nt.sha(nt.regular(build/config/'guardian-native-gui-host.exe',16<<20)),'hostHandlesInGuest':False,'guestPixelsRequired':False,'standardUser32Passthrough':False,'phase14_10BStarted':False}
@@ -112,6 +139,8 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
         spec['phase']='14.10G';spec['nativeGuiRuntime'].update(backend='win32-audio-pcm',protocol=7,helperSha256=nt.sha(nt.regular(build/config/'guardian-audio-host.exe',16<<20)))
         spec['nativeGuiRuntime'].pop('phase14_10GStarted',None)
         spec['audioRuntime']={'playbackOnly':True,'pcmRates':[22050,44100,48000],'pcmBits':16,'maxStreams':4,'maxBytes':1048576,'capture':False,'mediaFoundation':False}
+    if frameworks:
+        spec['phase']='14.11';spec['frameworkRuntime']={'contract':'minint-cil-console-v1','microsoftClr':False,'hostManagedExecution':False,'completeDotNet':False,'completeWinRT':False,'installer':'guest-only'}
     return pe_volume.build(spec,kernel or build/'guest'/config/'guardian-kernel-internet.gk',output)
 
 def main():

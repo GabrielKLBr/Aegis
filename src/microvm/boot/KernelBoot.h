@@ -1,4 +1,5 @@
 #pragma once
+#include "guardian/ConsoleUtf8.h"
 #include "KernelImage.h"
 #include "../analysis/Analysis.h"
 #include "ResourceSession.h"
@@ -33,6 +34,7 @@ namespace av::microvm::boot {
 inline constexpr uint64_t BootGpa = 0x100000, MapGpa = 0x101000, DevicesGpa = 0x102000;
 inline constexpr uint64_t ChannelGpa = 0x103000, ReturnGpa = 0x104000, StackGpa = 0x400000, StackBytes = 0x10000;
 struct BootResult {
+    bool frameworkConsole=false;
     std::string ntCompatibility;
     bool resourceMode=false,resourceReportValid=false;
     guardian::resource::Report resource{};
@@ -146,6 +148,8 @@ private:
     state::MachineState pausedMachine_;
     bool attempted_ = false, prepared_ = false, ran_ = false;
     std::string console_;
+    bool frameworkConsole_=false;
+    guardian::ConsoleUtf8Decoder consoleDecoder_;
     std::chrono::steady_clock::time_point start_;
     std::chrono::steady_clock::time_point runStart_;
     CpuOptions cpuOptions_;

@@ -7,6 +7,9 @@ extern "C" const volatile char GuardianSecurityCapability[]="GuardianSecurity/1/
 #endif
 namespace {
 storage::Volume win32Storage;uint8_t win32Disk[65536]{};bool win32Mounted=false;
+#ifdef GUARDIAN_FRAMEWORKS
+#include "FrameworkInstall.inl"
+#endif
 bool Win32Block(void*,io::Op op,uint64_t offset,uint8_t* data) noexcept {
     if(op==io::Op::Flush)return true;if(!data||(offset&511)||offset>sizeof(win32Disk)-512)return false;
     if(op==io::Op::Read)memcpy(data,win32Disk+offset,512);else if(op==io::Op::Write)memcpy(win32Disk+offset,data,512);else return false;return true;

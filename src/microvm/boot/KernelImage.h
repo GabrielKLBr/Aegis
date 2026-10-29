@@ -30,6 +30,7 @@ public:
     bool SupportsNativeControls() const noexcept;
     bool SupportsExpandedGdi() const noexcept;
     bool SupportsAudio() const noexcept;
+    bool SupportsFrameworks() const noexcept;
     bool SupportsSoftwareGraphics() const noexcept;
     bool SupportsInternet() const noexcept;
     uint64_t Base() const { return PreferredBase; }

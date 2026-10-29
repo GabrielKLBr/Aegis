@@ -30,6 +30,11 @@ operações limitadas de texturas D3D11 WARP/DXGI:
 [contratos, testes e pendências](docs/PHASE-14.10F.md).
 Shaders, pipeline 3D e DirectX completo permanecem pendentes.
 
+A entrega inicial da **14.11** acrescenta CIL de console limitado, contratos
+WinRT escalares e instalação portátil no convidado:
+[escopo, reprodução e pendências](docs/PHASE-14.11.md).
+CLR completo, WinForms, WPF, WinUI e instaladores MSI continuam pendentes.
+
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem
 recriar seus dados compilados: [preparação a partir dos fontes](docs/GITHUB-AEGIS.md).
