@@ -1,5 +1,6 @@
 #include "Services.h"
 #include "EngineFacade.h"
+#include "quarantine/Store.h"
 #include "microvm/runtime/Unified.h"
 #include <fstream>
 #include <vector>
@@ -43,7 +44,7 @@ Json Snapshot(av::Engine& engine, size_t& sent) {
     result["error"] = Text(state.error);
     for (; sent < state.detections.size(); ++sent) {
         const auto& detection = state.detections[sent];
-        result["detections"].push_back({{"file", Text(detection.file)}, {"threat", Text(detection.threat)}, {"reason", Text(detection.reason)}});
+        result["detections"].push_back({{"file", Text(detection.file)}, {"threat", Text(detection.threat)}, {"reason", Text(detection.reason)}, {"sha256", detection.sha256}});
     }
     return result;
 }
@@ -79,6 +80,16 @@ struct Payload {
         fs::remove(folder / L"payload.exe", error); fs::remove(folder, error);
     }
 };
+Json Quarantine(Operation operation,const fs::path& path){
+    try {quarantine::Store store;
+    if(operation==Operation::QuarantineList)return store.List();
+    if(operation==Operation::QuarantineAudit){if(path.extension()!=L".json")return store.Audit();const auto page=scan::ReadJson(path,65536);Check(page.value("schema",0)==2,"Audit request schema rejected");return store.Audit(page.value("before",uint64_t(0)));}
+    const auto request=scan::ReadJson(path,65536);Check(request.is_object()&&request.value("schema",0)==2,"Quarantine request schema rejected");
+    if(operation==Operation::QuarantineIsolate)return store.Isolate(scan::Utf8Path(request.at("source").get<std::string>()),request.value("sha256",std::string()),request.value("threat",std::string("Manual")),request.value("reason",std::string()));
+    if(operation==Operation::QuarantineRestore)return store.Restore(request.at("id").get<std::string>(),scan::Utf8Path(request.at("directory").get<std::string>()),scan::Utf8Path(request.at("filename").get<std::string>()).wstring());
+    Check(operation==Operation::QuarantineErase,"Quarantine operation rejected");return store.Erase(request.at("id").get<std::string>());
+    }catch(const std::exception& e){return {{"schema",2},{"type","quarantine"},{"complete",false},{"error",e.what()}};}
+}
 Json Detonate(HANDLE pipe,const fs::path& path,ULONGLONG deadline,Operation operation) {
 #ifdef GUARDIAN_SERVICE_UNIFIED
     fs::path input=path,restore;if(operation==Operation::Resume){scan::ReadJson(path,32768);restore=path;input=path.parent_path()/L"payload.bin";}
@@ -149,7 +160,7 @@ int Worker(const std::wstring& name, DWORD server) {
         const auto deadline = GetTickCount64() + request.milliseconds;
         auto identity = Identity(); identity["engine"] = request.kind == Kind::Antivirus ? "antivirus" : "sandbox";
         Send(pipe.value, FrameType::Progress, identity, deadline);
-        const auto result = request.operation == Operation::Scan ? Scan(pipe.value, path, deadline) :
+        const auto result = request.operation>=Operation::QuarantineList ? Quarantine(request.operation,path) : request.operation == Operation::Scan ? Scan(pipe.value, path, deadline) :
             request.operation == Operation::DesktopBundle ? Desktop(path, deadline) : Detonate(pipe.value,path,deadline,request.operation);
         Send(pipe.value, FrameType::Result, result, deadline);
         return 0;

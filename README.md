@@ -11,6 +11,10 @@ Antivírus e laboratório de inspeção/sandbox em C/C++, com implementação pr
 do convidado. O produto mantém Windows/MSVC/WHP e validação nativa Linux/KVM.
 Os nomes dos executáveis `guardian-*` permanecem compatíveis.
 
+A **fase 15** substitui a quarentena simples por armazenamento autenticado e
+transacional, com isolamento verificado, restauração sem sobrescrever, histórico
+e integração com a engine: [escopo, validação e limites](docs/PHASE-15.md).
+
 O lote de componentes COM/RPC, Shell e controles do MiniNT está descrito na
 [entrega delimitada da fase 14.8](docs/PHASE-14.8.md), com critérios de aceitação
 e limitações explícitos.

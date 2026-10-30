@@ -38,6 +38,11 @@ int wmain(int argc, wchar_t** argv) {
             for (const auto* name : PackageFiles) names.push_back(Text(name));
             std::cout << names.dump() << '\n'; return 0;
         }
+        if(action==L"--q-list"||action==L"--q-audit"||action==L"--q-isolate"||action==L"--q-restore"||action==L"--q-erase"){
+            const bool simple=action==L"--q-list"||action==L"--q-audit";Check(argc==(simple?2:3)||(action==L"--q-audit"&&argc==3),"Quarantine command requires a request JSON file");
+            const auto op=action==L"--q-list"?Operation::QuarantineList:action==L"--q-audit"?Operation::QuarantineAudit:action==L"--q-isolate"?Operation::QuarantineIsolate:action==L"--q-restore"?Operation::QuarantineRestore:Operation::QuarantineErase;
+            auto result=Call(Kind::Antivirus,op,argc==2?Executable():fs::path(argv[2]),[](const Json& value){std::cout<<value.dump()<<std::endl;},nullptr,60000);std::cout<<result.dump()<<'\n';return result.value("complete",false)?0:3;
+        }
         if ((action == L"--scan" || action == L"--sandbox" || action == L"--bundle" || action == L"--checkpoint" || action == L"--resume") && argc == 3) {
             const bool scanner = action == L"--scan";
             const auto result = Call(scanner ? Kind::Antivirus : Kind::Sandbox,

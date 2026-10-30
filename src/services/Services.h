@@ -14,14 +14,14 @@ namespace av::services {
 using Json = nlohmann::json;
 namespace fs = std::filesystem;
 enum class Kind : uint32_t { Antivirus = 1, Sandbox = 2 };
-enum class Operation : uint32_t { Scan = 1, Detonate = 2, DesktopBundle = 3, Checkpoint = 4, Resume = 5 };
+enum class Operation : uint32_t { Scan = 1, Detonate = 2, DesktopBundle = 3, Checkpoint = 4, Resume = 5, QuarantineList = 6, QuarantineIsolate = 7, QuarantineRestore = 8, QuarantineErase = 9, QuarantineAudit = 10 };
 enum class FrameType : uint32_t { Progress = 1, Result = 2, Error = 3 };
 inline constexpr uint32_t Magic = 0x53474541, Version = 1, MaxFrame = 2u << 20;
 // Read attributes are required by Win32's pipe open/identity operations. Do not
 // include FILE_GENERIC_WRITE: it also grants FILE_CREATE_PIPE_INSTANCE.
 inline constexpr DWORD PipeClientAccess = FILE_GENERIC_READ | FILE_WRITE_DATA;
 inline constexpr const wchar_t* PackageFiles[] = {L"guardian-engine-service.exe", L"guardian-scan-worker.exe", L"guardian-whp-memory.exe",
-    L"guardian-service-sample.exe", L"signatures.txt"
+    L"guardian-service-sample.exe", L"guardian-quarantine.exe", L"signatures.txt"
 #ifdef GUARDIAN_SERVICE_DESKTOP
     , L"guardian-native-user-host.exe", L"guardian-runtime.exe", L"guardian-desktop.exe", L"guardian-audio-host.exe", L"guardian-kernel-audio.gk"
 #endif

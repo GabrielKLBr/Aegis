@@ -17,6 +17,7 @@ struct Detection {
     std::wstring file;
     std::wstring threat;
     std::wstring reason; // e.g. "sha256 match" or "content signature"
+    std::string sha256;
 };
 
 class SignatureDatabase {

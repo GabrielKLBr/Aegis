@@ -43,7 +43,7 @@ void Engine::StartScan(const std::wstring &root, std::function<void()> onUpdate,
                         state_.error = services::Wide(value.value("error", ""));
                         for (const auto& detection : value.at("detections"))
                             if (state_.detections.size() < 4096)
-                                state_.detections.push_back({services::Wide(detection.at("file")), services::Wide(detection.at("threat")), services::Wide(detection.at("reason"))});
+                                state_.detections.push_back({services::Wide(detection.at("file")), services::Wide(detection.at("threat")), services::Wide(detection.at("reason")), detection.value("sha256",std::string())});
                     }
                     if (onUpdate) onUpdate();
                 };
@@ -94,7 +94,7 @@ void Engine::Walk(const std::wstring &dir, const std::function<void()> &onUpdate
                 const auto &f = r.at("findings").front();
                 std::lock_guard lock(state_.mtx);
                 if (state_.detections.size() < 4096) state_.detections.push_back({dir, Utf8ToWide(f.at("rule").get<std::string>()),
-                                             Utf8ToWide(f.at("classification").get<std::string>())});
+                                             Utf8ToWide(f.at("classification").get<std::string>()), r.value("sha256",std::string())});
             }
         }
         else if (c == "unknown")

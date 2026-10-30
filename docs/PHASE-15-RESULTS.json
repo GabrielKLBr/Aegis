@@ -1,0 +1,556 @@
+{
+  "schema": 1,
+  "phase": "15",
+  "status": "PASS",
+  "scope": "quarantine and dependencies used in this phase",
+  "earlierPhasesRevalidated": false,
+  "malwareExecuted": false,
+  "realPowerCutTested": false,
+  "guiCompiled": true,
+  "guiFullClickTested": false,
+  "sameAccountTamperResistance": false,
+  "fileLimitMiB": 64,
+  "proofs": {
+    "Release": {
+      "status": "PASS",
+      "tests": 57,
+      "passed": 57,
+      "cases": [
+        {
+          "case": "verified-isolation-removes-original",
+          "passed": true
+        },
+        {
+          "case": "encrypted-metadata-list",
+          "passed": true
+        },
+        {
+          "case": "no-plaintext-payload-or-source-in-database",
+          "passed": true
+        },
+        {
+          "case": "restore-exact-bytes-and-timestamp",
+          "passed": true
+        },
+        {
+          "case": "restore-retains-recovery-copy",
+          "passed": true
+        },
+        {
+          "case": "collision-never-overwrites",
+          "passed": true
+        },
+        {
+          "case": "erase-only-vault-entry",
+          "passed": true
+        },
+        {
+          "case": "authenticated-audit-success-and-failure",
+          "passed": true
+        },
+        {
+          "case": "roundtrip-empty",
+          "passed": true
+        },
+        {
+          "case": "roundtrip-large",
+          "passed": true
+        },
+        {
+          "case": "restore-preserves-dacl-aces",
+          "passed": true
+        },
+        {
+          "case": "vault-dacl-protected",
+          "passed": true
+        },
+        {
+          "case": "journal-failure-allows-explicit-verified-recovery",
+          "passed": true
+        },
+        {
+          "case": "audit-cursor-complete-bounded-pages",
+          "passed": true
+        },
+        {
+          "case": "audit-capacity-preserves-explicit-recovery",
+          "passed": true
+        },
+        {
+          "case": "audit-capacity-rejects-new-isolation-before-delete",
+          "passed": true
+        },
+        {
+          "case": "restore-across-local-volumes",
+          "passed": true
+        },
+        {
+          "case": "detection-hash-mismatch-preserves-original",
+          "passed": true
+        },
+        {
+          "case": "same-content-independent-identities",
+          "passed": true
+        },
+        {
+          "case": "locked-file-preserved",
+          "passed": true
+        },
+        {
+          "case": "delete-denied-retains-original-and-copy",
+          "passed": true
+        },
+        {
+          "case": "hardlinks-rejected",
+          "passed": true
+        },
+        {
+          "case": "alternate-streams-rejected-without-loss",
+          "passed": true
+        },
+        {
+          "case": "file-size-limit-preserves-original",
+          "passed": true
+        },
+        {
+          "case": "sqlite-full-rolls-back-before-delete",
+          "passed": true
+        },
+        {
+          "case": "entry-traversal-rejected",
+          "passed": true
+        },
+        {
+          "case": "restore-name-26",
+          "passed": true,
+          "inputName": "../escape.bin"
+        },
+        {
+          "case": "restore-name-27",
+          "passed": true,
+          "inputName": "..\\escape.bin"
+        },
+        {
+          "case": "restore-name-28",
+          "passed": true,
+          "inputName": "NUL.txt"
+        },
+        {
+          "case": "restore-name-29",
+          "passed": true,
+          "inputName": "stream:ads"
+        },
+        {
+          "case": "restore-name-30",
+          "passed": true,
+          "inputName": "trailing."
+        },
+        {
+          "case": "restore-name-31",
+          "passed": true,
+          "inputName": "trailing "
+        },
+        {
+          "case": "restore-into-vault-rejected",
+          "passed": true
+        },
+        {
+          "case": "source-junction-rejected",
+          "passed": true
+        },
+        {
+          "case": "process-crash-isolate-read",
+          "passed": true
+        },
+        {
+          "case": "process-crash-isolate-prepared",
+          "passed": true
+        },
+        {
+          "case": "process-crash-isolate-verified",
+          "passed": true
+        },
+        {
+          "case": "process-crash-isolate-removed",
+          "passed": true
+        },
+        {
+          "case": "process-crash-isolate-final",
+          "passed": true
+        },
+        {
+          "case": "process-crash-restore-intent",
+          "passed": true
+        },
+        {
+          "case": "unpublished-restore-denies-execution",
+          "passed": true
+        },
+        {
+          "case": "process-crash-restore-flushed",
+          "passed": true
+        },
+        {
+          "case": "process-crash-restore-published",
+          "passed": true
+        },
+        {
+          "case": "process-crash-restore-final",
+          "passed": true
+        },
+        {
+          "case": "process-crash-erase-uncommitted",
+          "passed": true
+        },
+        {
+          "case": "process-crash-erase-final",
+          "passed": true
+        },
+        {
+          "case": "authenticated-meta-tamper-rejected",
+          "passed": true
+        },
+        {
+          "case": "authenticated-data-tamper-rejected",
+          "passed": true
+        },
+        {
+          "case": "database-missing-never-reinitialized",
+          "passed": true
+        },
+        {
+          "case": "database-empty-never-reinitialized",
+          "passed": true
+        },
+        {
+          "case": "database-cleared-never-reinitialized",
+          "passed": true
+        },
+        {
+          "case": "audit-tail-loss-detected",
+          "passed": true
+        },
+        {
+          "case": "missing-entry-detected-against-audit",
+          "passed": true
+        },
+        {
+          "case": "lost-key-never-reinitialized",
+          "passed": true
+        },
+        {
+          "case": "legacy-files-not-consumed-or-deleted",
+          "passed": true
+        },
+        {
+          "case": "production-no-fault-interface",
+          "passed": true
+        },
+        {
+          "case": "stable-sources-and-binaries",
+          "passed": true
+        }
+      ]
+    },
+    "Debug": {
+      "status": "PASS",
+      "tests": 57,
+      "passed": 57,
+      "cases": [
+        {
+          "case": "verified-isolation-removes-original",
+          "passed": true
+        },
+        {
+          "case": "encrypted-metadata-list",
+          "passed": true
+        },
+        {
+          "case": "no-plaintext-payload-or-source-in-database",
+          "passed": true
+        },
+        {
+          "case": "restore-exact-bytes-and-timestamp",
+          "passed": true
+        },
+        {
+          "case": "restore-retains-recovery-copy",
+          "passed": true
+        },
+        {
+          "case": "collision-never-overwrites",
+          "passed": true
+        },
+        {
+          "case": "erase-only-vault-entry",
+          "passed": true
+        },
+        {
+          "case": "authenticated-audit-success-and-failure",
+          "passed": true
+        },
+        {
+          "case": "roundtrip-empty",
+          "passed": true
+        },
+        {
+          "case": "roundtrip-large",
+          "passed": true
+        },
+        {
+          "case": "restore-preserves-dacl-aces",
+          "passed": true
+        },
+        {
+          "case": "vault-dacl-protected",
+          "passed": true
+        },
+        {
+          "case": "journal-failure-allows-explicit-verified-recovery",
+          "passed": true
+        },
+        {
+          "case": "audit-cursor-complete-bounded-pages",
+          "passed": true
+        },
+        {
+          "case": "audit-capacity-preserves-explicit-recovery",
+          "passed": true
+        },
+        {
+          "case": "audit-capacity-rejects-new-isolation-before-delete",
+          "passed": true
+        },
+        {
+          "case": "restore-across-local-volumes",
+          "passed": true
+        },
+        {
+          "case": "detection-hash-mismatch-preserves-original",
+          "passed": true
+        },
+        {
+          "case": "same-content-independent-identities",
+          "passed": true
+        },
+        {
+          "case": "locked-file-preserved",
+          "passed": true
+        },
+        {
+          "case": "delete-denied-retains-original-and-copy",
+          "passed": true
+        },
+        {
+          "case": "hardlinks-rejected",
+          "passed": true
+        },
+        {
+          "case": "alternate-streams-rejected-without-loss",
+          "passed": true
+        },
+        {
+          "case": "file-size-limit-preserves-original",
+          "passed": true
+        },
+        {
+          "case": "sqlite-full-rolls-back-before-delete",
+          "passed": true
+        },
+        {
+          "case": "entry-traversal-rejected",
+          "passed": true
+        },
+        {
+          "case": "restore-name-26",
+          "passed": true,
+          "inputName": "../escape.bin"
+        },
+        {
+          "case": "restore-name-27",
+          "passed": true,
+          "inputName": "..\\escape.bin"
+        },
+        {
+          "case": "restore-name-28",
+          "passed": true,
+          "inputName": "NUL.txt"
+        },
+        {
+          "case": "restore-name-29",
+          "passed": true,
+          "inputName": "stream:ads"
+        },
+        {
+          "case": "restore-name-30",
+          "passed": true,
+          "inputName": "trailing."
+        },
+        {
+          "case": "restore-name-31",
+          "passed": true,
+          "inputName": "trailing "
+        },
+        {
+          "case": "restore-into-vault-rejected",
+          "passed": true
+        },
+        {
+          "case": "source-junction-rejected",
+          "passed": true
+        },
+        {
+          "case": "process-crash-isolate-read",
+          "passed": true
+        },
+        {
+          "case": "process-crash-isolate-prepared",
+          "passed": true
+        },
+        {
+          "case": "process-crash-isolate-verified",
+          "passed": true
+        },
+        {
+          "case": "process-crash-isolate-removed",
+          "passed": true
+        },
+        {
+          "case": "process-crash-isolate-final",
+          "passed": true
+        },
+        {
+          "case": "process-crash-restore-intent",
+          "passed": true
+        },
+        {
+          "case": "unpublished-restore-denies-execution",
+          "passed": true
+        },
+        {
+          "case": "process-crash-restore-flushed",
+          "passed": true
+        },
+        {
+          "case": "process-crash-restore-published",
+          "passed": true
+        },
+        {
+          "case": "process-crash-restore-final",
+          "passed": true
+        },
+        {
+          "case": "process-crash-erase-uncommitted",
+          "passed": true
+        },
+        {
+          "case": "process-crash-erase-final",
+          "passed": true
+        },
+        {
+          "case": "authenticated-meta-tamper-rejected",
+          "passed": true
+        },
+        {
+          "case": "authenticated-data-tamper-rejected",
+          "passed": true
+        },
+        {
+          "case": "database-missing-never-reinitialized",
+          "passed": true
+        },
+        {
+          "case": "database-empty-never-reinitialized",
+          "passed": true
+        },
+        {
+          "case": "database-cleared-never-reinitialized",
+          "passed": true
+        },
+        {
+          "case": "audit-tail-loss-detected",
+          "passed": true
+        },
+        {
+          "case": "missing-entry-detected-against-audit",
+          "passed": true
+        },
+        {
+          "case": "lost-key-never-reinitialized",
+          "passed": true
+        },
+        {
+          "case": "legacy-files-not-consumed-or-deleted",
+          "passed": true
+        },
+        {
+          "case": "production-no-fault-interface",
+          "passed": true
+        },
+        {
+          "case": "stable-sources-and-binaries",
+          "passed": true
+        }
+      ]
+    },
+    "services": {
+      "status": "PASS",
+      "tests": 13,
+      "passed": 13,
+      "cases": [
+        {
+          "case": "current-protected-service-installed",
+          "passed": true
+        },
+        {
+          "case": "scanner-detection-hash-handoff",
+          "passed": true
+        },
+        {
+          "case": "quarantine-worker-remains-restricted",
+          "passed": true
+        },
+        {
+          "case": "service-verified-isolation",
+          "passed": true
+        },
+        {
+          "case": "service-ui-list-contract",
+          "passed": true
+        },
+        {
+          "case": "service-restore-authorized-destination",
+          "passed": true
+        },
+        {
+          "case": "service-collision-fails-closed",
+          "passed": true
+        },
+        {
+          "case": "service-erase-preserves-other-data",
+          "passed": true
+        },
+        {
+          "case": "service-authenticated-history",
+          "passed": true
+        },
+        {
+          "case": "legacy-relative-clean-preserves-detection-hash",
+          "passed": true
+        },
+        {
+          "case": "service-history-pagination-contract",
+          "passed": true
+        },
+        {
+          "case": "stopped-engine-no-quarantine-fallback",
+          "passed": true
+        },
+        {
+          "case": "stable-service-and-sources",
+          "passed": true
+        }
+      ]
+    }
+  }
+}

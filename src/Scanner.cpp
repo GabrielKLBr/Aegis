@@ -22,7 +22,7 @@ bool Scanner::ScanFile(const std::wstring& path, ScanStats& stats) {
     } else if (result.at("classification") == "unknown") ++stats.unknown;
     if (found) for (const auto& f : result.at("findings")) {
         if (f.at("classification") != "detected") continue;
-        det = {path, Utf8ToWide(f.at("rule").get<std::string>()), Utf8ToWide(f.at("kind").get<std::string>())}; break;
+        det = {path, Utf8ToWide(f.at("rule").get<std::string>()), Utf8ToWide(f.at("kind").get<std::string>()), result.value("sha256",std::string())}; break;
     }
     stats.filesScanned++;
 

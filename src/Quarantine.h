@@ -7,11 +7,11 @@ namespace av {
 
 class Quarantine {
 public:
-    // 'dir' is where neutralized copies + metadata are stored.
+    // 'dir' is a private transactional vault, separate from legacy XOR files.
     explicit Quarantine(std::wstring dir);
 
-    // Moves the detected file into quarantine, XOR-neutralizing its bytes so it
-    // cannot run, then deletes the original. Returns true on success.
+    // Persists and verifies an authenticated encrypted copy before removing
+    // the exact detected original. Any failure is reported, never truncated.
     bool Isolate(const Detection& det);
 
     // Lists current quarantine entries to the console.
@@ -19,7 +19,6 @@ public:
 
 private:
     std::wstring dir_;
-    void EnsureDir() const;
 };
 
 } // namespace av

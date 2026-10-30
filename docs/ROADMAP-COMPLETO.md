@@ -1196,6 +1196,11 @@ falhos; lacunas viram lotes subsequentes. Reavaliar as pendências das fases
 
 ## Fase 15 — Quarentena e gerenciamento de ameaças
 
+**Entrega delimitada implementada:** cofre por usuário, AES-GCM/DPAPI, transações,
+restauração explícita, exclusão, trilha autenticada e integração com a engine/UI.
+[Contrato, aceitação e limites](PHASE-15.md). Não inclui cofre protegido contra
+processos que já controlem a mesma conta nem importação automática de legado.
+
 **Trabalho:** substituir o armazenamento simples por formato com integridade,
 controle de acesso e metadados consistentes. Implementar isolamento, listagem,
 restauração, conflitos de destino, exclusão e trilha de ações. Tratar arquivos
@@ -1207,6 +1212,10 @@ permissões previstas; falhas deixam estado recuperável; restauração não per
 escrever fora de destinos autorizados. A UI recebe o resultado real da operação.
 
 ## Fase 16 — Serviço de proteção, IPC e tempo real
+
+**Continuação da quarentena:** broker e armazenamento protegido do serviço para
+resistir à adulteração por processos da mesma conta; preservar a autorização
+do usuário sobre os caminhos de origem e destino e a execução restrita dos workers.
 
 **Trabalho:** mover tarefas privilegiadas para serviço Windows com privilégios
 mínimos. Implementar IPC autenticado, permissões administrativas, filas,

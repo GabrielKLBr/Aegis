@@ -3,6 +3,9 @@
 #include "SignatureDatabase.h"
 #include "Scanner.h"
 #include "Quarantine.h"
+#ifdef GUARDIAN_QUARANTINE
+#include "quarantine/Store.h"
+#endif
 #include "RealTimeMonitor.h"
 #include "WscIntegration.h"
 #include "Sandbox.h"
@@ -142,7 +145,10 @@ int wmain(int argc, wchar_t** argv) {
     if (argc < 2) { Usage(); return 0; }
     std::wstring cmd = ToLower(argv[1]);
 
-    std::wstring quarantineDir = ExeDir() + L"\\quarantine";
+    std::wstring quarantineDir = ExeDir() + L"\\quarantine-v2";
+#ifdef GUARDIAN_QUARANTINE
+    quarantineDir = quarantine::DefaultRoot().wstring();
+#endif
 
     if (cmd == L"scan" || cmd == L"clean") {
         if (argc < 3) { PrintLine(L"Missing <path>.", Color::Red); return 1; }

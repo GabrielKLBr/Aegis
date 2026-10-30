@@ -63,7 +63,7 @@ bool SignatureDatabase::Match(const std::wstring &path, Detection &out, const st
         if (f.at("classification") == "detected")
         {
             out = {path, Utf8ToWide(f.at("rule").get<std::string>()),
-                   Utf8ToWide(f.at("kind").get<std::string>())};
+                   Utf8ToWide(f.at("kind").get<std::string>()), r.value("sha256",std::string())};
             return true;
         }
     return false;

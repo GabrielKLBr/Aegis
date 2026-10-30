@@ -33,6 +33,7 @@
 #include "ComPtr.h"
 #include "Common.h"
 #include "EngineFacade.h"
+#include "quarantine/Store.h"
 #include "Sandbox.h"
 #include "services/Services.h"
 
@@ -53,6 +54,7 @@ using D2D1::RoundedRect;
 // ---------------------------------------------------------------------------
 static const UINT WM_APP_PROGRESS = WM_APP + 1;
 static const UINT WM_APP_DONE     = WM_APP + 2;
+static const UINT WM_APP_Q_DONE = WM_APP + 5;
 static const UINT WM_APP_SBX_DONE = WM_APP + 3;
 static const UINT WM_APP_SERVICE_DONE = WM_APP + 4;
 static const UINT_PTR TIMER_ANIM  = 1;
@@ -119,6 +121,17 @@ struct App {
 
     av::Engine engine{true};
 
+    std::atomic<bool> qRunning{false}, qCancel{false};
+    std::mutex qMtx;
+    av::services::Json qReport=av::services::Json::object(), qEntries=av::services::Json::array(),qAudit=av::services::Json::array();
+    bool qAuditMode=false;
+    std::wstring qMessage;
+    std::string qSelected,qConfirm;
+    size_t qOffset=0,qPageSize=1,qResumeOffset=0;
+    std::thread qThread;
+    D2D1_RECT_F qButtons[7]{};
+    std::vector<std::pair<D2D1_RECT_F,std::string>> qRows;
+    std::vector<std::pair<D2D1_RECT_F,av::Detection>> qDetections;
     // sandbox state
     std::atomic<bool>     sbxRunning{false};
     std::atomic<bool>     sbxCancel{false};
@@ -489,7 +502,8 @@ static void PaintDashboard(float W, float H) {
     } else {
         g.cancelBtn = RectF(x, by, x + S(168), by + S(46));
         Button(g.cancelBtn, L"Cancel scan", T.danger, ColorF(ColorF::White), g.hoverBtn == 2);
-        g.quickBtn = g.chooseBtn = RectF(0,0,0,0);
+
+    g.quickBtn = g.chooseBtn = RectF(0,0,0,0);
     }
     (void)H;
 }
@@ -548,45 +562,30 @@ static void PaintScanPage(float W, float H) {
             Text(f, g.fSmall.Get(),
                  RectF(row.left + S(46), ry + S(25), row.right - S(120), ry + S(43)), T.textDim);
             Text(dets[i].reason, g.fSmall.Get(),
-                 RectF(row.right - S(150), ry, row.right - S(14), ry + S(46)), T.danger,
+                 RectF(row.right - S(200), ry, row.right - S(110), ry + S(46)), T.danger,
                  DWRITE_TEXT_ALIGNMENT_TRAILING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+            if(!scanning&&!g.qRunning){auto isolate=RectF(row.right-S(102),ry+S(5),row.right-S(8),ry+S(39));Button(isolate,L"Isolar",T.cardHi,T.text,false);g.qDetections.push_back({isolate,dets[i]});}
             ry += S(52);
         }
     }
 }
 
-static void PaintQuarantine(float W, float H) {
-    float x = S(220) + S(36);
-    float top = S(34);
-    Text(L"Quarantine", g.fTitle.Get(), RectF(x, top, W - S(36), top + S(40)), T.text);
-    Text(L"Isolated, neutralized files", g.fBody.Get(),
-         RectF(x, top + S(40), W - S(36), top + S(64)), T.textDim);
-
-    D2D1_RECT_F card = RectF(x, top + S(80), W - S(36), H - S(34));
-    FillRound(card, S(12), T.card);
-
-    // read .meta.txt files next to the executable in \quarantine
-    wchar_t exe[MAX_PATH]; GetModuleFileNameW(nullptr, exe, MAX_PATH);
-    std::wstring dir(exe); dir = dir.substr(0, dir.find_last_of(L"\\/")) + L"\\quarantine\\*.meta.txt";
-    WIN32_FIND_DATAW fd{}; HANDLE h = FindFirstFileW(dir.c_str(), &fd);
-    float ry = card.top + S(12);
-    int count = 0;
-    if (h != INVALID_HANDLE_VALUE) {
-        do {
-            D2D1_RECT_F row = RectF(card.left + S(10), ry, card.right - S(10), ry + S(40));
-            FillRound(row, S(8), T.cardHi);
-            DrawShieldCheck(row.left + S(22), ry + S(20), S(8), T.good);
-            Text(fd.cFileName, g.fBody.Get(),
-                 RectF(row.left + S(42), ry, row.right - S(16), ry + S(40)), T.text,
-                 DWRITE_TEXT_ALIGNMENT_LEADING, DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-            ry += S(46); ++count;
-        } while (FindNextFileW(h, &fd) && ry < card.bottom - S(40));
-        FindClose(h);
+static std::wstring BaseName(const std::wstring& p);
+static void PaintQuarantine(float W,float H){
+    const float x=S(256),top=S(34);Text(L"Quarentena",g.fTitle.Get(),RectF(x,top,W-S(36),top+S(40)),T.text);
+    Text(L"Cópias criptografadas; restauração sem sobrescrever arquivos",g.fBody.Get(),RectF(x,top+S(42),W-S(36),top+S(68)),T.textDim);
+    const wchar_t* labels[]={L"Atualizar",L"Isolar arquivo...",L"Restaurar como...",g.qConfirm.empty()?L"Excluir do cofre":L"Confirmar exclusão",L"Histórico",L"Anterior",L"Próxima"};
+    for(int i=0;i<7;++i){int row=i/4,column=i%4;const float bx=x+S(float(column*148)),by=top+S(float(80+row*46));g.qButtons[i]=RectF(bx,by,bx+S(140),by+S(38));Button(g.qButtons[i],labels[i],i==3&&!g.qConfirm.empty()?T.danger:T.cardHi,T.text,false);}
+    av::services::Json entries;std::wstring message;bool auditMode=false;{std::lock_guard lock(g.qMtx);auditMode=g.qAuditMode;entries=auditMode?g.qAudit:g.qEntries;message=g.qMessage;}
+    Text(g.qRunning?L"Operação em andamento...":message,g.fSmall.Get(),RectF(x,top+S(178),W-S(36),top+S(226)),T.textDim);
+    const auto card=RectF(x,top+S(232),W-S(36),H-S(34));FillRound(card,S(12),T.card);g.qRows.clear();float y=card.top+S(10);g.qPageSize=size_t((std::max)(1.0f,std::ceil((card.bottom-y-S(62))/S(auditMode?60.0f:66.0f))));
+    if(entries.empty())Text(L"Nenhum item carregado. Use Atualizar.",g.fBody.Get(),RectF(x+S(16),y,card.right-S(16),y+S(35)),T.textDim);
+    for(size_t i=g.qOffset;i<entries.size()&&y+S(62)<card.bottom;i++){
+        const auto& e=entries[i];if(auditMode){Text(av::services::Wide(e.value("action",std::string()))+L"  "+BaseName(av::services::Wide(e.value("source",std::string()))),g.fBody.Get(),RectF(x+S(16),y,card.right-S(16),y+S(55)),T.textDim);y+=S(60);continue;}auto id=e.value("id",std::string());auto r=RectF(x+S(8),y,card.right-S(8),y+S(60));FillRound(r,S(6),id==g.qSelected?T.cardHi:T.card);g.qRows.push_back({r,id});
+        auto source=av::services::Wide(e.value("source",id));Text(BaseName(source),g.fH2.Get(),RectF(r.left+S(12),y+S(4),r.right-S(12),y+S(28)),T.text);
+        const auto state=e.value("state",std::string("corrupt"));auto status=state=="isolated"?L"Isolado":state=="restored-copy"?L"Restaurado; cópia mantida":state=="corrupt"?L"Integridade inválida":L"Requer revisão; cópia preservada";
+        Text(status,g.fSmall.Get(),RectF(r.left+S(12),y+S(30),r.right-S(12),y+S(55)),state=="corrupt"?T.danger:T.textDim);y+=S(66);
     }
-    if (count == 0)
-        Text(L"Quarantine is empty.", g.fBody.Get(),
-             RectF(card.left + S(18), card.top + S(16), card.right - S(16), card.top + S(44)),
-             T.textDim);
 }
 
 static void PaintSettings(float W, float H) {
@@ -678,6 +677,7 @@ static void PaintSandbox(float W, float H) {
 }
 
 static void OnPaint() {
+    g.qRows.clear();g.qDetections.clear();for(auto& button:g.qButtons)button=RectF(0,0,0,0);
     CreateDeviceResources();
     g.rt->BeginDraw();
     g.rt->Clear(T.bg);
@@ -787,6 +787,29 @@ static void StartSandbox(const std::wstring& file, av::services::Operation opera
     });
     SetTimer(g.hwnd, TIMER_ANIM, 16, nullptr);
 }
+static void QuarantineAction(av::services::Operation operation,av::services::Json request=av::services::Json::object()){
+    if(g.qRunning)return;RefreshServices();if(!g.services[0].Running()){std::lock_guard lock(g.qMtx);g.qMessage=L"Ligue a engine do antivírus nas configurações.";InvalidateRect(g.hwnd,nullptr,FALSE);return;}
+    if(g.qThread.joinable())g.qThread.join();g.qRunning=true;g.qCancel=false;g.qConfirm.clear();{std::lock_guard lock(g.qMtx);g.qResumeOffset=request.value("before",uint64_t(0))?g.qAudit.size():0;}
+    g.qThread=std::thread([operation,request]{av::services::Json result,listing;std::filesystem::path job;
+        try{auto input=av::services::Executable();if(operation!=av::services::Operation::QuarantineList&&(operation!=av::services::Operation::QuarantineAudit||!request.empty())){auto dir=av::quarantine::DefaultRoot().parent_path()/L"quarantine-requests";av::scan::PrivateState(dir);job=dir/(av::scan::Token()+".json");av::scan::WriteJson(job,request);input=job;}
+            result=av::services::Call(av::services::Kind::Antivirus,operation,input,{},&g.qCancel,60000);
+            if(operation==av::services::Operation::QuarantineList)listing=result;
+            else if(operation!=av::services::Operation::QuarantineAudit)listing=av::services::Call(av::services::Kind::Antivirus,av::services::Operation::QuarantineList,av::services::Executable(),{},&g.qCancel,60000);
+        }catch(const std::exception& e){result={{"complete",false},{"error",e.what()}};}
+        if(!job.empty()){std::error_code ignored;std::filesystem::remove(job,ignored);}
+        {std::lock_guard lock(g.qMtx);g.qReport=result;if(listing.contains("entries"))g.qEntries=listing["entries"];if(result.contains("events")){auto page=result["events"];std::reverse(page.begin(),page.end());if(request.value("before",uint64_t(0)))for(auto& e:page)g.qAudit.push_back(std::move(e));else g.qAudit=std::move(page);g.qAuditMode=true;}else g.qAuditMode=false;if(result.contains("events"))g.qMessage=L"Histórico autenticado: "+std::to_wstring(result["events"].size())+L" ações registradas.";else g.qMessage=result.value("complete",false)?L"Operação concluída. Integridade do conteúdo é conferida antes de restaurar.":av::services::Wide(result.value("error",std::string("Operação incompleta; consulte os itens para revisar o estado.")));}
+        PostMessageW(g.hwnd,WM_APP_Q_DONE,0,0);
+    });InvalidateRect(g.hwnd,nullptr,FALSE);
+}
+static void IsolateDetection(const av::Detection& d){g.page=Page::Quarantine;QuarantineAction(av::services::Operation::QuarantineIsolate,{{"schema",2},{"source",av::services::Text(d.file)},{"sha256",d.sha256},{"threat",av::services::Text(d.threat)},{"reason",av::services::Text(d.reason)}});}
+static void QuarantineButton(int index){
+    using O=av::services::Operation;if(g.qRunning)return;
+    if(index==0){QuarantineAction(O::QuarantineList);return;}if(index==1){auto path=PickFile(L"Escolha um arquivo para isolar; ele será removido após cópia verificada");if(!path.empty())QuarantineAction(O::QuarantineIsolate,{{"schema",2},{"source",av::services::Text(path)},{"threat","Manual"}});return;}
+    if(index==4){QuarantineAction(O::QuarantineAudit);return;}if(index==5){g.qOffset=g.qOffset>=g.qPageSize?g.qOffset-g.qPageSize:0;InvalidateRect(g.hwnd,nullptr,FALSE);return;}if(index==6){uint64_t cursor=0;{std::lock_guard lock(g.qMtx);const auto size=g.qAuditMode?g.qAudit.size():g.qEntries.size();if(g.qOffset+g.qPageSize<size)g.qOffset+=g.qPageSize;else if(g.qAuditMode)cursor=g.qReport.value("nextBefore",uint64_t(0));}if(cursor)QuarantineAction(O::QuarantineAudit,{{"schema",2},{"before",cursor}});InvalidateRect(g.hwnd,nullptr,FALSE);return;}
+    if(g.qSelected.empty())return;if(index==3){if(g.qConfirm!=g.qSelected){g.qConfirm=g.qSelected;{std::lock_guard lock(g.qMtx);g.qMessage=L"Confirme a exclusão permanente da cópia do cofre. Os arquivos fora dele não serão removidos.";}InvalidateRect(g.hwnd,nullptr,FALSE);return;}QuarantineAction(O::QuarantineErase,{{"schema",2},{"id",g.qSelected}});return;}
+    if(index==2){ComPtr<IFileSaveDialog> dlg;if(FAILED(CoCreateInstance(CLSID_FileSaveDialog,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(dlg.GetAddressOf()))))return;dlg->SetTitle(L"Escolha um destino novo para restaurar; o cofre manterá uma cópia");DWORD options=0;dlg->GetOptions(&options);dlg->SetOptions((options&~FOS_OVERWRITEPROMPT)|FOS_FORCEFILESYSTEM|FOS_PATHMUSTEXIST);std::wstring filename=L"restaurado.bin";{std::lock_guard lock(g.qMtx);for(const auto& e:g.qEntries)if(e.value("id",std::string())==g.qSelected)filename=BaseName(av::services::Wide(e.value("source",std::string("restaurado.bin"))));}dlg->SetFileName(filename.c_str());
+        if(SUCCEEDED(dlg->Show(g.hwnd))){ComPtr<IShellItem> item;if(SUCCEEDED(dlg->GetResult(item.GetAddressOf()))){PWSTR text=nullptr;if(SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH,&text))){std::filesystem::path path=text;CoTaskMemFree(text);QuarantineAction(O::QuarantineRestore,{{"schema",2},{"id",g.qSelected},{"directory",av::services::Text(path.parent_path().wstring())},{"filename",av::services::Text(path.filename().wstring())}});}}}}
+}
 static void RunTestSample() {
     StartSandbox((av::services::Executable().parent_path() / L"guardian-service-sample.exe").wstring());
 }
@@ -818,6 +841,12 @@ static void OnMouseMove(float x, float y) {
 static void OnClick(float x, float y) {
     for (int i = 0; i < 5; ++i)
         if (PtIn(g.navRect[i], x, y)) { g.page = (Page)i; InvalidateRect(g.hwnd, nullptr, FALSE); return; }
+    if(g.page==Page::Quarantine){
+        for(const auto& item:g.qRows)if(PtIn(item.first,x,y)){g.qSelected=item.second;g.qConfirm.clear();InvalidateRect(g.hwnd,nullptr,FALSE);return;}
+        for(int i=0;i<7;++i)if(PtIn(g.qButtons[i],x,y)){QuarantineButton(i);return;}
+        return;
+    }
+    if(g.page==Page::Scan)for(const auto& item:g.qDetections)if(PtIn(item.first,x,y)){IsolateDetection(item.second);return;}
     if (PtIn(g.quickBtn, x, y))  { StartScan(DefaultScanFolder()); return; }
     if (PtIn(g.chooseBtn, x, y)) { std::wstring f = PickFolder(); if (!f.empty()) StartScan(f); return; }
     if (PtIn(g.cancelBtn, x, y)) { g.engine.Cancel(); return; }
@@ -893,6 +922,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             ServiceAction(LOWORD(wp)); return 0;
         }
         break;
+    case WM_APP_Q_DONE:
+        if(g.qThread.joinable())g.qThread.join();g.qSelected.clear();g.qConfirm.clear();g.qRunning=false;g.qOffset=g.qResumeOffset;g.qResumeOffset=0;InvalidateRect(hwnd,nullptr,FALSE);return 0;
     case WM_APP_SERVICE_DONE:
         if (g.serviceThread.joinable()) g.serviceThread.join();
         g.serviceBusy = false; RefreshServices(); InvalidateRect(hwnd, nullptr, FALSE); return 0;
@@ -931,6 +962,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (g.serviceBusy) { MessageBeep(MB_ICONINFORMATION); return 0; }
         DestroyWindow(hwnd); return 0;
     case WM_DESTROY:
+        g.qCancel=true;if(g.qThread.joinable())g.qThread.join();
         KillTimer(hwnd, TIMER_SERVICES);
         g.engine.Cancel(); g.engine.Join();
         g.sbxCancel = true;
