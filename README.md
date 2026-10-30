@@ -42,6 +42,11 @@ DLLs próprias de 32 bits e janelas USER32 nativas para NT 10.0.19045:
 [escopo, validação e continuação](docs/PHASE-14.12.md).
 WOW64 completo, corpus GUI independente e perfis NT adicionais permanecem abertos.
 
+A **14.13** conecta a fila ao runtime por pacotes vinculados a SHA-256 e
+acrescenta recuperação de execução com janelas USER32 básicas x86/x64:
+[uso, testes e limites](docs/PHASE-14.13.md).
+Snapshots com GDI/DirectX/áudio e conexões abertas permanecem pendentes.
+
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem
 recriar seus dados compilados: [preparação a partir dos fontes](docs/GITHUB-AEGIS.md).

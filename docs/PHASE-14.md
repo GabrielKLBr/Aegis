@@ -1,5 +1,9 @@
 # Fase 14 — Scanner, regras e inteligência de ameaças
 
+Atualização da fila em 29/10/2026: a [14.13](PHASE-14.13.md) substitui o
+encaminhamento legado descrito nesta entrega histórica por pacotes inscritos
+no runtime próprio. A ausência de pacote fica inconclusiva, sem fallback.
+
 Entrega de 23/10/2026. Implementação e aceitação Windows concluídas. A validação Linux desta revisão é parcial.
 Esta etapa evolui os scanners existentes. A fase 15 não foi iniciada.
 

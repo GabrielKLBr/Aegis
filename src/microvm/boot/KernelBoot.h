@@ -78,6 +78,7 @@ public:
     void Prepare(const KernelImage& image, uint64_t ramBytes, uint64_t bootId, CpuOptions cpu = {},const StorageOptions& storage={},const net::Options& networking={},const gui::Options& graphics={},const hardware::Profile* hardware=nullptr,const hardware::DriverOptions& driver={},const storage::SparseOptions* scalable=nullptr,const guardian::environment::Info* environment=nullptr,const guardian::telemetry::Policy* analysisPolicy=nullptr,uint32_t analysisScenario=0,std::span<const uint8_t> externalGui={},const guardian::nt::Info* compatibility=nullptr,std::span<const uint8_t> externalVolume={},std::span<const uint8_t> securityState={},const desktop_session::Options& desktop={},const internet_session::Policy* internet=nullptr);
     BootResult Run(std::chrono::milliseconds timeout = std::chrono::seconds(3), bool suspendAtDeadline = false);
     void PauseAtGraphicsRequest(uint64_t n){pauseAtGraphics_=n;}
+    void PauseAtNativeRequest(uint64_t n){pauseAtNative_=n;}
     void PauseAtDriverWrite(uint32_t n){pauseAtDriverWrite_=n;}
     void PauseAtNetworkRequest(uint64_t n){pauseAtNetwork_=n;}
     void PauseAtIoRequest(uint64_t request){pauseAtIo_=request;}
@@ -109,6 +110,10 @@ private:
     bool telemetryEnabled_=false,analysisKernel_=false;
     bool externalGuiKernel_=false;
     bool externalPeKernel_=false;
+    size_t externalVolumeBytes_=0;
+    uint64_t pauseAtNative_=0,nativeRequests_=0;
+    std::function<std::vector<uint8_t>()> nativeSave_;
+    std::function<void(std::span<const uint8_t>)> nativeLoad_;
     guardian::nt::Info ntInfo_{};
     bool ntEnabled_=false;
     guardian::telemetry::Info telemetryInfo_{};

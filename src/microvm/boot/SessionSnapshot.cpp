@@ -9,9 +9,9 @@ uint32_t Options(CpuOptions c) {
 }
 } // namespace
 SessionSnapshot KernelBootSession::Capture() {
-    state::Require(!internetBackend_,"Internet transport checkpoints are not supported");
-    state::Require(!desktopBackend_,"Desktop checkpoints are not implemented");
-    state::Require(!externalGuiKernel_&&!externalPeKernel_,"External PE snapshots are not implemented");
+    if(internetBackend_){state::Writer check;internetBackend_->SaveOffline(check);}
+    state::Require(!desktopBackend_||(nativeSave_&&nativeLoad_),"Desktop checkpoint provider is missing");
+    state::Require(!externalGuiKernel_,"Legacy external GUI snapshots are not implemented");
     if(resourceSession_)return resourceSession_->Capture();
     state::Require(prepared_ && (!ran_ || paused_), "Snapshot requires a prepared or paused guest");
     SessionSnapshot out;
@@ -53,13 +53,15 @@ SessionSnapshot KernelBootSession::Capture() {
     if(telemetryEnabled_)telemetry_.Save(w);
     if (storageBackend_)
         out.disk = storageBackend_->Snapshot();
+    if(externalPeKernel_){w.Pod(uint32_t(0x1313));w.Pod(nativeRequests_);w.Pod(uint32_t(desktopBackend_!=nullptr));if(desktopBackend_){desktopBackend_->Save(w);w.Bytes(nativeSave_());}}
+    if(internetBackend_)internetBackend_->SaveOffline(w);
     out.metadata = std::move(w.data);
     return out;
 }
 void KernelBootSession::Restore(const SessionSnapshot &saved) {
-    state::Require(!internetBackend_,"Internet transport checkpoints are not supported");
-    state::Require(!desktopBackend_,"Desktop checkpoints are not implemented");
-    state::Require(!externalGuiKernel_&&!externalPeKernel_,"External PE snapshots are not implemented");
+    if(internetBackend_){state::Writer check;internetBackend_->SaveOffline(check);}
+    state::Require(!desktopBackend_||(nativeSave_&&nativeLoad_),"Desktop checkpoint provider is missing");
+    state::Require(!externalGuiKernel_,"Legacy external GUI snapshots are not implemented");
     if(resourceSession_){resourceSession_->Restore(saved);return;}
     state::Require(prepared_ && !ran_, "Restore requires a fresh candidate session");
     if(saved.machine.ram.size()>=guardian::nt::InfoGpa+sizeof(ntInfo_)){
@@ -67,6 +69,7 @@ void KernelBootSession::Restore(const SessionSnapshot &saved) {
         if(ntEnabled_)state::Require(saved.machine.access.size()>guardian::nt::InfoGpa/4096&&saved.machine.access[guardian::nt::InfoGpa/4096]==1&&std::memcmp(&info,&ntInfo_,sizeof(info))==0,"Snapshot NT profile/runtime/manifest mismatch");
         else state::Require(info.magic!=guardian::nt::Magic,"Snapshot requires its NT compatibility manifest");
     }else state::Require(!ntEnabled_,"Snapshot NT binding page missing");
+    if(externalPeKernel_){const auto at=guardian::pevolume::SourceGpa;state::Require(at<=saved.machine.ram.size()&&externalVolumeBytes_<=saved.machine.ram.size()-at,"Checkpoint runtime volume missing");const auto digest=compatibility::Sha256(std::span<const uint8_t>(saved.machine.ram).subspan(at,externalVolumeBytes_));state::Require(!std::memcmp(digest.data(),ntInfo_.runtimeSha,32),"Checkpoint runtime volume mismatch");}
     if(driverBackend_)driverBackend_->ValidateSnapshot(saved.machine);
     if(cpuOptions_.storage&&storageQuotaContract_){
         const auto gpa=guardian::storage::QuotaGpa;
@@ -122,12 +125,16 @@ void KernelBootSession::Restore(const SessionSnapshot &saved) {
     storageReport_ = r.Pod<guardian::storage::Report>();
     channel_.Load(r, bootId_);
     console_ = r.Text();
+    consoleDecoder_={};if(frameworkConsole_)for(const auto byte:console_)state::Require(consoleDecoder_.Put(uint8_t(byte)),"Checkpoint UTF-8 console rejected");
     if (ioBackend_)
         ioBackend_->Load(r);
     if(networkBackend_){auto valid=r.Pod<uint32_t>();state::Require(valid<=1,"Network report flag rejected");networkReportValid_=valid!=0;networkReport_=r.Pod<guardian::net::Report>();networkBackend_->Load(r);}
     if(graphicsBackend_){const auto valid=r.Pod<uint32_t>();state::Require(valid<=1,"Graphics report flag rejected");graphicsReportValid_=valid!=0;graphicsReport_=r.Pod<guardian::graphics::Report>();graphicsBackend_->Load(r);state::Require(graphicsBackend_->LastNs()<=elapsedNs_,"Graphics checkpoint time exceeds the session clock");}
     if(driverBackend_)driverBackend_->Load(r);
     if(telemetryEnabled_)telemetry_.Load(r,bootId_,telemetry_.Configuration());
+    std::vector<uint8_t> nativeState;
+    if(externalPeKernel_){state::Require(r.Pod<uint32_t>()==0x1313,"External runtime checkpoint extension missing");nativeRequests_=r.Pod<uint64_t>();state::Require(r.Pod<uint32_t>()==uint32_t(desktopBackend_!=nullptr),"Checkpoint desktop mode mismatch");if(desktopBackend_){desktopBackend_->Load(r);nativeState=r.Bytes(32<<20);}}
+    if(internetBackend_)internetBackend_->LoadOffline(r);
     r.End();
     state::Require(storageBackend_ ? storageBackend_->Matches(saved.disk) : saved.disk.empty(),
                    "Snapshot disk and memory are not the same generation");
@@ -144,6 +151,7 @@ void KernelBootSession::Restore(const SessionSnapshot &saved) {
             utcEpoch100ns_ = clock.utcEpoch100ns;
         }
     }
+    if(desktopBackend_)nativeLoad_(nativeState);
     state::Require(vm_.Restore(saved.machine), "Machine state restore failed");
     pausedMachine_ = saved.machine;
     paused_ = true;

@@ -20,6 +20,14 @@ std::vector<TimedInput> ReadScript(const std::filesystem::path& path){const auto
 }
 Backend::Backend(uint64_t boot,const Options& options):boot_(boot),options_(options),pixels_(PixelCount,0xFF172536){state::Require(boot&&(!options.interactive||options.script.empty()),"Select manual or scripted desktop input");uint64_t previous=0;for(const auto& e:options.script){state::Require(ValidInput(e.event)&&e.ns>=previous&&e.ns<=120000000000ull,"Desktop input policy rejected");previous=e.ns;}state::Require(options.script.size()<=2048,"Desktop script quota exceeded");}
 Info Backend::Enumeration() const {Info i;i.boot=boot_;i.interactive=options_.interactive?1u:0u;i.reserved=options_.integrated?1u:0u;return i;}
+void Backend::Save(state::Writer& w) const {
+    state::Require(!options_.interactive&&!options_.integrated&&options_.script.empty()&&!options_.poll&&!options_.display&&!frames_&&!inputs_&&!completed_,"Checkpoint requires the native desktop without a pixel presenter");
+    w.Pod(uint32_t(0x1310));w.Pod(boot_);w.Pod(sequence_);w.Pod(now_);w.Pod(scriptOrigin_);w.Pod(uint32_t(scriptStarted_));
+}
+void Backend::Load(state::Reader& r){
+    state::Writer validate;Save(validate);state::Require(r.Pod<uint32_t>()==0x1310&&r.Pod<uint64_t>()==boot_,"Desktop checkpoint identity mismatch");
+    sequence_=r.Pod<uint64_t>();now_=r.Pod<uint64_t>();scriptOrigin_=r.Pod<uint64_t>();auto started=r.Pod<uint32_t>();state::Require(started<=1&&scriptOrigin_<=now_,"Desktop checkpoint clock rejected");scriptStarted_=started!=0;
+}
 bool Backend::Exchange(Packet& p,const uint32_t* pixels,uint64_t now){if(completed_||p.magic!=Magic||p.boot!=boot_||p.version!=1||p.bytes!=sizeof(p)||p.sequence!=sequence_+1||p.status||now<now_||(p.op!=1&&p.op!=2))return false;now_=now;++sequence_;
     if(p.op==1){if(!scriptStarted_){scriptOrigin_=now;scriptStarted_=true;}p.status=1;p.input={};if(input_<options_.script.size()&&options_.script[input_].ns<=now-scriptOrigin_){p.input=options_.script[input_++].event;delivered_.push_back(now);p.status=0;}else if(options_.interactive&&options_.poll){p.input=options_.poll();if(p.input.type!=InputType::None)p.status=0;}if(!p.status){if(!ValidInput(p.input))return false;++inputs_;capture_=true;}return true;}
     if(!pixels||!ValidFrame(p.frame))return false;frame_=p.frame;std::memcpy(pixels_.data(),pixels,PixelCount*4);hash_=Hash(pixels_.data());++frames_;

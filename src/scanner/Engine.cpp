@@ -125,7 +125,7 @@ struct Engine::Impl
             config.state = DefaultState();
         config.state = fs::absolute(config.state).lexically_normal();
         PrivateState(config.state);
-        for (const auto *d : {"jobs", "payloads"})
+        for (const auto *d : {"jobs", "payloads", "sessions"})
         {
             fs::create_directory(config.state / d);
             OrdinaryDirectory(config.state / d);
@@ -148,6 +148,8 @@ struct Engine::Impl
                 {"action", action},
                 {"name", safeName},
                 {"sha256", hash},
+                {"sandboxRuntime", PathText(config.sandboxRuntime)},
+                {"sandboxOutput", action=="sandbox"?PathText(config.state/"sessions"/Token()):std::string()},
                 {"limits", config.limits.ToJson()},
                 {"rules", rules},
                 {"signatures", signatures}};
@@ -282,6 +284,7 @@ Json Engine::DispatchOne(const std::atomic<bool> *cancel)
         Require(PathText(payload) == entry.at("payload").get<std::string>(), "Queue path rejected");
         const auto bytes = Read(payload, p.config.limits.fileBytes);
         Require(Digest(bytes) == hash, "Queue payload integrity failure");
+        Require(std::distance(fs::directory_iterator(p.config.state/"sessions"),fs::directory_iterator())<64,"Runtime session retention quota reached; archive old session reports");
         Job job(p.config.state / "jobs");
         Write(job.folder / "payload", bytes);
         result = RunWorker(job.folder, p.Request("sandbox", entry.at("name"), hash), cancel);

@@ -12,6 +12,10 @@ target_compile_options(guardian_engine_client PRIVATE /W4 /WX /utf-8 /permissive
 add_executable(guardian-engine-service src/services/Main.cpp src/services/Server.cpp src/services/Installer.cpp
     src/services/Worker.cpp src/EngineFacade.cpp src/SignatureDatabase.cpp src/Util.cpp)
 target_link_libraries(guardian-engine-service PRIVATE guardian_engine_client guardian_scanner scanner_sandbox userenv ole32)
+if(TARGET guardian_unified_runtime)
+    target_link_libraries(guardian-engine-service PRIVATE guardian_unified_runtime)
+    target_compile_definitions(guardian-engine-service PRIVATE GUARDIAN_SERVICE_UNIFIED=1)
+endif()
 target_compile_options(guardian-engine-service PRIVATE /W4 /WX /utf-8 /permissive-)
 add_executable(guardian-service-sample test/ServiceSample.cpp)
 target_compile_options(guardian-service-sample PRIVATE /GS- /GR- /utf-8)

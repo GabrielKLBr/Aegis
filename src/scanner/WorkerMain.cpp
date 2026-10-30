@@ -1,7 +1,7 @@
 #include "Scanner.h"
 #include <iostream>
 #ifdef GUARDIAN_SCANNER_VM
-#include "microvm/MicroSandbox.h"
+#include "microvm/runtime/Unified.h"
 #endif
 namespace av::scan
 {
@@ -25,35 +25,12 @@ int WorkerMain(const fs::path &folder)
             result = {{"schema", 1},
                       {"classification", "inconclusive"},
                       {"complete", false},
-                      {"backend", "MiniNT-WHP-legacy"},
-                      {"coverage", "limited CRT-free PE imports; no host process fallback"},
+                      {"backend", "MiniNT-unified-14.13"},
+                      {"coverage", "hash-enrolled owned-kernel runtime; no host or legacy fallback"},
                       {"issues", Json::array()}};
-#ifdef GUARDIAN_SCANNER_VM
-            Require(bytes.size() >= 2 && bytes[0] == 'M' && bytes[1] == 'Z',
-                    "Sandbox accepts PE inputs only");
-            av::microvm::MicroSandbox sandbox;
-            const auto r = sandbox.Detonate((folder / "payload").wstring());
-            result["loaded"] = r.loaded;
-            result["ran"] = r.ran;
-            result["exitCode"] = r.exitCode;
-            result["faulted"] = r.faulted;
-            result["unresolved"] = r.unresolved;
-            result["error"] = r.error;
-            result["events"] = Json::array();
-            Require(r.events.size() <= 4096, "Sandbox event limit exceeded");
-            for (const auto &event : r.events)
-                result["events"].push_back({{"category", int(event.cat)},
-                                            {"action", event.action},
-                                            {"target", event.target},
-                                            {"detail", event.detail}});
-            result["complete"] = r.loaded && r.ran && !r.faulted && r.error.empty() && r.unresolved.empty();
-            if (result["complete"].get<bool>())
-                result["classification"] = "unknown";
-            result["virtualFiles"] = Json::array();
-            for (const auto &[name, data] : r.files)
-                result["virtualFiles"].push_back(
-                    {{"path", name}, {"bytes", data.size()}, {"sha256", Digest(data)}});
-            result["virtualRegistry"] = r.registry;
+#ifdef GUARDIAN_SCANNER_UNIFIED
+            guardian::telemetry::Policy policy;policy.eventLimit=guardian::telemetry::MaxEvents;
+            result=av::microvm::runtime::Run(folder / "payload",Utf8Path(request.value("sandboxRuntime",std::string())),Utf8Path(request.at("sandboxOutput").get<std::string>()),policy,limits.milliseconds);
 #else
             result["backend"] = "unavailable";
             result["issues"].push_back("External PE sandbox handoff requires the Windows MiniNT backend; "

@@ -79,6 +79,7 @@ Config Config::Parse(const Json &j, const fs::path &base)
     c.state = path("state");
     c.signatures = path("signatures");
     c.rulePackage = path("rulePackage");
+    c.sandboxRuntime = path("sandboxRuntime");
     c.offline = j.value("offline", true);
     c.queueUnknown = j.value("queueUnknown", false);
     c.cacheSeconds = uint32_t(Number(j, "cacheSeconds", c.cacheSeconds, 0, 86400));

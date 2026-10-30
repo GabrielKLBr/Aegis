@@ -1134,6 +1134,13 @@ aprovadas. Programas de 16 bits e ARM ficam fora desse lote. Parar ao concluir.
 
 ### Subfase 14.13 — Runtime unificado, análise e recuperação
 
+**Entrega delimitada de 29/10/2026:** entrada comum de execução, fila sem
+fallback legado, pacotes por SHA-256, autoria de efeitos e recuperação real
+de USER32 básico x86/x64 no perfil NT 10.0.19045.
+[Implementação e matriz de aceitação](PHASE-14.13.md).
+GDI/DirectX/áudio vivos, timers/sends pendentes e transporte conectado continuam
+fora do contrato de checkpoint; outras famílias seguem os limites já declarados.
+
 **Dependências:** lotes de compatibilidade utilizados e fases 9/13/14.
 
 **Trabalho:** integrar o carregamento externo e as novas DLLs ao mesmo kernel,

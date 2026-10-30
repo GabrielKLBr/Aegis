@@ -1,4 +1,6 @@
 #include "guardian/NativeUser32.h"
+#include "guardian/NativeCheckpoint.h"
+#include <memory>
 #include "NativeGuiRestrictions.h"
 #include "NativeGuiPipe.h"
 #ifdef GUARDIAN_NATIVE_GDI
@@ -64,7 +66,7 @@ struct Host {
     static int Logical(int value,UINT dpi){return MulDiv(value,96,int(dpi));}
     static int Physical(int value,UINT dpi){return MulDiv(value,int(dpi),96);}
     void Queue(Object& o,UINT msg,WPARAM wp=0,LPARAM lp=0,uint32_t flags=2,const WINDOWPOS* pos=nullptr){
-        if(!o.ready)return;
+        if(!o.ready||restoringUser)return;
 #ifdef GUARDIAN_GDI_EXPANDED
         // Native dragging can generate hundreds of geometry notifications while
         // the guest is busy. Retain the newest state for each notification type.
@@ -158,6 +160,7 @@ struct Host {
 #ifdef GUARDIAN_NATIVE_CONTROLS
 #include "NativeControlsHost.inl"
 #endif
+#include "NativeCheckpointHost.inl"
     template<class Packet> uint32_t Execute(Packet& p){const auto& c=p.command;auto& r=p.reply;auto* o=Find(c.window);
         if(c.op==u::Op::Create){
             if(c.window)return ERROR_INVALID_PARAMETER;Object* parent=c.other?Find(c.other):nullptr;
@@ -281,6 +284,10 @@ struct Host {
         }
     }
     bool Exchange(WirePacket& p){
+        if(uint32_t(p.command.op)>=guardian::checkpoint::Begin&&uint32_t(p.command.op)<=guardian::checkpoint::Commit){
+            if(p.magic!=WireMagic||p.version!=WireVersion||p.bytes!=sizeof(p)||p.boot!=boot||p.session!=session||p.sequence||p.pid||p.tid||!guardian::nativegui::Empty(&p.reply,sizeof(p.reply)))return false;
+            p.reply.status=Checkpoint(p);return true;
+        }
         if(complete||p.magic!=WireMagic||p.version!=WireVersion||p.bytes!=sizeof(p)||p.boot!=boot||p.session!=session||p.sequence!=sequence+1||p.sequence>u::MaxCommands||!p.pid||!p.tid||!guardian::nativegui::Empty(&p.reply,sizeof(p.reply)))return false;
         ++sequence;
 #ifdef GUARDIAN_NATIVE_GDI

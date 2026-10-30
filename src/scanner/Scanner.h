@@ -19,7 +19,7 @@ struct Limits
 };
 struct Config
 {
-    fs::path state, signatures, rulePackage;
+    fs::path state, signatures, rulePackage, sandboxRuntime;
     Limits limits;
     bool offline = true, queueUnknown = false;
     uint32_t cacheSeconds = 3600;

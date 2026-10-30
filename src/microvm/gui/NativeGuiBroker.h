@@ -4,6 +4,8 @@
 #include "guardian/NativeGdi.h"
 #include <filesystem>
 #include <memory>
+#include <span>
+#include <vector>
 namespace av::microvm::native_gui {
 class Broker {
 public:
@@ -16,6 +18,9 @@ public:
     bool Completed() const;
     // Explicit controller shutdown for an application that never requested GUI.
     bool CompleteUnused();
+    std::vector<uint8_t> CaptureUser();
+    void RestoreUser(std::span<const uint8_t>);
+    bool CloseCheckpoint();
     void Finish(const std::filesystem::path& output={});
 #ifdef NATIVE_GUI_TESTING
     void StallForTesting();void KillForTesting();uint32_t ProcessForTesting() const;

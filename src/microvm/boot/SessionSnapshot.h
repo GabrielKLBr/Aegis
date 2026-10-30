@@ -18,7 +18,7 @@ struct SessionSnapshot {
         state::Require(r.Pod<uint32_t>() == 1, "Session snapshot version rejected");
         SessionSnapshot s;
         s.machine = state::MachineState::Load(r);
-        s.metadata = r.Bytes(5 << 20);
+        s.metadata = r.Bytes(64 << 20);
         s.disk = r.Bytes(272ull << 20);
         r.End();
         return s;

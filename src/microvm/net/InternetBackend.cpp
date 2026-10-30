@@ -125,4 +125,12 @@ Backend::Backend(const Policy& p):impl_(std::make_unique<Impl>(p)){}
 Backend::~Backend()=default;
 bool Backend::Exchange(Request& r){auto& i=*impl_;if(r.magic!=Magic||r.version!=1||r.bytes!=sizeof(r)||i.sequence==UINT64_MAX||r.sequence!=i.sequence+1||!r.pid||r.status||r.flags||r.length>Payload||uint32_t(r.op)<1||uint32_t(r.op)>9)return false;++i.sequence;r.status=i.Execute(r);if(i.events.size()<i.policy.requestLimit)i.events.push_back({uint32_t(r.op),r.pid,r.id,r.status,r.length});return true;}
 std::string Backend::Json() const {const auto& i=*impl_;std::ostringstream out;uint32_t active=0;for(const auto& c:i.channels)if(c.id)++active;out<<"{\"schema\":1,\"mode\":"<<uint32_t(i.policy.mode)<<",\"bytes\":"<<i.traffic<<",\"nativeSocketsOpened\":"<<i.nativeOpened<<",\"activeSockets\":"<<active<<",\"hostResolverUsed\":false,\"hostTlsUsed\":false,\"events\":[";bool first=true;for(const auto& e:i.events){if(!first)out<<',';first=false;out<<"{\"operation\":"<<e.op<<",\"pid\":"<<e.pid<<",\"id\":"<<e.id<<",\"status\":"<<e.status<<",\"bytes\":"<<e.bytes<<'}';}out<<"]}\n";return out.str();}
+void Backend::SaveOffline(state::Writer& w) const {
+    const auto& s=*impl_;state::Require(s.policy.mode==Mode::Offline&&!s.nativeOpened,"Live internet transport checkpoints are unsupported");for(const auto& c:s.channels)state::Require(!c.id,"Open internet channel checkpoint unsupported");
+    w.Pod(s.policy);w.Pod(s.sequence);w.Pod(s.next);w.Pod(s.requests);w.Pod(s.traffic);w.Pod(uint32_t(s.events.size()));for(const auto& e:s.events)w.Pod(e);
+}
+void Backend::LoadOffline(state::Reader& r){
+    auto& s=*impl_;state::Writer check;SaveOffline(check);const auto policy=r.Pod<Policy>();state::Require(!std::memcmp(&policy,&s.policy,sizeof(policy)),"Checkpoint internet policy mismatch");s.sequence=r.Pod<uint64_t>();s.next=r.Pod<uint32_t>();s.requests=r.Pod<uint32_t>();s.traffic=r.Pod<uint32_t>();const auto count=r.Pod<uint32_t>();state::Require(s.requests<=policy.requestLimit&&s.traffic<=policy.byteLimit&&count<=65536&&s.sequence<=65536&&s.next<=65536,"Checkpoint internet counters rejected");s.events.clear();for(uint32_t i=0;i<count;++i)s.events.push_back(r.Pod<Impl::Event>());
+}
+
 }

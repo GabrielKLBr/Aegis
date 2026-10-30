@@ -43,7 +43,7 @@ Json RunWorker(const fs::path &job, const Json &request, const std::atomic<bool>
                                               JOB_OBJECT_LIMIT_ACTIVE_PROCESS | JOB_OBJECT_LIMIT_JOB_MEMORY;
     policy.ProcessMemoryLimit = 384ull << 20;
     const bool sandbox = request.at("action") == "sandbox";
-    policy.BasicLimitInformation.ActiveProcessLimit = sandbox ? 2 : 1; // VM plus its owned WHP memory helper.
+    policy.BasicLimitInformation.ActiveProcessLimit = sandbox ? 3 : 1; // VM, RAM owner and restricted GUI helper.
     policy.JobMemoryLimit = sandbox ? (512ull << 20) : (384ull << 20);
     Require(SetInformationJobObject(group.h, JobObjectExtendedLimitInformation, &policy, sizeof(policy)) !=
                 FALSE,

@@ -7,10 +7,12 @@
 #include <filesystem>
 #include <functional>
 #include <vector>
+#include <span>
 namespace av::microvm::window_session {struct Frame;}
+namespace av::microvm::state {class Writer;class Reader;}
 namespace av::microvm::desktop_session {
 struct TimedInput {uint64_t ns=0;guardian::desktop::Input event{};};
-struct Options {bool nativeGdi=false;bool nativeControls=false;bool expandedGdi=false;bool softwareGraphics=false;bool audio=false;std::function<bool(guardian::nativegdi::Packet&)> gdiExchange;bool nativeUser32=false;std::function<bool(guardian::nativeuser::Packet&)> userExchange;bool nativeGui=false;guardian::nativegui::Info nativeInfo{};std::function<bool(guardian::nativegui::Packet&)> nativeExchange;std::function<bool()> nativeCompleted;bool interactive=false,integrated=false;std::function<guardian::presentation::Event()> windowPoll;std::function<void(const window_session::Frame&)> windowDisplay;uint32_t telemetryCapacity=0;std::filesystem::path output;std::vector<TimedInput> script;std::function<guardian::desktop::Input()> poll;std::function<void(const guardian::desktop::Frame&,const uint32_t*)> display;};
+struct Options {std::function<std::vector<uint8_t>()> nativeSave;std::function<void(std::span<const uint8_t>)> nativeLoad;bool nativeGdi=false;bool nativeControls=false;bool expandedGdi=false;bool softwareGraphics=false;bool audio=false;std::function<bool(guardian::nativegdi::Packet&)> gdiExchange;bool nativeUser32=false;std::function<bool(guardian::nativeuser::Packet&)> userExchange;bool nativeGui=false;guardian::nativegui::Info nativeInfo{};std::function<bool(guardian::nativegui::Packet&)> nativeExchange;std::function<bool()> nativeCompleted;bool interactive=false,integrated=false;std::function<guardian::presentation::Event()> windowPoll;std::function<void(const window_session::Frame&)> windowDisplay;uint32_t telemetryCapacity=0;std::filesystem::path output;std::vector<TimedInput> script;std::function<guardian::desktop::Input()> poll;std::function<void(const guardian::desktop::Frame&,const uint32_t*)> display;};
 std::vector<TimedInput> ReadScript(const std::filesystem::path&);
 class Backend {
 public:
@@ -19,6 +21,8 @@ public:
     bool Complete(const guardian::desktop::Report&);
     bool Completed() const {return completed_;}
     void Export() const;
+    void Save(state::Writer&) const;
+    void Load(state::Reader&);
     guardian::desktop::Info Enumeration() const;
 private:
     void Capture();

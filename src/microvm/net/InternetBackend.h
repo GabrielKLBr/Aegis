@@ -14,6 +14,8 @@ public:
     Backend& operator=(const Backend&)=delete;
     bool Exchange(guardian::internet::Request&);
     std::string Json() const;
+    void SaveOffline(state::Writer&) const;
+    void LoadOffline(state::Reader&);
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

@@ -1,6 +1,6 @@
 #include "Services.h"
 #include "EngineFacade.h"
-#include "microvm/MicroSandbox.h"
+#include "microvm/runtime/Unified.h"
 #include <fstream>
 #include <vector>
 
@@ -79,20 +79,15 @@ struct Payload {
         fs::remove(folder / L"payload.exe", error); fs::remove(folder, error);
     }
 };
-Json Detonate(const fs::path& path) {
-    Payload payload(path);
-    microvm::MicroSandbox sandbox;
-    const auto report = sandbox.Detonate((payload.folder / L"payload.exe").wstring());
-    Json result = {{"type", "sandbox"}, {"backend", "MiniNT-WHP-legacy"}, {"loaded", report.loaded}, {"ran", report.ran},
-        {"exitCode", report.exitCode}, {"faulted", report.faulted}, {"error", report.error}, {"unresolved", report.unresolved},
-        {"console", report.console}, {"events", Json::array()}, {"virtualFiles", Json::array()}};
-    Check(report.events.size() <= 4096 && report.files.size() <= 4096, "Sandbox report limit exceeded");
-    for (const auto& event : report.events)
-        result["events"].push_back({{"category", int(event.cat)}, {"action", event.action}, {"target", event.target}, {"detail", event.detail}});
-    for (const auto& [name, bytes] : report.files) result["virtualFiles"].push_back({{"path", name}, {"bytes", bytes.size()}});
-    result["complete"] = report.loaded && report.ran && !report.faulted && report.error.empty() && report.unresolved.empty();
-    result["classification"] = result["complete"].get<bool>() ? "unknown" : "inconclusive";
-    return result;
+Json Detonate(const fs::path& path,ULONGLONG deadline) {
+#ifdef GUARDIAN_SERVICE_UNIFIED
+    Payload payload(path);auto config=scan::UserConfig();const auto state=config.state.empty()?scan::DefaultState():config.state;scan::PrivateState(state);fs::create_directory(state/"sessions");scan::OrdinaryDirectory(state/"sessions");
+    guardian::telemetry::Policy policy;policy.eventLimit=guardian::telemetry::MaxEvents;
+    const auto remaining=deadline>GetTickCount64()?deadline-GetTickCount64():100;
+    return microvm::runtime::Run(payload.folder/L"payload.exe",config.sandboxRuntime,state/"sessions"/scan::Token(),policy,DWORD((std::min)(remaining,ULONGLONG(60000))));
+#else
+    (void)path;(void)deadline;throw std::runtime_error("The owned unified MiniNT runtime is not included in this build");
+#endif
 }
 #ifdef GUARDIAN_SERVICE_DESKTOP
 std::wstring Quote(const fs::path& path) {
@@ -153,7 +148,7 @@ int Worker(const std::wstring& name, DWORD server) {
         auto identity = Identity(); identity["engine"] = request.kind == Kind::Antivirus ? "antivirus" : "sandbox";
         Send(pipe.value, FrameType::Progress, identity, deadline);
         const auto result = request.operation == Operation::Scan ? Scan(pipe.value, path, deadline) :
-            request.operation == Operation::Detonate ? Detonate(path) : Desktop(path, deadline);
+            request.operation == Operation::Detonate ? Detonate(path,deadline) : Desktop(path, deadline);
         Send(pipe.value, FrameType::Result, result, deadline);
         return 0;
     } catch (const std::exception& error) {
