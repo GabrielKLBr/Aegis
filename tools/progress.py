@@ -4,16 +4,57 @@ import argparse,collections,html,json
 
 ROOT=Path(__file__).resolve().parents[1]
 INTERFACES={'ID2D1':'d2d1.dll','IDWrite':'dwrite.dll','IWIC':'windowscodecs.dll','ID3D11':'d3d11.dll','IDXGI':'dxgi.dll'}
-LABELS={'implemented':'Implementada','implemented_with_restrictions':'Com limites','pending':'Pendente','denied_by_policy':'Recusada'}
+LABELS={'implemented':'Implemented','implemented_with_restrictions':'Has Limits','pending':'Pending','denied_by_policy':'Denied'}
 
-def badge(output,name,label,rows):
-    supported=sum(row['status'] in ('implemented','implemented_with_restrictions') for row in rows)
-    total=len(rows);percent=100*supported/total if total else 0;value=f'{percent:.1f}%'
-    left=round(len(label)*7+20);right=64;width=left+right;color='#4c1' if percent>=90 else '#dfb317'
-    title=html.escape(f'{label}: {supported}/{total} entradas com suporte, incluindo contratos parciais. Não representa todo o Windows.')
-    svg=f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="20" role="img" aria-label="{title}"><title>{title}</title><path fill="#555" d="M0 0h{left}v20H0z"/><path fill="{color}" d="M{left} 0h{right}v20H{left}z"/><g fill="#fff" text-anchor="middle" font-family="Verdana,DejaVu Sans,sans-serif" font-size="11"><text x="{left/2}" y="14">{html.escape(label)}</text><text x="{left+right/2}" y="14">{value}</text></g></svg>\n'
-    folder=output/'badges';folder.mkdir(parents=True,exist_ok=True);(folder/(name+'.svg')).write_text(svg,encoding='utf-8')
-    return {'supported':supported,'total':total,'percent':round(percent,1)}
+
+def badge(output, name, label, rows):
+    supported = sum(
+        row['status'] in (
+            'implemented',
+            'implemented_with_restrictions'
+        )
+        for row in rows
+    )
+
+    total = len(rows)
+    percent = 100 * supported / total if total else 0
+
+    # Escolhe a cor conforme o progresso
+    if percent >= 90:
+        color = "brightgreen"
+    elif percent >= 70:
+        color = "green"
+    elif percent >= 40:
+        color = "yellow"
+    elif percent >= 20:
+        color = "orange"
+    else:
+        color = "red"
+
+    # Formato oficial do Shields.io Endpoint
+    payload = {
+        "schemaVersion": 1,
+        "label": label,
+        "message": f"{percent:.1f}%",
+        "color": color,
+        "namedLogo": "windows",
+        "style": "flat"
+    }
+
+    folder = output / "badges"
+    folder.mkdir(parents=True, exist_ok=True)
+
+    (folder / f"{name}.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8"
+    )
+
+    return {
+        "supported": supported,
+        "total": total,
+        "percent": round(percent, 1)
+    }
+
 
 def inventory(root):
     rows=[]

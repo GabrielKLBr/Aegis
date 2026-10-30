@@ -2,8 +2,8 @@
 
 **Advanced Endpoint Guardian for Inspection & Sandboxing**
 
-[![Progresso geral do catálogo de APIs](https://gabrielklbr.github.io/Aegis/badges/geral.svg)](https://gabrielklbr.github.io/Aegis/windows-apis.html)
-[![Progresso de interface, vídeo e áudio](https://gabrielklbr.github.io/Aegis/badges/interface.svg)](https://gabrielklbr.github.io/Aegis/progress.html)
+[![Windows API Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Fgeral.json)](https://gabrielklbr.github.io/Aegis/windows-apis.html)
+[![Graphics and Audio Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Finterface.json)](https://gabrielklbr.github.io/Aegis/progress.html)
 
 Percentuais das entradas dos catálogos, incluindo suporte parcial; não representam todo o Windows.
 
