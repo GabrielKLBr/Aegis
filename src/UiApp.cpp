@@ -55,6 +55,7 @@ using D2D1::RoundedRect;
 static const UINT WM_APP_PROGRESS = WM_APP + 1;
 static const UINT WM_APP_DONE     = WM_APP + 2;
 static const UINT WM_APP_Q_DONE = WM_APP + 5;
+static const UINT WM_APP_P_DONE = WM_APP + 6;
 static const UINT WM_APP_SBX_DONE = WM_APP + 3;
 static const UINT WM_APP_SERVICE_DONE = WM_APP + 4;
 static const UINT_PTR TIMER_ANIM  = 1;
@@ -87,7 +88,7 @@ static Theme T;
 // ---------------------------------------------------------------------------
 // Application state
 // ---------------------------------------------------------------------------
-enum class Page { Dashboard, Scan, Sandbox, Quarantine, Settings };
+enum class Page { Dashboard, Scan, Sandbox, Quarantine, Protection, Settings };
 
 struct App {
     HWND hwnd = nullptr;
@@ -115,7 +116,7 @@ struct App {
     std::wstring lastScanText = L"No scans yet";
 
     // hit rects (recomputed each paint)
-    D2D1_RECT_F navRect[5]{};
+    D2D1_RECT_F navRect[6]{};
     D2D1_RECT_F quickBtn{}, chooseBtn{}, cancelBtn{}, toggleRect[3]{};
     D2D1_RECT_F sbxAnalyzeBtn{}, sbxSampleBtn{}, sbxVmBtn{}, sbxCheckpointBtn{}, sbxResumeBtn{};
 
@@ -132,6 +133,8 @@ struct App {
     D2D1_RECT_F qButtons[7]{};
     std::vector<std::pair<D2D1_RECT_F,std::string>> qRows;
     std::vector<std::pair<D2D1_RECT_F,av::Detection>> qDetections;
+    std::atomic<bool> pRunning{false},pCancel{false};std::thread pThread;std::mutex pMtx;
+    av::services::Json pReport=av::services::Json::object();std::wstring pMessage,pNotification;uint64_t pCursor=0;D2D1_RECT_F pButtons[8]{};
     // sandbox state
     std::atomic<bool>     sbxRunning{false};
     std::atomic<bool>     sbxCancel{false};
@@ -143,6 +146,7 @@ struct App {
     std::thread           sbxThread;
 };
 static App g;
+static void ProtectionAction(av::services::Operation operation=av::services::Operation::ProtectionStatus,av::services::Json request=av::services::Json::object(),std::wstring configFile={});
 
 static void RefreshServices() {
     g.services[0] = av::services::Query(av::services::Kind::Antivirus);
@@ -398,7 +402,7 @@ static void Button(const D2D1_RECT_F& r, const std::wstring& label,
 // ---------------------------------------------------------------------------
 // Layout + paint
 // ---------------------------------------------------------------------------
-static const wchar_t* kNav[5] = { L"Dashboard", L"Scan", L"Sandbox", L"Quarantine", L"Configurações" };
+static const wchar_t* kNav[6] = { L"Dashboard", L"Scan", L"Sandbox", L"Quarentena", L"Proteção", L"Configurações" };
 
 static void PaintSidebar(float W, float H) {
     (void)W;
@@ -411,7 +415,7 @@ static void PaintSidebar(float W, float H) {
 
     // nav
     float y = S(110);
-    for (int i = 0; i < 5; ++i) {
+    for (int i = 0; i < 6; ++i) {
         D2D1_RECT_F r = RectF(S(14), y, S(206), y + S(44));
         g.navRect[i] = r;
         bool sel = (int)g.page == i;
@@ -458,7 +462,8 @@ static void PaintDashboard(float W, float H) {
         DrawShieldCheck(x + S(64), hy + S(84), S(40), g.services[0].Running() ? T.good : T.textDim);
         Text(g.services[0].Running() ? L"Engine do antivírus ligada" : L"Engine do antivírus desligada", g.fH1.Get(),
              RectF(x + S(130), hy + S(44), W - S(60), hy + S(78)), T.text);
-        Text(g.lastScanText, g.fBody.Get(),
+        std::wstring protectionText;{std::lock_guard lock(g.pMtx);protectionText=g.pReport.value("monitoringActive",false)?L"Monitoramento do serviço ativo":L"Consulte Proteção para configurar ou verificar a cobertura";}
+        Text(protectionText, g.fBody.Get(),
              RectF(x + S(130), hy + S(84), W - S(60), hy + S(110)), T.textDim);
     } else {
         DrawSpinner(x + S(64), hy + S(84), S(34), g.animAngle, T.accent);
@@ -588,6 +593,19 @@ static void PaintQuarantine(float W,float H){
     }
 }
 
+static void PaintProtection(float W,float H){
+    const float x=S(256),top=S(34);Text(L"Proteção",g.fTitle.Get(),RectF(x,top,W-S(36),top+S(40)),T.text);
+    av::services::Json report;std::wstring message,notice;{std::lock_guard lock(g.pMtx);report=g.pReport;message=g.pMessage;notice=g.pNotification;}
+    const bool running=g.services[0].Running(),active=running&&report.value("monitoringActive",false);
+    std::wstring state=!running?L"Engine desligada":!report.value("complete",false)?L"Estado indisponível":active?L"Monitoramento ativo, mesmo com o app fechado":!report.value("enabled",false)?L"Proteção não configurada ou pausada":!report.value("sessionAvailable",false)?L"Aguardando sessão do usuário":L"Proteção incompleta; confira os avisos";
+    Text(state,g.fH2.Get(),RectF(x,top+S(46),W-S(36),top+S(78)),active?T.good:T.textDim);
+    const wchar_t* labels[]={L"Atualizar",L"Rápida",L"Completa",L"Pasta...",L"Cancelar atual",L"Proteger pasta...",L"Avisos",L"Pausar/retomar"};
+    for(int i=0;i<8;++i){float bx=x+S(float((i%4)*136)),by=top+S(float(90+(i/4)*46));g.pButtons[i]=RectF(bx,by,bx+S(128),by+S(38));Button(g.pButtons[i],labels[i],T.cardHi,T.text,false);}
+    Text(g.pRunning?L"Consultando o serviço...":message,g.fSmall.Get(),RectF(x,top+S(186),W-S(36),top+S(228)),T.textDim);
+    float y=top+S(236);if(report.contains("jobs"))for(const auto& j:report["jobs"]){if(y+S(64)>H-S(72))break;const auto mode=av::services::Wide(j.value("mode",std::string()));auto text=mode+L" • "+av::services::Wide(j.value("state",std::string())=="completed"&&!j.value("complete",false)?std::string("parcial"):j.value("state",std::string()))+L" • "+std::to_wstring(j.value("filesScanned",uint64_t(0)))+L" arquivos • "+std::to_wstring(j.value("threatsFound",uint64_t(0)))+L" detecções";Text(text,g.fBody.Get(),RectF(x,y,W-S(36),y+S(30)),T.text);Text(av::services::Wide(j.value("lastError",j.value("currentFile",std::string()))),g.fSmall.Get(),RectF(x,y+S(30),W-S(36),y+S(60)),T.textDim);y+=S(66);}
+    Text(notice.empty()?L"Proteger pasta ativa o monitoramento e o isolamento de detecções confirmadas. Alterar a proteção, restaurar ou excluir do cofre exige administrador.":notice,g.fSmall.Get(),RectF(x,H-S(66),W-S(36),H-S(12)),T.textDim);
+}
+
 static void PaintSettings(float W, float H) {
     const float x = S(256), top = S(34);
     Text(L"Configurações", g.fTitle.Get(), RectF(x, top, W - S(36), top + S(40)), T.text);
@@ -695,6 +713,7 @@ static void OnPaint() {
         case Page::Sandbox:    PaintSandbox(W, H); break;
         case Page::Quarantine: PaintQuarantine(W, H); break;
         case Page::Settings:   PaintSettings(W, H); break;
+        case Page::Protection: PaintProtection(W,H);break;
     }
 
     HRESULT hr = g.rt->EndDraw();
@@ -801,6 +820,21 @@ static void QuarantineAction(av::services::Operation operation,av::services::Jso
         PostMessageW(g.hwnd,WM_APP_Q_DONE,0,0);
     });InvalidateRect(g.hwnd,nullptr,FALSE);
 }
+static void ProtectionAction(av::services::Operation operation,av::services::Json request,std::wstring configFile){
+    if(g.pRunning)return;if(!g.services[0].Running()){std::lock_guard lock(g.pMtx);g.pReport={{"complete",false}};g.pMessage=L"Ligue a engine do antivírus nas configurações.";return;}
+    if(g.pThread.joinable())g.pThread.join();g.pRunning=true;g.pCancel=false;
+    g.pThread=std::thread([operation,request,configFile]{av::services::Json report;std::wstring message,notice;std::filesystem::path job;
+        try{auto input=av::services::Executable();if(!configFile.empty())input=configFile;else if(operation!=av::services::Operation::ProtectionStatus){auto dir=av::quarantine::DefaultRoot().parent_path()/L"protection-requests";av::scan::PrivateState(dir);job=dir/(av::scan::Token()+".json");av::scan::WriteJson(job,request);input=job;}
+            auto result=av::services::Call(av::services::Kind::Antivirus,operation,input,{},&g.pCancel,15000);report=operation==av::services::Operation::ProtectionStatus?result:av::services::Call(av::services::Kind::Antivirus,av::services::Operation::ProtectionStatus,av::services::Executable(),{},&g.pCancel,15000);
+            auto dir=av::quarantine::DefaultRoot().parent_path()/L"protection-requests";av::scan::PrivateState(dir);if(job.empty())job=dir/(av::scan::Token()+".json");av::scan::WriteJson(job,{{"schema",1},{"after",g.pCursor}});auto events=av::services::Call(av::services::Kind::Antivirus,av::services::Operation::ProtectionEvents,job,{},&g.pCancel,15000);g.pCursor=events.value("next",g.pCursor);for(const auto& e:events["events"])if(e.value("action",std::string())=="threat-detected"||e.value("action",std::string())=="coverage-gap"||e.value("action",std::string())=="protection-error")notice=av::services::Wide(e.value("action",std::string()))+L": "+av::services::Wide(e.value("path",e.value("error",std::string())));message=report.value("lastError",std::string()).empty()?L"Estado atualizado pelo serviço.":av::services::Wide(report.at("lastError").get<std::string>());
+        }catch(const std::exception& e){report={{"complete",false}};message=av::services::Wide(e.what());}
+        if(!job.empty()){std::error_code ignored;std::filesystem::remove(job,ignored);} {std::lock_guard lock(g.pMtx);g.pReport=std::move(report);g.pMessage=message;if(!notice.empty())g.pNotification=notice;}PostMessageW(g.hwnd,WM_APP_P_DONE,0,0);
+    });
+}
+static void ProtectionButton(int index){using O=av::services::Operation;if(g.pRunning)return;if(index==0||index==6){ProtectionAction();return;}if(index==1||index==2){ProtectionAction(O::ProtectionSubmit,{{"schema",1},{"mode",index==1?"quick":"full"}});return;}if(index==3){auto folder=PickFolder();if(!folder.empty())ProtectionAction(O::ProtectionSubmit,{{"schema",1},{"mode","custom"},{"paths",av::services::Json::array({av::services::Text(folder)})}});return;}if(index==5||index==7){av::services::Json policy;{std::lock_guard lock(g.pMtx);if(!g.pReport.contains("policy")){g.pMessage=L"Atualize o estado antes de configurar a proteção.";return;}policy=g.pReport["policy"];}
+        if(index==5){auto folder=PickFolder();if(folder.empty())return;const auto path=av::services::Text(folder);bool found=false;for(const auto& p:policy["roots"])if(p==path)found=true;if(!found)policy["roots"].push_back(path);policy["enabled"]=true;policy["autoQuarantine"]=true;}
+        else{if(policy["roots"].empty()){std::lock_guard lock(g.pMtx);g.pMessage=L"Escolha uma pasta em Proteger pasta antes de ativar.";return;}policy["enabled"]=!policy.value("enabled",false);}
+        ProtectionAction(O::ProtectionConfigure,policy);return;}if(index==4){std::string id;{std::lock_guard lock(g.pMtx);id=g.pReport.value("activeJob",std::string());}if(!id.empty())ProtectionAction(O::ProtectionCancel,{{"schema",1},{"id",id}});}}
 static void IsolateDetection(const av::Detection& d){g.page=Page::Quarantine;QuarantineAction(av::services::Operation::QuarantineIsolate,{{"schema",2},{"source",av::services::Text(d.file)},{"sha256",d.sha256},{"threat",av::services::Text(d.threat)},{"reason",av::services::Text(d.reason)}});}
 static void QuarantineButton(int index){
     using O=av::services::Operation;if(g.qRunning)return;
@@ -827,7 +861,7 @@ static void OpenInVm() {
 static void OnMouseMove(float x, float y) {
     int oldNav = g.hoverNav, oldBtn = g.hoverBtn;
     g.hoverNav = -1; g.hoverBtn = -1;
-    for (int i = 0; i < 5; ++i) if (PtIn(g.navRect[i], x, y)) g.hoverNav = i;
+    for (int i = 0; i < 6; ++i) if (PtIn(g.navRect[i], x, y)) g.hoverNav = i;
     if (PtIn(g.quickBtn, x, y))       g.hoverBtn = 0;
     if (PtIn(g.chooseBtn, x, y))      g.hoverBtn = 1;
     if (PtIn(g.cancelBtn, x, y))      g.hoverBtn = 2;
@@ -839,8 +873,9 @@ static void OnMouseMove(float x, float y) {
 }
 
 static void OnClick(float x, float y) {
-    for (int i = 0; i < 5; ++i)
+    for (int i = 0; i < 6; ++i)
         if (PtIn(g.navRect[i], x, y)) { g.page = (Page)i; InvalidateRect(g.hwnd, nullptr, FALSE); return; }
+    if(g.page==Page::Protection){for(int i=0;i<8;++i)if(PtIn(g.pButtons[i],x,y)){ProtectionButton(i);return;}return;}
     if(g.page==Page::Quarantine){
         for(const auto& item:g.qRows)if(PtIn(item.first,x,y)){g.qSelected=item.second;g.qConfirm.clear();InvalidateRect(g.hwnd,nullptr,FALSE);return;}
         for(int i=0;i<7;++i)if(PtIn(g.qButtons[i],x,y)){QuarantineButton(i);return;}
@@ -922,13 +957,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             ServiceAction(LOWORD(wp)); return 0;
         }
         break;
+    case WM_APP_P_DONE:
+        if(g.pThread.joinable())g.pThread.join();g.pRunning=false;InvalidateRect(hwnd,nullptr,FALSE);return 0;
     case WM_APP_Q_DONE:
         if(g.qThread.joinable())g.qThread.join();g.qSelected.clear();g.qConfirm.clear();g.qRunning=false;g.qOffset=g.qResumeOffset;g.qResumeOffset=0;InvalidateRect(hwnd,nullptr,FALSE);return 0;
     case WM_APP_SERVICE_DONE:
         if (g.serviceThread.joinable()) g.serviceThread.join();
         g.serviceBusy = false; RefreshServices(); InvalidateRect(hwnd, nullptr, FALSE); return 0;
     case WM_TIMER:
-        if (wp == TIMER_SERVICES) { RefreshServices(); InvalidateRect(hwnd, nullptr, FALSE); return 0; }
+        if (wp == TIMER_SERVICES) { RefreshServices();if(g.page==Page::Protection||g.page==Page::Dashboard)ProtectionAction(); InvalidateRect(hwnd, nullptr, FALSE); return 0; }
         if (wp == TIMER_ANIM) {
             g.animAngle += 6.0f;
             if (g.animAngle >= 360.0f) g.animAngle -= 360.0f;
@@ -962,6 +999,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         if (g.serviceBusy) { MessageBeep(MB_ICONINFORMATION); return 0; }
         DestroyWindow(hwnd); return 0;
     case WM_DESTROY:
+        g.pCancel=true;if(g.pThread.joinable())g.pThread.join();
         g.qCancel=true;if(g.qThread.joinable())g.qThread.join();
         KillTimer(hwnd, TIMER_SERVICES);
         g.engine.Cancel(); g.engine.Join();

@@ -1,0 +1,491 @@
+{
+  "schema": 1,
+  "phase": "16",
+  "status": "PASS",
+  "scope": "protection service and dependencies used in this phase",
+  "earlierPhasesRevalidated": false,
+  "malwareExecuted": false,
+  "guiFullClickTested": false,
+  "osRebootLogoffOrPhysicalPowerCutTested": false,
+  "minifilterInstalled": false,
+  "proofs": {
+    "Release": {
+      "integrationTests": 58,
+      "nativeTests": 25,
+      "status": "PASS",
+      "cases": [
+        {
+          "case": "real-owner-session-and-protected-broker",
+          "passed": true
+        },
+        {
+          "case": "current-service-autostart-installed",
+          "passed": true
+        },
+        {
+          "case": "owner-cannot-modify-installed-service",
+          "passed": true
+        },
+        {
+          "case": "nonadmin-policy-change-denied",
+          "passed": true
+        },
+        {
+          "case": "nonadmin-protection-stop-denied",
+          "passed": true
+        },
+        {
+          "case": "protected-vault-list-through-authenticated-service",
+          "passed": true
+        },
+        {
+          "case": "same-account-cannot-read-protected-state",
+          "passed": true
+        },
+        {
+          "case": "same-account-cannot-read-vault-key",
+          "passed": true
+        },
+        {
+          "case": "public-ipc-rejects-internal-parser-operation",
+          "passed": true
+        },
+        {
+          "case": "queued-scan-outlives-submitting-client",
+          "passed": true
+        },
+        {
+          "case": "restricted-static-scan-confirms-inert-marker",
+          "passed": true
+        },
+        {
+          "case": "embedded-test-marker-not-treated-as-a-sentinel",
+          "passed": true
+        },
+        {
+          "case": "full-local-volume-plan-cancellable",
+          "passed": true
+        },
+        {
+          "case": "scan-path-traversal-rejected",
+          "passed": true
+        },
+        {
+          "case": "network-source-rejected",
+          "passed": true
+        },
+        {
+          "case": "bounded-concurrent-status-clients",
+          "passed": true
+        },
+        {
+          "case": "original-protection-policy-restored",
+          "passed": true
+        },
+        {
+          "case": "antivirus-service-left-running",
+          "passed": true
+        },
+        {
+          "case": "admin-policy-committed-to-protected-service",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-0",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-1",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-2",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-3",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-4",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-5",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-6",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-7",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-8",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-9",
+          "passed": true
+        },
+        {
+          "case": "scm-recovery",
+          "passed": true
+        },
+        {
+          "case": "policy-survives-service-restart",
+          "passed": true
+        },
+        {
+          "case": "realtime-detection-without-gui",
+          "passed": true
+        },
+        {
+          "case": "admin-exclusion-retains-inert-source",
+          "passed": true
+        },
+        {
+          "case": "automatic-protection-progresses-during-manual-scan",
+          "passed": true
+        },
+        {
+          "case": "legacy-clean-uses-protected-service",
+          "passed": true
+        },
+        {
+          "case": "broker-cannot-read-an-admin-only-source",
+          "passed": true
+        },
+        {
+          "case": "native-windows-threat-notification",
+          "passed": true
+        },
+        {
+          "case": "nonadmin-threat-release-denied",
+          "passed": true
+        },
+        {
+          "case": "nonadmin-vault-erase-denied",
+          "passed": true
+        },
+        {
+          "case": "nonadmin-automatic-scan-cancellation-denied",
+          "passed": true
+        },
+        {
+          "case": "durable-notifications-and-gap-recovery",
+          "passed": true
+        },
+        {
+          "case": "notification-cursor-monotonic",
+          "passed": true
+        },
+        {
+          "case": "quick-scan-configured-scope",
+          "passed": true
+        },
+        {
+          "case": "renamed-file-notification",
+          "passed": true
+        },
+        {
+          "case": "watch-rebinds-when-the-root-directory-is-replaced",
+          "passed": true
+        },
+        {
+          "case": "fresh-inert-fixture-plan",
+          "passed": true
+        },
+        {
+          "case": "scm-restarts-and-recovers-queued-work",
+          "passed": true
+        },
+        {
+          "case": "monitor-rearms-after-service-restart",
+          "passed": true
+        },
+        {
+          "case": "durable-running-job-before-service-failure",
+          "passed": true
+        },
+        {
+          "case": "admin-restores-through-restricted-caller-rights",
+          "passed": true
+        },
+        {
+          "case": "restore-keeps-caller-destination-permissions",
+          "passed": true
+        },
+        {
+          "case": "protected-copy-retained-until-explicit-erase",
+          "passed": true
+        },
+        {
+          "case": "broker-never-overwrites-existing-destination",
+          "passed": true
+        },
+        {
+          "case": "admin-erases-only-owned-vault-entry",
+          "passed": true
+        },
+        {
+          "case": "administrator-service-restart",
+          "passed": true
+        },
+        {
+          "case": "policy-survives-service-restart",
+          "passed": true
+        },
+        {
+          "case": "persistent-schedule-dispatches-without-gui",
+          "passed": true
+        },
+        {
+          "case": "schedule-next-run-advanced-atomically",
+          "passed": true
+        }
+      ]
+    },
+    "Debug": {
+      "integrationTests": 58,
+      "nativeTests": 25,
+      "status": "PASS",
+      "cases": [
+        {
+          "case": "real-owner-session-and-protected-broker",
+          "passed": true
+        },
+        {
+          "case": "current-service-autostart-installed",
+          "passed": true
+        },
+        {
+          "case": "owner-cannot-modify-installed-service",
+          "passed": true
+        },
+        {
+          "case": "nonadmin-policy-change-denied",
+          "passed": true
+        },
+        {
+          "case": "nonadmin-protection-stop-denied",
+          "passed": true
+        },
+        {
+          "case": "protected-vault-list-through-authenticated-service",
+          "passed": true
+        },
+        {
+          "case": "same-account-cannot-read-protected-state",
+          "passed": true
+        },
+        {
+          "case": "same-account-cannot-read-vault-key",
+          "passed": true
+        },
+        {
+          "case": "public-ipc-rejects-internal-parser-operation",
+          "passed": true
+        },
+        {
+          "case": "queued-scan-outlives-submitting-client",
+          "passed": true
+        },
+        {
+          "case": "restricted-static-scan-confirms-inert-marker",
+          "passed": true
+        },
+        {
+          "case": "embedded-test-marker-not-treated-as-a-sentinel",
+          "passed": true
+        },
+        {
+          "case": "full-local-volume-plan-cancellable",
+          "passed": true
+        },
+        {
+          "case": "scan-path-traversal-rejected",
+          "passed": true
+        },
+        {
+          "case": "network-source-rejected",
+          "passed": true
+        },
+        {
+          "case": "bounded-concurrent-status-clients",
+          "passed": true
+        },
+        {
+          "case": "original-protection-policy-restored",
+          "passed": true
+        },
+        {
+          "case": "antivirus-service-left-running",
+          "passed": true
+        },
+        {
+          "case": "admin-policy-committed-to-protected-service",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-0",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-1",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-2",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-3",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-4",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-5",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-6",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-7",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-8",
+          "passed": true
+        },
+        {
+          "case": "invalid-policy-atomic-rejection-9",
+          "passed": true
+        },
+        {
+          "case": "scm-recovery",
+          "passed": true
+        },
+        {
+          "case": "policy-survives-service-restart",
+          "passed": true
+        },
+        {
+          "case": "realtime-detection-without-gui",
+          "passed": true
+        },
+        {
+          "case": "admin-exclusion-retains-inert-source",
+          "passed": true
+        },
+        {
+          "case": "automatic-protection-progresses-during-manual-scan",
+          "passed": true
+        },
+        {
+          "case": "legacy-clean-uses-protected-service",
+          "passed": true
+        },
+        {
+          "case": "broker-cannot-read-an-admin-only-source",
+          "passed": true
+        },
+        {
+          "case": "native-windows-threat-notification",
+          "passed": true
+        },
+        {
+          "case": "nonadmin-threat-release-denied",
+          "passed": true
+        },
+        {
+          "case": "nonadmin-vault-erase-denied",
+          "passed": true
+        },
+        {
+          "case": "nonadmin-automatic-scan-cancellation-denied",
+          "passed": true
+        },
+        {
+          "case": "durable-notifications-and-gap-recovery",
+          "passed": true
+        },
+        {
+          "case": "notification-cursor-monotonic",
+          "passed": true
+        },
+        {
+          "case": "quick-scan-configured-scope",
+          "passed": true
+        },
+        {
+          "case": "renamed-file-notification",
+          "passed": true
+        },
+        {
+          "case": "watch-rebinds-when-the-root-directory-is-replaced",
+          "passed": true
+        },
+        {
+          "case": "fresh-inert-fixture-plan",
+          "passed": true
+        },
+        {
+          "case": "scm-restarts-and-recovers-queued-work",
+          "passed": true
+        },
+        {
+          "case": "monitor-rearms-after-service-restart",
+          "passed": true
+        },
+        {
+          "case": "durable-running-job-before-service-failure",
+          "passed": true
+        },
+        {
+          "case": "admin-restores-through-restricted-caller-rights",
+          "passed": true
+        },
+        {
+          "case": "restore-keeps-caller-destination-permissions",
+          "passed": true
+        },
+        {
+          "case": "protected-copy-retained-until-explicit-erase",
+          "passed": true
+        },
+        {
+          "case": "broker-never-overwrites-existing-destination",
+          "passed": true
+        },
+        {
+          "case": "admin-erases-only-owned-vault-entry",
+          "passed": true
+        },
+        {
+          "case": "administrator-service-restart",
+          "passed": true
+        },
+        {
+          "case": "policy-survives-service-restart",
+          "passed": true
+        },
+        {
+          "case": "persistent-schedule-dispatches-without-gui",
+          "passed": true
+        },
+        {
+          "case": "schedule-next-run-advanced-atomically",
+          "passed": true
+        }
+      ]
+    }
+  }
+}

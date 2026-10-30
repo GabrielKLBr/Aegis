@@ -1213,6 +1213,10 @@ escrever fora de destinos autorizados. A UI recebe o resultado real da operaçã
 
 ## Fase 16 — Serviço de proteção, IPC e tempo real
 
+**Entrega implementada:** [serviço, monitor pós-alteração, fila, agenda, avisos e
+cofre protegido](PHASE-16.md), com permissões administrativas e workers restritos.
+Minifilter/PPL não estão incluídos; limitações e provas são explícitas na entrega.
+
 **Continuação da quarentena:** broker e armazenamento protegido do serviço para
 resistir à adulteração por processos da mesma conta; preservar a autorização
 do usuário sobre os caminhos de origem e destino e a execução restrita dos workers.

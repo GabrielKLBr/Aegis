@@ -14,7 +14,7 @@ namespace av::services {
 using Json = nlohmann::json;
 namespace fs = std::filesystem;
 enum class Kind : uint32_t { Antivirus = 1, Sandbox = 2 };
-enum class Operation : uint32_t { Scan = 1, Detonate = 2, DesktopBundle = 3, Checkpoint = 4, Resume = 5, QuarantineList = 6, QuarantineIsolate = 7, QuarantineRestore = 8, QuarantineErase = 9, QuarantineAudit = 10 };
+enum class Operation : uint32_t { Scan = 1, Detonate = 2, DesktopBundle = 3, Checkpoint = 4, Resume = 5, QuarantineList = 6, QuarantineIsolate = 7, QuarantineRestore = 8, QuarantineErase = 9, QuarantineAudit = 10, ProtectionStatus = 11, ProtectionConfigure = 12, ProtectionSubmit = 13, ProtectionCancel = 14, ProtectionEvents = 15, ProtectionFile = 25, ProtectionManualFile = 26 };
 enum class FrameType : uint32_t { Progress = 1, Result = 2, Error = 3 };
 inline constexpr uint32_t Magic = 0x53474541, Version = 1, MaxFrame = 2u << 20;
 // Read attributes are required by Win32's pipe open/identity operations. Do not

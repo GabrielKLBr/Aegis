@@ -5,7 +5,8 @@ inline constexpr uint64_t MaxFileBytes = 64ull << 20;
 scan::fs::path DefaultRoot();
 class Store {
   public:
-    explicit Store(const scan::fs::path &root = DefaultRoot());
+    // Borrowed token: source/destination opens use its rights; vault I/O stays SYSTEM.
+    explicit Store(const scan::fs::path &root = DefaultRoot(), void *authorizedUser = nullptr);
     ~Store();
     Store(const Store &) = delete;
     Store &operator=(const Store &) = delete;

@@ -45,6 +45,7 @@ std::string PathText(const fs::path &);
 fs::path Utf8Path(const std::string &);
 fs::path Executable();
 Json DefaultRules();
+Json SignatureRules(const fs::path&);
 Json Inspect(std::span<const uint8_t>, const std::string &name, const Json &rules, const Json &signatures,
              const Limits &);
 std::string Digest(std::span<const uint8_t>, const std::string &algorithm = "sha256");

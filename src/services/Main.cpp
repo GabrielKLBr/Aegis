@@ -38,6 +38,11 @@ int wmain(int argc, wchar_t** argv) {
             for (const auto* name : PackageFiles) names.push_back(Text(name));
             std::cout << names.dump() << '\n'; return 0;
         }
+        if(action==L"--protection-status"||action==L"--protection-config"||action==L"--protection-scan"||action==L"--protection-cancel"||action==L"--protection-events"){
+            const bool simple=action==L"--protection-status";Check(argc==(simple?2:3),"Protection command requires a JSON request");
+            const auto operation=simple?Operation::ProtectionStatus:action==L"--protection-config"?Operation::ProtectionConfigure:action==L"--protection-scan"?Operation::ProtectionSubmit:action==L"--protection-cancel"?Operation::ProtectionCancel:Operation::ProtectionEvents;
+            auto result=Call(Kind::Antivirus,operation,simple?Executable():fs::path(argv[2]),{},nullptr,15000);std::cout<<result.dump()<<'\n';return result.value("complete",false)?0:3;
+        }
         if(action==L"--q-list"||action==L"--q-audit"||action==L"--q-isolate"||action==L"--q-restore"||action==L"--q-erase"){
             const bool simple=action==L"--q-list"||action==L"--q-audit";Check(argc==(simple?2:3)||(action==L"--q-audit"&&argc==3),"Quarantine command requires a request JSON file");
             const auto op=action==L"--q-list"?Operation::QuarantineList:action==L"--q-audit"?Operation::QuarantineAudit:action==L"--q-isolate"?Operation::QuarantineIsolate:action==L"--q-restore"?Operation::QuarantineRestore:Operation::QuarantineErase;
@@ -52,7 +57,8 @@ int wmain(int argc, wchar_t** argv) {
             return result.value("complete", false)||result.value("checkpointCreated",false) ? 0 : 3;
         }
         std::cout << "Aegis Windows engine services\n--setup | --remove | --status | --start antivirus|sandbox | --stop antivirus|sandbox\n"
-                     "--scan PATH | --sandbox PE | --checkpoint PE | --resume recovery.json | --bundle PREPARED_AUDIO_BUNDLE\n";
+                     "--scan PATH | --sandbox PE | --checkpoint PE | --resume recovery.json | --bundle PREPARED_AUDIO_BUNDLE\n"
+                     "--protection-status | --protection-config policy.json | --protection-scan request.json | --protection-cancel request.json | --protection-events cursor.json\n";
         return action == L"--help" ? 0 : 2;
     } catch (const std::exception& error) {
         std::cerr << Json({{"error", error.what()}}).dump() << '\n';

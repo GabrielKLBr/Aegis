@@ -7,7 +7,7 @@ namespace av {
 
 class Quarantine {
 public:
-    // 'dir' is a private transactional vault, separate from legacy XOR files.
+    // Compatibility argument; production operations use the protected service vault.
     explicit Quarantine(std::wstring dir);
 
     // Persists and verifies an authenticated encrypted copy before removing
@@ -17,8 +17,7 @@ public:
     // Lists current quarantine entries to the console.
     void List() const;
 
-private:
-    std::wstring dir_;
+
 };
 
 } // namespace av

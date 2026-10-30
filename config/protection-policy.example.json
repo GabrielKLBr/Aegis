@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "enabled": false,
+  "roots": [],
+  "quickRoots": [],
+  "exclusions": [],
+  "autoQuarantine": false,
+  "maxFiles": 10000,
+  "maxSeconds": 1800,
+  "schedules": []
+}

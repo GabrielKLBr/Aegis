@@ -63,7 +63,7 @@ std::wstring UserSid(HANDLE token) {
 void Validate(const Request& r) {
     Check(r.magic == Magic && r.version == Version, "Engine protocol version rejected");
     Check(r.kind == Kind::Antivirus || r.kind == Kind::Sandbox, "Engine rejected");
-    Check((r.kind == Kind::Antivirus && (r.operation == Operation::Scan || (r.operation>=Operation::QuarantineList&&r.operation<=Operation::QuarantineAudit))) ||
+    Check((r.kind == Kind::Antivirus && (r.operation == Operation::Scan || (r.operation>=Operation::QuarantineList&&r.operation<=Operation::ProtectionEvents || (r.operation==Operation::ProtectionFile||r.operation==Operation::ProtectionManualFile)))) ||
           (r.kind == Kind::Sandbox && (r.operation == Operation::Detonate || r.operation == Operation::DesktopBundle || r.operation == Operation::Checkpoint || r.operation == Operation::Resume)), "Engine operation rejected");
     Check(r.pathChars > 0 && r.pathChars <= 32767 && r.milliseconds >= 100 && r.milliseconds <= 3600000,
           "Engine request limit exceeded");

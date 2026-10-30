@@ -52,13 +52,16 @@ struct Descriptor {
     }
     ~Descriptor() { LocalFree(p); }
 };
-std::wstring Sid() {
+std::wstring Sid(HANDLE supplied = nullptr) {
     Handle token;
-    Win(OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token.h) != FALSE, "User token");
+    if (!supplied) {
+        Win(OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token.h) != FALSE, "User token");
+        supplied = token.h;
+    }
     DWORD size = 0;
-    GetTokenInformation(token.h, TokenUser, nullptr, 0, &size);
+    GetTokenInformation(supplied, TokenUser, nullptr, 0, &size);
     std::vector<uint8_t> bytes(size);
-    Win(GetTokenInformation(token.h, TokenUser, bytes.data(), size, &size) != FALSE, "User SID");
+    Win(GetTokenInformation(supplied, TokenUser, bytes.data(), size, &size) != FALSE, "User SID");
     LPWSTR text = nullptr;
     Win(ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER *>(bytes.data())->User.Sid, &text) != FALSE,
         "User SID text");
@@ -66,9 +69,20 @@ std::wstring Sid() {
     LocalFree(text);
     return result;
 }
-std::wstring PrivateAcl(bool temp = false) {
-    return L"D:P" + std::wstring(temp ? L"(D;;0x20;;;WD)" : L"") + L"(A;OICI;FA;;;SY)(A;OICI;FA;;;" + Sid() +
-           L")";
+struct AccessScope {
+    HANDLE token;
+    explicit AccessScope(HANDLE value) : token(value) {
+        if (token)
+            Win(ImpersonateLoggedOnUser(token) != FALSE, "Authorize file access");
+    }
+    ~AccessScope() {
+        if (token && !RevertToSelf())
+            TerminateProcess(GetCurrentProcess(), ERROR_CANNOT_IMPERSONATE);
+    }
+};
+std::wstring PrivateAcl(bool temp = false, const std::wstring &owner = {}) {
+    return L"D:P" + std::wstring(temp ? L"(D;;0x20;;;WD)" : L"") + L"(A;OICI;FA;;;SY)(A;OICI;FA;;;" +
+           (owner.empty() ? Sid() : owner) + L")";
 }
 void Dacl(HANDLE file, const std::wstring &text) {
     Descriptor sd(text);
@@ -81,7 +95,7 @@ void Dacl(HANDLE file, const std::wstring &text) {
     if (error)
         throw std::runtime_error("Set DACL (Windows " + std::to_string(error) + ")");
 }
-std::wstring SavedDacl(HANDLE file) {
+std::wstring SavedDacl(HANDLE file, const std::wstring &expectedOwner = {}) {
     PSECURITY_DESCRIPTOR sd = nullptr;
     PSID owner = nullptr;
     PACL acl = nullptr;
@@ -97,7 +111,8 @@ std::wstring SavedDacl(HANDLE file) {
     LocalFree(ownerText);
     LocalFree(aclText);
     LocalFree(sd);
-    Require(ok && actual == Sid(), "Only files owned by the current user with a concrete DACL are supported");
+    Require(ok && actual == (expectedOwner.empty() ? Sid() : expectedOwner),
+            "Only files owned by the current user with a concrete DACL are supported");
     return result;
 }
 bool Id(const std::string &s) { return s.size() == 32 && s.find_first_not_of("0123456789abcdef") == s.npos; }
@@ -371,12 +386,16 @@ Json Reply(const std::string &action) {
 } // namespace
 struct Store::Impl {
     fs::path root;
+    HANDLE accessToken = nullptr;
+    std::wstring actor;
     std::unique_ptr<Pins> pins;
     Handle lock, keyFile, databaseFile;
     std::array<uint8_t, 32> secret{};
     std::unique_ptr<Aes> aes;
     sqlite3 *db = nullptr;
-    explicit Impl(const fs::path &path) : root(Path(path)) {
+    explicit Impl(const fs::path &path, HANDLE access)
+        : root(Path(path)), accessToken(access), actor(Sid(access)) {
+        Require(!access || Sid() == L"S-1-5-18", "Protected vault broker requires SYSTEM");
         try {
             fs::create_directories(root);
             pins = std::make_unique<Pins>(root);
@@ -534,7 +553,7 @@ struct Store::Impl {
         event["seq"] = n;
         event["previous"] = head["hash"];
         event["timeFiletime"] = Clock();
-        event["actor"] = PathText(Sid());
+        event["actor"] = PathText(actor);
         auto raw = Seal("audit/" + std::to_string(n), event);
         Statement s(db, "INSERT INTO audit VALUES(?,?)");
         sqlite3_bind_int64(s.p, 1, sqlite3_int64(n));
@@ -607,7 +626,7 @@ fs::path DefaultRoot() {
     CoTaskMemFree(text);
     return path / L"Aegis" / L"quarantine-v2";
 }
-Store::Store(const fs::path &root) : impl_(std::make_unique<Impl>(root)) {}
+Store::Store(const fs::path &root, void *access) : impl_(std::make_unique<Impl>(root, access)) {}
 Store::~Store() = default;
 Json Store::Isolate(const fs::path &input, const std::string &expected, const std::string &threat,
                     const std::string &reason) {
@@ -618,8 +637,15 @@ Json Store::Isolate(const fs::path &input, const std::string &expected, const st
     Require(_wcsnicmp(sourceText.c_str(), vaultText.c_str(), vaultText.size()) != 0,
             "Cannot quarantine vault files");
     Require(threat.size() <= 2048 && reason.size() <= 4096, "Detection metadata quota");
-    Pins parents(source.parent_path());
-    auto file = Open(source, GENERIC_READ | READ_CONTROL | DELETE, FILE_SHARE_READ);
+    std::unique_ptr<Pins> parents;
+    Handle file;
+    std::wstring permissions;
+    {
+        AccessScope authorized(v.accessToken);
+        parents = std::make_unique<Pins>(source.parent_path());
+        file = Open(source, GENERIC_READ | READ_CONTROL | DELETE, FILE_SHARE_READ);
+        permissions = SavedDacl(file.h, v.actor);
+    }
     BY_HANDLE_FILE_INFORMATION info{};
     Win(GetFileInformationByHandle(file.h, &info) != FALSE, "Source identity");
     Require(!(info.dwFileAttributes & (FILE_ATTRIBUTE_ENCRYPTED | FILE_ATTRIBUTE_COMPRESSED |
@@ -632,7 +658,7 @@ Json Store::Isolate(const fs::path &input, const std::string &expected, const st
     Require(!stream->NextEntryOffset &&
                 std::wstring(stream->StreamName, stream->StreamNameLength / 2) == L"::$DATA",
             "Alternate data streams are unsupported");
-    auto permissions = SavedDacl(file.h);
+
     auto data = ReadHandle(file.h, MaxFileBytes);
     auto sha = Digest(data);
     Require(expected.empty() || expected == sha, "Source changed since detection; original left untouched");
@@ -644,7 +670,7 @@ Json Store::Isolate(const fs::path &input, const std::string &expected, const st
         {"id", id},
         {"source", PathText(source)},
         {"sourceIdentity", FileId(file.h)},
-        {"owner", PathText(Sid())},
+        {"owner", PathText(v.actor)},
         {"dacl", PathText(permissions)},
         {"attributes", info.dwFileAttributes},
         {"created", (uint64_t(info.ftCreationTime.dwHighDateTime) << 32) | info.ftCreationTime.dwLowDateTime},
@@ -755,11 +781,16 @@ Json Store::Restore(const std::string &id, const fs::path &authorizedDirectory,
     auto destination = Path(parent / filename);
     auto text = destination.wstring(), root = v.root.wstring();
     Require(_wcsnicmp(text.c_str(), root.c_str(), root.size()) != 0, "Cannot restore into vault");
-    Pins pins(parent);
-    Require(GetFileAttributesW(destination.c_str()) == INVALID_FILE_ATTRIBUTES &&
-                GetLastError() == ERROR_FILE_NOT_FOUND,
-            "Restore destination exists or is unavailable; no overwrite");
+    std::unique_ptr<Pins> pins;
+    {
+        AccessScope authorized(v.accessToken);
+        pins = std::make_unique<Pins>(parent);
+        Require(GetFileAttributesW(destination.c_str()) == INVALID_FILE_ATTRIBUTES &&
+                    GetLastError() == ERROR_FILE_NOT_FOUND,
+                "Restore destination exists or is unavailable; no overwrite");
+    }
     auto m = v.Meta(id);
+    Require(m.at("owner") == PathText(v.actor), "Vault entry owner mismatch");
     auto plain = v.Data(id, m);
     m["restoreDestination"] = PathText(destination);
     bool journaled = true;
@@ -773,8 +804,12 @@ Json Store::Restore(const std::string &id, const fs::path &authorizedDirectory,
     }
     Point("restore-intent");
     const auto temp = parent / (L".aegis-" + Utf8Path(Token()).wstring() + L".tmp");
-    auto file = Open(temp, GENERIC_READ | GENERIC_WRITE | WRITE_DAC | FILE_WRITE_ATTRIBUTES | DELETE, 0,
-                     CREATE_NEW, PrivateAcl(true));
+    Handle file;
+    {
+        AccessScope authorized(v.accessToken);
+        file = Open(temp, GENERIC_READ | GENERIC_WRITE | WRITE_DAC | FILE_WRITE_ATTRIBUTES | DELETE, 0,
+                    CREATE_NEW, PrivateAcl(true, v.actor));
+    }
     bool published = false;
     try {
         WriteHandle(file.h, plain);

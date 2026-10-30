@@ -155,6 +155,7 @@ struct Engine::Impl
                 {"signatures", signatures}};
     }
 };
+Json SignatureRules(const fs::path& path){return Signatures(path);}
 Engine::Engine(Config c) : impl_(std::make_unique<Impl>(std::move(c)))
 {
 }
