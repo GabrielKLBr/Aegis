@@ -6,6 +6,12 @@ GitHub Pages publica três páginas a partir de `main`:
 - `progress.html`: inventários existentes de vídeo, interface e áudio;
 - `windows-apis.html`: catálogo geral por DLL, incluindo objetivos do roadmap.
 
+As badges `badges/geral.svg` e `badges/interface.svg` são geradas junto ao site
+e ligadas no início do README. O percentual soma entradas implementadas e com
+restrições, dividido por todas as entradas do respectivo catálogo. Declarações
+sem contrato validado, pendências e recusas não entram no numerador. A medida
+não representa compatibilidade com todo o Windows.
+
 Gere localmente com Python, sem dependências externas:
 
 ```text
@@ -32,4 +38,4 @@ dependências e diferenças por versão NT precisam de contratos e testes própr
 
 O fluxo `.github/workflows/progress-pages.yml` regenera e publica o site quando
 os inventários ou fontes relevantes mudam. Somente HTML e JSON gerados são
-publicados; binários e referências Microsoft não fazem parte do site.
+publicados, junto às badges SVG; binários e referências Microsoft não fazem parte do site.

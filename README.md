@@ -2,6 +2,11 @@
 
 **Advanced Endpoint Guardian for Inspection & Sandboxing**
 
+[![Progresso geral do catálogo de APIs](https://gabrielklbr.github.io/Aegis/badges/geral.svg)](https://gabrielklbr.github.io/Aegis/windows-apis.html)
+[![Progresso de interface, vídeo e áudio](https://gabrielklbr.github.io/Aegis/badges/interface.svg)](https://gabrielklbr.github.io/Aegis/progress.html)
+
+Percentuais das entradas dos catálogos, incluindo suporte parcial; não representam todo o Windows.
+
 Antivírus e laboratório de inspeção/sandbox em C/C++, com implementação própria
 do convidado. O produto mantém Windows/MSVC/WHP e validação nativa Linux/KVM.
 Os nomes dos executáveis `guardian-*` permanecem compatíveis.

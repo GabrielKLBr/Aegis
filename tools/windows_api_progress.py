@@ -78,6 +78,7 @@ def inventory(root):
 
 def generate(root,output):
     output.mkdir(parents=True,exist_ok=True);rows=inventory(root);counts=collections.Counter(r['status'] for r in rows)
+    progress.badge(output,'geral','progresso geral',rows)
     scope='Catálogo extraído dos fontes e dos contratos versionados, com objetivos iniciais do roadmap. Não é uma lista exaustiva do SDK Windows. Nenhuma porcentagem representa compatibilidade com todo o Windows: versões NT, assinaturas, COM, syscalls e comportamentos também precisam ser implementados e testados.'
     payload={'schema':1,'scope':scope,'counts':dict(counts),'entries':rows}
     (output/'windows-apis.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
