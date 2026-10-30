@@ -56,6 +56,12 @@ A continuação **14.13A** acrescenta pacotes automáticos por modelos locais,
 progresso e salvar/retomar pelo app e pelos serviços atualizados:
 [uso, validação e resultados com programas reais](docs/PHASE-14.13A.md).
 
+A avaliação **14.14** fixa 32 aplicações e publica a matriz por perfil e
+arquitetura. No fluxo automático Win10, 1 concluiu seu roteiro, 1 foi parcial
+e 30 encontraram bloqueios; Win7/Win11 não foram avaliados. As metas de
+compatibilidade ampla permanecem **não atingidas**:
+[método, resultados e prontidão para a fase 15](docs/PHASE-14.14.md).
+
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem
 recriar seus dados compilados: [preparação a partir dos fontes](docs/GITHUB-AEGIS.md).

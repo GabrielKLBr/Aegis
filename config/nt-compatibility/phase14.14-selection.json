@@ -1,0 +1,812 @@
+{
+  "schema": 1,
+  "phase": "14.14",
+  "programs": [
+    {
+      "id": "hello-c",
+      "name": "Independent C Hello World",
+      "category": "console",
+      "independenceKey": "hello-c",
+      "ownedFixture": false,
+      "source": {
+        "repository": "leachim6/hello-world",
+        "path": "c/C.c",
+        "sourceSha256": "d49bac5897d6e6fe25bb2006e60190b09f1af58fd163b70b22f6deafa8438733",
+        "adaptation": "Unmodified C source, compiled with owned x86 startup and literal CRT subset; not a stock upstream Windows binary"
+      },
+      "scenario": {
+        "oracle": "hello-world-console-v1",
+        "steps": [
+          "Start with no arguments",
+          "Observe stdout and orderly exit"
+        ],
+        "successCriteria": [
+          "One Hello World line",
+          "Exit status zero"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "sort",
+      "name": "Windows Sort",
+      "category": "console",
+      "independenceKey": "sort",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Sort b,a input file",
+          "Read ordered output"
+        ],
+        "successCriteria": [
+          "Output a,b in order"
+        ],
+        "arguments": [
+          "c:\\app\\input.txt"
+        ],
+        "requiredGuestAssets": [
+          "input.txt: b\\na\\n"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "findstr",
+      "name": "Windows Findstr",
+      "category": "console",
+      "independenceKey": "findstr",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Search a literal in a guest file"
+        ],
+        "successCriteria": [
+          "Only matching line returned"
+        ],
+        "arguments": [
+          "needle",
+          "c:\\app\\input.txt"
+        ],
+        "requiredGuestAssets": [
+          "input.txt: needle\\nother\\n"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "more",
+      "name": "Windows More",
+      "category": "console",
+      "independenceKey": "more",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Display a two-line guest document",
+          "Exit"
+        ],
+        "successCriteria": [
+          "Both lines displayed"
+        ],
+        "arguments": [
+          "c:\\app\\input.txt"
+        ],
+        "requiredGuestAssets": [
+          "input.txt: first\\nsecond\\n"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "notepad",
+      "name": "Windows Notepad",
+      "category": "classic-gui",
+      "independenceKey": "notepad",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open editor",
+          "Type a short text",
+          "Save, reopen, close"
+        ],
+        "successCriteria": [
+          "Saved bytes preserved",
+          "Clean close"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "flappy",
+      "name": "Flappy Window 1.5",
+      "category": "classic-gui",
+      "independenceKey": "flappy",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Start with its settings",
+          "Start a game and interact",
+          "Close game"
+        ],
+        "successCriteria": [
+          "Playable scene",
+          "Input changes game state",
+          "Clean close"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [
+          "settings.txt and original application resources"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "resource-hacker",
+      "name": "Resource Hacker",
+      "category": "classic-gui",
+      "independenceKey": "resource-hacker",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open an owned PE fixture as data",
+          "View resources",
+          "Close without modifying source"
+        ],
+        "successCriteria": [
+          "Resource tree visible",
+          "Clean close"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [
+          "owned-resource-fixture.exe"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "hxd",
+      "name": "HxD",
+      "category": "classic-gui",
+      "independenceKey": "hxd",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open a guest data file",
+          "Edit one byte",
+          "Save and reopen"
+        ],
+        "successCriteria": [
+          "Edited bytes correct"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [
+          "sample.bin: 00 01 02 03"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "sevenzip",
+      "name": "7-Zip CLI",
+      "category": "utilities",
+      "independenceKey": "sevenzip",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Create archive of guest text",
+          "List and extract it"
+        ],
+        "successCriteria": [
+          "Extracted bytes equal input"
+        ],
+        "arguments": [
+          "a",
+          "test.7z",
+          "sample.txt"
+        ],
+        "requiredGuestAssets": [
+          "sample.txt"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "cmake",
+      "name": "CMake",
+      "category": "utilities",
+      "independenceKey": "cmake",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Process an offline script setting and printing a variable"
+        ],
+        "successCriteria": [
+          "Expected variable printed",
+          "Exit zero"
+        ],
+        "arguments": [
+          "-P",
+          "sample.cmake"
+        ],
+        "requiredGuestAssets": [
+          "sample.cmake"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "nasm",
+      "name": "NASM",
+      "category": "utilities",
+      "independenceKey": "nasm",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Assemble a tiny x86 instruction into a binary"
+        ],
+        "successCriteria": [
+          "Output equals expected machine bytes"
+        ],
+        "arguments": [
+          "-f",
+          "bin",
+          "sample.asm",
+          "-o",
+          "sample.bin"
+        ],
+        "requiredGuestAssets": [
+          "sample.asm: bits 16; nop"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "tesseract",
+      "name": "Tesseract OCR",
+      "category": "utilities",
+      "independenceKey": "tesseract",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Recognize a generated image containing TEST"
+        ],
+        "successCriteria": [
+          "Recognized text TEST"
+        ],
+        "arguments": [
+          "sample.png",
+          "stdout"
+        ],
+        "requiredGuestAssets": [
+          "sample.png",
+          "required language data"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "msiexec",
+      "name": "Windows Installer",
+      "category": "installers",
+      "independenceKey": "msiexec",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Install an owned harmless MSI into guest storage",
+          "Uninstall it"
+        ],
+        "successCriteria": [
+          "Guest file and registry changes correct",
+          "No changes outside guest"
+        ],
+        "arguments": [
+          "/i",
+          "sample.msi"
+        ],
+        "requiredGuestAssets": [
+          "owned harmless sample.msi"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "wusa",
+      "name": "Windows Update Standalone Installer",
+      "category": "installers",
+      "independenceKey": "wusa",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Inspect an empty guest MSU fixture",
+          "Observe documented package rejection"
+        ],
+        "successCriteria": [
+          "Meaningful controlled package error",
+          "No host operation"
+        ],
+        "arguments": [
+          "sample.msu"
+        ],
+        "requiredGuestAssets": [
+          "empty inert sample.msu"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "dism",
+      "name": "Deployment Image Servicing and Management",
+      "category": "installers",
+      "independenceKey": "dism",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Query the guest image edition"
+        ],
+        "successCriteria": [
+          "Guest edition response or documented unsupported operation, not a crash"
+        ],
+        "arguments": [
+          "/Online",
+          "/Get-CurrentEdition"
+        ],
+        "requiredGuestAssets": [],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "vs-installer",
+      "name": "Visual Studio Installer bootstrapper",
+      "category": "installers",
+      "independenceKey": "vs-installer",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open offline installer",
+          "Inspect offline availability",
+          "Cancel"
+        ],
+        "successCriteria": [
+          "Usable installer window",
+          "Clean cancel",
+          "No download"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "curl",
+      "name": "Windows curl",
+      "category": "network",
+      "independenceKey": "curl",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Request a fixed local guest endpoint"
+        ],
+        "successCriteria": [
+          "Expected HTTP status and body"
+        ],
+        "arguments": [
+          "http://127.0.0.1:18080/test"
+        ],
+        "requiredGuestAssets": [
+          "guest loopback HTTP fixture; never host loopback"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "ping",
+      "name": "Windows Ping",
+      "category": "network",
+      "independenceKey": "ping",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Send one guest loopback echo"
+        ],
+        "successCriteria": [
+          "One valid guest echo result"
+        ],
+        "arguments": [
+          "-n",
+          "1",
+          "127.0.0.1"
+        ],
+        "requiredGuestAssets": [],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "filezilla",
+      "name": "FileZilla",
+      "category": "network",
+      "independenceKey": "filezilla",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open client",
+          "Connect to a guest-only FTP fixture",
+          "List test directory",
+          "Disconnect"
+        ],
+        "successCriteria": [
+          "Expected listing",
+          "Clean disconnect"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [
+          "guest-only FTP fixture"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "qbittorrent",
+      "name": "qBittorrent",
+      "category": "network",
+      "independenceKey": "qbittorrent",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open client offline",
+          "Inspect empty transfers and preferences",
+          "Close"
+        ],
+        "successCriteria": [
+          "Usable interface",
+          "No host network access",
+          "Clean close"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "cscript",
+      "name": "Windows Script Host",
+      "category": "com-shell",
+      "independenceKey": "cscript",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Run guest VBScript invoking a COM scripting object"
+        ],
+        "successCriteria": [
+          "Expected value printed"
+        ],
+        "arguments": [
+          "//nologo",
+          "sample.vbs"
+        ],
+        "requiredGuestAssets": [
+          "sample.vbs: inert COM dictionary test"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "mmc",
+      "name": "Microsoft Management Console",
+      "category": "com-shell",
+      "independenceKey": "mmc",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open empty console",
+          "Inspect menus",
+          "Close"
+        ],
+        "successCriteria": [
+          "Usable empty console",
+          "Clean close"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "explorer",
+      "name": "Windows Explorer",
+      "category": "com-shell",
+      "independenceKey": "explorer",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Browse guest app directory",
+          "Inspect guest file list",
+          "Close window"
+        ],
+        "successCriteria": [
+          "Only guest files visible",
+          "Clean close"
+        ],
+        "arguments": [
+          "c:\\app"
+        ],
+        "requiredGuestAssets": [],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "html-help",
+      "name": "HTML Help",
+      "category": "com-shell",
+      "independenceKey": "html-help",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open a guest help document",
+          "Navigate two topics",
+          "Close"
+        ],
+        "successCriteria": [
+          "Both topics render",
+          "Clean close"
+        ],
+        "arguments": [
+          "sample.chm"
+        ],
+        "requiredGuestAssets": [
+          "inert sample.chm"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "powershell",
+      "name": "Windows PowerShell",
+      "category": "frameworks",
+      "independenceKey": "powershell",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Evaluate a bounded arithmetic expression in guest CLR"
+        ],
+        "successCriteria": [
+          "Output 2",
+          "Exit zero"
+        ],
+        "arguments": [
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          "1+1"
+        ],
+        "requiredGuestAssets": [],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "csharp-compiler",
+      "name": "C# Compiler",
+      "category": "frameworks",
+      "independenceKey": "csharp-compiler",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Compile a harmless guest C# source"
+        ],
+        "successCriteria": [
+          "Valid output assembly",
+          "Exit zero"
+        ],
+        "arguments": [
+          "/out:sample.exe",
+          "sample.cs"
+        ],
+        "requiredGuestAssets": [
+          "sample.cs: inert console source"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "msbuild",
+      "name": "MSBuild",
+      "category": "frameworks",
+      "independenceKey": "msbuild",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Evaluate an offline project with one message target"
+        ],
+        "successCriteria": [
+          "Expected project message",
+          "Exit zero"
+        ],
+        "arguments": [
+          "sample.proj"
+        ],
+        "requiredGuestAssets": [
+          "sample.proj: inert message-only target"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "paintnet",
+      "name": "Paint.NET",
+      "category": "frameworks",
+      "independenceKey": "paintnet",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open a guest PNG",
+          "Draw a mark",
+          "Save and reopen"
+        ],
+        "successCriteria": [
+          "Updated image contents",
+          "Clean close"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [
+          "sample.png"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "audacity",
+      "name": "Audacity",
+      "category": "multimedia",
+      "independenceKey": "audacity",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open generated PCM tone",
+          "Play briefly",
+          "Stop and close"
+        ],
+        "successCriteria": [
+          "Correct duration",
+          "Playback observed",
+          "Clean stop"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [
+          "one-second generated tone.wav"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "vlc",
+      "name": "VLC",
+      "category": "multimedia",
+      "independenceKey": "vlc",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Play generated local media",
+          "Pause and resume",
+          "Close"
+        ],
+        "successCriteria": [
+          "Playback and pause state observed",
+          "Clean close"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [
+          "generated tone.wav"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "obs",
+      "name": "OBS Studio",
+      "category": "multimedia",
+      "independenceKey": "obs",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Open offline OBS",
+          "Render a generated color source",
+          "Close without capture"
+        ],
+        "successCriteria": [
+          "Preview rendered",
+          "No host screen or microphone capture",
+          "Clean close"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [],
+        "network": "offline; no host network passthrough"
+      }
+    },
+    {
+      "id": "windows-media-player",
+      "name": "Windows Media Player",
+      "category": "multimedia",
+      "independenceKey": "windows-media-player",
+      "ownedFixture": false,
+      "source": "Installed application; frozen locally; not redistributed",
+      "scenario": {
+        "oracle": "manual-workflow-v1",
+        "steps": [
+          "Play a generated local tone",
+          "Stop and close"
+        ],
+        "successCriteria": [
+          "Playback observed",
+          "Clean stop"
+        ],
+        "arguments": [],
+        "requiredGuestAssets": [
+          "generated tone.wav"
+        ],
+        "network": "offline; no host network passthrough"
+      }
+    }
+  ]
+}

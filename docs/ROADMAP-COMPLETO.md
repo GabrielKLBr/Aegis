@@ -1165,6 +1165,14 @@ troca indevida de pacote/perfil ou snapshot é recusada. Parar ao concluir.
 
 ### Subfase 14.14 — Aceitação de compatibilidade ampla por versão NT
 
+**Avaliação entregue em 29/10/2026; metas de aceitação ampla não atingidas.**
+Corpus congelado de 32 aplicações, 13 x86/18 x64/1 AnyCPU. Em Release e Debug,
+o fluxo automático Win10 teve 1 roteiro funcional, 1 parcial e 30 bloqueados;
+os perfis Win7/Win11 não são oferecidos por esse fluxo e ficaram não avaliados.
+[Método, limitações e prontidão para a fase 15](PHASE-14.14.md).
+O desenvolvimento da quarentena pode prosseguir por solicitação, com arquivos
+inertes e verificação estática; isso não aprova o produto para lançamento.
+
 **Dependências:** todos os lotes necessários às classes de aplicação anunciadas.
 
 **Trabalho:** manter corpus versionado de programas independentes e inofensivos,
