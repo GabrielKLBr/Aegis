@@ -106,7 +106,7 @@ function filter(){const q=search.value.toLocaleLowerCase();let n=0;for(const lib
 search.addEventListener('input',filter);status.addEventListener('change',filter);document.querySelector('#expand').addEventListener('click',()=>{const open=libs.some(l=>!l.hidden&&!l.open);for(const l of libs)if(!l.hidden)l.open=open});filter();
 </script></html>'''
     output.mkdir(parents=True,exist_ok=True)
-    badge(output,'interface','interface',rows)
+    badge(output,'interface','GUI APIs',rows)
     for name in ('index.html','progress.html'):(output/name).write_text(document,encoding='utf-8')
     (output/'progress.json').write_text(json.dumps(payload,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     return {'libraries':len(groups),'entries':len(rows),'output':str(output)}

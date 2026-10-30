@@ -2,210 +2,215 @@
 
 **Advanced Endpoint Guardian for Inspection & Sandboxing**
 
+Translated all the way to [GuardianAV Project History](README.md#guardianav-project-history) using [DeepL Translator](https://www.deepl.com/translator) since I ran out of weekly limit.
+Please open a Pull Request reporting any English mistake if you find one.
+
 [![Windows API Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Fgeral.json)](https://gabrielklbr.github.io/Aegis/windows-apis.html)
 [![Graphics and Audio Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Finterface.json)](https://gabrielklbr.github.io/Aegis/progress.html)
 
-Percentuais das entradas dos catálogos, incluindo suporte parcial; não representam todo o Windows.
+Percentages of entries in the catalogs, including partial support; do not represent the entire Windows system.
 
-Antivírus e laboratório de inspeção/sandbox em C/C++, com implementação própria
-do convidado. O produto mantém Windows/MSVC/WHP e validação nativa Linux/KVM.
-Os nomes dos executáveis `guardian-*` permanecem compatíveis.
+Antivirus and inspection/sandbox lab in C/C++, with the guest's own implementatio
+the product supports Windows/MSVC/WHP and native Linux/KVM validation
+the names of the `guardian-*` executables remain compatible
 
-A **fase 16** acrescenta proteção no serviço Windows, fila persistente, agenda,
-notificações, varreduras em segundo plano e cofre protegido pelo SYSTEM:
-[uso, validação e limites](docs/PHASE-16.md).
+**Phase 16** adds protection for the Windows service, persistent queue, scheduler,
+notifications, background scans, and a SYSTEM-protected vault:
+[usage, validation, and limits](docs/PHASE-16.md).
 
-A **fase 15** substitui a quarentena simples por armazenamento autenticado e
-transacional, com isolamento verificado, restauração sem sobrescrever, histórico
-e integração com a engine: [escopo, validação e limites](docs/PHASE-15.md).
+**Phase 15** replaces simple quarantine with authenticated transactional storage,
+featuring verified isolation, non-overwriting restoration, history,
+and integration with the engine: [scope, validation, and limits](docs/PHASE-15.md).
 
-O lote de componentes COM/RPC, Shell e controles do MiniNT está descrito na
-[entrega delimitada da fase 14.8](docs/PHASE-14.8.md), com critérios de aceitação
-e limitações explícitos.
+The set of COM/RPC components, Shell, and MiniNT controls is described in the
+[Phase 14.8 scoped delivery](docs/PHASE-14.8.md), with explicit acceptance criteria
+and limitations.
 
-A fase 14.9 acrescenta rede contida, HTTP, TLS 1.2 no convidado, CNG e lojas
-virtuais de chaves/certificados: [escopo e validação](docs/PHASE-14.9.md).
-A implementação atende um corpus delimitado de Windows 10 x64.
+Phase 14.9 adds contained network, HTTP, TLS 1.2 in the guest, CNG, and
+virtual key/certificate stores: [scope and validation](docs/PHASE-14.9.md).
+The implementation supports a limited set of Windows 10 x64 systems.
 
-A 12F acrescenta o modo opcional de janelas independentes no desktop Windows,
-com conteúdo rasterizado pelo MiniNT e entrada restrita à sessão:
-[implementação, uso e limites](docs/PHASE-12F.md).
-A **14.10A** acrescenta a primeira ponte de comandos e desenho GDI por um
-auxiliar restrito do Windows: [escopo, uso e limites](docs/PHASE-14.10A.md).
-A **14.10B** acrescenta imports USER32 próprios, janelas e controles BUTTON/STATIC/EDIT reais com callbacks no MiniNT: [contrato e testes](docs/PHASE-14.10B.md).
-A **14.10C** acrescenta desenho GDI, fontes e bitmaps executados pelo Windows,
-com comparação da mesma aplicação no MiniNT e nativamente: [contrato e testes](docs/PHASE-14.10C.md).
-A **14.10D** acrescenta controles, menus, diálogos no namespace convidado e
-aceitação do Flappy com GUI nativa: [contrato e testes](docs/PHASE-14.10D.md).
-A **14.10E** amplia curvas, regiões, paths, transformações, bitmaps e texto em janelas do host, com corpus independente e matriz de APIs: [contrato e testes](docs/PHASE-14.10E.md).
-A **14.10F** acrescenta Direct2D/DirectWrite por software, PNG/BMP/JPEG e
-operações limitadas de texturas D3D11 WARP/DXGI:
-[contratos, testes e pendências](docs/PHASE-14.10F.md).
-Shaders, pipeline 3D e DirectX completo permanecem pendentes.
+Phase 12F adds an optional mode for independent windows on the Windows desktop,
+with content rendered by MiniNT and input restricted to the session:
+[implementation, usage, and limitations](docs/PHASE-12F.md).
+**14.10A** adds the first GDI command and drawing bridge via a
+restricted Windows helper: [scope, usage, and limitations](docs/PHASE-14.10A.md).
+**14.10B** adds custom USER32 imports, as well as real windows and BUTTON/STATIC/EDIT controls with callbacks in MiniNT: [specification and tests](docs/PHASE-14.10B.md).
+**14.10C** adds GDI drawing, fonts, and bitmaps rendered by Windows,
+with a comparison of the same application running on MiniNT and natively: [specification and tests](docs/PHASE-14.10C.md).
+**14.10D** adds controls, menus, and dialogs in the guest namespace and
+support for Flappy with a native GUI: [specification and tests](docs/PHASE-14.10D.md).
+**14.10E** extends curves, regions, paths, transformations, bitmaps, and text in host windows, with an independent corpus and API matrix: [contract and tests](docs/PHASE-14.10E.md).
+**14.10F** adds software-based Direct2D/DirectWrite, PNG/BMP/JPEG, and
+limited D3D11 WARP/DXGI texture operations:
+[specifications, tests, and pending items](docs/PHASE-14.10F.md).
+Shaders, the 3D pipeline, and full DirectX remain pending.
 
-A entrega inicial da **14.11** acrescenta CIL de console limitado, contratos
-WinRT escalares e instalação portátil no convidado:
-[escopo, reprodução e pendências](docs/PHASE-14.11.md).
-O lote seguinte acrescenta Form, Button, Label e TextBox selecionados, com
-janelas/controles reais no Windows e eventos interpretados no MiniNT.
-CLR e WinForms completos, WPF, WinUI e instaladores MSI continuam pendentes.
+The initial release of **14.11** adds limited console CIL, scalar
+WinRT contracts, and portable installation in the guest:
+[scope, reproduction, and open issues](docs/PHASE-14.11.md).
+The next release adds selected Form, Button, Label, and TextBox controls, with
+real windows/controls on Windows and interpreted events on MiniNT.
+Full CLR and WinForms, WPF, WinUI, and MSI installers remain pending.
 
-O primeiro lote da **14.12 (14.12A)** acrescenta execução x86/PE32 no kernel x64,
-DLLs próprias de 32 bits e janelas USER32 nativas para NT 10.0.19045:
-[escopo, validação e continuação](docs/PHASE-14.12.md).
-WOW64 completo, corpus GUI independente e perfis NT adicionais permanecem abertos.
+The first release of **14.12 (14.12A)** adds x86/PE32 execution on the x64 kernel,
+native 32-bit DLLs, and native USER32 windows for NT 10.0.19045:
+[scope, validation, and follow-up](docs/PHASE-14.12.md).
+Full WOW64 support, an independent GUI corpus, and additional NT profiles remain open.
 
-A **14.13** conecta a fila ao runtime por pacotes vinculados a SHA-256 e
-acrescenta recuperação de execução com janelas USER32 básicas x86/x64:
-[uso, testes e limites](docs/PHASE-14.13.md).
-Snapshots com GDI/DirectX/áudio e conexões abertas permanecem pendentes.
+**14.13** connects the queue to the runtime via SHA-256-linked packages and
+adds execution recovery with basic x86/x64 USER32 windows:
+[usage, testing, and limitations](docs/PHASE-14.13.md).
+Snapshots with GDI/DirectX/audio and open connections remain pending.
 
-A continuação **14.13A** acrescenta pacotes automáticos por modelos locais,
-progresso e salvar/retomar pelo app e pelos serviços atualizados:
-[uso, validação e resultados com programas reais](docs/PHASE-14.13A.md).
+Update **14.13A** adds automatic packages based on local templates,
+progress tracking, and save/resume functionality via the app and updated services:
+[usage, validation, and results with real programs](docs/PHASE-14.13A.md).
 
-A avaliação **14.14** fixa 32 aplicações e publica a matriz por perfil e
-arquitetura. No fluxo automático Win10, 1 concluiu seu roteiro, 1 foi parcial
-e 30 encontraram bloqueios; Win7/Win11 não foram avaliados. As metas de
-compatibilidade ampla permanecem **não atingidas**:
-[método, resultados e prontidão para a fase 15](docs/PHASE-14.14.md).
+The **14.14** evaluation covers 32 applications and publishes the matrix by profile and
+architecture. In the Win10 automated workflow, 1 completed its workflow, 1 was partial,
+and 30 encountered blockers; Win7/Win11 were not evaluated. The goals for
+broad compatibility remain **unmet**:
+[method, results, and readiness for Phase 15](docs/PHASE-14.14.md).
 
-Repositório público com fontes, testes, configuração e documentação. Builds,
-releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem
-recriar seus dados compilados: [preparação a partir dos fontes](docs/GITHUB-AEGIS.md).
+Public repository with source code, tests, configuration, and documentation. Builds,
+releases, executables, and virtual disks are not included in Git. Some tests require
+recreating their compiled data: [preparation from source](docs/GITHUB-AEGIS.md).
 
-Para gerenciar Git, repositórios, branches e PRs:
+To manage Git, repositories, branches, and PRs:
 
 ```text
 python tools/aegis_git.py
 ```
 
-O menu também gera revisões de testes de isolamento e consistência do sandbox.
-Elas preservam erros reais e relatórios; não prometem indetectabilidade.
-[Automação e uso](docs/GITHUB-AEGIS.md) · [Segurança](SECURITY.md) ·
-[Estado atual e limites](docs/PHASE-13.md) · [Roadmap](docs/ROADMAP-COMPLETO.md)
+The menu also generates reviews of isolation and sandbox consistency tests.
+These preserve actual errors and reports; they do not guarantee undetectability.
+[Automation and usage](docs/GITHUB-AEGIS.md) · [Security](SECURITY.md) ·
+[Current status and limitations](docs/PHASE-13.md) · [Roadmap](docs/ROADMAP-COMPLETO.md)
 
-**Revisão Windows em 23/10/2026:** as fases 12B–13 receberam correções e passaram
-na matriz MSVC/WHP: **80 testes distintos Debug**, com retestes documentados,
-e **80/80 Release** em uma suíte completa, sem ignorados.
-[Correções, evidências e limites](docs/REVISAO-WINDOWS-FASES12B-13-20261023.md).
-A integração PE/SMP e as referências NT específicas continuam abertas.
+**Windows Review on 10/23/2026:** Phases 12B–13 received fixes and passed
+the MSVC/WHP test matrix: **80 distinct Debug tests**, with documented retests,
+and **80/80 Release** in a complete suite, with no tests skipped.
+[Fixes, evidence, and limitations](docs/REVISAO-WINDOWS-FASES12B-13-20261023.md).
+The PE/SMP integration and specific NT references remain open.
 
-**Fase 14 em 23/10/2026:** scanner compartilhado com YARA, hashes, análise PE,
-scripts/contêineres limitados, cache SQLite, conectores de reputação por hash e
-fila para o MiniNT. Modo offline por padrão; desconhecido não significa seguro.
-Windows: **83/83 Release** na suíte completa e **3/3 Debug** do scanner; Linux
-Debug: motor/pipeline **2/2** e CLI **1/1**, com escopo parcial documentado.
-[Uso, configuração, entrega local e limites](docs/PHASE-14.md).
-A fase 15 não foi iniciada.
+**Phase 14 on 10/23/2026:** shared scanner with YARA, hashes, PE analysis,
+limited scripts/containers, SQLite cache, hash-based reputation connectors, and
+queue for MiniNT. Offline mode by default; unknown does not mean safe.
+Windows: **83/83 Release** for the full suite and **3/3 Debug** for the scanner; Linux
+Debug: engine/pipeline **2/2** and CLI **1/1**, with partial scope documented.
+[Usage, configuration, local deployment, and limitations](docs/PHASE-14.md).
+Phase 15 has not been started.
 
-Os registros datados abaixo preservam a evolução histórica do GuardianAV.
-As entregas compiladas mencionadas neles permanecem locais e não fazem parte
-deste repositório de fontes.
+The records dated below document the historical evolution of GuardianAV.
+The compiled builds mentioned in them remain local and are not part
+of this source repository.
 
-> Fase 13 em 22/10/2026: telemetria, políticas e análise comportamental implementadas e aceitas no Linux — 59 Debug, 59 Release e 35 ASan/UBSan, sem Wine. Nove domínios na linha do tempo, regras versionadas, permitir/negar/simular, JSON/HTML e diferenças de estado. [Registro, entrega e limites](docs/PHASE-13.md). A aceitação nativa Windows e os requisitos anteriores continuam abertos; a fase 14 não foi iniciada.
+> Phase 13 on October 22, 2026: telemetry, policies, and behavioral analysis implemented and accepted on Linux — 59 Debug, 59 Release, and 35 ASan/UBSan, without Wine. Nine domains on the timeline, versioned rules, allow/deny/simulate, JSON/HTML, and state differences. [Logging, delivery, and limits](docs/PHASE-13.md). Native Windows acceptance and the previous requirements remain open; Phase 14 has not begun.
 >
-> Fase 12E em 22/10/2026: perfis sintéticos implementados e aceitos no Linux — 56 Debug, 56 Release e 34 ASan/UBSan, sem Wine. Contas, documentos, leitor, associações, datas e histórico coerentes, com persistência e teste de privacidade. [Registro, entrega e limites](docs/PHASE-12E.md). A aceitação nativa Windows e as pendências anteriores continuam abertas; a fase 13 não foi iniciada.
+> Phase 12E on 10/22/2026: Synthetic profiles implemented and accepted on Linux — 56 Debug, 56 Release, and 34 ASan/UBSan, without Wine. Consistent accounts, documents, reader, associations, dates, and history, with persistence and privacy testing. [Logging, delivery, and limits](docs/PHASE-12E.md). Native Windows acceptance and previous open issues remain open; Phase 13 has not begun.
 >
-> Fase 12D em 21/10/2026: sessões, retomada e interação implementadas e aceitas no Linux — 53 Debug, 53 Release e 33 ASan/UBSan, sem Wine. [Registro, comandos e entrega](docs/PHASE-12D.md). A aceitação Windows desta revisão e as pendências anteriores continuam abertas.
+> Phase 12D on 10/21/2026: sessions, resumption, and interaction implemented and accepted on Linux — 53 Debug, 53 Release, and 33 ASan/UBSan, without Wine. [Registration, commands, and delivery](docs/PHASE-12D.md). Windows acceptance of this revision and the previous open issues remain pending.
 >
-> Fase 12C em 21/10/2026: implementação e validação Linux aprovadas — 50 Debug, 50 Release e 32 ASan/UBSan; 1.590 observações de conformidade. [Matriz, entrega e pendências](docs/PHASE-12C.md).
-> A 12B mantém suas pendências; a autorização da 12C não as declara encerradas.
+> Phase 12C on October 21, 2026: Linux implementation and validation approved — 50 Debug, 50 Release, and 32 ASan/UBSan; 1,590 compliance observations. [Matrix, delivery, and open items](docs/PHASE-12C.md).
+> Phase 12B retains its open items; the approval of Phase 12C does not mark them as closed.
 >
-> Continuação da 12B em 20/10/2026: [recursos implementados, validação e pendências](docs/PHASE-12B-RECURSOS.md).
-> A fase permanece aberta; a aceitação Windows/MSVC/WHP da nova revisão é necessária.
+> Continuation of Phase 12B on October 20, 2026: [implemented features, validation, and open items](docs/PHASE-12B-FEATURES.md).
+> The phase remains open; Windows/MSVC/WHP acceptance of the new revision is required.
 
-## Histórico do projeto GuardianAV
+## GuardianAV Project History
 
-**12B em andamento em 20/10/2026:** orçamento de recursos entre catálogos, RAM ampliada com reserva para o host e limites de armazenamento que incluem snapshots. A entrega está em validação; SMP e volumes grandes continuam pendentes. [Escopo e estado](docs/PHASE-12B.md).
+**Phase 12B in progress as of October 20, 2026:** cross-catalog resource allocation, expanded RAM with a reserve for the host, and storage limits that include snapshots. The release is undergoing validation; SMP and large volumes remain pending. [Scope and status](docs/PHASE-12B.md).
 
-**Fase 12A concluída para a matriz de referência em 19/10/2026:** identidade coerente em CPUID/firmware/registro, pacotes INF auditados e driver próprio carregado, exercitado e descarregado no convidado, com snapshots. Windows: 59 testes validados por configuração; Linux: 39 por configuração e 27 com sanitizers, considerando os retestes documentados. Drivers comerciais e compatibilidade Windows geral permanecem limitados. A fase 12 continua aberta; a 12B está em andamento, e 12C–12E e fase 13 não foram iniciadas. [Escopo, evidências e limites](docs/PHASE-12A.md).
+**Phase 12A completed for the reference matrix on October 19, 2026:** consistent identity across CPUID/firmware/registry, audited INF packages, and a custom driver loaded, tested, and unloaded on the guest, with snapshots. Windows: 59 validated tests per configuration; Linux: 39 per configuration and 27 with sanitizers, considering the documented retests. Commercial drivers and general Windows compatibility remain limited. Phase 12 remains open; 12B is in progress, and 12C–12E and Phase 13 have not yet begun. [Scope, evidence, and limitations](docs/PHASE-12A.md).
 
-**Correções Windows validadas em 19/10/2026:** as oito falhas foram corrigidas.
-A suíte completa passou em Debug e Release: **52/52 em cada configuração**,
-sem ignorados. A revisão corrigida ainda aguarda revalidação Linux.
-[Resultados, correções e limites](docs/CORRECOES-WINDOWS-FASE11-20261019.md).
+**Windows fixes validated on October 19, 2026:** all eight vulnerabilities have been fixed.
+The complete suite passed Debug and Release: **52/52 in each configuration**,
+with no skips. The fixed revision is still awaiting Linux revalidation.
+[Results, fixes, and limitations](docs/CORRECOES-WINDOWS-FASE11-20261019.md).
 
-Os registros Linux abaixo descrevem as revisões aceitas em 18/10; as menções
-à aceitação Windows pendente neles são históricas. A situação histórica está no
-relatório acima. A fase 12 foi autorizada posteriormente em 19/10; seu estado atual está no início desta página.
+The Linux logs below describe the revisions accepted on October 18; the references
+to pending Windows acceptance in them are historical. The historical status is in the
+report above. Phase 12 was subsequently approved on October 19; its current status is at the top of this page.
 
-**Fase 11 implementada e aceita no Linux:** uma aplicação própria em CPL3 com
-janelas Paint/Notes, desenho por software, foco, diálogo, DPI e entrada pelo
-visualizador nativo. Passaram 96 execuções CTest e 132 boots de regressão,
-sem Wine/QEMU. **Aceitação nativa Windows/MSVC/WHP pendente.**
-Evidências, comandos e limites: [PHASE-11.md](docs/PHASE-11.md).
-Pacote extraído e testado: `dist/guardianav-phase11-linux-x86_64-20261018.tar.gz`.
-A fase 12 não foi iniciada.
+**Phase 11 implemented and accepted on Linux:** a custom application in CPL3 with
+Paint/Notes windows, software-based drawing, focus, dialogs, DPI, and input via the
+native viewer. It passed 96 CTest runs and 132 regression boots,
+without Wine/QEMU. **Native Windows/MSVC/WHP acceptance pending.**
+Evidence, commands, and limits: [PHASE-11.md](docs/PHASE-11.md).
+Extracted and tested package: `dist/guardianav-phase11-linux-x86_64-20261018.tar.gz`.
+Phase 12 has not yet begun.
 
-**Fase 10 implementada e aceita no Linux:** rede virtual UDP IPv4/IPv6,
-DNS/eco simulados, laboratório isolado, proxy explícito e capturas por VM.
-O perfil padrão é sem rede. Passaram 81 execuções CTest e 132 boots de regressão,
-com verificadores de memória, sem Wine/QEMU. **Aceitação nativa Windows pendente.**
-Comandos, evidências e limites: [PHASE-10.md](docs/PHASE-10.md).
-Pacote: `dist/guardianav-phase10-linux-x86_64-20261018.tar.gz`. A fase 11 foi autorizada posteriormente e está registrada em [PHASE-11.md](docs/PHASE-11.md).
+**Phase 10 implemented and accepted on Linux:** IPv4/IPv6 UDP virtual network,
+simulated DNS/echo, isolated lab, explicit proxy, and VM-based captures.
+The default profile is network-less. It passed 81 CTest runs and 132 regression boots,
+with memory checkers, without Wine/QEMU. **Native Windows acceptance pending.**
+Commands, evidence, and limits: [PHASE-10.md](docs/PHASE-10.md).
+Package: `dist/guardianav-phase10-linux-x86_64-20261018.tar.gz`. Phase 11 was subsequently approved and is documented in [PHASE-11.md](docs/PHASE-11.md).
 
-**Linux nativo disponível (18/10/2026):** scanner por assinaturas, SHA-256,
-inspeção de imagens e testes do núcleo compilam como ELF, sem Wine.
-Execute `./Build-Linux.sh Release`; o programa é `build-linux/Release/guardianav`.
-O convidado agora também executa em KVM, com recompilação nativa no Linux e sem Wine/QEMU.
-O fluxo Windows/MSVC/WHP permanece preservado. Veja [LINUX-KVM.md](docs/LINUX-KVM.md).
-Comandos, limites e validação: [LINUX-NATIVE.md](docs/LINUX-NATIVE.md).
+**Native Linux available (10/18/2026):** signature scanner, SHA-256,
+image inspection, and kernel tests compile as ELF, without Wine.
+Run `./Build-Linux.sh Release`; the program is `build-linux/Release/guardianav`.
+The guest now also runs on KVM, with native recompilation on Linux and without Wine/QEMU.
+The Windows/MSVC/WHP workflow remains unchanged. See [LINUX-KVM.md](docs/LINUX-KVM.md).
+Commands, limits, and validation: [LINUX-NATIVE.md](docs/LINUX-NATIVE.md).
 
-**Fase 9 implementada e aceita na matriz Linux:** snapshots completos do estado suportado, pausa/retomada,
-clonagem, reinício e discos descartáveis/persistentes estão implementados no
-novo `guardian-vm`. Há testes de VMs simultâneas, recuperação após falhas e
-isolamento entre VMs. A matriz passou com 69 execuções CTest e 132 boots de regressão; a aceitação
-nativa Windows continua pendente. Comandos, limites e evidências:
-[PHASE-9.md](docs/PHASE-9.md). Pacote: `dist/guardianav-phase9-linux-x86_64-20261018.tar.gz`.
-A fase 10 foi autorizada posteriormente; implementação e aceitação Linux registradas em [PHASE-10.md](docs/PHASE-10.md).
+**Phase 9 implemented and accepted in the Linux matrix:** full state snapshots, pause/resume,
+cloning, restart, and disposable/persistent disks are implemented in the
+new `guardian-vm`. Tests for concurrent VMs, recovery after failures, and
+isolation between VMs are included. The build passed 69 CTest runs and 132 regression boots; native Windows
+acceptance remains pending. Commands, limits, and evidence:
+[PHASE-9.md](docs/PHASE-9.md). Package: `dist/guardianav-phase9-linux-x86_64-20261018.tar.gz`.
+Phase 10 was subsequently authorized; Linux implementation and acceptance documented in [PHASE-10.md](docs/PHASE-10.md).
 
-**Fase 8 — implementação concluída para os consoles próprios; aceitação
-Windows pendente (18/10/2026).** O convidado carrega PEs/DLLs, usa arquivos,
-registro, heap, locks, threads e filhos. Agora trata exceções x64 em modo usuário,
-faz unwind não local com `__finally` e carrega/descarrega DLLs com TLS,
-referências e rollback. A matriz Linux/KVM passou com **132 boots e 60
-execuções CTest**, incluindo verificações de memória e os marcos anteriores.
+**Phase 8 — implementation completed for native consoles; Windows acceptance
+pending (10/18/2026).** The guest loads PEs/DLLs, uses files,
+the registry, the heap, locks, threads, and child processes. It now handles x64 exceptions in user mode,
+performs non-local unwind with `__finally`, and loads/unloads DLLs with TLS,
+references, and rollback. The Linux/KVM matrix passed **132 boots and 60
+CTest runs**, including memory checks and the previous milestones.
 
-O produto continua Windows/MSVC/WHP. Falta executar nesta revisão a aceitação
-nativa: **40 CTests em Debug/Release e as comparações com APIs do Windows**.
-A fase 8 ainda não foi encerrada no Windows. A fase 9 foi autorizada posteriormente. Código, critérios
-por aplicação, evidências, limites e comando de retomada:
+The product remains in the Windows/MSVC/WHP phase. The following items still need to be completed in this release for native acceptance:
+**40 CTests in Debug/Release and comparisons with Windows APIs**.
+Phase 8 has not yet been completed on Windows. Phase 9 was authorized subsequently. Code, criteria
+per application, evidence, limits, and resumption command:
 [PHASE-8-COMPLETION.md](docs/PHASE-8-COMPLETION.md).
-Os documentos dos marcos anteriores permanecem em `docs/`.
+Documents from previous milestones remain in `docs/`.
 
-**Fase 7 concluída:** arquivos e registro sobrevivem a
-reinicializações em um volume próprio, com base somente de leitura e overlays
-independentes. Há permissões, compartilhamento, renomeação, exclusão, links de
-arquivo, notificações de registro, flush e recuperação de commits interrompidos.
-A validação aprovou 784 verificações do volume, 32 da persistência no host,
-80 boots da fase 7, outros 480 de regressão das fases 1–6, 31 testes e sete
-exemplos por configuração em Debug e Release, sem testes ignorados.
-Código, comandos e limites: [PHASE-7.md](docs/PHASE-7.md).
-Etapas anteriores: [PHASE-6.md](docs/PHASE-6.md), [PHASE-5.md](docs/PHASE-5.md), [PHASE-4.md](docs/PHASE-4.md), [PHASE-3.md](docs/PHASE-3.md), [PHASE-2.md](docs/PHASE-2.md),
-[PHASE-1.md](docs/PHASE-1.md) e [PHASE-0.md](docs/PHASE-0.md).
-O MiniNt continua como referência no host.
-**Aceitação Windows da fase 8 pendente; fase 9 aprovada no Linux, pendente no Windows.** Ordem e regra de parada:
+**Phase 7 completed:** Files and the registry survive
+reboots on a dedicated, read-only volume with independent overlays.
+Permissions, sharing, renaming, deletion, file links,
+registry notifications, flushing, and recovery of aborted commits are supported.
+Validation passed 784 volume checks, 32 host persistence checks,
+80 Phase 7 boots, an additional 480 regression tests for Phases 1–6, 31 tests, and seven
+examples per configuration in Debug and Release, with no tests skipped.
+Code, commands, and limits: [PHASE-7.md](docs/PHASE-7.md).
+Previous steps: [PHASE-6.md](docs/PHASE-6.md), [PHASE-5.md](docs/PHASE-5.md), [PHASE-4.md](docs/PHASE-4.md), [PHASE-3.md](docs/PHASE-3.md), [PHASE-2.md](docs/PHASE-2.md),
+[PHASE-1.md](docs/PHASE-1.md), and [PHASE-0.md](docs/PHASE-0.md).
+MiniNt remains the reference on the host.
+**Windows acceptance of phase 8 pending; phase 9 approved on Linux, pending on Windows.** Order and stop rule:
 [ROADMAP-COMPLETO.md](docs/ROADMAP-COMPLETO.md).
 
-**Continuação do núcleo (16/10/2026):** esta implementação é a base ativa do
-desenvolvimento, usando WHP diretamente, sem QEMU. Além do heap próprio, o
-`MiniNt` agora mantém reserva, commit, decommit e liberação de memória, consulta
-regiões e aplica permissões de leitura, escrita e execução pelo WHP. As views de
-seções compartilham o controle de endereços com as alocações privadas.
-Há também uma tabela única de handles com direitos e referências para arquivos,
-seções, eventos, chaves, threads, mutexes e semáforos. O escalonador cooperativo
-permite esperas em eventos, threads, mutexes e semáforos, delays e retomada com
-contexto próprio na mesma vCPU, incluindo transferência e abandono de mutexes.
-Instruções, testes e limites: [KERNEL-SYNCHRONIZATION.md](docs/KERNEL-SYNCHRONIZATION.md),
+**Core Update (10/16/2026):** This implementation is the active foundation for
+development, using WHP directly, without QEMU. In addition to its own heap,
+`MiniNt` now handles memory reservation, commit, decommit, and deallocation, queries
+regions, and enforces read, write, and execute permissions via WHP. Section views
+share address control with private allocations.
+There is also a single table of handles with rights and references for files,
+sections, events, keys, threads, mutexes, and semaphores. The cooperative scheduler
+allows waiting on events, threads, mutexes, and semaphores, delays, and resumption with
+its own context on the same vCPU, including mutex transfer and release.
+Instructions, tests, and limits: [KERNEL-SYNCHRONIZATION.md](docs/KERNEL-SYNCHRONIZATION.md),
 [KERNEL-THREADS.md](docs/KERNEL-THREADS.md),
-[KERNEL-OBJECTS.md](docs/KERNEL-OBJECTS.md), [VIRTUAL-MEMORY.md](docs/VIRTUAL-MEMORY.md) e
+[KERNEL-OBJECTS.md](docs/KERNEL-OBJECTS.md), [VIRTUAL-MEMORY.md](docs/VIRTUAL-MEMORY.md), and
 [KERNEL-CONTINUATION.md](docs/KERNEL-CONTINUATION.md).
-`Build-Kernel.ps1` compila essa etapa sem substituir os builds anteriores.
+`Build-Kernel.ps1` compiles this step without overwriting previous builds.
 
-A small, real, **teaching** antivirus for Windows written in C/C++ using only
-the Windows SDK (no external dependencies). It ships both a **command-line
+**(OUTDATED)** A small, real, **teaching** antivirus for Windows written in C/C++ using only
+the Windows SDK (no external dependencies). It includes both a **command-line
 scanner** (`av.exe`) and a **hardware-accelerated desktop UI** (`avui.exe`).
+
+[**Phase 17**](docs/ROADMAP-COMPLETO.md#fase-17--aplicação-winui-3-e-internacionalização) will bring **WinUI 3** interface using **Windows Fluent Design**.
 
 ![Dashboard](docs/dashboard.png)
 
@@ -667,7 +672,7 @@ docs/                        UI screenshots
   uses to legitimately register with Windows Security.
 ```
 
-A 14.10G acrescenta reprodução PCM/WAV e um recorte WinMM/WASAPI no modo
-`--audio`, com buffers copiados e saída padrão mediada por auxiliar restrito.
-Captura e mídia comprimida permanecem indisponíveis.
-[Contratos e limitações](docs/PHASE-14.10G.md).
+Phase 14.10G adds PCM/WAV playback and a WinMM/WASAPI wrapper in
+`--audio` mode, with copied buffers and standard output routed through a restricted auxiliary device.
+Capture and compressed media remain unavailable.
+[Licenses and Limitations](docs/PHASE-14.10G.md).
