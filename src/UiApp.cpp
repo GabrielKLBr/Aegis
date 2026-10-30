@@ -115,7 +115,7 @@ struct App {
     // hit rects (recomputed each paint)
     D2D1_RECT_F navRect[5]{};
     D2D1_RECT_F quickBtn{}, chooseBtn{}, cancelBtn{}, toggleRect[3]{};
-    D2D1_RECT_F sbxAnalyzeBtn{}, sbxSampleBtn{}, sbxVmBtn{};
+    D2D1_RECT_F sbxAnalyzeBtn{}, sbxSampleBtn{}, sbxVmBtn{}, sbxCheckpointBtn{}, sbxResumeBtn{};
 
     av::Engine engine{true};
 
@@ -125,6 +125,7 @@ struct App {
     std::wstring          sbxFile;
     std::mutex            sbxMtx;
     av::services::Json    sbxReport;
+    std::string          sbxStage;
     bool                  sbxHasReport = false;
     std::thread           sbxThread;
 };
@@ -633,44 +634,45 @@ static void PaintSandbox(float W, float H) {
     Text(L"Sandbox MiniNT", g.fTitle.Get(), RectF(x, top, W - S(36), top + S(40)), T.text);
     Text(L"Execuções supervisionadas pelo serviço AegisSandbox", g.fBody.Get(),
         RectF(x, top + S(42), W - S(36), top + S(66)), T.textDim);
-    g.sbxAnalyzeBtn = g.sbxSampleBtn = g.sbxVmBtn = RectF(0, 0, 0, 0);
+    g.sbxAnalyzeBtn = g.sbxSampleBtn = g.sbxVmBtn = g.sbxCheckpointBtn = g.sbxResumeBtn = RectF(0, 0, 0, 0);
     if (!running) {
         g.sbxAnalyzeBtn = RectF(x, by, x + S(168), by + S(44));
         g.sbxSampleBtn = RectF(x + S(184), by, x + S(344), by + S(44));
         g.sbxVmBtn = RectF(x + S(360), by, x + S(536), by + S(44));
         Button(g.sbxAnalyzeBtn, L"Analisar um arquivo...", T.accent, ColorF(ColorF::White), g.hoverBtn == 3);
         Button(g.sbxSampleBtn, L"Executar exemplo", T.cardHi, T.text, g.hoverBtn == 4);
-        Button(g.sbxVmBtn, L"Sessão com GUI...", T.cardHi, T.text, g.hoverBtn == 5);
+        Button(g.sbxVmBtn, L"Bundle preparado...", T.cardHi, T.text, g.hoverBtn == 5);
     } else {
         g.sbxVmBtn = RectF(x, by, x + S(168), by + S(44));
         Button(g.sbxVmBtn, L"Cancelar", T.danger, ColorF(ColorF::White), g.hoverBtn == 5);
     }
-    const auto card = RectF(x, by + S(60), W - S(36), H - S(34));
+    if(!running){g.sbxCheckpointBtn=RectF(x,by+S(52),x+S(168),by+S(92));g.sbxResumeBtn=RectF(x+S(184),by+S(52),x+S(344),by+S(92));Button(g.sbxCheckpointBtn,L"Salvar ponto...",T.cardHi,T.text,false);Button(g.sbxResumeBtn,L"Retomar ponto...",T.cardHi,T.text,false);}
+    const auto card = RectF(x, by + S(110), W - S(36), H - S(34));
     FillRound(card, S(12), T.card);
     float y = card.top + S(18);
     auto line = [&](const std::wstring& text, const ColorF& color = T.textDim) {
-        Text(text, g.fBody.Get(), RectF(x + S(18), y, card.right - S(18), y + S(38)), color); y += S(40);
+        if(y+S(38)>card.bottom-S(12))return;Text(text, g.fBody.Get(), RectF(x + S(18), y, card.right - S(18), y + S(38)), color); y += S(40);
     };
-    if (running) { line(L"Executando " + BaseName(g.sbxFile) + L"...", T.accentHi); line(L"Desligar o serviço também encerra a sessão e seus processos."); return; }
+    if (running) { line(L"Executando " + BaseName(g.sbxFile) + L"...", T.accentHi);std::string stage;{std::lock_guard lock(g.sbxMtx);stage=g.sbxStage;}line(stage=="preparing"?L"Preparando dependências...":stage=="validating"?L"Conferindo o pacote...":stage=="running"?L"Programa em execução no MiniNT...":L"Conectando ao serviço...");line(L"Cancelar encerra a sessão e seus processos.");return; }
     av::services::Json report; bool has = false;
     { std::lock_guard lock(g.sbxMtx); report = g.sbxReport; has = g.sbxHasReport; }
     if (!has) {
         line(L"O arquivo é executado dentro do MiniNT, usando WHP.");
-        line(L"Analisar arquivo: backend simples com importações limitadas.");
-        line(L"Sessão com GUI: selecione um bundle preparado da 14.10G.");
+        line(L"Selecione um EXE; o pacote é preparado com as DLLs disponíveis.");
+        line(L"Salvar e retomar: janelas USER32 básicas, sem timers ativos.");
         line(L"Uma execução concluída não determina que o arquivo é seguro."); return;
     }
     const auto error = report.value("error", std::string());
-    if (!error.empty()) { Text(av::services::Wide(error), g.fBody.Get(), RectF(x + S(18), y, card.right - S(18), card.bottom - S(18)), T.danger); return; }
+    if (!error.empty()) line(av::services::Wide(error),T.danger);
     line(L"Backend: " + av::services::Wide(report.value("backend", "MiniNT")), T.text);
-    line(report.value("complete", false) ? L"Execução concluída. Veredito de malware ainda depende da análise." : L"Execução incompleta; cobertura insuficiente.", T.accentHi);
+    line(report.value("checkpointCreated",false)?L"Ponto salvo. Use Retomar ponto e escolha recovery.json.":report.value("complete", false) ? L"Execução concluída. Veredito de malware ainda depende da análise." : L"Execução incompleta; cobertura insuficiente.", T.accentHi);
     line(L"Código de saída: " + std::to_wstring(report.value("exitCode", 0)));
     if (report.contains("output")) line(L"Relatórios: " + av::services::Wide(report.at("output").get<std::string>()));
-    else {
+    {
         line(L"Eventos: " + std::to_wstring(report.value("events", av::services::Json::array()).size()) +
              L"  •  Arquivos virtuais: " + std::to_wstring(report.value("virtualFiles", av::services::Json::array()).size()));
         const auto unresolved = report.value("unresolved", av::services::Json::array());
-        if (!unresolved.empty()) line(L"Importações ainda não implementadas: " + std::to_wstring(unresolved.size()), T.danger);
+        if (!unresolved.empty()) {line(L"Dependências ausentes: " + std::to_wstring(unresolved.size()), T.danger);for(size_t i=0;i<(std::min)(unresolved.size(),size_t(3));++i)line(av::services::Wide(unresolved[i].get<std::string>()),T.danger);}
         if (report.contains("console")) line(av::services::Wide(report.at("console").get<std::string>()));
     }
 }
@@ -684,7 +686,7 @@ static void OnPaint() {
     float W = (float)(rc.right - rc.left);
     float H = (float)(rc.bottom - rc.top);
 
-    g.quickBtn = g.chooseBtn = g.cancelBtn = g.sbxAnalyzeBtn = g.sbxSampleBtn = g.sbxVmBtn = RectF(0,0,0,0);
+    g.quickBtn = g.chooseBtn = g.cancelBtn = g.sbxAnalyzeBtn = g.sbxSampleBtn = g.sbxVmBtn = g.sbxCheckpointBtn = g.sbxResumeBtn = RectF(0,0,0,0);
     for (const auto button : g.serviceButtons) ShowWindow(button, g.page == Page::Settings ? SW_SHOW : SW_HIDE);
     PaintSidebar(W, H);
     switch (g.page) {
@@ -747,13 +749,13 @@ static void StartScan(const std::wstring& folder) {
     SetTimer(g.hwnd, TIMER_ANIM, 16, nullptr);
 }
 
-static std::wstring PickFile() {
+static std::wstring PickFile(const wchar_t* title=L"Escolha um executável para o MiniNT") {
     std::wstring result;
     ComPtr<IFileOpenDialog> dlg;
     if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
                                 IID_PPV_ARGS(dlg.GetAddressOf()))))
         return result;
-    DWORD opts = 0; dlg->GetOptions(&opts);
+    dlg->SetTitle(title);DWORD opts = 0; dlg->GetOptions(&opts);
     dlg->SetOptions(opts | FOS_FORCEFILESYSTEM | FOS_FILEMUSTEXIST);
     if (SUCCEEDED(dlg->Show(g.hwnd))) {
         ComPtr<IShellItem> item;
@@ -767,19 +769,18 @@ static std::wstring PickFile() {
     return result;
 }
 
-static void StartSandbox(const std::wstring& file, bool bundle = false) {
+static void StartSandbox(const std::wstring& file, av::services::Operation operation = av::services::Operation::Detonate) {
     if (file.empty() || g.sbxRunning.load()) return;
     RefreshServices();
     if (!g.services[1].Running()) { g.page = Page::Settings; InvalidateRect(g.hwnd, nullptr, FALSE); return; }
     if (g.sbxThread.joinable()) g.sbxThread.join();
     g.sbxFile = file; g.sbxCancel = false;
-    { std::lock_guard lock(g.sbxMtx); g.sbxHasReport = false; }
+    { std::lock_guard lock(g.sbxMtx); g.sbxHasReport = false; g.sbxStage.clear(); }
     g.sbxRunning = true;
-    g.sbxThread = std::thread([file, bundle] {
+    g.sbxThread = std::thread([file, operation] {
         av::services::Json report;
         try { report = av::services::Call(av::services::Kind::Sandbox,
-            bundle ? av::services::Operation::DesktopBundle : av::services::Operation::Detonate,
-            file, {}, &g.sbxCancel, 60000); }
+            operation,file,[](const av::services::Json& value){if(value.value("type","")=="runtime-progress"){{std::lock_guard lock(g.sbxMtx);g.sbxStage=value.value("stage","");}PostMessageW(g.hwnd,WM_APP_PROGRESS,0,0);}}, &g.sbxCancel, 60000); }
         catch (const std::exception& error) { report = {{"error", g.sbxCancel ? "Análise cancelada; resultados incompletos." : error.what()}, {"complete", false}}; }
         { std::lock_guard lock(g.sbxMtx); g.sbxReport = std::move(report); g.sbxHasReport = true; }
         g.sbxRunning = false; PostMessageW(g.hwnd, WM_APP_SBX_DONE, 0, 0);
@@ -792,7 +793,7 @@ static void RunTestSample() {
 static void OpenInVm() {
     if (g.sbxRunning) { g.sbxCancel = true; return; }
     const auto folder = PickFolder();
-    if (!folder.empty()) StartSandbox(folder, true);
+    if (!folder.empty()) StartSandbox(folder, av::services::Operation::DesktopBundle);
 }
 
 
@@ -823,6 +824,8 @@ static void OnClick(float x, float y) {
     if (PtIn(g.sbxAnalyzeBtn, x, y)) { std::wstring f = PickFile(); if (!f.empty()) StartSandbox(f); return; }
     if (PtIn(g.sbxSampleBtn, x, y))  { RunTestSample(); return; }
     if (PtIn(g.sbxVmBtn, x, y))      { OpenInVm(); return; }
+    if(PtIn(g.sbxCheckpointBtn,x,y)){const auto file=PickFile();if(!file.empty())StartSandbox(file,av::services::Operation::Checkpoint);return;}
+    if(PtIn(g.sbxResumeBtn,x,y)){std::wstring last;{std::lock_guard lock(g.sbxMtx);if(g.sbxReport.value("checkpointCreated",false))last=(std::filesystem::path(av::services::Wide(g.sbxReport.at("output").get<std::string>()))/L"recovery.json").wstring();}const auto file=last.empty()?PickFile(L"Escolha o arquivo recovery.json do ponto salvo"):last;if(!file.empty())StartSandbox(file,av::services::Operation::Resume);return;}
 }
 
 // ---------------------------------------------------------------------------

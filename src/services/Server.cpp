@@ -96,7 +96,7 @@ struct Process {
         if (job.value) TerminateJobObject(job.value, ERROR_OPERATION_ABORTED);
         if (process.value) WaitForSingleObject(process.value, 5000);
     }
-    void Start(HANDLE token, const std::wstring& pipe) {
+    void Start(HANDLE token, const std::wstring& pipe, Operation operation) {
         const auto exe = Executable();
         auto command = L"\"" + exe.wstring() + L"\" --worker \"" + pipe + L"\" " + std::to_wstring(GetCurrentProcessId());
         job.value = CreateJobObjectW(nullptr, nullptr);
@@ -105,8 +105,10 @@ struct Process {
         policy.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_ACTIVE_PROCESS |
             JOB_OBJECT_LIMIT_PROCESS_MEMORY | JOB_OBJECT_LIMIT_JOB_MEMORY;
         policy.BasicLimitInformation.ActiveProcessLimit = serviceKind == Kind::Antivirus ? 3 : 5;
-        policy.ProcessMemoryLimit = 512ull << 20;
-        policy.JobMemoryLimit = serviceKind == Kind::Antivirus ? (768ull << 20) : (1024ull << 20);
+        // Checkpoint encoding temporarily holds several copies of the fixed 256 MiB RAM.
+        const bool recovery=serviceKind==Kind::Sandbox&&(operation==Operation::Checkpoint||operation==Operation::Resume);
+        policy.ProcessMemoryLimit = (recovery?1536ull:512ull) << 20;
+        policy.JobMemoryLimit = recovery?(2048ull<<20):serviceKind == Kind::Antivirus ? (768ull << 20) : (1024ull << 20);
         if (!SetInformationJobObject(job.value, JobObjectExtendedLimitInformation, &policy, sizeof(policy))) WinError("Constrain engine worker");
         auto environment = Environment(token);
         STARTUPINFOW start{}; start.cb = sizeof(start);
@@ -157,7 +159,7 @@ void Execute(HANDLE client) {
     Handle token(Caller(client));
     const auto name = PipeName(serviceKind) + L".worker." + Nonce();
     Handle pipe(Pipe(name));
-    Process worker; worker.Start(token.value, name);
+    Process worker; worker.Start(token.value, name, request.operation);
     const auto connecting = GetTickCount64() + 8000;
     for (;;) {
         Connect(pipe.value, connecting, stopping);

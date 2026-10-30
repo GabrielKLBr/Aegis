@@ -79,14 +79,16 @@ struct Payload {
         fs::remove(folder / L"payload.exe", error); fs::remove(folder, error);
     }
 };
-Json Detonate(const fs::path& path,ULONGLONG deadline) {
+Json Detonate(HANDLE pipe,const fs::path& path,ULONGLONG deadline,Operation operation) {
 #ifdef GUARDIAN_SERVICE_UNIFIED
-    Payload payload(path);auto config=scan::UserConfig();const auto state=config.state.empty()?scan::DefaultState():config.state;scan::PrivateState(state);fs::create_directory(state/"sessions");scan::OrdinaryDirectory(state/"sessions");
+    fs::path input=path,restore;if(operation==Operation::Resume){scan::ReadJson(path,32768);restore=path;input=path.parent_path()/L"payload.bin";}
+    Payload payload(input);auto config=scan::UserConfig();const auto state=config.state.empty()?scan::DefaultState():config.state;scan::PrivateState(state);fs::create_directory(state/"sessions");scan::OrdinaryDirectory(state/"sessions");
     guardian::telemetry::Policy policy;policy.eventLimit=guardian::telemetry::MaxEvents;
     const auto remaining=deadline>GetTickCount64()?deadline-GetTickCount64():100;
-    return microvm::runtime::Run(payload.folder/L"payload.exe",config.sandboxRuntime,state/"sessions"/scan::Token(),policy,DWORD((std::min)(remaining,ULONGLONG(60000))));
+    const auto budget=operation==Operation::Checkpoint?ULONGLONG(5000):ULONGLONG(30000);
+    auto result=microvm::runtime::Run(payload.folder/L"payload.exe",config.sandboxRuntime,state/"sessions"/scan::Token(),policy,DWORD((std::min)(remaining>1000?remaining-1000:100,budget)),operation==Operation::Checkpoint?12:0,restore,[&](const Json& value){Send(pipe,FrameType::Progress,value,deadline);});return result;
 #else
-    (void)path;(void)deadline;throw std::runtime_error("The owned unified MiniNT runtime is not included in this build");
+    (void)pipe;(void)path;(void)deadline;(void)operation;throw std::runtime_error("The owned unified MiniNT runtime is not included in this build");
 #endif
 }
 #ifdef GUARDIAN_SERVICE_DESKTOP
@@ -148,7 +150,7 @@ int Worker(const std::wstring& name, DWORD server) {
         auto identity = Identity(); identity["engine"] = request.kind == Kind::Antivirus ? "antivirus" : "sandbox";
         Send(pipe.value, FrameType::Progress, identity, deadline);
         const auto result = request.operation == Operation::Scan ? Scan(pipe.value, path, deadline) :
-            request.operation == Operation::Detonate ? Detonate(path,deadline) : Desktop(path, deadline);
+            request.operation == Operation::DesktopBundle ? Desktop(path, deadline) : Detonate(pipe.value,path,deadline,request.operation);
         Send(pipe.value, FrameType::Result, result, deadline);
         return 0;
     } catch (const std::exception& error) {

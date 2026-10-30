@@ -44,7 +44,7 @@ def exports(output):
         (output/(dll+'.def')).write_text('LIBRARY '+dll+'\nEXPORTS\n'+''.join(lines),encoding='utf-8')
     proof={'phase':'14.9','dlls':{key:sorted(value) for key,value in groups.items()},'implementedExports':len(names),'hostTls':False,'hostKeys':False,'completeWindowsNetworking':False,'tlsVersions':['1.2'],'suites':['ECDHE-ECDSA-AES128-GCM-SHA256','ECDHE-RSA-AES128-GCM-SHA256']};(output/'coverage.json').write_bytes(nt.canonical(proof));return proof
 
-def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False,native_user32=False,native_gdi=False,native_controls=False,native_expanded=False,native_software=False,native_audio=False,frameworks=False,profile="win10"):
+def bundle(build,config,output,reference,schema_reference,application=None,extras=(),assets=(),kernel=None,presentation=False,native_gui=False,native_user32=False,native_gdi=False,native_controls=False,native_expanded=False,native_software=False,native_audio=False,frameworks=False,profile="win10",included_modules=()):
     build=Path(build);output=Path(output);folder=build/'guest/internet'/config;application=Path(application) if application else folder/'guardian-internet-crypto.exe';output.parent.mkdir(parents=True,exist_ok=True)
     if frameworks:native_audio=True;extras=(*extras,build/"guest/frameworks"/config/"mscoree.dll")
     if native_audio:native_software=True
@@ -82,7 +82,7 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
     for dll in DLLS:add('c:\\windows\\system32\\'+dll+'.dll',folder/(dll+'.dll'))
     for path in extras:add('c:\\app\\'+Path(path).name.lower(),path)
     for path in assets:add('c:\\app\\'+Path(path).name.lower(),path,'data')
-    reference_names=('msvcrt.dll',) if 'msvcrt.dll' in nt.InventoryPe(application).imports() else ('ucrtbase.dll','vcruntime140.dll');inventory=crt_runtime.references(reference,tuple(dict.fromkeys((*reference_names,'vcruntime140_1.dll','msvcp140.dll'))) if native_software else reference_names)
+    reference_names=('msvcrt.dll',) if 'msvcrt.dll' in nt.InventoryPe(application).imports() else ('ucrtbase.dll','vcruntime140.dll');reference_names=tuple(dict.fromkeys((*reference_names,*(('msvcrt.dll',) if 'msvcrt.dll' in included_modules else ()))));inventory=crt_runtime.references(reference,tuple(dict.fromkeys((*reference_names,'vcruntime140_1.dll','msvcp140.dll'))) if native_software else reference_names)
     for record in inventory:add('c:\\windows\\system32\\'+record['name'],Path(reference)/record['name'])
     add('c:\\windows\\system32\\apisetschema.dll',schema_path);add('c:\\windows\\system32\\guardian-nt-syscalls.bin',table_path,'manifest')
     if frameworks:
@@ -91,7 +91,7 @@ def bundle(build,config,output,reference,schema_reference,application=None,extra
             if file['path'].endswith('\\combase.dll'):file['source']=str(build/'guest/frameworks'/config/'combase.dll')
             if file['path'].endswith(('\\kernelbase.dll','\\kernel32.dll')):file['source']=str(build/'guest/frameworks'/config/file['path'].rsplit('\\',1)[-1])
             if file['path'].endswith('\\mscoree.dll'):file['path']='c:\\windows\\system32\\mscoree.dll'
-    available={f['path'].rsplit('\\',1)[-1]:f for f in files if f['kind']=='pe'};selected={application.name.lower(),'ntdll.dll','kernel32.dll','kernelbase.dll','guardian-runtime-api.dll','apisetschema.dll',*reference_names,*(Path(path).name.lower() for path in extras)};pending=list(selected)
+    available={f['path'].rsplit('\\',1)[-1]:f for f in files if f['kind']=='pe'};selected={application.name.lower(),'ntdll.dll','kernel32.dll','kernelbase.dll','guardian-runtime-api.dll','apisetschema.dll',*reference_names,*(Path(path).name.lower() for path in extras)};selected.update(included_modules);pending=list(selected)
     if native_software and not frameworks:
         for name in (*software_dlls,'ole32.dll','combase.dll'):
             if name not in selected:selected.add(name);pending.append(name)

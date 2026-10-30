@@ -87,6 +87,9 @@ int main() {
         Rejected([&] { Validate(request); });
         request.milliseconds = 60000; Validate(request);
         request.operation = Operation::DesktopBundle; Validate(request);
+        request.operation = Operation::Checkpoint; Validate(request);
+        request.operation = Operation::Resume; Validate(request);
+        request.operation = Operation(6); Rejected([&] { Validate(request); });
         request.operation = Operation::Scan; Rejected([&] { Validate(request); });
         const std::wstring unicode = L"C:\\Análises\\teste-\U0001F9EA.exe";
         Check(Wide(Text(unicode)) == unicode, "UTF-16/UTF-8 path roundtrip");

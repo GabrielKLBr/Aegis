@@ -13,6 +13,7 @@ add_executable(guardian-engine-service src/services/Main.cpp src/services/Server
     src/services/Worker.cpp src/EngineFacade.cpp src/SignatureDatabase.cpp src/Util.cpp)
 target_link_libraries(guardian-engine-service PRIVATE guardian_engine_client guardian_scanner scanner_sandbox userenv ole32)
 if(TARGET guardian_unified_runtime)
+    add_dependencies(guardian-engine-service guardian-runtime)
     target_link_libraries(guardian-engine-service PRIVATE guardian_unified_runtime)
     target_compile_definitions(guardian-engine-service PRIVATE GUARDIAN_SERVICE_UNIFIED=1)
 endif()

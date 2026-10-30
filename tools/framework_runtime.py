@@ -24,13 +24,13 @@ def copy_exports(base,kernel,output):
     for name,rows in (('kernelbase',a),('kernel32',b)):
         (output/(name+'.def')).write_text('LIBRARY '+name+'\nEXPORTS\n'+''.join('    '+key+'='+value+'\n' for key,value in sorted(rows.items())),encoding='utf-8')
 
-def bundle(build, config, output, reference, schema_reference, application, extras=(), assets=(), profile='win10'):
+def bundle(build, config, output, reference, schema_reference, application, extras=(), assets=(), profile='win10', included_modules=()):
     for file in (application,*extras):
         result=inspect(build,config,file)
         nt.require(result['status']=='PASS','Unsupported framework input: '+result['diagnostic'])
     return internet_runtime.bundle(Path(build),config,Path(output),Path(reference),Path(schema_reference),
         Path(application),extras,assets,kernel=Path(build)/'guest'/config/'guardian-kernel-frameworks.gk',
-        frameworks=True,profile=profile)
+        frameworks=True,profile=profile,included_modules=included_modules)
 
 def inspect(build,config,application):
     application=Path(application)

@@ -28,6 +28,9 @@ def own_helper(parent,action,helper_name='guardian-native-user-host.exe'):
             return True
         user.EnumWindows(callback_type(inspect),0)
         for hwnd,pid in windows:
+            if action=='close':
+                assert user.PostMessageW(hwnd,0x10,0,0)
+                return pid
             if action=='kill':
                 handle=kernel.OpenProcess(1|0x1000,False,pid);assert handle
                 try:assert kernel.TerminateProcess(handle,19)

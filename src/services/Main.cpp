@@ -38,16 +38,16 @@ int wmain(int argc, wchar_t** argv) {
             for (const auto* name : PackageFiles) names.push_back(Text(name));
             std::cout << names.dump() << '\n'; return 0;
         }
-        if ((action == L"--scan" || action == L"--sandbox" || action == L"--bundle") && argc == 3) {
+        if ((action == L"--scan" || action == L"--sandbox" || action == L"--bundle" || action == L"--checkpoint" || action == L"--resume") && argc == 3) {
             const bool scanner = action == L"--scan";
             const auto result = Call(scanner ? Kind::Antivirus : Kind::Sandbox,
-                scanner ? Operation::Scan : action == L"--bundle" ? Operation::DesktopBundle : Operation::Detonate,
+                scanner ? Operation::Scan : action == L"--bundle" ? Operation::DesktopBundle : action == L"--checkpoint" ? Operation::Checkpoint : action == L"--resume" ? Operation::Resume : Operation::Detonate,
                 argv[2], [](const Json& value) { std::cout << value.dump() << std::endl; }, nullptr, scanner ? 3600000 : 60000);
             std::cout << result.dump() << '\n';
-            return result.value("complete", false) ? 0 : 3;
+            return result.value("complete", false)||result.value("checkpointCreated",false) ? 0 : 3;
         }
         std::cout << "Aegis Windows engine services\n--setup | --remove | --status | --start antivirus|sandbox | --stop antivirus|sandbox\n"
-                     "--scan PATH | --sandbox PE | --bundle PREPARED_AUDIO_BUNDLE\n";
+                     "--scan PATH | --sandbox PE | --checkpoint PE | --resume recovery.json | --bundle PREPARED_AUDIO_BUNDLE\n";
         return action == L"--help" ? 0 : 2;
     } catch (const std::exception& error) {
         std::cerr << Json({{"error", error.what()}}).dump() << '\n';

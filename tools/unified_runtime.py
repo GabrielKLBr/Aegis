@@ -23,7 +23,7 @@ def enroll(registry,bundle,kernel,helper):
     data['applications'][digest]=record;temporary=registry/'index.new';temporary.write_bytes(nt.canonical(data));temporary.replace(index)
     return {'status':'ENROLLED','sha256':digest,'architecture':manifest['architecture'],'mode':mode,'applications':len(data['applications'])}
 
-def prepare(build,config,registry,application,work,reference=None,schema_reference=None,family='auto'):
+def prepare(build,config,registry,application,work,reference=None,schema_reference=None,family='auto', included_modules=()):
     build,application,work=map(Path,(build,application,work));raw=nt.regular(application,8<<20);nt.require(raw[:2]==b'MZ','PE input required');machine=struct.unpack_from('<H',raw,struct.unpack_from('<I',raw,60)[0]+4)[0]
     bundle=work/'bundle';work.mkdir(parents=True,exist_ok=True)
     if machine==0x14C:
@@ -35,8 +35,16 @@ def prepare(build,config,registry,application,work,reference=None,schema_referen
             runtime.bundle(build,config,bundle,reference,schema_reference,application);kernel=build/'guest'/config/'guardian-kernel-native-user32.gk';helper=build/config/'guardian-native-user-host.exe'
         else:
             import framework_runtime as runtime
-            runtime.bundle(build,config,bundle,reference,schema_reference,application);kernel=build/'guest'/config/'guardian-kernel-frameworks.gk';helper=build/config/'guardian-audio-host.exe'
+            runtime.bundle(build,config,bundle,reference,schema_reference,application,included_modules=included_modules);kernel=build/'guest'/config/'guardian-kernel-frameworks.gk';helper=build/config/'guardian-audio-host.exe'
     return enroll(registry,bundle,kernel,helper)
+
+def automatic_templates(registry, digests):
+    """Opt in to input rebinding; enrolled originals remain untouched."""
+    registry=Path(registry);index=registry/'index.json';data=json.loads(nt.regular(index,2<<20))
+    nt.require(0<len(digests)<=16 and len(set(digests))==len(digests),'Automatic template quota')
+    for digest in digests:nt.require(digest in data['applications'],'Unknown template')
+    data['automaticTemplates']=list(digests);temporary=registry/'index.new';temporary.write_bytes(nt.canonical(data));temporary.replace(index)
+    return {'templates':len(digests)}
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)

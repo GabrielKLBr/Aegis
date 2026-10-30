@@ -52,6 +52,10 @@ acrescenta recuperação de execução com janelas USER32 básicas x86/x64:
 [uso, testes e limites](docs/PHASE-14.13.md).
 Snapshots com GDI/DirectX/áudio e conexões abertas permanecem pendentes.
 
+A continuação **14.13A** acrescenta pacotes automáticos por modelos locais,
+progresso e salvar/retomar pelo app e pelos serviços atualizados:
+[uso, validação e resultados com programas reais](docs/PHASE-14.13A.md).
+
 Repositório público com fontes, testes, configuração e documentação. Builds,
 releases, executáveis e discos virtuais ficam fora do Git. Alguns testes exigem
 recriar seus dados compilados: [preparação a partir dos fontes](docs/GITHUB-AEGIS.md).

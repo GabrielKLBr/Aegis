@@ -1138,6 +1138,12 @@ aprovadas. Programas de 16 bits e ARM ficam fora desse lote. Parar ao concluir.
 fallback legado, pacotes por SHA-256, autoria de efeitos e recuperação real
 de USER32 básico x86/x64 no perfil NT 10.0.19045.
 [Implementação e matriz de aceitação](PHASE-14.13.md).
+**Continuação 14.13A:** preparação automática com modelos locais, progresso,
+salvar/retomar no app e nos serviços efetivamente atualizados, e corpus real
+com incompatibilidades registradas em [PHASE-14.13A.md](PHASE-14.13A.md).
+Priorizar arquivos auxiliares explícitos e os bloqueios de CRT, contratos,
+ordinais, console e diálogos observados antes de ampliar o corpus. A continuidade
+x86/GDI da 14.12 e a aceitação ampla da 14.14 permanecem abertas.
 GDI/DirectX/áudio vivos, timers/sends pendentes e transporte conectado continuam
 fora do contrato de checkpoint; outras famílias seguem os limites já declarados.
 

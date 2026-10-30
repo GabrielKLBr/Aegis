@@ -147,6 +147,11 @@ int Install(const std::wstring& ownerArgument, bool uninstall) {
     // Optional app-local Microsoft redistributables, supplied by the package.
     for (const auto* name : RuntimeFiles)
         if (fs::exists(source / name)) { Ordinary(source / name); Check(fs::copy_file(source / name, slot / name), "Cannot copy C++ runtime"); }
+    // Runtime assets are data. Helpers are installed exclusively from PackageFiles.
+    if(fs::exists(source/L"runtime")){
+        Ordinary(source/L"runtime");const auto indexPath=source/L"runtime"/L"index.json";Ordinary(indexPath);Check(fs::file_size(indexPath)<=2u<<20,"Runtime index quota");std::ifstream stream(indexPath);const auto index=Json::parse(stream);Check(index.value("schema",0)==1&&index.at("applications").is_object()&&index.at("applications").size()<=16,"Installed runtime index rejected");fs::create_directory(slot/L"runtime");Check(fs::copy_file(indexPath,slot/L"runtime"/L"index.json"),"Copy runtime index");uint64_t total=0;
+        for(const auto& record:index.at("applications")){const auto& files=record.at("files");Check(files.is_object()&&files.size()<=12,"Installed runtime member quota");for(auto it=files.begin();it!=files.end();++it){auto part=fs::path(Wide(it.key()));Check(!part.empty()&&!part.is_absolute()&&!part.has_root_name()&&it.key().find(':')==std::string::npos,"Installed runtime path rejected");auto member=source/L"runtime";for(const auto& component:part){Check(component!=L".."&&component!=L".","Installed runtime traversal rejected");member/=component;Ordinary(member);}Check(fs::is_regular_file(member)&&fs::file_size(member)<=64u<<20,"Installed runtime member size rejected");total+=fs::file_size(member);Check(total<=512ull<<20,"Installed runtime total quota");const auto target=slot/L"runtime"/part;fs::create_directories(target.parent_path());if(!fs::exists(target))Check(fs::copy_file(member,target),"Copy runtime member");}}
+    }
     const auto exe = slot / L"guardian-engine-service.exe";
     try {
         for (size_t i = 0; i < kinds.size(); ++i) if (previous[i].service.value) SetRunning(kinds[i], false);
