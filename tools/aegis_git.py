@@ -25,7 +25,7 @@ ROOT_FILES = {".gitignore", ".gitattributes", "AGENTS.md", "CMakeLists.txt", "RE
               "Build-Kernel.ps1", "Build-Linux.sh"}
 SOURCE_EXTENSIONS = {".c", ".cs", ".il", ".cpp", ".h", ".hpp", ".inl", ".inc", ".asm", ".s", ".py",
                      ".md", ".txt", ".json", ".cmake", ".def", ".inf", ".rc", ".manifest",
-                     ".ps1", ".sh", ".bat", ".yml", ".yaml", ".svg", ".png"}
+                     ".ps1", ".sh", ".bat", ".vcxproj", ".yml", ".yaml", ".svg", ".png"}
 SECRET = re.compile(rb"(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|"
                     rb"AKIA[A-Z0-9]{16}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----)")
 
@@ -57,7 +57,7 @@ def source_files(root):
     for directory in sorted(SOURCE_DIRS):
         for parent, dirs, names in os.walk(root / directory, followlinks=False):
             dirs[:] = sorted(d for d in dirs if not d.startswith(("build", "."))
-                             and d not in {"__pycache__", "dist", "out", "releases", "snapshots"}
+                             and d not in {"__pycache__", "obj", "bin", "Generated Files", "dist", "out", "releases", "snapshots"}
                              and not (Path(parent) / d).is_symlink())
             for name in sorted(names):
                 p = Path(parent) / name

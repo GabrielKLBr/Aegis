@@ -49,3 +49,6 @@
 credentials*
 *token*.local
 
+
+/src/winui/obj/
+/src/winui/Generated Files/

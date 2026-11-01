@@ -1,0 +1,543 @@
+{
+  "phase": "17",
+  "status": "PASS",
+  "scope": "WinUI client, embedded resources and used service flows; no historical suites",
+  "configurations": {
+    "Release": {
+      "integrationTests": 50,
+      "administrativeTests": 7,
+      "ui": [
+        {
+          "locale": "en-US",
+          "theme": "dark",
+          "width": 1200,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "uiScanAndPreferences": "PASS"
+        },
+        {
+          "locale": "pt-BR",
+          "theme": "light",
+          "width": 720,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "uiScanAndPreferences": "PASS"
+        },
+        {
+          "locale": "es-ES",
+          "theme": "system",
+          "width": 960,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "uiScanAndPreferences": "PASS"
+        }
+      ],
+      "sourceStableDuringValidation": true,
+      "integrationCases": [
+        {
+          "case": "embedded-en-US",
+          "passed": true
+        },
+        {
+          "case": "plural-en-US",
+          "passed": true
+        },
+        {
+          "case": "regional-en-US",
+          "passed": true
+        },
+        {
+          "case": "parameters-en-US",
+          "passed": true
+        },
+        {
+          "case": "embedded-pt-BR",
+          "passed": true
+        },
+        {
+          "case": "plural-pt-BR",
+          "passed": true
+        },
+        {
+          "case": "regional-pt-BR",
+          "passed": true
+        },
+        {
+          "case": "parameters-pt-BR",
+          "passed": true
+        },
+        {
+          "case": "embedded-es-ES",
+          "passed": true
+        },
+        {
+          "case": "plural-es-ES",
+          "passed": true
+        },
+        {
+          "case": "regional-es-ES",
+          "passed": true
+        },
+        {
+          "case": "parameters-es-ES",
+          "passed": true
+        },
+        {
+          "case": "unknown-locale-falls-back",
+          "passed": true
+        },
+        {
+          "case": "missing-parameter-rejected",
+          "passed": true
+        },
+        {
+          "case": "report-export-created",
+          "passed": true
+        },
+        {
+          "case": "report-export-never-overwrites",
+          "passed": true
+        },
+        {
+          "case": "preferences-survive-reopen",
+          "passed": true
+        },
+        {
+          "case": "invalid-preference-1",
+          "passed": true
+        },
+        {
+          "case": "invalid-preference-2",
+          "passed": true
+        },
+        {
+          "case": "invalid-preference-3",
+          "passed": true
+        },
+        {
+          "case": "invalid-preference-4",
+          "passed": true
+        },
+        {
+          "case": "invalid-preferences-atomic",
+          "passed": true
+        },
+        {
+          "case": "unknown-method-rejected",
+          "passed": true
+        },
+        {
+          "case": "invalid-parameter-envelope",
+          "passed": true
+        },
+        {
+          "case": "invalid-service-kind",
+          "passed": true
+        },
+        {
+          "case": "real-protected-service",
+          "passed": true
+        },
+        {
+          "case": "real-service-controls",
+          "passed": true
+        },
+        {
+          "case": "ordinary-owner-cannot-stop-antivirus",
+          "passed": true
+        },
+        {
+          "case": "ordinary-owner-cannot-change-policy",
+          "passed": true
+        },
+        {
+          "case": "denied-policy-unchanged",
+          "passed": true
+        },
+        {
+          "case": "scan-service-result",
+          "passed": true
+        },
+        {
+          "case": "scan-does-not-execute-or-isolate",
+          "passed": true
+        },
+        {
+          "case": "scan-id-survives-ui-reopen",
+          "passed": true
+        },
+        {
+          "case": "history-from-service",
+          "passed": true
+        },
+        {
+          "case": "persistent-notifications",
+          "passed": true
+        },
+        {
+          "case": "protected-quarantine-list",
+          "passed": true
+        },
+        {
+          "case": "quarantine-audit",
+          "passed": true
+        },
+        {
+          "case": "quarantine-delete-needs-admin",
+          "passed": true
+        },
+        {
+          "case": "restore-needs-admin",
+          "passed": true
+        },
+        {
+          "case": "full-scope-reports-coverage",
+          "passed": true
+        },
+        {
+          "case": "manual-scan-cancelled",
+          "passed": true
+        },
+        {
+          "case": "invalid-scan-mode",
+          "passed": true
+        },
+        {
+          "case": "network-input-rejected",
+          "passed": true
+        },
+        {
+          "case": "start-sandbox-from-client",
+          "passed": true
+        },
+        {
+          "case": "real-minint-session-report",
+          "passed": true
+        },
+        {
+          "case": "vm-session-controls-reflect-report",
+          "passed": true
+        },
+        {
+          "case": "behavior-report-from-session",
+          "passed": true
+        },
+        {
+          "case": "session-summary-survives-reopen",
+          "passed": true
+        },
+        {
+          "case": "sandbox-cancellation-observable",
+          "passed": true
+        },
+        {
+          "case": "close-cancels-further-client-work",
+          "passed": true
+        }
+      ],
+      "administrativeCases": [
+        {
+          "case": "admin-ui-policy-fields",
+          "passed": true
+        },
+        {
+          "case": "admin-ui-schedule-persists",
+          "passed": true
+        },
+        {
+          "case": "ui-quarantine-removes-verified-original",
+          "passed": true
+        },
+        {
+          "case": "ui-restores-exact-bytes",
+          "passed": true
+        },
+        {
+          "case": "ui-restore-refuses-collision",
+          "passed": true
+        },
+        {
+          "case": "ui-vault-erase-retains-restored-file",
+          "passed": true
+        },
+        {
+          "case": "original-policy-restored",
+          "passed": true
+        }
+      ]
+    },
+    "Debug": {
+      "integrationTests": 50,
+      "administrativeTests": 7,
+      "ui": [
+        {
+          "locale": "en-US",
+          "theme": "dark",
+          "width": 1200,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "uiScanAndPreferences": "PASS"
+        },
+        {
+          "locale": "pt-BR",
+          "theme": "light",
+          "width": 720,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "uiScanAndPreferences": "PASS"
+        },
+        {
+          "locale": "es-ES",
+          "theme": "system",
+          "width": 960,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "uiScanAndPreferences": "PASS"
+        }
+      ],
+      "sourceStableDuringValidation": true,
+      "integrationCases": [
+        {
+          "case": "embedded-en-US",
+          "passed": true
+        },
+        {
+          "case": "plural-en-US",
+          "passed": true
+        },
+        {
+          "case": "regional-en-US",
+          "passed": true
+        },
+        {
+          "case": "parameters-en-US",
+          "passed": true
+        },
+        {
+          "case": "embedded-pt-BR",
+          "passed": true
+        },
+        {
+          "case": "plural-pt-BR",
+          "passed": true
+        },
+        {
+          "case": "regional-pt-BR",
+          "passed": true
+        },
+        {
+          "case": "parameters-pt-BR",
+          "passed": true
+        },
+        {
+          "case": "embedded-es-ES",
+          "passed": true
+        },
+        {
+          "case": "plural-es-ES",
+          "passed": true
+        },
+        {
+          "case": "regional-es-ES",
+          "passed": true
+        },
+        {
+          "case": "parameters-es-ES",
+          "passed": true
+        },
+        {
+          "case": "unknown-locale-falls-back",
+          "passed": true
+        },
+        {
+          "case": "missing-parameter-rejected",
+          "passed": true
+        },
+        {
+          "case": "report-export-created",
+          "passed": true
+        },
+        {
+          "case": "report-export-never-overwrites",
+          "passed": true
+        },
+        {
+          "case": "preferences-survive-reopen",
+          "passed": true
+        },
+        {
+          "case": "invalid-preference-1",
+          "passed": true
+        },
+        {
+          "case": "invalid-preference-2",
+          "passed": true
+        },
+        {
+          "case": "invalid-preference-3",
+          "passed": true
+        },
+        {
+          "case": "invalid-preference-4",
+          "passed": true
+        },
+        {
+          "case": "invalid-preferences-atomic",
+          "passed": true
+        },
+        {
+          "case": "unknown-method-rejected",
+          "passed": true
+        },
+        {
+          "case": "invalid-parameter-envelope",
+          "passed": true
+        },
+        {
+          "case": "invalid-service-kind",
+          "passed": true
+        },
+        {
+          "case": "real-protected-service",
+          "passed": true
+        },
+        {
+          "case": "real-service-controls",
+          "passed": true
+        },
+        {
+          "case": "ordinary-owner-cannot-stop-antivirus",
+          "passed": true
+        },
+        {
+          "case": "ordinary-owner-cannot-change-policy",
+          "passed": true
+        },
+        {
+          "case": "denied-policy-unchanged",
+          "passed": true
+        },
+        {
+          "case": "scan-service-result",
+          "passed": true
+        },
+        {
+          "case": "scan-does-not-execute-or-isolate",
+          "passed": true
+        },
+        {
+          "case": "scan-id-survives-ui-reopen",
+          "passed": true
+        },
+        {
+          "case": "history-from-service",
+          "passed": true
+        },
+        {
+          "case": "persistent-notifications",
+          "passed": true
+        },
+        {
+          "case": "protected-quarantine-list",
+          "passed": true
+        },
+        {
+          "case": "quarantine-audit",
+          "passed": true
+        },
+        {
+          "case": "quarantine-delete-needs-admin",
+          "passed": true
+        },
+        {
+          "case": "restore-needs-admin",
+          "passed": true
+        },
+        {
+          "case": "full-scope-reports-coverage",
+          "passed": true
+        },
+        {
+          "case": "manual-scan-cancelled",
+          "passed": true
+        },
+        {
+          "case": "invalid-scan-mode",
+          "passed": true
+        },
+        {
+          "case": "network-input-rejected",
+          "passed": true
+        },
+        {
+          "case": "start-sandbox-from-client",
+          "passed": true
+        },
+        {
+          "case": "real-minint-session-report",
+          "passed": true
+        },
+        {
+          "case": "vm-session-controls-reflect-report",
+          "passed": true
+        },
+        {
+          "case": "behavior-report-from-session",
+          "passed": true
+        },
+        {
+          "case": "session-summary-survives-reopen",
+          "passed": true
+        },
+        {
+          "case": "sandbox-cancellation-observable",
+          "passed": true
+        },
+        {
+          "case": "close-cancels-further-client-work",
+          "passed": true
+        }
+      ],
+      "administrativeCases": [
+        {
+          "case": "admin-ui-policy-fields",
+          "passed": true
+        },
+        {
+          "case": "admin-ui-schedule-persists",
+          "passed": true
+        },
+        {
+          "case": "ui-quarantine-removes-verified-original",
+          "passed": true
+        },
+        {
+          "case": "ui-restores-exact-bytes",
+          "passed": true
+        },
+        {
+          "case": "ui-restore-refuses-collision",
+          "passed": true
+        },
+        {
+          "case": "ui-vault-erase-retains-restored-file",
+          "passed": true
+        },
+        {
+          "case": "original-policy-restored",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "resourceTests": 8,
+  "publicationToolTests": {
+    "cases": 21,
+    "skipped": 1
+  },
+  "copiedSourceFiles": 9,
+  "copiedSourceBytes": 72649,
+  "originalDesktopProjectPreserved": true,
+  "physicalDpiObserved": 96,
+  "screenReaderAndHighContrastManuallyCertified": false
+}

@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "source": "Existing desktop WinUI project; source-only import",
+  "files": [
+    {
+      "source": "App/main.cpp",
+      "destination": "src/winui/main.cpp",
+      "sha256": "652b043cd856d60f91e38d2c4fdcee2858e8d3d87a14563e4630487a60fb934e",
+      "bytes": 40079
+    },
+    {
+      "source": "App/app.manifest",
+      "destination": "src/winui/app.manifest",
+      "sha256": "ebbda4e1435fa66909c7f42267d63e5dd2b8beea9e7978bc4f1255d70c7df1db",
+      "bytes": 868
+    },
+    {
+      "source": "App/Aegis.vcxproj",
+      "destination": "src/winui/Aegis.vcxproj",
+      "sha256": "5a9758ff0a7576405ce733c6c26b5ad3fe563ee86193e547772999490ecab382",
+      "bytes": 3939
+    },
+    {
+      "source": "Localization/localization.cpp",
+      "destination": "src/winui/Localization.cpp",
+      "sha256": "6e4dfe1e7ba5929d056f13e977198d61c7c9eb4d60aec1686a2604b71bad9a14",
+      "bytes": 4341
+    },
+    {
+      "source": "Localization/embed_languages.py",
+      "destination": "tools/embed_languages.py",
+      "sha256": "dd2ba2e6dc0391e1f2f436c7a73736dc745b010ecc5ece393f035312241a91b0",
+      "bytes": 3635
+    },
+    {
+      "source": "include/aegis/localization.hpp",
+      "destination": "src/winui/include/aegis/localization.hpp",
+      "sha256": "10234ecac86a00b158a38cf9d6f20127b8816241fe53f3830729777da12f168d",
+      "bytes": 545
+    },
+    {
+      "source": "Resources/Languages/en-US.json",
+      "destination": "config/languages/en-US.json",
+      "sha256": "e9d5fe1727882504f475a0851b3d63797212060b91012acd795a3ebd10a8c84b",
+      "bytes": 6163
+    },
+    {
+      "source": "Resources/Languages/es-ES.json",
+      "destination": "config/languages/es-ES.json",
+      "sha256": "4648cd38dc75614f46b68d0dc9baeddcc207617749d07a6f2d94a34e7dae4847",
+      "bytes": 6280
+    },
+    {
+      "source": "Resources/Languages/pt-BR.json",
+      "destination": "config/languages/pt-BR.json",
+      "sha256": "c7b5992216603a4fdc1d15c2d0db443de8236ddc45c14a334a848443ccf2f005",
+      "bytes": 6799
+    }
+  ],
+  "bytes": 72649,
+  "originalPreserved": true
+}

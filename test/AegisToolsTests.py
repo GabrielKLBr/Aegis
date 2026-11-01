@@ -41,11 +41,13 @@ class ToolsTests(unittest.TestCase):
     def test_source_selection_excludes_all_builds_and_binaries(self):
         self.write("README.md", "Aegis")
         self.write("src/main.cpp", "int main(){}")
+        self.write("src/winui/Aegis.vcxproj", "<Project />")
         for name in ("build/test.cpp", "build-phase13/test.cpp", "dist/test.py", ".env",
                      "test/program.exe", "test/library.dll", "test/image.gk", "test/lib.a",
-                     "tools/__pycache__/generated.py", "src/build-local/test.cpp"):
+                     "tools/__pycache__/generated.py", "src/build-local/test.cpp", "src/winui/obj/project.assets.json",
+                     "src/winui/Generated Files/winrt/Windows.Foo.h"):
             self.write(name, "excluded")
-        self.assertEqual(ag.audit(self.root)["files"], 2)
+        self.assertEqual(ag.audit(self.root)["files"], 3)
 
     def test_disguised_executable_is_rejected(self):
         self.write("src/bad.cpp", b"MZ\0fake executable")

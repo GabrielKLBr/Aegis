@@ -8,6 +8,8 @@ Please open a Pull Request reporting any English mistake if you find one.
 [![Windows API Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Foverall.json)](https://gabrielklbr.github.io/Aegis/windows-apis.html)
 [![Graphics and Audio Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Finterface.json)](https://gabrielklbr.github.io/Aegis/progress.html)
 
+**Desktop client:** [Phase 17 — WinUI 3 and embedded languages](docs/PHASE-17.md). Build with `tools/build_winui.ps1 -Configuration Release -BackendBuild <NATIVE_BUILD>` and run `build-phase17/bin/Release/Aegis.exe`. Existing Aegis services are required.
+
 Percentages of entries in the catalogs, including partial support; do not represent the entire Windows system.
 
 Antivirus and inspection/sandbox lab in C/C++, with the guest's own implementatio
@@ -661,3 +663,5 @@ Phase 14.10G adds PCM/WAV playback and a WinMM/WASAPI wrapper in
 `--audio` mode, with copied buffers and standard output routed through a restricted auxiliary device.
 Capture and compressed media remain unavailable.
 [Licenses and Limitations](docs/PHASE-14.10G.md).
+
+Development assistance: OpenAI Codex. Project ownership and repository maintenance remain with GabrielKLBr.

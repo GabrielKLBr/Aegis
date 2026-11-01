@@ -544,6 +544,8 @@ Measure the proportion of applications that complete the predicted use by catego
 
 ## Phase 17 — Application WinUI 3 and internationalisation
 
+**Delivery:** [native WinUI client, real service flows, and embedded languages](PHASE-17.md). This delivery retains the declared MiniNT and service limits; phase 18 is separate.
+
 **Work:**integrating the real services in C++/WinRT and WinUI 3, preserving the existing flows during migration.Implement dashboard, verification, protection, sandbox, VMs, behavior, quarantine, history and settings. Apply Fluent Design, themes, accessibility, DPI, keyboard navigation, progress and cancellation. Validate and incorporate JSON from pt-BR, English and Spanish into build, with fallback, parameters, pluralization and regional formatting.
 
 **Conclusion:** all product matrix flows work from end to end, without privileged operations or code analysed within the UI. Languages work without external JSON and can be exchanged as per application support. Resource states unavailable and failure are understandable and correspond to the backend.
