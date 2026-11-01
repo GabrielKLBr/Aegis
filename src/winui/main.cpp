@@ -1,11 +1,13 @@
 #include <windows.h>
 #include <shobjidl.h>
+#include <dwmapi.h>
 #undef GetCurrentTime
 #include <winrt/base.h>
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.UI.h>
 #include <winrt/Windows.System.h>
+#include <winrt/Windows.UI.ViewManagement.h>
 #include <winrt/Microsoft.UI.Xaml.Input.h>
 #include <winrt/Windows.Graphics.h>
 #include <winrt/Windows.Graphics.Imaging.h>
@@ -116,6 +118,12 @@ struct Shell : std::enable_shared_from_this<Shell> {
     TextBox watch_paths{nullptr}, excluded_paths{nullptr};
     NumberBox workers{nullptr}, max_file{nullptr}, protection_files{nullptr},protection_seconds{nullptr},schedule_seconds{nullptr};
     ComboBox language{nullptr}, theme{nullptr};
+    Grid caption{nullptr};
+    TextBox hash_input{nullptr};
+    ToggleSwitch hash_online{nullptr};
+    StackPanel hash_results{nullptr};
+    PasswordBox provider_key{nullptr};
+    bool managing_services=false;
     std::vector<std::string> language_ids;
 
     hstring tr(std::string const& key) const { return to_hstring(localization.text(key)); }
@@ -345,6 +353,19 @@ struct Shell : std::enable_shared_from_this<Shell> {
         scan_progress = ProgressBar(); scan_progress.Visibility(Visibility::Collapsed); accessible(scan_progress,tr("scan.progress")); content.Children().Append(scan_progress);
         scan_summary = label("ui.loading"); scan_summary.IsTextSelectionEnabled(true); content.Children().Append(scan_summary);
         content.Children().Append(label("scan.results",20)); scan_results = StackPanel(); scan_results.Spacing(8); content.Children().Append(scan_results);
+        content.Children().Append(label("hash.title",20));content.Children().Append(label("hash.privacy"));
+        hash_input=input("hash.input");content.Children().Append(hash_input);
+        auto hashActions=row();hashActions.Children().Append(button("hash.file",[self=shared_from_this()]{const auto path=self->choose_path(false);if(!path.empty())self->hash_input.Text(to_hstring(path));}));
+        hash_online=ToggleSwitch();hash_online.Header(box_value(tr("hash.online")));accessible(hash_online,tr("hash.online"));hash_online.IsOn(false);content.Children().Append(hash_online);
+        hashActions.Children().Append(button("hash.query",[self=shared_from_this()]{
+            const auto value=self->string(self->hash_input);json query{{"schema",1},{"online",self->hash_online.IsOn()}};
+            const bool isHash=value.size()==64&&value.find_first_not_of("0123456789abcdefABCDEF")==value.npos;query[isHash?"sha256":"source"]=value;
+            self->hash_results.Children().Clear();self->hash_results.Children().Append(self->label("ui.loading"));
+            self->rpc("reputation.lookup",query,[self](const json& result){self->hash_results.Children().Clear();auto digest=self->text(to_hstring(result.at("sha256").get<std::string>()));digest.IsTextSelectionEnabled(true);self->hash_results.Children().Append(digest);
+                for(const auto& item:result.at("items"))self->hash_results.Children().Append(self->text(to_hstring(item.at("provider").get<std::string>())+L": "+self->tr("hash.status."+item.at("status").get<std::string>())));
+                self->hash_results.Children().Append(self->label("hash.evidence"));if(smoke_requested){self->last_hash=result;diagnostics("PASS: UI hash query command");}
+            },self->generation);
+        }));content.Children().Append(hashActions);hash_results=StackPanel();hash_results.Spacing(8);content.Children().Append(hash_results);
         poll_scan(false);
     }
     static json lines(std::string const& value) {
@@ -494,7 +515,37 @@ struct Shell : std::enable_shared_from_this<Shell> {
         rpc("services.get",json::object(),[self=shared_from_this(),states](json const& data){self->render_json(states,data);},generation);
         auto controls=row();
         for(int kind:{1,2})for(bool running:{true,false})controls.Children().Append(button(std::string(kind==1?"services.av.":"services.sandbox.")+(running?"start":"stop"),[self=shared_from_this(),kind,running]{self->rpc("services.set",{{"kind",kind},{"running",running}},[self](auto const&){self->show_page("settings");});}));
-        content.Children().Append(controls);content.Children().Append(label("settings.limits"));content.Children().Append(label("settings.about",12));
+        content.Children().Append(controls);
+        content.Children().Append(label("services.installNotice"));auto registration=StackPanel();registration.Spacing(8);content.Children().Append(registration);
+        rpc("services.get",json::object(),[self=shared_from_this(),registration](const json& data){
+            bool installed=false,all=true;for(const auto& s:data.at("items")){installed|=s.value("installed",false);all&=s.value("installed",false);}
+            if(!all)registration.Children().Append(self->button("services.install",[self]{self->manage_services(false);}));
+            if(installed){registration.Children().Append(self->button("services.update",[self]{self->manage_services(false);}));registration.Children().Append(self->button("services.uninstall",[self]{self->confirm_remove_services();}));}
+        },generation);
+        content.Children().Append(label("hash.keyTitle",20));content.Children().Append(label("hash.keyNotice"));
+        HyperlinkButton authentication;authentication.Content(box_value(L"MalwareBazaar / Auth-Key"));authentication.NavigateUri(Uri(L"https://auth.abuse.ch/"));content.Children().Append(authentication);
+        provider_key=PasswordBox();provider_key.Header(box_value(tr("hash.key")));accessible(provider_key,tr("hash.key"));provider_key.MaxLength(512);content.Children().Append(provider_key);
+        auto keyState=label("ui.loading");content.Children().Append(keyState);
+        rpc("reputation.key.status",json::object(),[self=shared_from_this(),keyState](const json& data){keyState.Text(self->tr(data.value("configured",false)?"hash.keyPresent":"hash.keyAbsent"));},generation);
+        auto keys=row();keys.Children().Append(button("hash.keySave",[self=shared_from_this()]{auto key=to_string(self->provider_key.Password());self->provider_key.Password(L"");self->rpc("reputation.key.save",{{"key",key}},[self](const json&){self->show_page("settings");});if(!key.empty())SecureZeroMemory(key.data(),key.size());}));
+        keys.Children().Append(button("hash.keyRemove",[self=shared_from_this()]{self->rpc("reputation.key.remove",json::object(),[self](const json&){self->show_page("settings");});}));content.Children().Append(keys);
+        content.Children().Append(label("settings.limits"));content.Children().Append(label("settings.about",12));
+    }
+    json last_hash=json::object();
+    fire_and_forget confirm_remove_services(){auto self=shared_from_this();if(dialog_open)co_return;dialog_open=true;try{ContentDialog dialog;dialog.XamlRoot(content.XamlRoot());dialog.Title(box_value(tr("services.uninstall")));dialog.Content(box_value(tr("services.removeNotice")));dialog.PrimaryButtonText(tr("services.uninstall"));dialog.CloseButtonText(tr("ui.cancel"));auto result=co_await dialog.ShowAsync();dialog_open=false;if(result==ContentDialogResult::Primary)manage_services(true);}catch(const hresult_error& e){dialog_open=false;message("ui.error",e.message(),InfoBarSeverity::Error);}}
+    fire_and_forget manage_services(bool remove){
+        auto self=shared_from_this();if(managing_services)co_return;managing_services=true;const auto owner=hwnd();const auto queue=dispatcher;
+        message("ui.loading",tr("services.installNotice"));std::string failure;
+        co_await resume_background();try{self->backend->ManageServices(owner,remove);}catch(const av::services::WindowsError& e){failure=e.code==ERROR_CANCELLED?"cancelled":e.what();}catch(const std::exception& e){failure=e.what();}
+        queue.TryEnqueue([self,failure]{self->managing_services=false;if(self->closed)return;self->show_page("settings");if(!failure.empty())self->message("ui.error",failure=="cancelled"?self->tr("services.cancelled"):diagnostic_text(failure),InfoBarSeverity::Warning);else self->message("ui.saved",self->tr("services.changed"),InfoBarSeverity::Success);});
+    }
+    void update_caption(){
+        if(!caption)return;const auto bar=window.AppWindow().TitleBar();const auto scale=double(GetDpiForWindow(hwnd()))/96.;
+        caption.Padding(Thickness{16,0,std::max(140.,bar.RightInset()/scale),0});
+        if(Windows::UI::ViewManagement::AccessibilitySettings().HighContrast()){bar.ButtonForegroundColor(nullptr);bar.ButtonBackgroundColor(nullptr);bar.ButtonInactiveBackgroundColor(nullptr);return;}
+        const auto transparent=Windows::UI::Color{0,0,0,0};bar.ButtonBackgroundColor(transparent);bar.ButtonInactiveBackgroundColor(transparent);
+        const bool dark=window.Content().as<FrameworkElement>().ActualTheme()==ElementTheme::Dark;
+        bar.ButtonForegroundColor(dark?Windows::UI::Color{255,255,255,255}:Windows::UI::Color{255,0,0,0});
     }
     void show_page(std::string selected, bool reload_settings=true) {
         if(closed)return;page=std::move(selected);++generation;polling=false;session_polling=false;session_summary=nullptr;session_results=nullptr;
@@ -524,15 +575,20 @@ struct Shell : std::enable_shared_from_this<Shell> {
         window=Window();window.Title(L"Aegis");
         try {window.SystemBackdrop(MicaBackdrop());}catch(...){}
         dispatcher=window.DispatcherQueue();
-        Grid outer; outer.RowDefinitions().Append(RowDefinition());auto status_row=RowDefinition();status_row.Height(GridLength{0,GridUnitType::Auto});outer.RowDefinitions().Append(status_row);
+        Grid outer;auto captionRow=RowDefinition();captionRow.Height(GridLength{40,GridUnitType::Pixel});outer.RowDefinitions().Append(captionRow);outer.RowDefinitions().Append(RowDefinition());auto status_row=RowDefinition();status_row.Height(GridLength{0,GridUnitType::Auto});outer.RowDefinitions().Append(status_row);
+        caption=Grid();caption.Background(SolidColorBrush(Windows::UI::Color{0,0,0,0}));auto brand=text(L"Aegis",14);brand.VerticalAlignment(VerticalAlignment::Center);caption.Children().Append(brand);outer.Children().Append(caption);
         navigation=NavigationView();navigation.IsSettingsVisible(false);navigation.PaneDisplayMode(NavigationViewPaneDisplayMode::Auto);navigation.IsBackButtonVisible(NavigationViewBackButtonVisible::Collapsed);navigation.PaneTitle(L"Aegis");navigation.OpenPaneLength(252);navigation.CompactModeThresholdWidth(600);navigation.ExpandedModeThresholdWidth(1050);
         Grid body;body.Padding(Thickness{24,24,24,16});auto info_row=RowDefinition();info_row.Height(GridLength{0,GridUnitType::Auto});body.RowDefinitions().Append(info_row);body.RowDefinitions().Append(RowDefinition());
         info=InfoBar();info.Margin(Thickness{0,0,0,16});info.IsClosable(true);body.Children().Append(info);
         scroller=ScrollViewer();scroller.HorizontalScrollBarVisibility(ScrollBarVisibility::Disabled);scroller.VerticalScrollBarVisibility(ScrollBarVisibility::Auto);Grid::SetRow(scroller,1);
         content=StackPanel();content.Spacing(16);content.MaxWidth(1100);content.HorizontalAlignment(HorizontalAlignment::Stretch);content.Padding(Thickness{0,0,8,24});
         Media::Animation::TransitionCollection transitions;transitions.Append(Media::Animation::EntranceThemeTransition());content.ChildrenTransitions(transitions);
-        scroller.Content(content);body.Children().Append(scroller);navigation.Content(body);outer.Children().Append(navigation);
-        connection=label("ui.loading",12);connection.Margin(Thickness{18,6,18,10});Grid::SetRow(connection,1);outer.Children().Append(connection);window.Content(outer);
+        scroller.Content(content);body.Children().Append(scroller);navigation.Content(body);Grid::SetRow(navigation,1);outer.Children().Append(navigation);
+        connection=label("ui.loading",12);connection.Margin(Thickness{18,6,18,10});Grid::SetRow(connection,2);outer.Children().Append(connection);window.Content(outer);
+        window.ExtendsContentIntoTitleBar(true);window.SetTitleBar(caption);update_caption();
+        caption.SizeChanged([self=shared_from_this()](auto const&,auto const&){self->update_caption();});outer.ActualThemeChanged([self=shared_from_this()](auto const&,auto const&){self->update_caption();});
+        const DWORD border=DWMWA_COLOR_NONE;DwmSetWindowAttribute(hwnd(),DWMWA_BORDER_COLOR,&border,sizeof(border));
+        if(smoke_requested)diagnostics(window.ExtendsContentIntoTitleBar()?"PASS: integrated native title bar":"FAIL: integrated native title bar");
         rebuild_navigation();
         navigation.SelectionChanged([self=shared_from_this()](auto const&,NavigationViewSelectionChangedEventArgs const& args){if(self->rebuilding)return;auto item=args.SelectedItem().try_as<NavigationViewItem>();if(item)self->show_page(to_string(unbox_value<hstring>(item.Tag())));});
         window.Closed([self=shared_from_this()](auto const&,auto const&){self->closed=true;self->backend->Close();if(self->timer)self->timer.Stop();});
@@ -540,6 +596,7 @@ struct Shell : std::enable_shared_from_this<Shell> {
         window.AppWindow().Resize(Windows::Graphics::SizeInt32{smoke_requested?smoke_width:1200,850});
         timer=dispatcher.CreateTimer();timer.Interval(std::chrono::seconds(1));timer.Tick([weak=weak_from_this()](auto const&,auto const&){if(auto self=weak.lock()){
             ++self->ticks;if(self->ticks%5==0)self->poll_events();if(self->page=="scan")self->poll_scan();if(self->page=="sandbox"||self->page=="vm"||self->page=="behavior")self->poll_session();
+            if(smoke_requested&&self->ticks==2){const auto style=GetWindowLongPtrW(self->hwnd(),GWL_STYLE);if(!self->window.ExtendsContentIntoTitleBar()||self->caption.ActualHeight()<32||(style&WS_THICKFRAME)==0||(style&WS_MAXIMIZEBOX)==0){diagnostics("FAIL: native resizing or integrated caption layout");application_exit_code=1;}else diagnostics("PASS: integrated caption layout and native resize/maximize styles");}
             if(smoke_requested&&self->ticks%2==1&&(self->page=="dashboard"||self->page=="settings"))self->capture_smoke_image(self->page);
             if(smoke_requested&&self->ticks%2==0){
                 if(self->page=="scan"&&self->scenario==0){
@@ -547,13 +604,16 @@ struct Shell : std::enable_shared_from_this<Shell> {
                 }
                 if(self->page=="scan"&&self->scenario==1){
                     if(self->last_data.value("running",true))return;
-                    if(self->last_data.value("completed",0)!=1||!self->last_data.value("complete",false)){diagnostics("FAIL: UI scan result");application_exit_code=1;}else diagnostics("PASS: UI scan command and progress");self->scenario=2;
+                    if(self->last_data.value("completed",0)!=1||!self->last_data.value("complete",false)){diagnostics("FAIL: UI scan result");application_exit_code=1;}else diagnostics("PASS: UI scan command and progress");
+                    self->hash_input.Text(L"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");self->hash_online.IsOn(false);self->commandActions.at("hash.query")();self->scenario=5;return;
                 }
+                if(self->page=="scan"&&self->scenario==5){if(self->last_hash.empty())return;if(self->last_hash.value("online",true)||self->last_hash.at("items").size()!=2){diagnostics("FAIL: offline UI hash query");application_exit_code=1;}self->scenario=2;}
                 if(self->page=="settings"&&self->scenario==2){
                     if(!self->language||!self->theme||!self->commandActions.contains("ui.save"))return;
                     self->language.SelectedIndex(1);self->theme.SelectedIndex(2);self->commandActions.at("ui.save")();self->scenario=3;return;
                 }
                 if(self->page=="settings"&&self->scenario==3){
+                    if(!self->commandActions.contains("hash.keySave")||!self->provider_key||!self->commandActions.contains("services.uninstall")||!self->commandActions.contains("services.update")){diagnostics("FAIL: key or service controls");application_exit_code=1;}else diagnostics("PASS: protected key and service management controls present; no elevation invoked");
                     const auto saved=self->backend->Request("settings.get",json::object());
                     if(saved.value("locale",std::string())!="en-US"||saved.value("theme",std::string())!="dark"||self->localization.locale()!="en-US"){diagnostics("FAIL: language/theme save");application_exit_code=1;}else diagnostics("PASS: language/theme preview and save");self->scenario=4;
                 }

@@ -14,12 +14,14 @@ namespace av::services {
 using Json = nlohmann::json;
 namespace fs = std::filesystem;
 enum class Kind : uint32_t { Antivirus = 1, Sandbox = 2 };
-enum class Operation : uint32_t { Scan = 1, Detonate = 2, DesktopBundle = 3, Checkpoint = 4, Resume = 5, QuarantineList = 6, QuarantineIsolate = 7, QuarantineRestore = 8, QuarantineErase = 9, QuarantineAudit = 10, ProtectionStatus = 11, ProtectionConfigure = 12, ProtectionSubmit = 13, ProtectionCancel = 14, ProtectionEvents = 15, ProtectionFile = 25, ProtectionManualFile = 26 };
+enum class Operation : uint32_t { Scan = 1, Detonate = 2, DesktopBundle = 3, Checkpoint = 4, Resume = 5, QuarantineList = 6, QuarantineIsolate = 7, QuarantineRestore = 8, QuarantineErase = 9, QuarantineAudit = 10, ProtectionStatus = 11, ProtectionConfigure = 12, ProtectionSubmit = 13, ProtectionCancel = 14, ProtectionEvents = 15, HashLookup = 16, ProtectionFile = 25, ProtectionManualFile = 26 };
 enum class FrameType : uint32_t { Progress = 1, Result = 2, Error = 3 };
 inline constexpr uint32_t Magic = 0x53474541, Version = 1, MaxFrame = 2u << 20;
 // Read attributes are required by Win32's pipe open/identity operations. Do not
 // include FILE_GENERIC_WRITE: it also grants FILE_CREATE_PIPE_INSTANCE.
 inline constexpr DWORD PipeClientAccess = FILE_GENERIC_READ | FILE_WRITE_DATA;
+inline constexpr const wchar_t* InstallationSecurity=L"O:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)";
+inline constexpr const wchar_t* WorkerObjectSecurity=L"O:SYD:P(A;;GA;;;SY)(A;;GA;;;BA)";
 inline constexpr const wchar_t* PackageFiles[] = {L"guardian-engine-service.exe", L"guardian-scan-worker.exe", L"guardian-whp-memory.exe",
     L"guardian-service-sample.exe", L"guardian-quarantine.exe", L"signatures.txt"
 #ifdef GUARDIAN_SERVICE_DESKTOP
@@ -78,7 +80,11 @@ Json Call(Kind, Operation, const fs::path&, const std::function<void(const Json&
           const std::atomic<bool>* cancel = nullptr, uint32_t milliseconds = 3600000);
 Status Query(Kind);
 void SetRunning(Kind, bool, DWORD timeout = 15000);
-DWORD Setup(HWND owner = nullptr, bool uninstall = false);
+DWORD Setup(HWND owner = nullptr, bool uninstall = false, const fs::path& package = {});
+inline constexpr const wchar_t* ReputationCredential = L"Aegis.MalwareBazaar.AuthKey";
+std::string ReputationKey(const wchar_t* target = ReputationCredential);
+void SaveReputationKey(std::string&,const wchar_t* target = ReputationCredential);
+void RemoveReputationKey(const wchar_t* target = ReputationCredential);
 int Install(const std::wstring& ownerSid, bool uninstall);
 int Serve(Kind, const std::wstring& ownerSid);
 int Worker(const std::wstring& pipe, DWORD serverPid);

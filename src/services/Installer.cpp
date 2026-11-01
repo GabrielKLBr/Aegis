@@ -59,7 +59,7 @@ fs::path Root() {
 void Protect(const fs::path &path) {
     PSECURITY_DESCRIPTOR descriptor = nullptr;
     if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(
-            L"O:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;BU)", SDDL_REVISION_1, &descriptor,
+            InstallationSecurity, SDDL_REVISION_1, &descriptor,
             nullptr))
         WinError("Build installation ACL");
     PSID ownerSid = nullptr;
@@ -228,10 +228,26 @@ int Install(const std::wstring &ownerArgument, bool uninstall) {
             Ordinary(source / name);
             Check(fs::copy_file(source / name, slot / name), "Cannot copy C++ runtime");
         }
+    // Keep local, licensed guest references across an update. Portable archives
+    // never redistribute those references. The runtime still verifies its index
+    // and helper hashes before using a prepared application.
+    auto assets=source;
+    const auto& retainedImage=previous[1].image.empty()?previous[0].image:previous[1].image;
+    if(!fs::exists(assets/L"runtime")&&!retainedImage.empty()){
+        int count=0;auto** arguments=CommandLineToArgvW(retainedImage.c_str(),&count);
+        if(arguments&&count==5)assets=fs::path(arguments[0]).parent_path();LocalFree(arguments);
+    }
+    const auto catalogSlot=root/L"runtime-slot.txt";
+    if(!fs::exists(assets/L"runtime")&&fs::exists(catalogSlot)){
+        Ordinary(catalogSlot);Check(fs::file_size(catalogSlot)<=256,"Retained runtime locator quota");
+        std::ifstream saved(catalogSlot);std::string name;std::getline(saved,name);
+        Check(name.starts_with("install-")&&name.size()>8&&name.find_first_not_of("install-0123456789")==name.npos,"Retained runtime locator rejected");
+        assets=root/Wide(name);Ordinary(assets);
+    }
     // Runtime assets are data. Helpers are installed exclusively from PackageFiles.
-    if (fs::exists(source / L"runtime")) {
-        Ordinary(source / L"runtime");
-        const auto indexPath = source / L"runtime" / L"index.json";
+    if (fs::exists(assets / L"runtime")) {
+        Ordinary(assets / L"runtime");
+        const auto indexPath = assets / L"runtime" / L"index.json";
         Ordinary(indexPath);
         Check(fs::file_size(indexPath) <= 2u << 20, "Runtime index quota");
         std::ifstream stream(indexPath);
@@ -250,7 +266,7 @@ int Install(const std::wstring &ownerArgument, bool uninstall) {
                 Check(!part.empty() && !part.is_absolute() && !part.has_root_name() &&
                           it.key().find(':') == std::string::npos,
                       "Installed runtime path rejected");
-                auto member = source / L"runtime";
+                auto member = assets / L"runtime";
                 for (const auto &component : part) {
                     Check(component != L".." && component != L".", "Installed runtime traversal rejected");
                     member /= component;
@@ -329,8 +345,13 @@ int Install(const std::wstring &ownerArgument, bool uninstall) {
                 WinError("Describe Aegis service");
         }
         for (size_t i = 0; i < kinds.size(); ++i)
-            if (previous[i].running)
+            if (previous[i].running || (previous[i].created && kinds[i]==Kind::Antivirus))
                 SetRunning(kinds[i], true);
+        if(fs::exists(slot/L"runtime")){
+            const auto pending=slot/L"runtime-slot.txt";
+            {std::ofstream saved(pending);saved<<Text(slot.filename().wstring())<<'\n';Check(bool(saved),"Save retained runtime locator");}
+            Protect(pending);Check(MoveFileExW(pending.c_str(),catalogSlot.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH)!=FALSE,"Commit retained runtime locator");
+        }
     } catch (...) {
         for (size_t i = 0; i < kinds.size(); ++i)
             if (previous[i].changed)

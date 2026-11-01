@@ -50,7 +50,7 @@ void Backend::Close() noexcept {closed_=true;cancel_=true;}
 Json Backend::Call(Operation operation,Json request){
     Check(!closed_,"Application is closing");fs::path input=Executable();
     if(!request.empty()){input=state_/Wide(Token()+".json");Write(input,request);}
-    try{auto result=services::Call(Kind::Antivirus,operation,input,{},&closed_,15000);if(input!=Executable()){std::error_code ec;fs::remove(input,ec);}Check(result.value("complete",true),result.value("error",std::string("Service operation incomplete")).c_str());return result;}
+    try{auto result=services::Call(Kind::Antivirus,operation,input,{},&closed_,operation==Operation::HashLookup?60000:15000);if(input!=Executable()){std::error_code ec;fs::remove(input,ec);}Check(result.value("complete",true),result.value("error",std::string("Service operation incomplete")).c_str());return result;}
     catch(...){if(input!=Executable()){std::error_code ec;fs::remove(input,ec);}throw;}
 }
 Json Backend::StartSession(const std::string& method,const Json& p){
@@ -68,6 +68,10 @@ Json Backend::StartSession(const std::string& method,const Json& p){
 }
 Json Backend::Request(const std::string& method,const Json& p){
     Check(!closed_,"Application is closing");Check(p.is_object(),"UI parameters must be an object");
+    if(method=="reputation.lookup")return Call(Operation::HashLookup,p);
+    if(method=="reputation.key.status"){auto key=ReputationKey();const bool present=!key.empty();if(present)SecureZeroMemory(key.data(),key.size());return {{"configured",present}};}
+    if(method=="reputation.key.save"){auto key=p.at("key").get<std::string>();SaveReputationKey(key);return {{"configured",true}};}
+    if(method=="reputation.key.remove"){RemoveReputationKey();return {{"configured",false}};}
     if(method=="settings.get"){std::lock_guard lock(preferencesMutex_);return preferences_;}
     if(method=="settings.set"){
         std::lock_guard lock(preferencesMutex_);auto next=preferences_;
@@ -102,5 +106,12 @@ Json Backend::Request(const std::string& method,const Json& p){
     if(method=="session.cancel"){cancel_=true;return {{"requested",true}};}
     if(method=="session.start"||method=="session.checkpoint"||method=="session.resume"||method=="session.bundle")return StartSession(method,p);
     throw std::runtime_error("Unsupported UI operation");
+}
+Json Backend::ManageServices(HWND owner,bool remove){
+    Check(!closed_,"Application is closing");
+    const auto package=Executable().parent_path().parent_path()/L"engines";
+    const auto result=Setup(owner,remove,package);
+    if(result)WinError("Service registration change failed",result);
+    return Request("services.get",Json::object());
 }
 }

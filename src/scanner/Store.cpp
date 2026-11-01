@@ -124,7 +124,7 @@ Json Store::Cached(const std::string &category, const std::string &key, int64_t 
     s.Int(3, now);
     if (s.Step() != SQLITE_ROW)
         return nullptr;
-    return Json::parse(s.Text(0));
+    return Json::parse(s.Text(0),[](int depth,Json::parse_event_t,Json&){Require(depth<=32,"Cached provider nesting limit");return true;});
 }
 void Store::Cache(const std::string &category, const std::string &key, const Json &value, int64_t now,
                   uint32_t ttl)

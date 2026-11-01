@@ -12,6 +12,7 @@ public:
     services::Json Request(const std::string&, const services::Json&);
     void Close() noexcept;
     static void Export(const std::filesystem::path&,const services::Json&);
+    services::Json ManageServices(HWND,bool remove);
 private:
     std::mutex mutex_, preferencesMutex_, sessionStartMutex_;
     std::atomic<bool> closed_{false}, cancel_{false};

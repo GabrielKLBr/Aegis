@@ -8,7 +8,7 @@ Please open a Pull Request reporting any English mistake if you find one.
 [![Windows API Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Foverall.json)](https://gabrielklbr.github.io/Aegis/windows-apis.html)
 [![Graphics and Audio Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Finterface.json)](https://gabrielklbr.github.io/Aegis/progress.html)
 
-**Desktop client:** [Phase 17 — WinUI 3 and embedded languages](docs/PHASE-17.md). Build with `tools/build_winui.ps1 -Configuration Release -BackendBuild <NATIVE_BUILD>` and run `build-phase17/bin/Release/Aegis.exe`. Existing Aegis services are required.
+**Desktop client:** [Phase 17.1 — portable layout, integrated title bar, service management and public hash queries](docs/PHASE-17.1.md). Open `Aegis.exe` from the extracted portable folder. Install/update the required engine services from Settings; the app has no separate installer. Hash queries are opt-in and never upload files. [Original WinUI delivery](docs/PHASE-17.md).
 
 Percentages of entries in the catalogs, including partial support; do not represent the entire Windows system.
 

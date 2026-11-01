@@ -1,0 +1,276 @@
+{
+  "schema": 1,
+  "phase": "17.1",
+  "status": "PASS",
+  "scope": "Current follow-up and its service/package dependencies; no full historical regression run",
+  "configurations": {
+    "Release": {
+      "unit": {
+        "cases": [
+          "worker descriptor restricts process objects to SYSTEM and administrators",
+          "installation descriptor grants standard users read and execute only",
+          "streamed SHA256 of inert bytes",
+          "offline never contacts provider or creates cache",
+          "CIRCL context and missing MalwareBazaar key are distinct",
+          "cache avoids repeated network query",
+          "uppercase digest normalized",
+          "malformed digest rejected",
+          "unapproved provider rejected",
+          "duplicate provider rejected",
+          "custom URL rejected",
+          "ambiguous input rejected",
+          "directory rejected",
+          "relative path rejected",
+          "network path rejected",
+          "in-use writer prevents hashing changing file",
+          "oversize file rejected without reading",
+          "MalwareBazaar match requires matching returned hash",
+          "MalwareBazaar miss remains unknown",
+          "provider secrets are excluded from transport failure result",
+          "mismatched provider digest rejected",
+          "deep provider JSON rejected",
+          "header injection and NUL keys rejected",
+          "arbitrary network endpoint rejected before connection",
+          "rate limit persists across hash queries",
+          "protected credential roundtrip using isolated test target"
+        ],
+        "status": "PASS",
+        "tests": 26
+      },
+      "service": {
+        "cases": [
+          "authenticated restricted worker hashes inert file",
+          "service rejects injected endpoint",
+          "service rejects source and digest ambiguity",
+          "credential status exposes presence only",
+          "service registrations available to UI"
+        ],
+        "status": "PASS",
+        "tests": 5
+      },
+      "ui": [
+        {
+          "locale": "en-US",
+          "theme": "dark",
+          "width": 1200,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "offlineHashCommand": "PASS",
+          "nativeCaption": "PASS",
+          "keyAndServiceControls": "PASS"
+        },
+        {
+          "locale": "pt-BR",
+          "theme": "light",
+          "width": 720,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "offlineHashCommand": "PASS",
+          "nativeCaption": "PASS",
+          "keyAndServiceControls": "PASS"
+        },
+        {
+          "locale": "es-ES",
+          "theme": "system",
+          "width": 960,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "offlineHashCommand": "PASS",
+          "nativeCaption": "PASS",
+          "keyAndServiceControls": "PASS"
+        }
+      ],
+      "serviceConfiguration": "Release",
+      "binaries": {
+        "Aegis.exe": "fae3dc4809d79efe7747e3e73b7cd51e383fdf17fbfb7294774a39667f2b93dd",
+        "reputation_tests.exe": "2f8fb6edddf29dba5a10505f660443c39c92266b8564f63fbf0199290211ad72",
+        "engine_services_tests.exe": "f3a429a13084b5982c1790b409911e2cdd84f27bf194ec5ee3663a51bf20d04b",
+        "guardian-engine-service.exe": "f41ea67035b14df247a3879f3580c8fafffeb0daf4f77b420ca8fbadae76ea68",
+        "aegis-portable.exe": "60dad8183d14bc2028a6b41f407a4455d97a086d72a7a29f1b9a551c83f4396d"
+      },
+      "testedInputsDigest": "db937b217a9b4cc8fd5f9fd30b79761d11aded85ee2e75d5b966f68d994b8c2e"
+    },
+    "Debug": {
+      "unit": {
+        "cases": [
+          "worker descriptor restricts process objects to SYSTEM and administrators",
+          "installation descriptor grants standard users read and execute only",
+          "streamed SHA256 of inert bytes",
+          "offline never contacts provider or creates cache",
+          "CIRCL context and missing MalwareBazaar key are distinct",
+          "cache avoids repeated network query",
+          "uppercase digest normalized",
+          "malformed digest rejected",
+          "unapproved provider rejected",
+          "duplicate provider rejected",
+          "custom URL rejected",
+          "ambiguous input rejected",
+          "directory rejected",
+          "relative path rejected",
+          "network path rejected",
+          "in-use writer prevents hashing changing file",
+          "oversize file rejected without reading",
+          "MalwareBazaar match requires matching returned hash",
+          "MalwareBazaar miss remains unknown",
+          "provider secrets are excluded from transport failure result",
+          "mismatched provider digest rejected",
+          "deep provider JSON rejected",
+          "header injection and NUL keys rejected",
+          "arbitrary network endpoint rejected before connection",
+          "rate limit persists across hash queries",
+          "protected credential roundtrip using isolated test target"
+        ],
+        "status": "PASS",
+        "tests": 26
+      },
+      "service": {
+        "cases": [
+          "authenticated restricted worker hashes inert file",
+          "service rejects injected endpoint",
+          "service rejects source and digest ambiguity",
+          "credential status exposes presence only",
+          "service registrations available to UI"
+        ],
+        "status": "PASS",
+        "tests": 5
+      },
+      "ui": [
+        {
+          "locale": "en-US",
+          "theme": "dark",
+          "width": 1200,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "offlineHashCommand": "PASS",
+          "nativeCaption": "PASS",
+          "keyAndServiceControls": "PASS"
+        },
+        {
+          "locale": "pt-BR",
+          "theme": "light",
+          "width": 720,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "offlineHashCommand": "PASS",
+          "nativeCaption": "PASS",
+          "keyAndServiceControls": "PASS"
+        },
+        {
+          "locale": "es-ES",
+          "theme": "system",
+          "width": 960,
+          "pages": 9,
+          "keyboardFocusChecks": 9,
+          "offlineHashCommand": "PASS",
+          "nativeCaption": "PASS",
+          "keyAndServiceControls": "PASS"
+        }
+      ],
+      "serviceConfiguration": "Release",
+      "binaries": {
+        "Aegis.exe": "77cef734fd4aa5a6de6257750264eaddba0ba7824ffa4fad54ac46c7d9255e9d",
+        "reputation_tests.exe": "2bdabd5c43b734847c74ee5345db0ffc4645e65e1506f556792401c2f9ff80d2",
+        "engine_services_tests.exe": "896d869a04025e3e8af115d74ec524b8b8bd15374088417c25a284378e4e513a",
+        "guardian-engine-service.exe": "085f4abdca28be03329d7cb4b1b7ae301dcc7b29ebe475b94fe2eb9e7d867334",
+        "aegis-portable.exe": "06442cd294a28636dca9e4436f4da1c52f446750d2504c8beb7a56a04758cba4"
+      },
+      "testedInputsDigest": "db937b217a9b4cc8fd5f9fd30b79761d11aded85ee2e75d5b966f68d994b8c2e"
+    }
+  },
+  "resourceTests": 8,
+  "publicationToolTests": {
+    "run": 21,
+    "skipped": 1
+  },
+  "protocol": {
+    "Release": "PASS",
+    "Debug": "PASS"
+  },
+  "serviceRegistration": {
+    "tests": 5,
+    "status": "PASS",
+    "cases": [
+      "Service update installs payload into protected SYSTEM-owned slot",
+      "Service update preserves running states and local runtime catalog",
+      "Uninstall removes both service registrations and retains recovery locator",
+      "Reinstall from portable folder recovers local catalog without shipping it",
+      "Protection policy is unchanged"
+    ]
+  },
+  "publicHashLive": {
+    "complete": true,
+    "items": [
+      {
+        "classification": "unknown",
+        "provider": "circl",
+        "reason": "known-file database presence is informational, not a safety verdict",
+        "sha256": "301c9ec7a9aadee4d745e8fd4fa659dafbbcc6b75b9ff491d14cbbdd840814e9",
+        "status": "found"
+      },
+      {
+        "classification": "unknown",
+        "provider": "malwarebazaar",
+        "sha256": "301c9ec7a9aadee4d745e8fd4fa659dafbbcc6b75b9ff491d14cbbdd840814e9",
+        "status": "authentication_required"
+      }
+    ],
+    "notice": "Database matches are supporting evidence. No match or unavailable service does not establish that a file is safe.",
+    "online": true,
+    "providersComplete": false,
+    "schema": 1,
+    "sha256": "301c9ec7a9aadee4d745e8fd4fa659dafbbcc6b75b9ff491d14cbbdd840814e9",
+    "verdict": "reputation_only"
+  },
+  "portableAcceptance": {
+    "status": "PASS",
+    "configurations": [
+      {
+        "configuration": "Release",
+        "memberHashes": "PASS",
+        "rootLayout": "PASS",
+        "launcherFromUnrelatedWorkingDirectory": "PASS",
+        "spaceAndUnicodePath": "PASS",
+        "hashCommand": "PASS",
+        "pages": 9,
+        "guestWindowsReferencesIncluded": false,
+        "files": 350
+      },
+      {
+        "configuration": "Debug",
+        "memberHashes": "PASS",
+        "rootLayout": "PASS",
+        "launcherFromUnrelatedWorkingDirectory": "PASS",
+        "spaceAndUnicodePath": "PASS",
+        "hashCommand": "PASS",
+        "pages": 9,
+        "guestWindowsReferencesIncluded": false,
+        "files": 330
+      }
+    ]
+  },
+  "minintDependency": {
+    "program": "owned WinRT scalar fixture",
+    "complete": true,
+    "expectedOutput": "WINRT_SCALARS_PASS"
+  },
+  "packages": {
+    "Release": {
+      "sha256": "56e2e8a4bd4f0d5e5e8f07cec5b0c25295ec058c515dbb38869a8c656d41fef7",
+      "bytes": 52760451,
+      "filename": "Aegis-portable-Release.zip"
+    },
+    "Debug": {
+      "sha256": "3a4fe59618934cfaf255e7c5a2c33fd32f2a16e6fdaa55acf21e4c798ee16e78",
+      "bytes": 53899543,
+      "filename": "Aegis-portable-Debug.zip"
+    }
+  },
+  "limitations": [
+    "Installed service validation used Release; native unit tests, clients and UI were checked in both configurations.",
+    "No authenticated live MalwareBazaar query: Auth-Key not configured. Inert transport fixtures cover match/miss/hash validation.",
+    "Windows administrator consent dialogs were not automated.",
+    "Current workstation at 96 DPI; clean Windows installations, physical multi-monitor DPI, Narrator, high-contrast appearance and hostile-malware containment are not certified.",
+    "Debug requires the Visual Studio debug CRT.",
+    "Signed distribution/update/rollback work remains in phase 18."
+  ]
+}

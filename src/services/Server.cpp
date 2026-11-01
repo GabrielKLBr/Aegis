@@ -155,7 +155,7 @@ struct Process {
         PROCESS_INFORMATION info{};
         PSECURITY_DESCRIPTOR descriptor = nullptr;
         Check(ConvertStringSecurityDescriptorToSecurityDescriptorW(
-                  L"O:SYD:P(A;;GA;;;SY)(A;;GA;;BA)", SDDL_REVISION_1, &descriptor, nullptr) != FALSE,
+                  WorkerObjectSecurity, SDDL_REVISION_1, &descriptor, nullptr) != FALSE,
               "Protect worker process/thread");
         SECURITY_ATTRIBUTES objectSecurity{sizeof(objectSecurity), descriptor, FALSE};
         const auto created =
@@ -225,7 +225,7 @@ void Execute(HANDLE client) {
           "Internal worker operation cannot be requested by a client");
     bool administrator = false;
     Handle token(Caller(client, administrator));
-    if (serviceKind == Kind::Antivirus && request.operation >= Operation::QuarantineList) {
+    if (serviceKind == Kind::Antivirus && request.operation >= Operation::QuarantineList && request.operation <= Operation::ProtectionEvents) {
         Check(protection != nullptr, "Protection controller unavailable");
         auto result = protection->Dispatch(request.operation, path, token.value, administrator);
         Send(client, FrameType::Result, result, GetTickCount64() + 5000);

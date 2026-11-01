@@ -70,6 +70,7 @@ void Wire() {
 int main() {
     try {
         Request request; request.pathChars = 1; Validate(request);
+        request.operation=Operation::HashLookup;Validate(request);request.kind=Kind::Sandbox;Rejected([&]{Validate(request);});request.kind=Kind::Antivirus;request.operation=Operation::Scan;
         for (unsigned i = 0; i < 7; ++i) {
             auto bad = request;
             switch (i) {

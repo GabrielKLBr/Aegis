@@ -38,6 +38,7 @@ int wmain(int argc, wchar_t** argv) {
             for (const auto* name : PackageFiles) names.push_back(Text(name));
             std::cout << names.dump() << '\n'; return 0;
         }
+        if(action==L"--hash-lookup"&&argc==3){const auto result=Call(Kind::Antivirus,Operation::HashLookup,argv[2],{},nullptr,60000);std::cout<<result.dump()<<'\n';return 0;}
         if(action==L"--protection-status"||action==L"--protection-config"||action==L"--protection-scan"||action==L"--protection-cancel"||action==L"--protection-events"){
             const bool simple=action==L"--protection-status";Check(argc==(simple?2:3),"Protection command requires a JSON request");
             const auto operation=simple?Operation::ProtectionStatus:action==L"--protection-config"?Operation::ProtectionConfigure:action==L"--protection-scan"?Operation::ProtectionSubmit:action==L"--protection-cancel"?Operation::ProtectionCancel:Operation::ProtectionEvents;

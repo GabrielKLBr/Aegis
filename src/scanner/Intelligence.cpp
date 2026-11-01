@@ -27,7 +27,7 @@ void Hash(const std::string &h)
 HttpRequest ProviderRequest(const std::string &id, const std::string &hash, const std::string &key)
 {
     Hash(hash);
-    Require(key.size() <= 512 && key.find_first_of("\r\n") == key.npos, "Invalid API credential");
+    Require(key.size() <= 512 && std::all_of(key.begin(),key.end(),[](unsigned char c){return c>=33&&c<=126;}), "Invalid API credential");
     HttpRequest r;
     if (id == "virustotal")
     {
@@ -59,7 +59,7 @@ Json ProviderResponse(const std::string &id, const std::string &hash, const Http
     if (response.status == 404 && id != "malwarebazaar")
         return out;
     Require(response.status == 200, "Provider HTTP failure");
-    const auto j = Json::parse(response.body);
+    const auto j = Json::parse(response.body,[](int depth,Json::parse_event_t,Json&){Require(depth<=32,"Provider nesting limit exceeded");return true;});
     Require(j.is_object(), "Provider object required");
     if (id == "virustotal")
     {
@@ -162,6 +162,8 @@ HttpResponse Https(const HttpRequest &request)
     operation.h = WinHttpOpenRequest(connection.h, method.c_str(), path.c_str(), nullptr, WINHTTP_NO_REFERER,
                                      WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
     Require(operation.h != nullptr, "HTTPS request failed");
+    DWORD autologon=WINHTTP_AUTOLOGON_SECURITY_LEVEL_HIGH;
+    Require(WinHttpSetOption(operation.h,WINHTTP_OPTION_AUTOLOGON_POLICY,&autologon,sizeof(autologon))!=FALSE,"HTTPS authentication policy failed");
     DWORD redirects = WINHTTP_OPTION_REDIRECT_POLICY_NEVER;
     Require(WinHttpSetOption(operation.h, WINHTTP_OPTION_REDIRECT_POLICY, &redirects, sizeof(redirects)) !=
                 FALSE,

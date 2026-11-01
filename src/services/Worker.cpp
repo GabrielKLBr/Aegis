@@ -1,6 +1,7 @@
 #include "EngineFacade.h"
 #include "Protection.h"
 #include "Services.h"
+#include "HashLookup.h"
 #include "microvm/runtime/Unified.h"
 #include "quarantine/Store.h"
 #include <fstream>
@@ -254,6 +255,7 @@ int Worker(const std::wstring &name, DWORD server) {
         const auto result = (request.operation == Operation::ProtectionFile ||
                              request.operation == Operation::ProtectionManualFile)
                                 ? ProtectedFile(path)
+                            : request.operation == Operation::HashLookup ? HashLookupFile(path)
                             : request.operation >= Operation::QuarantineList
                                 ? throw std::runtime_error("Protected operations require the service broker")
                             : request.operation == Operation::Scan ? Scan(pipe.value, path, deadline)

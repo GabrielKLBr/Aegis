@@ -546,13 +546,15 @@ Measure the proportion of applications that complete the predicted use by catego
 
 **Delivery:** [native WinUI client, real service flows, and embedded languages](PHASE-17.md). This delivery retains the declared MiniNT and service limits; phase 18 is separate.
 
+**17.1 follow-up:** [portable ZIP, integrated native title bar, in-app service installation/removal, and public SHA-256 queries](PHASE-17.1.md). Services remain required and are installed from Settings. SDK localization directories are contained in the internal runtime folder. MalwareBazaar credentials use Windows Credential Manager; CIRCL needs no key. This does not complete phase 18's signing, recoverable updates or clean-machine acceptance.
+
 **Work:**integrating the real services in C++/WinRT and WinUI 3, preserving the existing flows during migration.Implement dashboard, verification, protection, sandbox, VMs, behavior, quarantine, history and settings. Apply Fluent Design, themes, accessibility, DPI, keyboard navigation, progress and cancellation. Validate and incorporate JSON from pt-BR, English and Spanish into build, with fallback, parameters, pluralization and regional formatting.
 
 **Conclusion:** all product matrix flows work from end to end, without privileged operations or code analysed within the UI. Languages work without external JSON and can be exchanged as per application support. Resource states unavailable and failure are understandable and correspond to the backend.
 
 ## Phase 18 — Updates, Installation and Distribution
 
-**Work:**check integrity and authenticity of rules, bases and binary; implement recoverable updates, data migration and rollback. Prepare EXE/MSI, chosen WinUI runtime, installation of the service and directory permissions. Detect virtualization prerequisites, allow use without sandbox, treat update/repair and uninstall. Review licenses and distribution of components and profiles.
+**Work:**check integrity and authenticity of rules, bases and binary; implement recoverable updates, data migration and rollback. Distribute a **portable ZIP without a separate EXE/MSI installer**, with the chosen WinUI runtime in an internal subfolder. Install/update/remove the required engine services from the app's Settings buttons, with explicit Windows administrator authorization. Detect virtualization prerequisites, allow antivirus use without starting the sandbox engine, and validate directory permissions, repair, relocation and uninstall. Review licenses and distribution of components and profiles.
 
 **Conclusion:** Install, update, repair and remove on clean test machines; adulterated packages are refused; interruptions do not leave an installation without recovery. Preserved or removed data follow the user's explicit choice. Windows components are not distributed without proper authorization.
 

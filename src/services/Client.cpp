@@ -51,8 +51,8 @@ void SetRunning(Kind kind, bool running, DWORD timeout) {
         Sleep(40);
     }
 }
-DWORD Setup(HWND owner, bool uninstall) {
-    const auto exe = Executable().parent_path() / L"guardian-engine-service.exe";
+DWORD Setup(HWND owner, bool uninstall, const fs::path& package) {
+    const auto exe = (package.empty()?Executable().parent_path():fs::absolute(package)) / L"guardian-engine-service.exe";
     Check(fs::is_regular_file(exe), "Service installer missing beside the app");
     if (!uninstall) for (const auto* name : PackageFiles)
         Check(fs::is_regular_file(exe.parent_path() / name), "The service package is incomplete; use the folder prepared for installation.");
