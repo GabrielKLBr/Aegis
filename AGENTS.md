@@ -1,32 +1,18 @@
-# Instruções permanentes do projeto
+# Permanent project instructions
 
-## Entregas por fase e GitHub
+## Phase deliveries and GitHub
 
-Por solicitação do usuário em 24/10/2026, ao concluir cada nova fase ou subfase:
+At the user's request on October 24, 2026, when completing each new phase or subphase:
 
-1. Finalizar a implementação, executar as verificações pertinentes e registrar
-   resultados e limitações. Não declarar uma fase concluída por um teste isolado.
-2. Revisar as alterações e publicar um commit identificado pela fase em
-   `GabrielKLBr/Aegis`, usando `tools/aegis_git.py publish`. O pedido do usuário
-   já autoriza esse commit e seu envio; não pedir confirmação novamente.
-3. Verificar que o commit local chegou à branch remota. Nunca usar force push,
-   reescrever o histórico ou descartar alterações de outras tarefas.
-4. Encerrar a entrega e parar. O commit automático não autoriza começar a
-   próxima fase; aguardar nova solicitação do usuário.
+1. Finish implementation, run the relevant checks, and record results and limitations. Do not declare a phase complete on the strength of a single test.
+2. Review the changes and publish a commit identified by the phase to `GabrielKLBr/Aegis`, using `tools/aegis_git.py publish`. The user's request already authorizes this commit and push; do not ask for confirmation again.
+3. Verify that the local commit reached the remote branch. Never force-push, rewrite history, or discard changes from other tasks.
+4. Finish the delivery and stop. Automatic publication does not authorize starting the next phase; wait for a new user request.
 
-O repositório Aegis recebe os fontes completos, incluindo o runtime do sandbox,
-conforme a decisão posterior do usuário. Não substituir código por stubs para
-publicação. Não incluir segredos, arquivos pessoais, ISOs, discos de VM ou builds
-no repositório público. Publicações de builds usam apenas o repositório privado
-`GabrielKLBr/Aegis-builds`, pelo fluxo `publish-builds` já existente.
+The Aegis repository receives the complete source code, including the sandbox runtime, according to the user's subsequent decision. Do not replace code with stubs for publication. Do not include secrets, personal files, ISOs, VM disks, or builds in the public repository. Build publication uses only the private `GabrielKLBr/Aegis-builds` repository through the existing `publish-builds` workflow.
 
-Se testes, autenticação ou o envio falharem, preservar o trabalho e registrar
-o ponto pendente com clareza; não afirmar que houve publicação. Instruções
-posteriores do usuário podem alterar esta preferência.
+If tests, authentication, or upload fail, preserve the work and clearly record what remains pending; do not claim publication succeeded. Later user instructions may change this preference.
 
-## Escopo das validações
+## Validation scope
 
-Por solicitação do usuário em 28/10/2026, validar apenas a fase ou subfase
-em trabalho, incluindo seu pacote e suas dependências no fluxo dessa fase.
-Não repetir as baterias completas das fases anteriores a cada entrega.
-Registrar esse escopo nos resultados, sem anunciar uma regressão completa.
+At the user's request on October 28, 2026, validate only the phase or subphase currently being worked on, including its package and the dependencies used in that phase's workflow. Do not rerun the complete test suites from previous phases for each delivery. Record this scope in the results, without claiming a complete regression run.

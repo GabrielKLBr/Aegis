@@ -1,142 +1,67 @@
-# Fase 8 — Loader, runtime e aplicações de console
+# Phase 8 — Loader, runtime and console applications
 
-**Continuação em 18/10/2026:** exceções, unwind não local e DLLs dinâmicas
-implementados e aceitos na matriz Linux/KVM. A aceitação Windows desta revisão
-continua pendente. Estado atual e critérios: [PHASE-8-COMPLETION.md](PHASE-8-COMPLETION.md).
-Os resultados abaixo registram os marcos históricos; a fase 9 não foi iniciada.
+**Continuation in 18/10/2026:**Excepts, non-local unwind and dynamic DLLs implemented and accepted in the matrix Linux/KVM. Windows acceptance of this review remains pending. Current status and criteria: [PHASE-8-COMPLETION.md](PHASE-8-COMPLETION.md). The results below record historical milestones; phase 9 was not started.
 
-Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
-Estado em 17/10/2026: **em andamento**. O primeiro marco, descrito abaixo, cobre
-loader PE e console com DLL/TLS. O segundo marco conecta arquivos, registro,
-console, heap e locks: [PHASE-8-RUNTIME.md](PHASE-8-RUNTIME.md).
-A validação atual soma 35 testes por configuração e 720 boots.
-A fase 9 não foi iniciada. Os números de 33 testes e 640 boots abaixo registram
-a validação do primeiro marco.
+Active base: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`. State in 17/10/2026: **in progress**. The first milestone, described below, covers loader PE and console with DLL/TLS. The second milestone connects files, log, console, heap and locks: [PHASE-8-RUNTIME.md](PHASE-8-RUNTIME.md). Current validation sums up 35 tests per configuration and 720 boots. Phase 9 was not started. Numbers of 33 tests and 640 boots below record validation of the first milestone.
 
-## Implementação deste marco
+## Implementation of this milestone
 
-`guest/PeLoader.cpp` reaproveita os conceitos do loader anterior do MiniNt
-(PE32+, relocations DIR64 e resolução de imports), substituindo sua dependência
-de Win32, STL e stubs do host por um backend freestanding. O parser, as
-relocations, a ligação das DLLs e a aplicação das permissões executam em CPL0
-do convidado. Os endereços gravados na IAT pertencem às imagens do convidado.
+`guest/PeLoader.cpp` reuse the concepts of the previous MiniNt loader (PE32+, DIR64 relocations and import resolution), replacing its host dependency of Win32, STL and stubs with a freestanding backend. Parser, relocations, DLL connection, and the application of permissions run on guest CPL0. Addresses recorded in IAT belong to guest images.
 
-O carregador verifica cabeçalhos, tamanhos, alinhamentos, limites e sobreposição
-de seções, diretórios, strings, descritores de import, thunks e exports. Aceita
-imports por nome ou ordinal e a alternativa com `OriginalFirstThunk` zero.
-DLLs são encontradas em uma lista explícita de fontes; nomes não viram caminhos
-do Windows host. Dependências ausentes, ciclos, símbolos ausentes e recursos
-sem implementação produzem falha. Uma carga rejeitada remove as novas imagens,
-preservando dependências carregadas anteriormente. Falhas de remoção permanecem
-rastreáveis e permitem nova tentativa de limpeza.
+The loader checks headers, sizes, alignments, boundaries and overlapping of sections, directories, strings, import descriptors, thunks and exports. Accepts imports by name or ordinal and the alternative with `OriginalFirstThunk` zero. DLLs are found in an explicit list of fonts; names have not seen Windows host paths. Absent dependencies, cycles, missing symbols, and unimplemented features produce failure. A rejected load removes the new images, preserving previously loaded dependencies. Removal failures remain traceable and allow for a new cleanup attempt.
 
-As imagens começam graváveis e sem execução. Depois dos fixups, os cabeçalhos
-ficam somente para leitura; cada seção recebe R, RW ou RX, e lacunas ficam sem
-acesso. Seções W+X e IAT dentro do código ou dos cabeçalhos são recusadas.
-No convidado, essas permissões passam pelo gerenciador de memória existente e
-pelas permissões físicas do WHP.
+The images start recording and without execution. After the fixups, the headers are read-only; each section receives R, RW or RX, and gaps run out of access. W+X and IAT sections within the code or headers are refused. In the guest, these permissions pass through the existing memory manager and the physical permissions of the WHP.
 
-Há leitura e relocation dos diretórios TLS, atribuição do índice e validação
-dos templates e callbacks. O bootstrap da matriz inicial instala o template e
-a parte zerada, publica o vetor TLS no TEB, chama os callbacks e `DllMain` na
-ordem de dependência, executa o ponto de entrada do console e faz o detach na
-saída normal. Inicializa os campos usados pela aplicação: identidade, limites
-da pilha, ponteiro do próprio TEB, vetor TLS, ponteiro para PEB e base da imagem.
-Esses campos ainda não constituem uma implementação completa de PEB/TEB.
+There is reading and relocation of the TLS directories, index assignment and validation of templates and callbacks. Bootstrap of the initial matrix installs template and zeroed part, publishes the TLS vector in the TEB, calls the callbacks and `DllMain` in the dependency order, executes the console entry point and makes the detach at the normal output. Initializes the fields used by the application: identity, stack boundaries, TB pointer, TLS vector, PEB pointer and image base. These fields do not yet constitute a complete implementation of PEB/TEB.
 
-O loader verifica os limites da tabela `.pdata`, as faixas de funções e a
-estrutura dos códigos de unwind versão 1 sem handlers. Uma função folha x64
-pode dispensar essa tabela; a DLL otimizada em Release exercita esse caso.
-**Ainda não há dispatch de exceções de usuário nem execução do unwind.**
+The loader checks the limits of the `.pdata` table, the functions tracks and the unwind code structure version 1 without handlers. A x64 sheet function can dispense that table; the optimized DLL in Release exercises this case. **There is no user exception dispatch or unwind execution yet.**
 
-## Aplicação e critérios de comportamento
+## Application and behavioural criteria
 
-Os arquivos em `guest/fixtures` são compilados pelo MSVC como um executável de
-console e uma DLL PE reais, sem CRT: `guardian-pe-console.exe` e
-`guardian-pe-runtime.dll`. Um gerador incorpora seus bytes ao kernel de teste.
-Nenhum código de máquina desses PEs é remendado pelo host. As modificações de
-relocation e IAT são feitas pelo carregador no convidado.
+The files in `guest/fixtures` are compiled by MSVC as a console executable and a real PE DLL without CRT: `guardian-pe-console.exe` and `guardian-pe-runtime.dll`. A generator incorporates its bytes into the test kernel. No host-remedy host host machine code for these PEs. Relocation and IAT modifications are made by the guest loader.
 
-O console executa em CPL3, em espaço de processo privado, com pilha e proteção
-de memória próprias. Os critérios exercitados são:
+The console runs in CPL3, in a private process space, with its own stack and memory protection. The criteria exercised are:
 
-- Os dois módulos carregam fora dos endereços preferidos, com DIR64 aplicadas.
-- Dois imports, por nome e ordinal, apontam para funções distintas da DLL.
-- Os callbacks TLS de ambos os módulos executam antes dos respectivos pontos
-  de entrada, e os acessos `__declspec(thread)` usam o vetor publicado no TEB.
-- `DllMain` confirma o estado produzido pelo seu callback TLS.
-- O console confere identidade, PEB e limites da pilha, obtém 42 da chamada à
-  DLL e 17 da função importada por ordinal, e termina com código zero.
-- A desmontagem e o término devolvem todas as páginas alocadas para a prova.
+- The two modules carry out of the preferred addresses, with DIR64 applied.
+- Two imports, by name and ordinal, point to functions distinct from DLL.
+- TLS callbacks of both modules run before their respective points
+  input, and `__declspec(thread)` accesses use the vector published in the TEB.
+- `DllMain` confirms the state produced by its TLS callback.
+- The console gives identity, PEB and stack limits, gets 42 of the call to
+  DLL and 17 of the function imported by ordinal, and ends with zero code.
+- Unmounting and ending return all pages allocated to the test.
 
-As mensagens `PE loader mapping checks PASS` e
-`PE console TLS DLL execution PASS` só são emitidas depois dos respectivos
-critérios. O relatório de processos conserva os contadores da matriz anterior;
-a execução adicional do console é verificada separadamente por essas mensagens
-e pelo teste de boot da fase 8.
+The `PE loader mapping checks PASS` and `PE console TLS DLL execution PASS` messages are only issued after the respective criteria. The process report keeps the counters of the previous matrix; the additional execution of the console is checked separately by those messages and the boot test of phase 8.
 
-## Validação e evidências
+## Validation and evidence
 
-A validação deste marco exige Debug e Release completos, 33 testes por
-configuração e nenhum teste ignorado. A matriz soma 640 boots: 80 com o novo
-loader/console e 560 de regressão das fases 1–7. Cada boot novo verifica 26
-condições de mapeamento antes de executar o console e a matriz anterior.
-Os testes anteriores mantêm seus 240 cenários externos de falha no total.
+Validation of this milestone requires complete Debug and Release, 33 tests per configuration and no unknown test. The matrix adds 640 boot: 80 with the new loader/console and 560 regression of phases 1–7. Each new boot checks 26 mapping conditions before running the console and the previous matrix. Previous tests maintain their 240 external failure scenarios in total.
 
-O teste nativo executa o mesmo `PeLoader.cpp`, usando os dois PEs compilados e
-um backend que aplica permissões. Cobre arquivos truncados, cabeçalhos e
-diretórios malformados, sobreposições, W+X, imports, ordinais, DLLs, TLS e
-metadados de unwind inválidos. Injeta falha em cada operação de backend do
-caminho de carga e verifica rollback e ausência de módulos publicados. Também
-exercita dependência pré-carregada e falha de unmap com nova tentativa.
-Os totais de cada configuração ficam em `phase8-change-manifest.json`.
+The native test runs the same `PeLoader.cpp`, using the two compiled PEs and a backend that applies permissions. Covers truncated files, malformed headers and directories, overlaps, W+X, imports, ordinals, DLLs, TLS and invalid unwind metadata. Injects failure in each backend operation of the load path and checks rollback and absence of published modules. Also exercises preloaded dependency and unmap failure with new attempt. The totals of each configuration stay in `phase8-change-manifest.json`.
 
-Uma árvore nova, `build-phase8-clean`, valida a compilação das oito imagens de
-produção e seus contratos PE. Os sete exemplos de referência do MiniNt são
-executados por configuração, junto com auditorias e provas pela CLI.
-Arquivos de evidência e discos novos usam prefixo `phase8-`. Os 347 arquivos
-históricos registrados no snapshot e os 141 artefatos de disco da fase 7
-continuam verificados por SHA-256, sem sobrescrita.
+A new tree, `build-phase8-clean`, validates the compilation of the eight production images and their PE contracts. The seven reference examples of MiniNt are executed by configuration, along with audits and tests by CLI. Evidence files and new disks use `phase8-` prefix. The 347 historical files registered in the snapshot and 141 phase 7 disk artifacts remain checked by SHA-256, without overwriting.
 
-Os comandos atuais estão em [PHASE-8-RUNTIME.md](PHASE-8-RUNTIME.md).
-Os relatórios `phase8-*` deste primeiro marco são históricos; a continuação
-usa `phase8-runtime-*` para preservá-los. Os manifestos mantêm explicitamente
-`status: in_progress` e `next_phase_started: false`.
+Current commands are in [PHASE-8-RUNTIME.md](PHASE-8-RUNTIME.md). The `phase8-*` reports of this first milestone are historical; the continuation uses `phase8-runtime-*` to preserve them. Manifestos explicitly maintain `status: in_progress` and `next_phase_started: false`.
 
-## Limites e trabalho restante da fase 8
+## Limits and work remaining from phase 8
 
-O loader aceita até quatro módulos de 128 KiB e 16 seções por módulo, com
-alinhamentos de seção de 4 KiB e de arquivo de 512 bytes. Há limite de 256
-relocations DIR64, 256 exports, 256 thunks por descritor, oito callbacks TLS por
-módulo e 256 bytes de TLS por módulo. A matriz de execução atual usa dois
-módulos e uma thread por processo PE. A imagem do kernel permanece limitada
-a 1 MiB, sem imports, TLS ou relocations próprios.
+The loader accepts up to four modules of 128 KiB and 16 sections per module, with section alignments of 4 KiB and file of 512 bytes. There is limit of 256 relocations DIR64, 256 exports, 256 thunks per descriptor, eight TLS callsbacks per module and 256 bytes of TLS per module. The current execution matrix uses two modules and one thread per PE process. The kernel image remains limited to 1 MiB, no imports, TLS or proper relocations.
 
-Forwarders, imports adiados/bound, handlers SEH e outros
-diretórios sem implementação são recusados. O carregamento é inicial e segue
-um catálogo fixo de arquivos próprios; ainda não há `LoadLibrary` de usuário.
-O console de prova não usa CRT nem DLLs do Windows. Não há alegação de executar
-programas Windows arbitrários ou de compatibilidade geral.
-Atualização do segundo marco: cadeias de metadados de unwind agora são
-validadas para aceitar a saída otimizada do compilador, ainda sem executar
-o unwind. Veja [PHASE-8-RUNTIME.md](PHASE-8-RUNTIME.md).
+Forwarders, imports postponed/bound, SEH handlers and other unimplemented directories are refused. Upload is initial and follows a fixed catalogue of own files; there is no file yet `LoadLibrary` User. The proof console does not use CRT or Windows DLLs. There is no claim to run Windows arbitrary or general compatibility programs. Second milestone update: unwind metadata chains are now validated to accept the optimized output of the compiler, yet without running unwind. See [PHASE-8-RUNTIME.md](PHASE-8-RUNTIME.md).
 
-Para concluir a fase 8, ainda faltam:
+To complete phase 8, there is still a lack of:
 
-Atualização: os itens 1 e 2 abaixo já possuem o subconjunto inicial validado
-no [segundo marco](PHASE-8-RUNTIME.md). As ampliações e limitações restantes
-estão nesse documento; filhos/threads PE, exceções e DLLs dinâmicas seguem pendentes.
+Update: The items 1 and 2 below already have the initial subset validated in [second mark](PHASE-8-RUNTIME.md). The remaining extensions and limitations are in this document; children/threads PE, exceptions and dynamic DLLs remain pending.
 
-1. Conectar o runtime PE às APIs NT/Win32 da matriz de console, incluindo
-   arquivos, registro, erro e saída de console.
-2. Integrar heap e locks reais ao runtime em modo usuário.
-3. Criar filhos e threads a partir de PEs, com TEB/TLS privados por thread,
-   callbacks de thread, cancelamento e limpeza nos caminhos de falha.
-4. Implementar dispatch de exceções de usuário e unwind x64, com provas de
-   recuperação e propagação entre funções.
-5. Completar carga/descarga dinâmica de DLLs e a matriz de falha na inicialização,
-   execução e término, com critérios por aplicação.
-6. Reunir a auditoria final da fase e parar antes da fase 9, conforme solicitado.
+1. Connect the PE runtime to the console matrix NT/Win32 APIs, including
+   files, log, error and console output.
+2. Integrate real heat and locks to runtime in user mode.
+3. Raising children and threads from PEs, with TEB/TLS private by thread,
+   thread callbacks, cancellation and cleanup on fault paths.
+4. Implement dispatch of user exceptions and unwind x64, with proofs of
+   recovery and spread between functions.
+5. Complete dynamic load/discharge of DLLs and the boot failure matrix,
+   execution and termination, with criteria per application.
+6. Gather the final phase audit and stop before phase 9, as requested.
 
-Referências de formato: [PE/COFF da Microsoft](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format)
-e [tratamento de exceções x64](https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64).
+Format references: [PE/COFF from Microsoft](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format) and [Excess treatment x64](https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64).

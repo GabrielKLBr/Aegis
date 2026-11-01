@@ -18,10 +18,10 @@ def generate(output, seed=None):
     if seed is None:
         seed = secrets.randbits(63)
     if not 0 <= seed < 2**63:
-        raise ValueError("Seed deve estar entre 0 e 2^63-1")
+        raise ValueError("Seed should be between 0 and 2^63-1")
     template = TEMPLATE.read_text(encoding="utf-8")
     if template.count("REVISION = None") != 1:
-        raise ValueError("Template inválido")
+        raise ValueError("Invalid Template")
     numbers = [int(m[1]) for p in output.iterdir()
                if (m := re.fullmatch(r"sandbox_regression_v(\d{4,})\.py", p.name))]
     number = max(numbers, default=0) + 1

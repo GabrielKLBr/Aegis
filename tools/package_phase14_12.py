@@ -30,14 +30,14 @@ def main():
     for name in ('NativeUserIntegrationTests.py','Compat32LoaderTests.cpp'):copy(validation.ROOT/'test'/name,'test/'+name)
     for name in ('Compat32Acceptance.cpp','Compat32ConsoleEntry.cpp','Compat32Kernel.cpp','Compat32Crt.cpp','Compat32Gate.asm','Compat32User.inl'):copy(validation.ROOT/'guest/fixtures'/name,'guest/fixtures/'+name)
     copy(validation.ROOT/'docs/PHASE-14.12.md','docs/PHASE-14.12.md')
-    (out/'LEIA-ME.txt').write_text(
-        'Aegis 14.12A: nucleo PE32/x86 para NT 10.0.19045. A fase 14.12 ampla permanece aberta.\n'
-        'Requisitos: Windows x64 com WHP/NX ativos, Python, MSVC x86/x64, SDK e runtime ASan local.\n'
-        'Os EXEs em guest/compat32 sao entradas SOMENTE para o MiniNT, nunca para execucao no host.\n'
-        'Leia docs/PHASE-14.12.md. APIs x86 limitadas, sem WOW64 completo.\n'
-        'Reproducao: tools/validate_compat32.py --build ESTA_PASTA --config Release ou Debug '
+    (out/'README.txt').write_text(
+        'Aegis 14.12A: PE32/x86 nucleo for NT 10.0.19045. Phase 14.12 wide remains aberta.\n'
+        'Requirements: Windows x64 with WHP/NX active, Python, MSVC x86/x64, SDK and runtime ASan local.\n'
+        'EXEs in guest/compat32 are entries ONLY for MiniNT, never to run in host.\n'
+        'Read docs/PHASE-14.12.md. APIs x86 limited without WOW64 completo.\n'
+        'Reproduction: tools/validate_compat32.py --build ESTA_PASTA --config Release or Debug '
         '--output PASTA_NOVA --corpus CACHE_EXTERNO --asan-runtime PASTA_ASAN_LOCAL.\n'
-        'O corpus externo e compilado localmente e roda apenas no MiniNT. Fonte/binario externos e DLLs Microsoft nao sao redistribuidos.\n',encoding='utf-8')
+        'The external corpus is locally compiled and runs only on MiniNT. Fonte/binario external and DLLs Microsoft are not redistribuidos.\n',encoding='utf-8')
     manifest={'schema':1,'phase':'14.12','subphase':'14.12A','scope':'initial-x86-core','phaseComplete':False,'targetNt':'10.0.19045','architectures':{'host':'x64','kernel':'x64','application':'x86'},'configurations':['Release','Debug'],'tests':{c:p['tests'] for c,p in accepted.items()},'earlierPhasesRevalidated':False,'microsoftInputsIncluded':False,'externalSourceOrBinaryIncluded':False,'files':{file.relative_to(out).as_posix():snapshots.sha(file) for file in sorted(out.rglob('*')) if file.is_file()}}
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:

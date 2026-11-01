@@ -1,34 +1,25 @@
-# Compilação e execução nativas no Linux
+# Build and run native to Linux
 
-Atualização: 18/10/2026. Pedido desta continuação: compilar também para Linux,
-evitando Wine. O suporte Windows/MSVC/WHP permanece no projeto.
+Update: 18/10/2026. Request for this continuation: Build for Linux as well, avoiding Wine. Windows/MSVC/WHP support remains in the project.
 
-**Continuação após habilitar NX:** agora há executor KVM e recompilação das
-imagens do convidado no Linux. Uso, limites e matriz: [LINUX-KVM.md](LINUX-KVM.md).
+**Continuation after enabling NX:** now there is KVM executable and recompilation of the guest images on Linux. Use, limits and matrix: [LINUX-KVM.md](LINUX-KVM.md).
 
-## Disponível
+## Available
 
-`guardianav` é um executável **ELF x86-64**, com ponto de entrada Linux. Usa
-OpenSSL 3 para SHA-256 e interfaces POSIX para leitura. Não inicia Wine, DLLs,
-executáveis analisados ou subprocessos para calcular hashes.
+`guardianav` is an executable **ELF x86-64**, with Linux input point. Uses OpenSSL 3 for SHA-256 and POSIX interfaces for reading. Do not start Wine, DLLs, parsed executables or subprocesses to calculate hashes.
 
-- Scanner recursivo por SHA-256 e substring, com o formato de `signatures.txt`
-  existente e a regra interna de teste EICAR.
-- Hash SHA-256 de arquivo inteiro, incluindo nomes UTF-8.
-- Inspeção estática de imagens `.gk` pelo parser existente, sem inicializar VM.
-- Compilação nativa dos mesmos algoritmos de memória, escalonamento, processos,
-  handles/direitos, I/O, volume, runtime, loader PE e unwind utilizados no convidado.
+- recursive scanner with SHA-256 and substring, with `signatures.txt` format
+  existing and the internal EICAR test rule.
+- Hash SHA-256 of entire file, including UTF-8 names.
+- Static inspection of `.gk` images by the existing parser without initializing VM.
+- Native compilation of the same memory algorithms, staggering, processes,
+  handles/rights, I/O, volume, runtime, loader PE and unwind used in the guest.
 
-O scanner só lê os arquivos. Uma ausência de correspondência significa que as
-regras consultadas não coincidiram; não é classificação geral de segurança.
-Não há quarentena automática, monitoramento de diretórios, integração com
-Security Center ou interface gráfica nesta versão Linux.
+The scanner reads only the files. A lack of correspondence means that the rules consulted did not match; it is not general security rating. There is no automatic quarantine, directory monitoring, integration with Security Center or graphical interface in this Linux version.
 
-## Compilar
+## Build
 
-Dependências: Linux x86-64, GCC/Clang com C++20, CMake 3.22+, make, Python 3.9+
-e OpenSSL 3 com headers de desenvolvimento. Em Mint/Ubuntu, os pacotes usuais
-são `g++`, `cmake`, `make`, `python3` e `libssl-dev`.
+Dependencies: Linux x86-64, GCC/Clang with C++20, CMake 3.22+, make, Python 3.9+ and OpenSSL 3 with development headers. In Mint/Ubuntu, the usual packages are `g++`, `cmake`, `make`, `python3` and `libssl-dev`.
 
 ```bash
 ./Build-Linux.sh Release
@@ -36,21 +27,13 @@ são `g++`, `cmake`, `make`, `python3` e `libssl-dev`.
 ./Build-Linux.sh Sanitize
 ```
 
-Os binários ficam em `build-linux/<configuração>/`. `Sanitize` usa Debug com
-AddressSanitizer e UndefinedBehaviorSanitizer. As árvores Windows e as evidências
-anteriores não são substituídas.
+The binaries are in `build-linux/<configuração>/`. `Sanitize` uses Debug with AddressSanitizer and UndefinedBehaviorSanitizer. Windows trees and previous evidences are not replaced.
 
-Nesta máquina, CMake e os headers de OpenSSL foram preparados no cache do
-usuário, em `~/.cache/guardian-native-deps`, sem instalação administrativa.
-O script reconhece esse cache; em uma instalação comum usa as dependências do
-sistema. Também aceita `CMAKE`, `GUARDIAN_OPENSSL_ROOT`, `GUARDIAN_BUILD_JOBS`
-e `GUARDIAN_LINUX_BUILD_DIR` para instalações alternativas.
+In this machine, CMake and OpenSSL headers were prepared in the user cache, in `~/.cache/guardian-native-deps`, without administrative installation. The script recognizes this cache; in a common installation it uses the system dependencies. It also accepts `CMAKE`, `GUARDIAN_OPENSSL_ROOT`, `GUARDIAN_BUILD_JOBS` and `GUARDIAN_LINUX_BUILD_DIR` for alternative installations.
 
-O fluxo Windows continua sendo `Build-Kernel.ps1`, com CMake 4+ e MSVC.
-O CMake escolhe o fluxo pelo sistema de destino; não executa uma compilação
-Windows por baixo da compilação Linux.
+The Windows stream continues to be `Build-Kernel.ps1`, with CMake 4+ and MSVC. CMake chooses the flow by the target system; it does not run a Windows compilation below the Linux compilation.
 
-## Usar
+## Use
 
 ```bash
 ./build-linux/Release/guardianav --capabilities
@@ -61,112 +44,55 @@ Windows por baixo da compilação Linux.
 ./build-linux/Release/guardianav inspect-kernel "/caminho/imagem.gk"
 ```
 
-A base padrão é procurada junto ao executável ou em `../share/guardianav/`
-relativamente à instalação. Ela não depende da pasta atual do terminal.
-O pacote em `dist/guardianav-linux-x86_64-20261018/` inclui a base e instruções.
+The default base is searched next to the executable or `../share/guardianav/` for the installation. It does not depend on the current folder of the terminal. The package in `dist/guardianav-linux-x86_64-20261018/` includes the base and instructions.
 
-| Código de saída | Resultado |
+| Output code | Result |
 | --- | --- |
-| 0 | Leitura concluída, sem correspondências; ou operação hash/inspeção concluída |
-| 1 | Uma ou mais assinaturas coincidiram, sem leitura/cobertura incompleta |
-| 2 | Argumentos, base de assinaturas ou configuração inválidos |
-| 3 | Erro de leitura, entrada ignorada ou cobertura parcial, inclusive se houve detecção |
+| 0 | Reading completed, no matches; or hash/inspection operation completed |
+| 1 | One or more signatures coincided, without incomplete reading/coverage |
+| 2 | Arguments, signature base or invalid configuration |
+| 3 | Reading error, ignored input or partial coverage, including if detection occurred |
 
-A busca de conteúdo cobre até 4 MiB; o SHA-256 cobre o arquivo inteiro.
-Arquivo maior sem correspondência por hash é marcado como parcial. Links
-simbólicos, FIFOs e outros arquivos especiais são ignorados na varredura e
-recusados no hash, sem esperar dados de um pipe. Permissões insuficientes e
-alterações detectadas durante a leitura produzem erro. Há limite de profundidade
-de 128 níveis. Nomes com bytes de controle são escapados nos relatórios.
+Content search covers up to 4 MiB; SHA-256 covers the entire file. Larger file without hash matching is marked as partial. Symbolic links, FIFOs and other special files are ignored in the scan and rejected in the hash, without waiting for data from a pipe. Insufficient permissions and changes detected during reading produce error. There is a depth limit of 128 levels. Names with bytes of control are escaped in the reports.
 
-A base tem até 4 MiB, 10.000 regras e 4.096 bytes por linha de regra. Regras
-inválidas causam erro explícito nesta implementação Linux. Os resultados são
-emitidos durante a varredura, sem acumular a árvore inteira em memória.
+The base has up to 4 MiB, 10,000 rules and 4,096 bytes per rule line. Invalid rules cause explicit error in this Linux implementation. The results are issued during scanning, without hoarding the entire tree in memory.
 
-## Validação e alcance
+## Validation and scope
 
 ```bash
 python3 tools/validate_linux_native.py
-# Aceitação completa da etapa atual, com KVM:
+#  Full acceptance of the current step, with KVM:
 python3 tools/validate_phase9.py
 ```
 
-O verificador exige Linux x86-64, compila Debug, Release e Sanitize e exige
-**20 CTests por configuração** (algoritmos, scanner e disco do host; o teste
-real KVM é acrescentado pelo verificador separado), sem falhas ou ignorados. Confere que os
-executáveis são ELF x86-64, registra bibliotecas nativas e hashes das fontes
-e artefatos e exige capacidades compatíveis com este subconjunto.
+The verifier requires Linux x86-64, compiles Debug, Release, and Sanitize and requires **20 CTests per configuration** (host algorithms, scanner, and disk; the actual KVM test is added by the separate verifier), either flawless or ignored. Checks that the executables are ELF x86-64, records native libraries and hashes from sources and artifacts, and requires capabilities compatible with this subset.
 
-Resultado histórico anterior ao backend KVM: os 17 CTests passaram em cada uma das três configurações
-(51 execuções, sem falhas ou ignorados). O teste da CLI aprovou 89 verificações;
-o parser PE aprovou 1.353; a busca de tratadores manteve as 3.059 verificações.
-O pacote foi extraído em pasta temporária e executou capacidades e varredura
-com a base localizada junto ao executável.
+Historical result prior to the KVM backend: the 17 CTests passed in each of the three settings (51 executions, no faults or ignored). The CLI test approved 89 checks; the PE parser approved 1.353; the search for handlers kept the 3.059 checks. The package was extracted in temporary folder and executed capabilities and scan with the base located next to the executable.
 
-Evidência: `build-linux/validation-20261018-032855-683697/validation.json`, com
-logs por configuração, hashes e identificação dos executáveis ELF. Os originais
-anteriores ao fluxo Linux estão em
-`snapshots/codex-before-linux-native-20261018/`.
+Evidence: `build-linux/validation-20261018-032855-683697/validation.json`, with logs per configuration, hashes and identification of ELF executables. The previous Linux stream originals are in `snapshots/codex-before-linux-native-20261018/`.
 
-Os testes de scanner comparam SHA-256 com `hashlib`, cobrem fronteiras de bloco,
-arquivos grandes, assinaturas de conteúdo/hash, caminhos com espaços/Unicode,
-recursão, entradas inacessíveis, links, FIFOs, JSON e preservação dos bytes.
-São criadas sentinelas de `wine`, `wine64`, `cmd.exe` e `powershell.exe` no PATH
-do teste para detectar uma eventual chamada indevida.
+Scanner tests compare SHA-256 to `hashlib`, cover block borders, large files, content/hash signatures, paths with spaces/Unicode, recursion, inaccessible entries, links, FIFOS, JSON and bytes preservation. Sentinels of `wine`, `wine64`, `cmd.exe` and `powershell.exe` are created in the PATH of the test to detect any undue call.
 
-Três imagens próprias congeladas em `test/fixtures/native/` são usadas apenas
-como dados nos testes de parsers. Foram copiadas dos outputs MSVC anteriores
-e têm origem e SHA-256 no manifesto local. Nenhum código PE é executado nesses
-testes de parser. A matriz KVM separada recompila as imagens e executa os PEs
-próprios dentro do convidado.
+Three own frozen images in `test/fixtures/native/` are used only as data in parser tests. They have been copied from previous MSVC outputs and originate from and SHA-256 in the local manifest. No PE code is executed in these parser tests. The separate KVM matrix compiles the images and executes the PEs itself within the guest.
 
-Os testes de unwind informam expressamente que o oráculo Windows não rodou.
-Testes de algoritmos e parsers não substituem a execução do kernel em CPL0/CPL3.
-Após a habilitação de NX na BIOS, o backend KVM foi implementado e executa
-os kernels próprios. `--capabilities` distingue o suporte compilado
-(`vmExecution: true`) da disponibilidade local (`vmAvailable`). As diferenças
-de proteção física e a validação estão em [LINUX-KVM.md](LINUX-KVM.md).
+Unwind tests expressly state that the Windows oracle has not rotated. Algorithms and parsers tests do not replace kernel execution in CPL0/CPL3. After NX enablement in BIOS, the KVM backend has been implemented and executes its own kernels. `--capabilities` distinguishes compiled support (`vmExecution: true`) from local availability (`vmAvailable`). Physical protection and validation differences are in [LINUX-KVM.md](LINUX-KVM.md).
 
-A implementação restante da fase 8 foi concluída para a matriz de consoles
-próprios: exceções em CPL3, unwind não local e DLLs dinâmicas. A validação
-Linux/KVM passou com 20 CTests em cada configuração (incluindo o teste KVM),
-132 boots reais e quatro recusas esperadas. A aceitação nativa Windows desta
-revisão continua pendente; a fase 9 não foi iniciada. Evidências e limites em
-[PHASE-8-COMPLETION.md](PHASE-8-COMPLETION.md).
+The remaining implementation of phase 8 was completed for the console matrix itself: exceptions in CPL3, non-local unwind and dynamic DLLs. Linux/KVM validation passed with 20 CTests in each configuration (including the KVM test), 132 real bootes and four expected refusals. Native Windows acceptance of this review remains pending; phase 9 was not started. Evidence and limits in [PHASE-8-COMPLETION.md](PHASE-8-COMPLETION.md).
 
-## Continuação da fase 9
+## Continuation of Phase 9
 
-O executor `guardian-vm` acrescenta snapshots completos, gerenciamento,
-clonagem e recuperação. A suíte sem VM tem agora 20 CTests; a matriz com KVM
-tem 23 por configuração. Estado atual, comandos e limites em
-[PHASE-9.md](PHASE-9.md). A fase 10 não foi iniciada.
+The Executor `guardian-vm` adds full snapshots, management, cloning and recovery. The suite without VM now has 20 CTests; KVM matrix has 23 by configuration. Current state, commands and limits in [PHASE-9.md](PHASE-9.md). The phase 10 It wasn't initiated.
 
-A matriz completa da fase 9 passou no Linux: 69 execuções CTest, incluindo
-ASan/UBSan e execução real, mais a regressão das 11 imagens anteriores.
-Evidência: `build-phase9/validation-20261018-103055-f78507d1/validation.json`.
+The complete matrix of phase 9 passed on Linux: 69 CTest plays, including ASan/UBSan and actual execution, plus regression of the previous 11 images. Evidence: `build-phase9/validation-20261018-103055-f78507d1/validation.json`.
 
-## Continuação da fase 10
+## Phase 10 continuation
 
-Política, parser IPv4/IPv6, serviços simulados, laboratório e UDP por relay
-têm fontes comuns para Windows e Linux. `Build-Linux.sh` sem KVM executa 22
-CTests e produz 22 executáveis ELF, incluindo os novos testes compilados.
-A matriz com KVM habilitado tem 27 CTests e é executada por
-`tools/validate_phase10.py`. Resultados e comandos em [PHASE-10.md](PHASE-10.md).
+Politics, parser IPv4/IPv6, simulated services, laboratory and UDP by relay have common sources for Windows and Linux. `Build-Linux.sh` without KVM executes 22 CTests and produces 22 ELF executables, including new compiled tests. The matrix with KVM enabled has 27 CTests and is executed by `tools/validate_phase10.py`. Results and commands on [PHASE-10.md](PHASE-10.md).
 
-Aceitação final da fase 10: 81 execuções CTest e 132 boots de regressão
-aprovados em Debug/Release/Sanitize, sem Wine/QEMU. Evidências e limites:
-[PHASE-10.md](PHASE-10.md). A aceitação nativa Windows permanece pendente.
+Final acceptance of the phase 10: 81 executions CTest and 132 Regression boots approved on Debug/Release/Sanitize, without Wine/QEMU. Evidence and limits: [PHASE-10.md](PHASE-10.md). Native Windows acceptance remains pending.
 
-## Continuação da fase 11
+## Continuation of phase 11
 
-O fluxo atual acrescenta `guardian-gui`: visualizador nativo de aplicações
-próprias dentro do convidado. Não é a interface completa do antivírus.
-Com SDL2 de desenvolvimento disponível, são 24 CTests sem KVM e 32 com KVM;
-o inventário sem KVM contém 24 executáveis ELF. O gate atual é
-`python3 tools/validate_phase11.py`. A aceitação passou: 96 execuções CTest e 132 boots de regressão em
-Debug/Release/Sanitize; gate Windows pendente.
+The current stream adds `guardian-gui`: native viewer of own applications within the guest. It is not the full interface of the antivirus. With available development SDL2, there are 24 CTests without KVM and 32 with KVM; the inventory without KVM contains 24 ELF executables. The current gateway is `python3 tools/validate_phase11.py`. Acceptance has passed: 96 CTest plays and 132 regression Boots in Debug/Release/Sanitize; pending Windows Gate.
 
-A máquina de desenvolvimento usa headers SDL2 extraídos no cache, sem alterar
-a instalação do sistema. Em uma instalação Linux normal, `libsdl2-dev` habilita
-a mesma compilação; o pacote usa a biblioteca SDL2 nativa do sistema.
-Instruções e limites: [PHASE-11.md](PHASE-11.md). Não há Wine/QEMU.
+The development machine uses SDL2 headers extracted in the cache without changing the installation of the system. In a normal Linux installation, `libsdl2-dev` enables the same compilation; the package uses the native SDL2 library of the system. Instructions and limits: [PHASE-11.md](PHASE-11.md). There is no Wine/QEMU.

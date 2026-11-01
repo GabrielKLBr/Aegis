@@ -26,8 +26,8 @@ def main():
     if p.is_file() and p.suffix in ('.json','.ppm'):copy(p,pathlib.Path('evidence')/folder/p.relative_to(source))
   copy(ROOT/'test/GraphicsApplicationTests.py','tools/GraphicsApplicationTests.py')
   copy(ROOT/'test/test_vm_graphics.py','tools/test_vm_graphics.py')
-  text='''GuardianAV fase 11 — Linux x86-64 nativo\n\n./guardian-gui guest/guardian-kernel-graphics.gk resultados\n./guardian-gui guest/guardian-kernel-graphics.gk resultados --interactive\n\nEnter dispensa o diálogo. Clique no Paint para desenhar, ou no Notes para digitar.\nEscape/fechar termina. Limite interativo: 30 segundos.\nRequisitos: KVM com NX, acesso a /dev/kvm, libcrypto.so.3 e libSDL2-2.0.so.0.\nO modo sem janela dispensa um servidor de vídeo; o interativo precisa dele.\n\nSão aplicações gráficas próprias com API explícita, não compatibilidade USER32/GDI.\nProduto Windows/MSVC/WHP preservado; validação nativa Windows pendente.\nConsulte docs/PHASE-11.md para limites e testes.\n'''
-  (root/'LEIA-ME.txt').write_text(text)
+  text='GuardianAV phase 11 — Linux x86-64 native\n\n./guardian-gui guest/guardian-kernel-graphics.gk resultados\n./guardian-gui guest/guardian-kernel-graphics.gk resultados --interactive\n\nEnter does not require dialogue. Click Paint to draw, or Notes to type.\nEscape/fechar ends. Interactive limit: 30 seconds.\nRequirements: KVM with NX, access to /dev/kvm, libcrypto.so.3 and libSDL2-2.0.so.0.\nThe windowless mode dispenses a video server; the interactive one needs it.\n\nThey are proprietary graphics applications with explicit API, not USER32/GDI compatibility.\nWindows/MSVC/WHP product preserved; native Windows validation pending.\nSee docs/PHASE-11.md for limits and tests.\n'
+  (root/'README.txt').write_text(text)
   hashes={p.relative_to(root).as_posix():sha(p) for p in sorted(root.rglob('*')) if p.is_file()}
   (root/'manifest.json').write_text(json.dumps({'phase':11,'files':hashes,'sources':accepted['sources']},indent=2)+'\n')
   with tarfile.open(destination,'w:gz') as archive:archive.add(root,arcname=name)

@@ -1,4 +1,4 @@
-// VmGuard.cpp - hardening ("blindagem") of the NT personality.
+// VmGuard.cpp - armoring of the NT personality.
 //
 // Two things malware does to escape a naive sandbox, both caught here on real
 // hardware-isolated WHP:

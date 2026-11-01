@@ -1,71 +1,42 @@
-# 14.13A — Preparação automática e integração do runtime
+# 14.13A — Automatic preparation and integration of runtime
 
-Continuação delimitada da 14.13 em 29/10/2026. O perfil permanece NT
-10.0.19045, com os contratos parciais de DLLs já descritos nas fases anteriores.
-Esta entrega não inicia a aceitação ampla da 14.14.
+Delimited continuation of 14.13 in 29/10/2026. The profile remains NT 10.0.19045, with partial contracts of DLLs already described in the previous stages. This delivery does not start the broad acceptance of 14.14.
 
-## Comportamento
+## Behavior
 
-Um EXE sem cadastro individual pode usar um dos modelos locais provisionados.
-O controlador lê seu PE32/PE32+, confere importações normais e adiadas, nomes,
-ordinais e encaminhamentos de exports. Seleciona um modelo compatível com a
-arquitetura, reconstrói o volume em memória com os bytes exatos do EXE e refaz
-os vínculos de integridade. O catálogo original permanece sem alterações.
+An EXE without individual registration can use one of the local templates provided. The controller reads its PE32/PE32+, confers normal and delayed imports, names, ordinals and export forwardings. Selects an architecture-compliant model, rebuilds the volume in memory with the exact bytes of the EXE and remakes the integrity links. The original catalog remains unaltered.
 
-Os três modelos padrão cobrem o recorte de frameworks/CRT/GDI x64, USER32 básico
-x64 e compat32. O primeiro inclui as dependências selecionadas de MSVCP,
-MSVCRT, WinMM, shell e controles. Isso disponibiliza DLLs para resolução;
-não torna suas APIs completas. Uma função pode existir em outro pacote e não
-estar disponível no modelo selecionado. A lista `unresolved`, limitada a 128
-entradas, identifica os requisitos indisponíveis. Importações dinâmicas ainda
-dependem da validação durante a execução.
+The three standard models cover the clipping of frameworks/CRT/GDI x64, basic USER32 x64 and compat32. The first includes the selected dependencies of MSVCP, MSVCRT, WinMM, shell and controls. This provides DLLs for resolution; does not make your APIs complete. A function may exist in another package and not be available in the selected model. The `unresolved` list, limited to 128 entries, identifies the unavailable requirements. Dynamic imports still depend on validation during execution.
 
-Não há compilação, Python ou busca de DLLs no Windows durante a análise.
-Também não há execução do EXE nem carregamento de suas DLLs no host. Os únicos
-helpers iniciados continuam sendo os executáveis conhecidos junto ao controlador,
-com o hash esperado. Arquivos auxiliares do aplicativo e DLLs particulares não
-são copiados automaticamente da pasta escolhida; exigem um pacote preparado.
+There is no compilation, Python, or search for DLLs on Windows during the analysis. There is no EXE execution or upload of your DLLs on the host. The only helpers started are still known executables next to the controller, with the hash expected. Application auxiliary files and particular DLLs are not automatically copied from the chosen folder; they require a prepared package.
 
-Na página Sandbox do app:
+On the Sandbox page of the app:
 
-- **Analisar um arquivo** prepara e executa pelo serviço;
-- o progresso mostra conexão, preparação, conferência e execução;
-- **Cancelar** interrompe a conexão e encerra o job com os processos da sessão;
-- **Salvar ponto** inicia um EXE com USER32 básico e salva após 12 requisições
-  nativas, ou ao atingir a janela de cinco segundos;
-- **Retomar ponto** reutiliza o último ponto salvo, ou permite escolher
-  `recovery.json`. O payload necessário é guardado como `payload.bin` junto dele.
+- **Analyze a file** prepares and executes for the service;
+- progress shows connection, preparation, conference and execution;
+- **Cancel** interrupts the connection and closes the job with the session processes;
+- **Save point**starts an EXE with basic USER32 and saves after 12 requests
+  native, or when reaching the five-second window;
+- **Retake point** reuses the last saved point, or allows you to choose
+  `recovery.json`. The required payload is stored as `payload.bin` next to it.
 
-O botão **Bundle preparado** mantém a operação explícita anterior da 14.10G.
-Ele não é um fallback para EXEs que falharam no runtime unificado.
+The **Bundle button prepared** keeps the previous explicit operation of the 14.10G. It is not a fallback for EXEs that failed in the unified runtime.
 
-Salvar e retomar são operações próprias do protocolo do serviço. A restauração
-automática conserva o modelo usado originalmente, inclusive quando outro modelo
-também resolveria as importações do EXE. Permanecem obrigatórias as identidades
-do controlador, catálogo, aplicação, política e snapshot.
+Saving and resuming are operations that are specific to the service protocol. Automatic restoration preserves the model used originally, including when another model would also resolve EXE imports. The controller's identities, catalog, application, policy and snapshot remain mandatory.
 
-O instalador copia o catálogo para a pasta versionada protegida dos serviços,
-com limites de membros e tamanho. Sem `sandboxRuntime` explícito, o controlador
-usa `runtime` ao lado do executável. A configuração explícita continua tendo
-precedência. O serviço roda o worker restrito na sessão do usuário.
+The installer copies the catalog to the services protected versioned folder, with member limits and size. Without explicit `sandboxRuntime`, the controller uses `runtime` next to the executable. The explicit configuration continues to take precedence. The service runs the restricted worker in the user session.
 
-O pedido externo aceita até 60 segundos, mas a execução do kernel é limitada
-a 30 segundos e informa `executionBudgetMs`. Salvar/retomar usam temporariamente
-até 1536 MiB por processo e 2048 MiB por job para acomodar as cópias da RAM de
-256 MiB durante a serialização. As análises normais conservam suas cotas.
+The external request accepts up to 60 seconds, but the kernel execution is limited to 30 seconds and informs `executionBudgetMs`. Save/resume use temporarily up to 1536 MiB per process and 2048 MiB per job to accommodate copies of the 256 MiB RAM during serialization. Normal analyses keep their quotas.
 
-## Preparação local
+## Local preparation
 
-Depois de compilar as dependências desta entrega, provisione um diretório novo:
+After compiling the dependencies of this delivery, provide a new directory:
 
 ```text
 python tools/provision_runtime.py --build BUILD --config Release --registry BUILD/Release/runtime --work WORK --reference CRT_LOCAL --schema-reference SCHEMA_LOCAL
 ```
 
-As referências Microsoft devem ser locais e obtidas legalmente. O catálogo
-gerado não vai ao repositório público nem ao arquivo de build desta entrega.
-O instalador existente usa o catálogo ao lado do pacote do serviço. Novas
-versões dos helpers ou kernels exigem reprovisionamento.
+Microsoft references should be local and legally obtained. The catalog generated does not go to the public repository or build file of this delivery. The existing installer uses the catalog next to the service package. New versions of helpers or kernels require re-provisioning.
 
 ```text
 guardian-runtime --input PROGRAMA.exe --runtime-root CATALOGO --output NOVA_SESSAO
@@ -74,46 +45,25 @@ guardian-engine-service --checkpoint PROGRAMA.exe
 guardian-engine-service --resume CAMINHO/recovery.json
 ```
 
-## Validação do lote
+## Batch validation
 
-`tools/validate_runtime_integration.py` verifica somente os fluxos alterados e
-as dependências utilizadas: **20/20 Release e 20/20 Debug**. Inclui provisionamento,
-PE malformado, reconstrução sob ASan, x86 e CRT x64 sem cadastro individual,
-checkpoint/restauração de GUI, integridade, travessia de caminhos, recusa de
-checkpoint GDI, prazo, fila do scanner e programas independentes.
-São 1500 mutações e 192 truncamentos por configuração no teste do leitor PE.
+`tools/validate_runtime_integration.py` checks only the altered flows and dependencies used: **20/20 Release and 20/20 Debug**. Includes provisioning, malformed PE, reconstruction under ASan, x86 and CRT x64 without individual registration, checkpoint/restoration of GUI, integrity, crossing paths, refusal of GDI checkpoint, deadline, scanner queue and independent programs. There are 1500 mutations and 192 truncations per configuration in the PE reader test.
 
-`tools/validate_runtime_services.py` verifica **11/11** casos nos serviços
-instalados em Release: hashes atuais, catálogo/helpers, restrições do worker,
-pacote automático, progresso, salvar/retomar, cancelamento, controles
-independentes, antivírus e estabilidade dos fontes/binário. Os dois serviços
-foram efetivamente atualizados. A interface foi compilada em Release e Debug;
-não houve uma bateria automatizada de cliques em toda a interface.
+`tools/validate_runtime_services.py` verifies **11/11** cases in the services installed in Release: current hashes, catalog/helpers, worker restrictions, automatic package, progress, save/resume, cancellation, independent controls, antivirus and stability of source code/binary. The two services were effectively updated. The interface was compiled in Release and Debug; there was no automated battery of clicks across the entire interface.
 
-`tools/package_runtime_integration.py` exige essas provas atuais e gera o
-arquivo para o repositório privado de builds. O pacote extraído passa novamente
-pelos 20 casos do lote em ambas as configurações, com referências locais.
-As suítes completas das fases antigas não foram repetidas.
+`tools/package_runtime_integration.py` requires these current proofs and generates the file for the private builds repository. The extracted package goes again through the 20 batch cases in both settings, with local references. The complete suites of the old phases have not been repeated.
 
-## Programas reais e próximos bloqueios
+## Real programs and next blockages
 
-Os EXEs locais foram mantidos sem modificações. Sua identificação exata consta
-dos SHA-256 nos resultados privados. Compatibilidade parcial não conta como
-execução concluída:
+The local EXEs have been kept unchanged. Their exact identification is contained in the SHA-256 in the private results. Partial compatibility does not count as completed execution:
 
-| Programa | Resultado desta rodada | Próximo bloqueio observado |
+| Program | Result of this round | Next block observed |
 |---|---|---|
-| Hello World em C independente | Concluiu no MiniNT x86 | Corpus pequeno, compilação descrita na 14.12 |
-| 7-Zip, `7z.exe` | Recusado antes da execução | Ordinais de OLEAUT32, APIs de token, console, arquivos e processos |
-| Bloco de Notas, `notepad.exe` | Recusado antes da execução | Diálogos, menus, controles, contratos API-set e impressão |
-| Flappy Window 1.5 | Carregou e executou parcialmente; inconclusivo | `settings.txt` ausente do volume e limitações do CRT, incluindo `HeapSetInformation` |
+| Hello World ed C independent | Finished no MiniNT x86 | Small corpus, compilation described in 14.12 |
+| 7-Zip, `7z.exe` | Refused before execution | OLEAUT32 ordinals, token APIs, console, files and processes |
+| Notepad, `notepad.exe` | Refused before execution | Dialogues, menus, controls, contracts API-set and printing |
+| Flappy Window 1.5 | Loaded and executed partially; inconclusivo | `settings.txt` missing from CRT volume and limitations, including `HeapSetInformation` |
 
-Ordem proposta para o trabalho seguinte: empacotamento explícito dos arquivos
-auxiliares e bloqueios do CRT observados; resolução de contratos/ordinais e APIs
-centrais apontados pelo corpus; continuidade da 14.12 para x86 e GDI; expansão
-do corpus e perfis na 14.14. Cada nova etapa requer sua própria aceitação.
+Proposed order for the following work: explicit packaging of the observed CRT auxiliary files and blockages; resolution of contracts/ordinais and central APIs pointed out by the corpus; continuity of 14.12 to x86 and GDI; expansion of corpus and profiles in 14.14. Each new step requires its own acceptance.
 
-GDI/DirectX/áudio vivos, timers ou sends pendentes e rede conectada continuam
-fora do contrato de checkpoint. Um resultado completo continua significando
-execução concluída dentro da cobertura declarada, sem certificar que o arquivo
-é seguro ou que todas as funções de DLL foram observadas.
+GDI/DirectX/audio live, timers or pending sents and connected network remain outside the checkpoint contract. A complete result continues to mean execution completed within the declared coverage, without certifying that the file is secure or that all DLL functions have been observed.

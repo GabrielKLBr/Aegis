@@ -28,7 +28,7 @@ bool ListSecurityProducts() {
     bool needUninit = SUCCEEDED(hr);
     if (hr == RPC_E_CHANGED_MODE) { needUninit = false; hr = S_OK; }
     if (FAILED(hr)) {
-        PrintLine(L"COM init failed.", Color::Red);
+        PrintLine(L"With init failed.", Color::Red);
         return false;
     }
 

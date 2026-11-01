@@ -74,40 +74,8 @@ def main():
     copy(nt.ROOT/'config/internet-ordinals.json','config/internet-ordinals.json')
     copy(nt.ROOT/'test/fixtures/internet/certificates.json','test/fixtures/internet/certificates.json')
     for name in ('LICENSE.txt','UPSTREAM.json'):copy(nt.ROOT/'guest/third_party/bearssl'/name,'licenses/BearSSL/'+name)
-    (out/'LEIA-ME-12F.txt').write_text('''Aegis 12F - janelas independentes do MiniNT no desktop Windows
-
-Requer Windows x64 com WHP/NX e Visual C++ runtime. Os testes Debug do host
-exigem tambem o runtime de depuracao do Visual Studio, como na maquina validada.
-A matriz aceita Windows 10 x64 no convidado, com callbacks executados no MiniNT.
-As janelas nativas recebem pixels e devolvem somente eventos tipados da sessao.
-Janelas tem prefixo [MiniNT]; popups sem titulo recebem uma borda azul.
-
-Nao inclui DLLs Microsoft de entrada, Flappy, ISO, discos ou estados de VM.
-Forneca CRT/schema legais e, para o Flappy, o executavel original/settings/icon.
-
-Aplicativo proprio (requer interacao A, texto, clique e M para dialogo):
-python -B tools/integrated_runtime.py --build . --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output app-12f
-.\\Release\\guardian-desktop.exe guest/Release/guardian-kernel-integrated.gk app-12f/runtime.gpv app-12f/manifest.json app-12f/binding.gnt sessao-12f --integrated --seconds 30
-
-Para o Flappy, acrescente --application CAMINHO-FLAPPY --asset CAMINHO-SETTINGS
---asset CAMINHO-ICON a criacao do pacote. Ele continua executando no MiniNT.
-O modo --interactive permanece como alternativa de visualizador unico.
-Nao misture --integrated com --interactive ou --script; --window-script e o
-roteiro tipado de testes das janelas integradas, explicado em PHASE-12F.md.
-
-DPI do convidado e virtualizado em 96; apresentacao nativa suporta 96 a 240 DPI.
-Sessoes do CLI duram ate 30 segundos. Sem GPU passthrough, clipboard ou drag/drop.
-A rede permanece offline, salvo politica explicita da 14.9.
---state permite reiniciar com disco virtual de 64 KiB; snapshots de RAM desta
-familia grafica continuam recusados. Estados nao sao distribuidos.
-
-Para conferir todos os arquivos e executar Release e Debug:
-python -B tools/smoke_phase14_10b.py --package . --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --application CAMINHO-FLAPPY --output EVIDENCIA-NOVA
-
-Leia PHASE-12F.md e as entregas anteriores para o suporte e suas limitacoes.
-Este texto descreve o modo 12F; veja LEIA-ME.txt para a entrega 14.10B.
-''',encoding='utf-8')
-    (out/'LEIA-ME.txt').write_text('Aegis 14.10B — Windows x64 / MiniNT\n\nWindows/WHP/NX e runtime Visual C++ sao necessarios; Debug exige runtime do Visual Studio.\nJanelas e BUTTON/STATIC/EDIT reais em auxiliar restrito, imports USER32 no convidado.\nCallbacks permanecem no MiniNT. USER32/GDI completos e DirectX nao sao declarados.\nLeia PHASE-14.10B.md para contrato, limites, uso e validacao.\nForneca CRT e schema legais fixados; eles nao estao neste ZIP.\npython -B tools/native_user32_runtime.py --build . --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output app-native\nRelease/guardian-desktop.exe guest/Release/guardian-kernel-native-user32.gk app-native/runtime.gpv app-native/manifest.json app-native/binding.gnt sessao-nova --native-user32 --seconds 8\nO auxiliar deve ficar ao lado do guardian-desktop; o manifesto fixa seu SHA256.\nPara verificar todos os bytes e repetir os cenarios nos dois modos de compilacao:\npython -B tools/smoke_phase14_10b.py --package . --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --application CAMINHO-FLAPPY --output EVIDENCIA-NOVA\nSem DLLs Microsoft de entrada, Flappy, ISOs ou estados pessoais.\nA 14.10C nao foi iniciada.\n',encoding='utf-8')
+    (out/'README-12F.txt').write_text('Aegis 12F - MiniNT independent windows on Windows desktop\n\nRequires Windows x64 with WHP/NX and Visual C++ runtime. Debug Host Tests\nthey also require Visual Studio debugging runtime, as in the validated machine.\nThe matrix accepts Windows 10 x64 in the guest, with callbacks running on MiniNT.\nThe native windows receive pixels and return only typed sessage events.\nWindows have prefix [MiniNT]; popups without title receive a blue border.\n\nIt does not include Microsoft input DLLs, Flappy, ISO, disks or VM states.\nProvides legal CRT/scheme and, for Flappy, the executioner original/settings/icon.\n\nOwn application (requires interaction A, text, click and M for dialogue):\npython -B tools/integrated_runtime.py --build . --config Release --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --output app-12f\n.\\Release\\guardian-desktop.exe guest/Release/guardian-kernel-integrated.gk app-12f/runtime.gpv app-12f/manifest.json app-12f/binding.gnt sessao-12f --integrated --seconds 30\n\nFor Flappy, add --application FLAPPY-PATH --asset CAMINHO-SETTINGS\n--asset CAMINHO-ICON a criacao do pacote. Ele continua executando no MiniNT.\nThe --interactive mode remains a unique viewer alternative.\nDo not mix --integrated with --interactive or --script; --window-script and\nTyped script of integrated window tests, explained in PHASE-12F.md.\n\nGuest DPI is virtualized in 96; native presentation supports 96 to 240 DPI.\nCLI sessions last up to 30 seconds. No GPU passthrough, clipboard or drag/drop.\nThe network remains offline, except for explicit 14.9 policy.\n--state permite reiniciar com disco virtual de 64 KiB; snapshots de RAM desta\nThe state is not distributed.\n\nTo check all files and run Release and Debug:\npython -B tools/smoke_phase14_10b.py --package . --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --application FLAPPY-PATH --output NEW-EVIDENCE\n\nRead PHASE-12F.md and previous deliveries for support and its limitations.\nThis text describes 12F mode; see README.txt for 14.10B delivery.\n',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis 14.10B — Windows x64 / MiniNT\n\nWindows/WHP/NX and Visual C++ runtime are necessary; Debug requires Visual Studio runtime.\nWindows and BUTTON/STATIC/EDIT real in restricted auxiliary, imports USER32 in guest.\nCallbacks remain in MiniNT. Full USER32/GDI and DirectX are not declared.\nRead PHASE-14.10B.md for contract, limits, use and validation.\nProvides CRT and fixed legal schema; they are not in this ZIP.\npython -B tools/native_user32_runtime.py --build . --config Release --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --output app-native\nRelease/guardian-desktop.exe guest/Release/guardian-kernel-native-user32.gk app-native/runtime.gpv app-native/manifest.json app-native/binding.gnt sessao-nova --native-user32 --seconds 8\nThe auxiliary must be next to the Guardian-desktop; the manifesto fixes its SHA256.\nTo check all the bytes and repeat the sceneries in both compile modes:\npython -B tools/smoke_phase14_10b.py --package . --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --application FLAPPY-PATH --output NEW-EVIDENCE\nNo Microsoft inbound DLLs, Flappy, ISOs or personal states.\n14.10C has not been initiated.\n',encoding='utf-8')
     files={path.relative_to(out).as_posix():nt.sha(path.read_bytes()) for path in sorted(out.rglob('*')) if path.is_file()};(out/'manifest.json').write_bytes(nt.canonical({'schema':1,'phase':'14.10B','files':files,'acceptance':{'Release':len(REQUIRED),'Debug':len(REQUIRED)},'regressionTests':TOTAL_TESTS,'microsoftInputBinariesIncluded':False,'externalApplicationIncluded':False,'completeWindowsGui':False,'phase12FStarted':True,'arbitraryUser32Passthrough':False,'gpuAcceleration':False,'phase14_8Started':True,'phase14_9Started':True,'phase14_10Started':True,'phase14_10AStarted':True,'phase14_10BStarted':True,'phase14_10CStarted':False,'standardUser32Subset':True,'nativeGuiBackend':'win32-user32-helper','hostTls':False,'hostCredentials':False,'completeWindowsNetworking':False,'completeCOM':False,'completeNDR':False}))
     with zipfile.ZipFile(archive,'x',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
         for path in sorted(out.rglob('*')):

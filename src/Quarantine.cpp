@@ -48,7 +48,7 @@ void Quarantine::List() const {
         PrintLine(Utf8ToWide(e.what()), Color::Red);
     }
 #else
-    PrintLine(L"O serviço de quarentena não está incluído nesta build.", Color::Red);
+    PrintLine(L"The quarantine service is not included in this build.", Color::Red);
 #endif
 }
 } // namespace av

@@ -1,128 +1,61 @@
-# Fase 8 — Processos filhos e ciclo de vida PE
+# Phase 8 — Child and life cycle processes
 
-Data de referência: 17/10/2026. Estado: **fase 8 em andamento**.
-Este é o quarto marco; a fase 9 não foi iniciada.
+Reference date: 17/10/2026. Status: **phase 8 in progress**. This is the fourth milestone; phase 9 was not initiated.
 
-## Resultado
+## Result
 
-O convidado executa um console PE próprio que cria outros processos PE,
-espera seu término e consulta os códigos do processo e da thread inicial.
-A DLL própria exporta `CreateProcessA`, `GetExitCodeProcess`, `GetCommandLineA`,
-`ExitThread` e `ExitProcess`. As APIs de espera e fechamento também aceitam
-handles de processo. A imagem anterior do runtime permanece na regressão.
+The guest runs a PE console itself that creates other PE processes, expects it to end and query the process codes and initial thread. The own DLL exports `CreateProcessA`, `GetExitCodeProcess`, `GetCommandLineA`, `ExitThread` and `ExitProcess`. The wait and closing APIs also accept process handles. The previous image of the runtime remains in the regression.
 
-Cada processo tem seu próprio loader, espaço de endereçamento, módulos,
-relocations, índices TLS, PEB e lock de inicialização. O catálogo é imutável
-no kernel e contém somente os executáveis e a DLL de referência do projeto.
-O filho usa a mesma identidade e sessão, com integridade reduzida para 1 e sem
-privilégios adicionais. Não herda handles. Esta restrição é uma política do
-convidado, mais estreita que a criação comum do Windows.
+Each process has its own loader, address space, modules, relocations, TLS, PEB and startup lock indexes. The catalog is unchangeable in the kernel and contains only executables and project reference DLL. The child uses the same identity and session, with reduced integrity to 1 and no additional privileges. It does not inherit hands. This restriction is a guest policy, narrower than the common Windows creation.
 
-A inicialização prepara o filho integralmente antes de publicar seus handles.
-Aceita execução imediata ou suspensa, com retomada pela thread inicial.
-Os handles retornados pertencem ao pai; o filho não consegue usá-los como seus.
-A consulta, espera e alteração continuam sujeitas a tipo, direitos e identidade.
-Os objetos de término sobrevivem enquanto existirem referências, mesmo após
-liberar o espaço de endereçamento e reutilizar os slots de processo/thread.
+Startup prepares the child fully before publishing his handles. Accepts immediate or suspended execution, with restarted by initial thread. Returned handsels belong to the father; the child cannot use them as his own. Query, wait and change continue subject to type, rights and identity. End objects survive as long as there are references, even after releasing the address space and reusing Case/thread. slots
 
-O serviço de arquivos/registro agora confere a limpeza por PID. Terminar um
-filho não exige que a tabela global de handles esteja vazia e não fecha os
-arquivos ou chaves do pai. O teste deixa handles do pai abertos durante todos
-os términos dos filhos para exercitar esse isolamento.
+The files/log service now checks the cleaning by PID. Finishing a child does not require the global handles table to be empty and does not close the father's files or keys. The test leaves the father's handles open during all of the children's endings to exercise this isolation.
 
-## Encerramento
+## Closure
 
-`ExitThread` redireciona a execução para um bootstrap de saída no convidado.
-Ele abandona a pilha de chamadas do usuário, executa os callbacks de saída da
-thread sob o lock de inicialização e sinaliza seu resultado. Pilha, vínculo e
-slot são liberados depois de voltar à tabela de páginas do kernel.
+`ExitThread` redirects the execution to an output bootstrap in the guest. It abandons the user's call stack, executes thread output callbacks under the boot lock and signals its result. Stack, link and slot are released after returning to the kernel page table.
 
-A thread inicial pode sair e deixar outra thread ativa. O heap, PEB, módulos e
-serviços do processo continuam disponíveis. Sua página inicial de bootstrap,
-que também contém o PEB neste layout limitado, é mantida até o processo acabar;
-a pilha e o slot de thread são liberados. O término da última thread executa a
-finalização do processo e usa seu código como resultado do processo. O resultado
-da thread inicial já encerrada permanece preservado no handle antigo.
+The initial thread can come out and leave another thread active. Heat, PEB, modules and process services remain available. Your bootstrap homepage, which also contains the PEB in this limited layout, is maintained until the process is over; the stack and thread slot are released. The end of the last thread executes the process completion and uses its code as a result of the process. The result of the initial thread already closed remains preserved in the old handle.
 
-`ExitProcess` e o retorno do ponto de entrada usam o caminho de término do
-processo. O bootstrap adquire o lock de inicialização, encerra as outras threads
-sem enviar `DLL_THREAD_DETACH` a elas, sinaliza seus resultados e chama os
-callbacks de processo com o indicador de término. Por último, fecha serviços,
-descarrega os módulos, fecha handles e libera o processo. Não termina filhos
-como consequência de fechar apenas o processo pai.
+`ExitProcess` and the return of the input point use the process termination path. Bootstrap acquires the boot lock, closes the other threads without sending `DLL_THREAD_DETACH` to them, signals their results and calls the process callbacks with the end indicator. Finally, closes services, downloads the modules, closes handles and releases the process. It does not end children as a result of closing only the parent process.
 
-Na DLL de referência, o término definitivo permite alocações de heap pendentes,
-pois todo o espaço do processo será destruído. O workload anterior mantém a
-verificação estrita de heap vazio e pares de callbacks equilibrados. Não há
-execução de destrutores C++ automáticos em `ExitThread`, nem unwind/SEH de usuário.
+In the reference DLL, the definitive end allows pending heap allocations as the entire process space will be destroyed. The previous workload keeps the strict verification of empty heap and balanced callback pairs. There is no execution of automatic C++ destructors in `ExitThread`, nor user unwind/SEH.
 
-## Provas por inicialização
+## Startup proofs
 
-O novo console primeiro executa toda a prova anterior do runtime: arquivos,
-registro persistente, heap, 31 workers, contenção, TLS privado e preservação do
-bloco TLS completo da DLL na thread inicial. Em seguida executa 23 filhos:
+The new console first performs all previous runtime proof: files, persistent registry, heap, 31 workers, containment, private TLS and preservation of the full TLS block of DLL in the initial thread. Then performs 23 children:
 
-| Caso | Quantidade | Resultado do processo / thread inicial |
+| Case | Quantity | Process result / initial thread |
 | --- | ---: | --- |
-| Retorno normal | 4 | 11 / 11 |
-| `ExitThread` na única thread | 4 | 33 / 33 |
-| Worker chama `ExitThread(44)` e o principal retorna | 4 | 45 / 45 |
-| Principal sai com 55 e o worker continua no heap | 4 | 66 / 55 |
-| `ExitProcess(22)` com worker suspenso e heap pendente | 4 | 22 / 22 |
-| Dois filhos suspensos simultâneos, retomados depois | 2 | 11 / 11 |
-| Criação sem suspensão | 1 | 11 / 11 |
+| Return normal | 4 | 11 / 11 |
+| `ExitThread` ed single thread | 4 | 33 / 33 |
+| Worker calls `ExitThread(44)` and the main returns | 4 | 45 / 45 |
+| Main comes out with 55 and the worker continues in the heat | 4 | 66 / 55 |
+| `ExitProcess(22)` with worker suspended and heap pending | 4 | 22 / 22 |
+| Two children suspended simultaneously, taken up later | 2 | 11 / 11 |
+| Creation without suspension | 1 | 11 / 11 |
 
-O console verifica `STILL_ACTIVE`, timeout antes da retomada, tipos dos handles,
-resultados após espera, recusa de handle fechado e preservação dos resultados
-antigos durante reutilização. Dois filhos coexistem com o pai; a tentativa de
-criar mais um respeita a quota. Buffers do heap e TLS do pai devem permanecer
-intactos, enquanto o heap e TLS do filho começam com os valores próprios.
-O caso da thread principal também fecha o handle do worker ainda vivo e depende
-do abandono do mutex para o worker continuar. Os callbacks dos filhos verificam
-as notificações esperadas, incluindo saída da thread inicial sem attach de thread.
+The console verifies `STILL_ACTIVE`, timeout before resuming, types of handles, after waiting results, refusal of closed handle and preservation of old results during reuse. Two children coexist with the father; the attempt to create one more respect the quota. Heap buffers and parent TLS must remain intact, while the child's heap and TLS begin with their own values. The case of the main thread also closes the working handle still alive and depends on the abandonment of the mutex for the worker to continue. Children's callsbacks check the expected notifications, including output from the initial thread without thread.
 
-Pedidos com herança, opções de startup não suportadas, nome ausente no catálogo,
-argumentos internos inválidos e linha de comando sem terminador são recusados.
+Inherited requests, unsupported startup options, missing catalog name, invalid internal arguments and command line without terminator are rejected.
 
-Antes de entrar em CPL3, cada boot injeta dez falhas de orçamento na criação:
-seis limites de handles e quatro de objetos. Isso alcança preparação do processo,
-thread, lock do loader e publicação dos handles no pai. Em cada falha, handles de
-saída ficam zerados, e páginas, processos, threads, objetos, handles e referências
-voltam à contagem anterior. Um controle adicional prepara um filho suspenso e o
-limpa sem executar sua entrada. A criação seguinte deve continuar funcionando.
+Before entering CPL3, each boot injects ten budget failures into creation: six handle limits and four objects. This reaches process preparation, thread, loader lock, and handles publication into the parent. In each failure, output handles are zeroed out, and pages, processes, threads, objects, handles, and references return to the previous count. An additional control prepares a suspended child and cleans it without performing its entry. The next creation must continue to work.
 
-O marcador `PE child creation rollback 10 fault budgets PASS` depende dessa
-conferência. `PE child processes explicit exits last-thread lifetime PASS` só é
-emitido depois do retorno zero do console e da limpeza completa de todos os PEs.
+The `PE child creation rollback 10 fault budgets PASS` marker depends on this conference. `PE child processes explicit exits last-thread lifetime PASS` is only issued after the console's zero return and the complete cleaning of all PEs.
 
-## Validação e preservação
+## Validation and preservation
 
-O contrato exige 36 testes por configuração em Debug e Release, sem ignorados.
-A matriz soma 800 boots: 80 do novo ciclo de vida e 720 de regressão. Os 80 boots
-novos executam 1.840 filhos, 800 falhas de orçamento e 80 controles de limpeza
-antes da entrada. Permanecem os 240 cenários externos de falha anteriores e os
-pares de persistência do runtime.
+The contract requires 36 tests per configuration in Debug and Release, without ignoring. The matrix adds 800 boot: 80 of the new life cycle and 720 of regression. The 80 new boot performs 1,840 children, 800 budget failures and 80 cleaning controls before entry. The 240 external scenarios of previous failure and runtime persistence pairs remain.
 
-O teste nativo preserva 904 verificações de ciclo de vida e 693 de processos,
-acrescentando 17 sobre abertura/permissões de thread, ID obsoleto, falha de
-alocação de handle e resultado preservado. O serviço mantém suas 185 verificações
-anteriores e acrescenta dez sobre limpeza por PID, falha com nova tentativa e
-preservação dos handles do outro processo.
+The native test preserves 904 life cycle checks and 693 processes, adding 17 on thread opening/permissions, obsolete ID, handle allocation failure and preserved result. The service maintains its 185 previous checks and adds ten on PID cleaning, fails with a new attempt and preservation of the handles of the other process.
 
-São executados os sete programas de referência por configuração, auditorias das
-dez imagens de produção e provas da CLI, incluindo dois boots persistentes do
-novo workload por configuração. Uma árvore independente,
-`build-phase8-lifetime-clean`, recompila e audita as dez imagens. O build completo
-contém 63 executáveis de ferramentas/testes, 12 imagens de kernel (dez de produção
-e duas de falha) e seis PEs de referência em cada configuração.
+The seven reference programs are executed by configuration, audits of the ten production images and CLI tests, including two persistent bootes of the new workload per configuration. An independent tree, `build-phase8-lifetime-clean`, recompiles and audits the ten images. The complete build contains 63 executables of tools/tests, 12 kernel images (ten production and two failure) and six reference PEs in each configuration.
 
-O snapshot é `snapshots/codex-before-phase8-lifetime-20261017`, com 20 originais.
-Novos logs e discos usam `phase8-lifetime-`. Os 520 arquivos históricos de
-relatórios/logs e os discos dos quatro marcos anteriores são conferidos por
-SHA-256. Boot, segurança e NX do Windows não são alterados.
+The snapshot is `snapshots/codex-before-phase8-lifetime-20261017`, with 20 originals. New logs and disks use `phase8-lifetime-`. The 520 historical files of reports/logs and disks of the previous four milestones are checked by SHA-256. Boot, security and NX from Windows are not changed.
 
-Contrato: `config/phase8-lifetime-acceptance.json`.
-Verificador: `tools/validate_phase8_lifetime.py`.
+Contract: `config/phase8-lifetime-acceptance.json`.
+Checker: `tools/validate_phase8_lifetime.py`.
 Manifesto: `build-codex/phase8-lifetime-change-manifest.json`.
 
 ```powershell
@@ -135,23 +68,10 @@ cmake --build build-phase8-lifetime-clean --config Debug --target guardian_guest
 python tools\validate_phase8_lifetime.py --snapshot snapshots\codex-before-phase8-lifetime-20261017 --run-programs
 ```
 
-## Limites e trabalho restante
+## Limits and work remaining
 
-Há até três processos, quatro threads por processo e uma vCPU. Tamanhos de pilha,
-heap, I/O e strings mantêm os limites anteriores. `CreateProcessA` aceita somente
-o nome do filho no catálogo, linha de comando ASCII de até 127 bytes, startup de
-104 bytes com apenas `cb` definido e flags 0 ou `CREATE_SUSPENDED`. Não há busca em
-PATH, execução de binário externo, herança de handles, ambiente/diretório próprio,
-redirecionamento de console, opções avançadas ou suporte Unicode declarados.
+There are up to three processes, four threads per process and a vCPU. Stack sizes, heap, I/O and strings keep the previous limits. `CreateProcessA` only accepts the name of the child in the catalog, ASCII command line up to 127 bytes, 104 byte startup with only `cb` set and flags 0 or `CREATE_SUSPENDED`. There is no search for PATH, external binary execution, handles inheritance, environment/directory itself, console redirection, advanced options or declared Unicode support.
 
-Não há suporte declarado a saída recursiva durante callbacks de DLL, cancelamento
-completo de I/O por thread ou código arbitrário. A validação de término com falhas
-de callback, threads em todos os estados e outros erros de inicialização continua
-na matriz ampliada. Faltam dispatch de exceções e unwind x64 de usuário, carga e
-descarga dinâmica de DLLs e a auditoria final por aplicação para concluir a fase 8.
-A fase 9 só poderá começar depois dessa conclusão e da parada solicitada.
+There is no declared support for recursive output during DLL callbacks, complete cancellation of I/O by thread or arbitrary code. End validation with callback crashes, threads in all states and other boot errors continues in the expanded matrix. Missing exception and unwind x64 user, dynamic loading and download of DLLs and the final application audit to complete phase 8. Phase 9 can only start after this completion and the requested stop.
 
-Contratos de referência: [CreateProcessA](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa),
-[ExitThread](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitthread),
-[ExitProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitprocess) e
-[GetExitCodeProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getexitcodeprocess).
+Reference contracts: [CreateProcessA](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa), [ExitThread](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitthread), [ExitProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitprocess) and [GetExitCodeProcess](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getexitcodeprocess)].

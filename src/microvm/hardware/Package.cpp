@@ -58,7 +58,7 @@ struct Pe {
     }
     std::string String(uint32_t at) const {std::string s;for(uint32_t n=0;n<128;++n){Require(at<=UINT32_MAX-n,"Driver string RVA overflow");const auto c=bytes[Rva(at+n,1)];if(!c)return s;Require(c>=32&&c<=126,"Invalid driver import name");s+=char(c);}throw std::runtime_error("Driver import name limit exceeded");}
     explicit Pe(std::span<const uint8_t> source):bytes(source){
-        Require(bytes.size()>=64&&U16(0)==0x5A4D,"Driver DOS signature rejected");nt=U32(60);Require(nt<=bytes.size()&&bytes.size()-nt>=24&&U32(nt)==0x4550,"Driver PE header rejected");
+        Require(bytes.size()>=64&&U16(0)==0x5A4D,"DOS signature rejected Driver");nt=U32(60);Require(nt<=bytes.size()&&bytes.size()-nt>=24&&U32(nt)==0x4550,"Driver PE header rejected");
         machine=U16(nt+4);sections=U16(nt+6);const auto optional=U16(nt+20);opt=nt+24;
         Require(optional>=96&&optional<=bytes.size()-opt&&sections&&sections<=96,"Driver optional header rejected");magic=U16(opt);
         Require((machine==0x8664&&magic==0x20B&&optional>=240)||(machine==0x14C&&magic==0x10B&&optional>=224),"Driver machine/format rejected");

@@ -1,184 +1,73 @@
-# Continuação da 12B: escopo completo
+# Continued 12B: full scope
 
-**Estado atual:** revisão full-04 aprovada no Linux: 47/47 Debug, 47/47 Release e
-30/30 ASan/UBSan, com 368 fontes estáveis. A 12B permanece aberta para validação
-Windows e integração aos perfis PE. [Relatório atual e entrega](PHASE-12B-RECURSOS.md).
-As descrições de rascunho abaixo são históricas. A revisão já foi transferida
-para o HD original: [registro de cópia e backup](HD-TRANSFER-20261020.md).
+**Current status:** Full-04 revision approved on Linux: 47/47 Debug, 47/47 Release and 30/30 ASan/UBSan, with 368 stable sources. 12B remains open for Windows validation and integration to PE profiles. [Current report and delivery](PHASE-12B-RESOURCES.md). The draft descriptions below are historical. The review has already been transferred to the original HD: [copy and backup record](HD-TRANSFER-20261020.md).
 
-Em 20/10/2026, o usuário confirmou que o fechamento deve manter o escopo
-completo: SMP real, volume maior e pasta de disco independente. A subfase
-continua aberta. Não iniciar 12C nem rotular o perfil antigo de 1 vCPU/16 KiB
-como encerramento completo.
+In 20/10/2026, the user confirmed that closing should keep the full scope: real SMP, larger volume and independent disk folder. The subphase remains open. Do not start 12C or label the old profile of 1 vCPU/16 KiB as complete closure.
 
-Antes da autorização posterior de escrita, o NTFS original foi montado
-normalmente e permaneceu somente leitura porque o Windows deixou metadados
-em cache. Naquele momento não foi forçada a limpeza. A cópia que
-preserva a entrega anterior está em /home/gabri/Projetos/GuardianAV-12B-20261020.
-A implementação nova está em /home/gabri/Projetos/GuardianAV-12B-complete-20261020.
-Até aquele momento, as fontes originais e os registros Windows permaneciam
-intactos no NTFS. A transferência posterior está registrada no final deste arquivo.
+Before the subsequent writing authorization, the original NTFS was mounted normally and remained read only because Windows left metadata in cache. At that time the cleaning was not forced. The copy that preserves the previous delivery is in /home/gabri/Projects/GuardianAV-12B-20261020. The new implementation is in /home/gabri/Projects/GuardianAV-12B-complete-20261020. Until that time, the original sources and Windows records remained intact in NTFS. The later transfer is registered at the end of this file.
 
-Os XMLs Windows existentes contêm 62 aprovações distintas por configuração,
-combinando execuções completas e retestes. Seus 347 hashes conferiam com a
-entrega copiada. Isso não constitui execução Windows nova desta continuação.
+Existing Windows XMLs contain 62 distinct settings by combining complete and retest executions. Their 347 hashes checked with copied delivery. This does not constitute new Windows execution of this continuation.
 
-LLVM 18.1.3 foi extraído no cache, sem instalação no sistema, para reproduzir
-o fluxo nativo e evitar conflito de intrínsecos com o LLVM 23. As imagens
-recompilaram. O GCC também recusou um campo agregado omitido: budgetRoot recebeu
-inicializador padrão explícito, preservando seu comportamento. Essa alteração
-exige nova identificação das fontes; os hashes Windows anteriores são históricos.
+LLVM 18.1.3 was extracted in the cache, without installation in the system, to reproduce the native flow and avoid conflict of intrinsics with the LLVM 23. The images recompiled. The GCC also refused an omitted aggregate field: budgetRoot received explicit default initializer, preserving its behavior. This change requires a new identification of the sources; the previous Windows hashes are historical.
 
-## Histórico do trabalho em andamento
+## Work history in progress
 
-O volume escalável usa blocos de 64 KiB, metadados redundantes e extents COW.
-O código inicial está em guest/ScalableVolume.* e shared/guardian/ScalableStorage.h.
-É um rascunho ainda sem aceitação, não habilitado nos builds do produto.
-Faltam validar atomicidade, falta de espaço, exclusão e recuperação de falhas.
+The scalable volume uses blocks of 64 KiB, redundant metadata and COW extensions. The initial code is in guest/ScalableVolume.* and shared/guardian/ScalableStorage.h. It is a draft not yet accepted, not enabled in the product builds. There is no validation of atomity, lack of space, deletion and failure recovery.
 
-SMP precisa executar vCPUs reais, com topologia coerente, sincronização e
-checkpoints de todos os processadores. A pasta de disco independente precisa
-isolar propriedade, migração, recuperação, clone e cobrança agregada dos dois
-locais. Nenhum desses itens foi declarado concluído.
+SMP needs to run real vCPUs with coherent topology, synchronization and checkspoints of all processors. The independent disk folder needs to isolate ownership, migration, recovery, clone and aggregate collection of both locations. None of these items has been declared completed.
 
-Após a integração, repetir a matriz e a aceitação Windows da revisão final.
-A fonte original só deve receber as mudanças quando o volume estiver liberado
-para escrita pelo Windows.
+After integration, repeat the Windows matrix and acceptance of the final revision. The original source should only receive the changes when the volume is released for writing by Windows.
 
-## Validação intermediária preservada
+## Intermediary validation preserved
 
-A cópia de referência executou 42 testes Linux/KVM Debug. 41 passaram na
-primeira execução. O teste guest_kvm continha a expectativa antiga de rejeitar
-65 MiB, incompatível com o limite documentado de 1024 MiB da 12B. O caso negativo
-passou a solicitar 1024 MiB + uma página. O reteste passou. XMLs em
-../GuardianAV-12B-20261020/build-phase12b/linux-baseline-debug.xml e
-linux-baseline-kvm-retest.xml. São evidências da referência, não da implementação nova.
+The reference copy ran 42 Linux/KVM tests Debug. 41 passed the first execution. The guest_kvm test contained the old expectation of rejecting 65 MiB, incompatible with the documented limit of 1024 MiB from 12B. The negative case began to request 1024 MiB + one page. The retest passed. XMLs in ../GuardianAV-12B-20261020/build-phase12b/linux-baseline-debug.xml and linux-baseline-kvm-retest.xml. These are evidences of the reference, not of the new implementation.
 
-O núcleo ScalableVolume passou no ASan/UBSan: 65931 verificações de conteúdo,
-cota física, persistência, truncamento, exclusão e prefixos de falhas.
-O SparseDisk passou em 252 verificações com ASan/UBSan, usando arquivo esparso
-real no ext4: volume lógico de 2 GiB, arquivo convidado de 5 MiB, alocação física
-inferior a 8 MiB, reabertura, snapshot, clone independente e devolução de espaço.
-Resultados em /tmp/guardian-phase12b-scalable-volume.log e
-/tmp/guardian-phase12b-sparse-disk.log; serão copiados para a pasta de evidências.
+The ScalableVolume core has passed ASan/UBSan: 65931 content checks, physical quota, persistence, truncation, deletion and prefixes of failures. SparseDisk has passed 252 checks with ASan/UBSan, using real sparse file in ext4: logical volume of 2 GiB, guest file of 5 MiB, physical allocation less than 8 MiB, reopening, snapshot, independent clone and space return. Results in /tmp/guardian-phase12b-scalable-volume.log and /tmp/guardian-phase12b-sparse-disk.log; will be copied to the evidence folder.
 
-O novo ResourceKernel e ResourceSession estão em integração. SmpMachine cria
-processadores adicionais na mesma partição/VM e captura o estado de cada um.
-Isso ainda não valida SMP no agendador das aplicações PE existentes. A aceitação
-Windows da revisão final e a pasta independente continuam pendentes.
+The new ResourceKernel and ResourceSession are in integration. SmpMachine creates additional processors in the same partition/VM and captures the state of each one. This still does not validate SMP in the scheduler of existing PE applications. Windows acceptance of the final revision and independent folder remain pending.
 
-## SMP integrado ao kernel de recursos
+## SMP integrated to the feature kernel
 
-A primeira execução revelou a ausência da subfolha 1 da topologia CPUID 0xB na
-tabela oferecida pelo KVM deste host. A projeção passou a materializar as
-subfolhas 0, 1 e de término, com índices significativos, IDs APIC distintos,
-um socket e um thread por núcleo. Não há aumento fictício de contagem.
-ResourceBootTests passou com 1, 2, 3 e 4 processadores reais na mesma VM:
-barreira compartilhada, contador com incremento interlocked, arquivo de 5 MiB,
-checkpoint após 120 requisições e restauração de todos os processadores.
-Resultado intermediário: 21 verificações de integração aprovadas. Logs ainda
-serão preservados junto à matriz final. Isso comprova o kernel de recursos;
-o agendador PE legado ainda usa uma CPU e não recebeu aceitação SMP.
+The first execution revealed the absence of subsheet 1 of the CPUID 0xB topology in the table offered by the KVM of this host. The projection began to materialize the subsheets 0, 1, and ending, with significant indices, different APIC IDs, a socket and thread per core. There is no fictitious count increase. ResourceBootTests passed with 1, 2, 3 and 4 real processors on the same VM: shared barrier, interlocked increment counter, 5 MiB file, checkpoint after 120 requests and restoration of all processors. Intermediate result: 21 approved integration checks. Logs will still be preserved next to the final matrix. This proves the kernel of resources; the legacy PE scheduler still uses a CPU and has not received SMP acceptance.
 
-## Integração e matriz congelada
+## Integration and frozen matrix
 
-Os seis grupos de pré-testes passaram: resource_budgets, scalable_volume,
-sparse_disk, resource_boot, scalable_resource_manager e disk_location.
-A revisão posterior acrescentou recuperação de blocos órfãos, consulta estável
-de espaço, rejeição de backing com links físicos, checkpoint durante incrementos
-concorrentes e verificação do MXCSR de cada CPU. A matriz final recompila tudo.
+The six pretest groups passed: resource_budgets, scalable_volume, sparse_disk, resource_boot, scalable_resource_manager and disk_location. The later review added orphan block recovery, stable space query, backing rejection with physical links, checkpoint during competing increments and MXCSR verification of each CPU. The final matrix compiles everything.
 
-O status consolidado e os limites atuais estão em PHASE-12B-RECURSOS.md.
-A matriz congelada está em build-phase12b/acceptance-20261020-full-01, com 368
-arquivos fonte identificados. A revisão cruzada Windows passou sem avisos para
-os módulos novos, mas não equivale a MSVC/WHP. Não encerrar 12B antes da aceitação
-Windows e da revisão de integração dos perfis. A origem NTFS permanece intacta.
+Consolidated status and current limits are in PHASE-12B-RESOURCES.md. The frozen matrix is in build-phase12b/acceptance-20261020-full-01, with 368 source files identified. Windows cross-review passed without notice to new modules, but does not equal MSVC/WHP. Do not close 12B before Windows acceptance and profile integration review. NTFS origin remains intact.
 
-## Revisão após a primeira matriz limpa
+## Review after first clean matrix
 
-acceptance-20261020-full-01 passou em Debug (47), Release (47) e ASan/UBSan (30),
-com fontes estáveis. A revisão adicional encontrou o fluxo hardware-config do
-novo contrato aceitando um perfil que sua inicialização não aplica. O gerenciador
-passou a rejeitar essa configuração e a criação/importação inconsistente, com
-verificação de que o arquivo de configuração anterior permanece idêntico.
-As fontes corrigidas foram congeladas novamente e a matriz completa está em
-acceptance-20261020-full-02. O resultado da primeira revisão não foi reetiquetado
-como evidência da segunda. Sem aceitação Windows nova, a fase continua aberta.
+acceptance-20261020-full-01 passed in Debug (47), Release (47) and ASan/UBSan (30), with stable source code. The additional revision found the hardware-config stream of the new contract accepting a profile that its startup does not apply. The manager started rejecting this configuration and the creation/import inconsistent, checking that the previous configuration file remains identical. The corrected fonts have been frozen again and the full matrix is in acceptance-20261020-full-02. The result of the first revision was not relabeled as evidence of the second. Without new Windows acceptance, the phase remains open.
 
-## Proteção de propriedade e recuperação sob cota cheia
+## Property protection and recovery under full quota
 
-A revisão de diretórios passou a rejeitar discos aninhados dentro de outros discos
-ou do estado de uma VM. A exclusão valida a árvore antes de mover o estado para
-a transação de remoção. Gerações ativas também precisam ter proprietário correto;
-a limpeza automática recusa arquivos/diretórios desconhecidos.
+Directory revision has started to reject nested disks within other disks or the state of a VM. The deletion validates the tree before moving the state to the removal transaction. Active generation also needs to have correct owner; the auto cleanup refuses unknown files/directories.
 
-Foi reproduzido um bloqueio com RAM de 16 MiB, snapshot de 16 MiB e orçamento de
-40 MiB: o guest concluiu o arquivo de 5 MiB, mas publicar sua imagem excedeu a cota.
-Depois da saída do worker, status e drop-snapshot falhavam ao tentar a recuperação
-antes de liberar espaço. A consulta agora retorna uma falha recuperável, conserva
-a geração ativa e permite remover o snapshot que libera a cota. O teste confirma
-recuperação, aumento do orçamento e novo boot. A prova anterior à correção está
-em build-phase12b/quota-recovery-repro.json.
+A 16 MiB RAM lock, 16 MiB snapshot and 40 MiB budget was played: the guest completed the 5 MiB file, but publishing its image exceeded the quota. After the worker exit, status and drop-snapshot failed to recover before releasing space. The query now returns a recoverable failure, saves the active generation and allows you to remove the snapshot that releases the quota. The test confirms recovery, budget increase, and new boot. The previous proof of correction is in build-phase12b/quota-recovery-repro.json.
 
-O watchdog do kernel de recursos repete o cancelamento até o reconhecimento,
-seguindo o comportamento do boot anterior, para cobrir a corrida com a entrada no
-hipervisor. O teste usa guests sem saídas com prazos de 1 e 40 ms e quatro CPUs.
+The feature kernel watchdog repeats the cancellation until recognition, following the behavior of the previous boot, to cover the race with the hypervisor input. The test uses guest without exits with deadlines of 1 and 40 ms and four CPUs.
 
-As matrizes full-02 e full-03 foram substituídas durante essas correções e não
-aceitam a revisão final. A próxima matriz congelada será full-04. Não somar os
-resultados dessas tentativas aos resultados de uma execução completa e estável.
+The full-02 and full-03 matrices were replaced during these corrections and did not accept the final revision. The next frozen matrix will be full-04. Do not add the results of these attempts to the results of a complete and stable execution.
 
-## Congelamento para full-04
+## Freezing to full-04
 
-O pré-teste final aprovou novamente os seis grupos: orçamento, filesystem,
-backing, SMP, ciclo de vida e propriedade/migração. A recuperação sob cota cheia
-foi testada pelo CLI, sem remover manualmente arquivos do catálogo.
+The final pretest again approved the six groups: budget, filesystem, backing, SMP, life cycle and property/migration. Full quota recovery was tested by CLI without manually removing files from the catalog.
 
-A recuperação temporária agora faz sua própria reserva de memória/CPU. O
-encerramento de uma VM pausada sem worker extrai o disco por streaming; não
-materializa toda a RAM apenas para obter o backing. Os limites de leitura e
-restauração acompanham a cota de crescimento configurada antes de alocar buffers.
-O backing também limita a representação materializada de seus blocos mapeados,
-vinculando o tamanho dos snapshots à reserva contabilizada. A disponibilidade
-publicada considera esse custo além da alocação física.
+Temporary recovery now makes its own reserve of memory/CPU. The closure of a paused VM without worker extracts the disk by streaming; it does not materialize all RAM just to get backup. Reading and restoration limits accompany the growth quota configured before allocating buffers. Backing also limits the materialized representation of its mapped blocks, linking the size of snapshots to the booked reserve. Published availability considers this cost beyond physical allocation.
 
-Os nomes internos dos discos e gerações foram encurtados e os diretórios de disco
-ficam ocultos ao enumerador de VMs. Foi testada a escolha da própria pasta do
-catálogo como destino sem confundir um disco com uma VM. Isso também reduz o
-comprimento dos caminhos de teste no Windows.
+The internal names of the disks and generations have been shortened and disk directories are hidden from the VM enumerator. The choice of the catalog folder itself as a destination has been tested without confusing a disk with a VM. This also reduces the length of the test paths on Windows.
 
-As fontes não serão alteradas durante a full-04. Depois dela, publicar apenas o
-resultado efetivo e conferir os hashes do pacote. A 12B permanece aberta para a
-aceitação Windows e a integração aos perfis PE; manter o escopo completo escolhido
-pelo usuário, sem substituir essas pendências por um aceite do contrato de teste.
+Fonts will not be changed during full-04. After that, publish only the effective result and check the hashes of the package. 12B remains open for Windows acceptance and integration to PE profiles; keep the full scope chosen by the user, without replacing these to-ed with an acceptance of the test contract.
 
-## Fechamento do registro desta execução
+## Log closing of this execution
 
-A full-04 passou integralmente (47 Debug, 47 Release, 30 ASan/UBSan), com fontes
-estáveis do começo ao fim. O próximo trabalho continua sendo 12B: aceitar no
-Windows a revisão entregue e integrar os recursos aos perfis de aplicações PE.
-Não declarar a fase concluída apenas com o kernel `resources`.
-O relatório principal contém os caminhos dos pacotes, procedimento Windows,
-limites implementados, XMLs e resultado consolidado. O original NTFS não mudou.
+The full-04 has passed in full (47 Debug, 47 Release, 30 ASan/UBSan), with stable sources from start to finish. The next work continues to be 12B: accept in Windows the revision delivered and integrate the resources to the PE application profiles. Do not declare the phase completed only with the `resources` kernel. The main report contains the paths of the packages, Windows procedure, implemented limits, XMLs and consolidated result. The original NTFS has not changed.
 
-## Transferência para a pasta original no HD — 20/10/2026
+## Transfer to the original folder on HD — 20/10/2026
 
-O usuário autorizou a escrita e a desmontagem, confirmando que não havia
-estado importante a preservar da sessão Windows. Foi criado e verificado um
-backup dos 409 arquivos existentes alcançados pelo pacote antes de qualquer
-substituição. A montagem normal continuou recusando escrita; após autenticação
-de administrador, `ntfsfix --clear-dirty` corrigiu o estado incompleto e reiniciou
-o diário NTFS. A montagem seguinte confirmou `rw` no volume de UUID
-`01DB04DC26902A20`.
+The user authorized writing and disassembly, confirming that it had not been important to preserve from the Windows session. A backup of the 409 existing files reached by the package was created and verified before any replacement. Normal mount continued to refuse writing; after administrator authentication, `ntfsfix --clear-dirty` corrected the incomplete state and restarted the NTFS diary. The following assembly confirmed `rw` in the volume of UUID `01DB04DC26902A20`.
 
-O pacote validado contém 505 arquivos: 126 foram gravados (30 substituições e
-96 novos), e 379 já eram idênticos. Todos foram conferidos após a cópia, incluindo
-os hashes dos 368 arquivos de código da full-04. Os diretórios históricos de
-build e as evidências Windows anteriores foram preservados. Os relatórios
-Markdown atuais também foram atualizados na pasta original.
+The validated package contains 505 files: 126 were saved (30 replacements and 96 new ones), and 379 were already identical. All were checked after copying, including hashes of the 368 full-04 source files. Historical build directories and previous Windows evidences were preserved. Current Markdown reports were also updated in the original folder.
 
-Os pacotes, checksums, backup e seu manifesto estão em
-`build-phase12b/delivery-20261020` no projeto original. O registro detalhado está
-em `build-phase12b/original-hd-transfer-20261020.json` e o resumo em
-[HD-TRANSFER-20261020.md](HD-TRANSFER-20261020.md). A 12B permanece aberta para
-aceitação Windows/MSVC/WHP da revisão e integração dos recursos aos perfis PE.
+The packages, checksums, backup and your manifest are in `build-phase12b/delivery-20261020` in the original project. The detailed registration is in `build-phase12b/original-hd-transfer-20261020.json` and the summary in [HD-TRANSFER-20261020.md](HD-TRANSFER-20261020.md). 12B remains open for Windows/MSVC/WHP acceptance of the review and integration of resources to PE profiles.

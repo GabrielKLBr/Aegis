@@ -59,7 +59,7 @@ fs::path Root() {
 void Protect(const fs::path &path) {
     PSECURITY_DESCRIPTOR descriptor = nullptr;
     if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(
-            L"O:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)", SDDL_REVISION_1, &descriptor,
+            L"O:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;BU)", SDDL_REVISION_1, &descriptor,
             nullptr))
         WinError("Build installation ACL");
     PSID ownerSid = nullptr;
@@ -320,9 +320,9 @@ int Install(const std::wstring &ownerArgument, bool uninstall) {
                                        &privileges))
                 WinError("Limit service privileges");
             wchar_t antivirusDescription[] =
-                L"Análises do antivírus Aegis em processos restritos do usuário.";
+                L"Analysis of Aegis antivirus in restricted user processes.";
             wchar_t sandboxDescription[] =
-                L"Execuções MiniNT/WHP supervisionadas; interfaces na sessão do usuário.";
+                L"Supervised MiniNT/WHP executions; user session interfaces.";
             SERVICE_DESCRIPTIONW description{kind == Kind::Antivirus ? antivirusDescription
                                                                      : sandboxDescription};
             if (!ChangeServiceConfig2W(row.service.value, SERVICE_CONFIG_DESCRIPTION, &description))

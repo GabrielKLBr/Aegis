@@ -1,119 +1,56 @@
-# Fase 8 — Runtime de console, arquivos, registro, heap e locks
+# Phase 8 — console runtime, files, record, heap and locks
 
-Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
-Estado em 17/10/2026: segundo marco implementado e validado; **fase 8 em andamento**.
-A fase 9 permanece fechada. O primeiro marco está em [PHASE-8.md](PHASE-8.md).
+Active base: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`. State in 17/10/2026: second milestone implemented and validated; **phase 8 in progress**. Phase 9 remains closed. The first milestone is in [PHASE-8.md](PHASE-8.md).
 
-## Comportamento implementado
+## Behavior implemented
 
-O novo `guardian-runtime-console.exe` roda em CPL3, usando uma DLL própria,
-`guardian-runtime-api.dll`. São PEs compilados, sem CRT nem DLLs do Windows.
-O loader, TLS, PEB/TEB inicial e proteções continuam executando no convidado.
-O loader também valida metadados de unwind encadeados gerados pelo MSVC em
-Release: referências devem apontar para entradas anteriores já verificadas,
-com frame compatível. Ciclos, referências futuras e trailers truncados são
-recusados. Isso ainda não executa o unwind de uma exceção.
-O programa importa funções com assinaturas e comportamento do subconjunto
-Win32 descrito abaixo. A DLL converte essas chamadas para uma ABI própria,
-validada pelo kernel; não encaminha chamadas para o Windows host.
+The new `guardian-runtime-console.exe` runs on CPL3, using its own DLL, `guardian-runtime-api.dll`. They are compiled PEs, no CRT or Windows DLLs. The loader, TLS, PEB/TEB initial and protections continue running on the guest. The loader also validates unwind metadata chained by MSVC in Release: references should point to previously verified entries with compatible frame. Cycles, future references and truncated trailers are refused. This does not yet execute the unwind of an exception. The program imports functions with Win32 subset signatures and behavior described below. The DLL converts these calls to a kernel-enabled ABI; it does not send calls to Windows host.
 
-`guest/PeServices.cpp` mantém os handles de arquivo e chave no kernel, com
-identidade do processo, tipo, direitos concedidos e posição de arquivo.
-Um processo não pode usar handles de outro, transformar chave em arquivo,
-escrever por um handle somente de leitura ou reutilizar um handle fechado.
-As operações de arquivo e registro usam o volume e as permissões da fase 7.
-Os caminhos se referem apenas ao disco virtual e ao registro do convidado.
+`guest/PeServices.cpp` keeps the file and key handles in the kernel, with process identity, type, granted rights and file position. One process cannot use another's handles, transform key into file, write by a read-only handle, or reuse a closed handle. File and log operations use the volume and permissions of phase 7. The paths refer only to the virtual disk and guest log.
 
-O console usa a fila, o driver e o protocolo de I/O existentes. O kernel abre
-o dispositivo com o direito de escrita e mantém sua referência até concluir
-o pedido. A saída observada pelo host é `PE RUNTIME OK` seguida de `IO OK`,
-ambas com nova linha. Bytes fora do subconjunto ASCII permitido são recusados
-antes de chegar ao protocolo do dispositivo.
+The console uses the existing I/O queue, driver, and protocol. The kernel opens the device with the right to write and keeps its reference until you complete the request. The output observed by the host is `PE RUNTIME OK` followed by `IO OK`, both with new line. Bytes outside the permitted ASCII subset are refused before reaching the device protocol.
 
-O heap de usuário usa o mesmo algoritmo do kernel, extraído para `Heap.h`:
-alinhamento de 16 bytes, divisão e coalescência de blocos, zeragem e realloc
-que mantém a alocação antiga se não houver espaço. Um mutex real do kernel
-serializa esse heap. Mutexes e seções críticas usam o escalonador e a tabela
-de objetos existentes; não são implementados como funções vazias.
+The user heap uses the same kernel algorithm, extracted for `Heap.h`: 16-byte alignment, block division and coalescence, zeroing and realloc that keeps the old allocation if there is no space. A real kernel mutex serializes this heap. Mutexes and critical sections use the scheduler and table of existing objects; they are not implemented as empty functions.
 
-`GetLastError` e `SetLastError` usam o campo do TEB da thread. As operações
-de registro retornam seu código diretamente, preservando esse campo. As
-operações de arquivo convertem os erros do volume para o subconjunto Win32.
+`GetLastError` and `SetLastError` use the TEB thread field. Log operations return their code directly, preserving this field. File operations convert volume errors to Win32 subset.
 
-## APIs presentes na DLL própria
+## APIs present in own DLL
 
-| Grupo | Funções |
+| Group | Functions |
 |---|---|
-| Identidade e erro | `GetCurrentProcessId`, `GetCurrentThreadId`, `GetLastError`, `SetLastError` |
-| Memória | `GetProcessHeap`, `HeapAlloc`, `HeapReAlloc`, `HeapFree` |
-| Console | `GetStdHandle`, `WriteFile` para saída/erro padrão |
-| Arquivos | `CreateFileA`, `ReadFile`, `WriteFile`, `SetFilePointerEx`, `GetFileSizeEx`, `FlushFileBuffers`, `CloseHandle` |
-| Registro | `RegCreateKeyExA`, `RegOpenKeyExA`, `RegSetValueExA`, `RegQueryValueExA`, `RegCloseKey` |
+| Identity and error | `GetCurrentProcessId`, `GetCurrentThreadId`, `GetLastError`, `SetLastError` |
+| Memory | `GetProcessHeap`, `HeapAlloc`, `HeapReAlloc`, `HeapFree` |
+| Console | `GetStdHandle`, `WriteFile` for Standard exit/error |
+| Files | `CreateFileA`, `ReadFile`, `WriteFile`, `SetFilePointerEx`, `GetFileSizeEx`, `FlushFileBuffers`, `CloseHandle` |
+| Registration | `RegCreateKeyExA`, `RegOpenKeyExA`, `RegSetValueExA`, `RegQueryValueExA`, `RegCloseKey` |
 | Mutex | `CreateMutexA`, `WaitForSingleObject`, `ReleaseMutex`, `CloseHandle` |
-| Seção crítica | `InitializeCriticalSectionEx`, `EnterCriticalSection`, `TryEnterCriticalSection`, `LeaveCriticalSection`, `DeleteCriticalSection` |
+| Section critical | `InitializeCriticalSectionEx`, `EnterCriticalSection`, `TryEnterCriticalSection`, `LeaveCriticalSection`, `DeleteCriticalSection` |
 
-O volume recebeu também uma operação de consulta de tamanho por handle, sem
-alterar o tamanho das estruturas ou os contratos de relatório anteriores.
+The volume also received a sized query operation per handle, without changing the size of the previous structures or reporting contracts.
 
-## Critérios verificados dentro do convidado
+## Criteria verified within the guest
 
-A aplicação valida TLS e identidade, preservação de erro, alinhamento e
-zeragem do heap, crescimento com preservação dos dados, falta de memória,
-dupla liberação, recursão de mutex e seção crítica, liberação sem propriedade
-e uso de mutex fechado.
+The valid application TLS and identity, error preservation, alignment and zeroing of the heap, growth with data preservation, memory loss, double release, mutex recursion and critical section, release without property and use of closed mutex.
 
-Em arquivo, verifica criação/abertura, leitura, escrita, tamanho, posições
-relativas ao início e ao fim, EOF, tentativa de posição negativa, conflitos de
-compartilhamento, criação exclusiva de arquivo existente, uso após fechamento
-e flush. No registro, verifica criação/abertura, DWORD, consulta do tamanho,
-buffer insuficiente sem sobrescrita e recusa de escrita por chave somente
-de leitura. Tipos de registro sem conversão implementada retornam erro explícito.
+In file, check creation/opening, read, write, size, positions related to the beginning and the end, EOF, attempt of negative position, sharing conflicts, unique creation of existing file, use after closing and flush. In the record, check creation/opening, DWORD, query of size, insufficient buffer without overwriting and refusal of writing by read-only key. Types of record without implemented conversion return explicit error.
 
-O programa mantém um contador em `C:\runtime.bin` e em `HKCU\Runtime\Counter`.
-Na segunda inicialização, confere que os dois sobreviveram e têm o mesmo
-valor antes de incrementá-los. Fecha os handles usados normalmente e deixa
-outros dois abertos de propósito para o teste de limpeza no término.
-O kernel verifica a ausência de handles e a devolução de todas as páginas
-da prova. A desmontagem da DLL também exige que o heap esteja vazio.
+The program maintains a counter in `C:\runtime.bin` and `HKCU\Runtime\Counter`. On the second startup, it checks that the two survived and have the same value before increasing them. Closes the commonly used handles and leaves two more open on purpose for the cleaning test at the end. The kernel checks the absence of handles and the return of all the proof pages. Unmounting the DLL also requires the heat to be empty.
 
-Pedidos com endereço do kernel ou versão inválida são recusados sem provocar
-fault do kernel. A mensagem `PE runtime services heap locks PASS` só é emitida
-após o programa terminar com o resultado esperado e a limpeza ser verificada.
+Requests with kernel address or invalid version are rejected without causing kernel default. The `PE runtime services heap locks PASS` message is only issued after the program has finished with the expected result and cleaning is verified.
 
-## Validação e preservação
+## Validation and preservation
 
-O contrato exige 35 testes por configuração em Debug e Release, sem ignorados.
-A matriz soma 720 boots: 80 do runtime novo, formando 40 pares persistentes,
-e 640 de regressão, incluindo o primeiro console PE. Permanecem os 240 cenários
-externos de falha das fases anteriores.
+The contract requires 35 tests per configuration in Debug and Release, without ignored. The matrix adds 720 boot: 80 of the new runtime, forming 40 persistent pairs, and 640 of regression, including the first PE console. The 240 external failure scenarios of the previous phases remain.
 
-O teste nativo do novo serviço/heap cobre 185 condições, incluindo isolamento
-de handles, direitos, EOF, quotas antes de efeitos colaterais, falha de backend
-sem avanço da posição e falha de fechamento com nova tentativa de limpeza.
-Os testes anteriores mantêm as verificações do loader, volume, persistência,
-I/O, processos, escalonador e memória.
-Há ainda uma prova nativa de cadeia de unwind em múltiplos níveis, seis
-variações inválidas e falha injetada em cada operação de backend dessa carga.
+The native test of the new service/heap covers 185 conditions, including isolation of handles, rights, EOF, quotas before side effects, backend failure without advance of position and closing failure with new cleaning attempt. Previous tests maintain loader checks, volume, persistence, I/O, processes, scheduler and memory. There is still a native proof of unwind chain in multiple levels, six invalid variations and failure injected in each backend operation of this load.
 
-Uma árvore nova, `build-phase8-runtime-clean`, compila as nove imagens de
-produção e executa suas auditorias. Os sete exemplos de referência são
-executados por configuração, junto com auditorias e provas da CLI. O build
-completo contém 63 executáveis de ferramentas/testes, 11 imagens de kernel
-(nove de produção e duas de falha de CPU) e quatro PEs próprios de console/DLL
-por configuração.
+A new tree, `build-phase8-runtime-clean`, compiles the nine production images and performs its audits. The seven reference examples are executed by configuration, along with CLI audits and tests. The complete build contains 63 executables of tools/tests, 11 kernel images (nine production and two CPU failure) and four PEs of console/DLL itself by configuration.
 
-Os arquivos novos de evidência e discos usam prefixo `phase8-runtime-`.
-Os 401 arquivos históricos registrados no snapshot, os discos da fase 7
-e os discos do primeiro marco da fase 8 permanecem conferidos por SHA-256.
-O snapshot dos originais é
-`snapshots\codex-before-phase8-runtime-20261017-010738`.
+New evidence files and disks use `phase8-runtime-` prefix. The 401 historical files registered in the snapshot, phase 7 disks and phase 8 first milestone disks remain checked by SHA-256. The snapshot of the originals is `snapshots\codex-before-phase8-runtime-20261017-010738`.
 
-O verificador e o contrato deste marco são `tools/validate_phase8_runtime.py`
-e `config/phase8-runtime-acceptance.json`. O resultado está em
-`build-codex/phase8-runtime-change-manifest.json`, com estado da fase
-`in_progress` e `next_phase_started: false`.
+The verifier and the contract of this milestone are `tools/validate_phase8_runtime.py` and `config/phase8-runtime-acceptance.json`. The result is `build-codex/phase8-runtime-change-manifest.json`, with state of the `in_progress` and `next_phase_started: false` phase.
 
-Para repetir a validação atual, guardando os logs por configuração:
+To repeat the current validation, saving logs by configuration:
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Debug -FullBuild *> build-codex\phase8-runtime-full-debug-script.log
@@ -123,33 +60,14 @@ Copy-Item build-codex\Testing\Temporary\LastTest.log build-codex\phase8-runtime-
 python tools\validate_phase8_runtime.py --snapshot "snapshots\codex-before-phase8-runtime-20261017-010738" --run-programs
 ```
 
-## Limites atuais e continuação da fase 8
+## Current limits and continuation of phase 8
 
-Esta matriz usa uma thread por processo PE. Ainda faltam criação de filhos e
-threads por essas APIs, TEB/TLS privados por thread e testes de contenção do
-runtime com várias threads. O escalonador possui suas provas independentes,
-mas isso ainda não valida a combinação com este runtime PE.
+This matrix uses a thread by PE process. There is still a lack of child rearing and threads by these APIs, TEB/TLS private by thread and runtime containment tests with multiple threads. The scheduler has its independent proofs, but this still does not validate the combination with this runtime PE.
 
-O heap de usuário tem 8 KiB. Há até 16 handles de serviço, oito por processo,
-além dos limites anteriores da tabela de objetos. Arquivos e operações de
-dados mantêm o limite de 512 bytes do volume. Nomes/caminhos são ASCII e as
-funções são síncronas, sem overlapped I/O. O registro suporta NONE, BINARY,
-DWORD e QWORD; a conversão ANSI/Unicode de strings permanece pendente.
+The user heat has 8 KiB. There are up to 16 service handles, eight per process, beyond the previous limits of the table of objects. Files and data operations maintain the limit of 512 bytes of the volume. Names/paths are ASCII and functions are synchronous, without overlapped I/O. The record supports NONE, BINARY, DWORD and QWORD; the conversion ANSI/Unicode of strings remains pending.
 
-Há saída e erro padrão; não há leitura de console. Mutexes deste subconjunto
-são anônimos e começam sem dono. A inicialização de seção crítica usa a função
-`Ex` que pode retornar falha; o tratamento SEH de falhas ainda não existe.
-Aplica-se o limite de 127 aquisições recursivas do escalonador existente.
-As APIs recusam flags e opções sem implementação, incluindo atributos de
-segurança, templates de arquivo, opções de registro e mutex com nome.
+There is output and default error; there is no console readout. Mutexes of this subset are anonymous and start without owner. Critical section startup uses the `Ex` function that can return failure; SEH failure processing does not yet exist. The limit of 127 recursive acquisitions of the existing scheduler applies. APIs refuse flags and options without implementation, including security attributes, file templates, registration options, and mutex with name.
 
-Continuam pendentes dispatch de exceções de usuário e unwind x64, carga e
-descarga dinâmica de DLLs, a matriz de falha de inicialização/término e a
-auditoria final por aplicação. Este marco não declara compatibilidade geral
-com programas Windows. A fase 9 só poderá começar depois de concluir a fase 8
-e respeitar a parada solicitada pelo usuário.
+Dispatch of user exceptions and unwind x64, dynamic loading and unloading of DLLs, the startup/end failure matrix and the final audit per application remain pending. This milestone does not declare general compatibility with Windows programs. Phase 9 can only start after completing phase 8 and respect the stop requested by the user.
 
-Referências de contrato: [CreateFileA](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea),
-[GetStdHandle](https://learn.microsoft.com/en-us/windows/console/getstdhandle) e
-[RegSetValueExA](https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regsetvalueexa).
-Metadados de unwind: [contrato x64 da Microsoft](https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64).
+Contract references: [CreateFileA](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea), [GetStdHandle](https://learn.microsoft.com/en-us/windows/console/getstdhandle) and [RegSetValueExA](https://learn.microsoft.com/en-us/windows/win32/api/winreg/nf-winreg-regsetvalueexa). Unwind metadata: [Microsoft](https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64)'s x64 contract.

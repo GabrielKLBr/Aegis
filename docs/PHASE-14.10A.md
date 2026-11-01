@@ -1,154 +1,70 @@
-# Fase 14.10A — protocolo e auxiliar de GUI nativa
+# Phase 14.10A — native GUI protocol and auxiliary
 
-Este lote implementa a primeira passagem completa de **comandos de GUI do
-MiniNT para APIs reais do Windows host**. O programa mínimo cria uma janela,
-pinta duas regiões com `FillRect` e verifica suas cores com `GetPixel`.
-O Windows executa o desenho; o MiniNT não fornece uma janela rasterizada.
-O canal gráfico legado pode registrar um desktop vazio para suas verificações
-de compatibilidade; ele não desenha nem fornece o conteúdo da janela nativa.
+This batch implements the first complete transition of **Gui Commands from MiniNT to actual Windows host APIs**. The minimum program creates a window, paints two regions with `FillRect` and checks their colors with `GetPixel`. Windows executes the drawing; MiniNT does not provide a rastered window. The legacy graphical channel can register an empty desktop for its compatibility checks; it does not draw or provide the contents of the native window.
 
-O aplicativo usa a DLL própria `guardian-native-gui.dll` e sua chamada tipada.
-Isto ainda não adapta os imports USER32/GDI de aplicações existentes: janelas,
-controles e mensagens correspondem à 14.10B; desenho mais amplo à 14.10C; a
-aceitação gráfica externa, incluindo Flappy neste backend, à 14.10D. O modo
-de pixels da [12F](PHASE-12F.md) permanece disponível e separado.
+The application uses `guardian-native-gui.dll` itself DLL and its typed call. This still does not adapt the import USER32/GDI of existing applications: windows, controls and messages correspond to 14.10B; wider drawing to 14.10C; external graphical acceptance including Flappy in this backend, to 14.10D. [12F](PHASE-12F.md) pixel mode remains available and separate.
 
-## Contrato e execução
+## Contract and execution
 
-`guardian-kernel-native-gui.gk` reutiliza a base da 12F/14.9 e anuncia
-`GuardianNativeGui/1/guest`. Uma chamada CPL3 só é aceita pelo serviço `0xAA`
-quando parte da seção executável da DLL gateway declarada. O kernel copia e
-valida a estrutura, associa PID/TID reais e envia um pacote pelo canal F8,
-operação byte OUT 4. A enumeração fica no deslocamento 256 da página gráfica
-existente e continua protegida contra escrita pelo convidado.
+`guardian-kernel-native-gui.gk` reuses the 12F/14.9 base and announces `GuardianNativeGui/1/guest`. A CPL3 call is only accepted by the `0xAA` service when part of the executable section of the declared DLL gateway. The kernel copies and validates the structure, associates real PID/TID and sends a package via the F8 channel, operation byte OUT 4. The enumeration is in the 256 offset of the existing graphical page and remains protected against written by the guest.
 
-O protocolo fixa tamanho, versão, boot, sessão aleatória, sequência, autoria,
-comando e resposta. Não contém endereços, callbacks ou handles Windows. A tabela
-de objetos tipados pertence à sessão e exige o PID/TID criador. IDs não são
-reutilizados durante a sessão. Uma referência numérica a um objeto externo ou
-de outro tipo não concede acesso a ele.
+The fixed protocol size, version, boot, random session, sequence, authorship, command and response. It does not contain addresses, callbacks or Windows handles. The typed object table belongs to the session and requires the PID/TID creator. IDs are not reused during the session. A numerical reference to an external object or other type does not grant access to it.
 
-O conjunto deste lote é: criar janela, criar brush RGB, obter DC dessa janela,
-preencher retângulo, consultar um pixel de sua superfície, liberar DC, apagar
-brush, destruir janela e concluir. `Hello` é exclusivo da inicialização do IPC,
-sem serviço equivalente para o programa convidado. Tipos ou parâmetros inválidos
-retornam erro; corrupção de sessão/seqüência/envelope encerra o canal.
+The set of this batch is: create window, create RGB brush, get DC from this window, fill rectangle, consult a pixel from its surface, release DC, delete brush, destroy window and complete. `Hello` is unique from IPC startup, without equivalent service for the guest program. Invalid types or parameters return error; meeting/sequence/envelope corruption closes the channel.
 
-O auxiliar cria uma DIB e um DC **no host** para conservar o desenho durante
-repaint, usa `FillRect` de GDI e apresenta por `BitBlt`. A consulta de cor usa
-`GetPixel` nessa superfície própria. Não recebe arrays de pixels do MiniNT.
-A janela recebe o prefixo `[MiniNT native 14.10A]`.
+The helper creates a DIB and a DC **in the host** to save the drawing during repaint, uses `FillRect` of GDI and displays by `BitBlt`. The color query uses `GetPixel` on this own surface. It does not receive pixel arrays from MiniNT. The window receives the `[MiniNT native 14.10A]` prefix.
 
-## Processo auxiliar e IPC
+## Auxiliary process and IPC
 
-O gerenciador inicia `guardian-native-gui-host.exe` pelo caminho absoluto ao
-lado de seu próprio executável. O manifesto seleciona `win32-gdi-helper`, fixa
-a versão do protocolo e o SHA-256 desse auxiliar; arquivo trocado exige novo
-pacote/vínculo. A leitura do JSON recusa chaves duplicadas, sintaxe inválida,
-profundidade excessiva e valores de tipo incompatível.
+The manager initiates `guardian-native-gui-host.exe` by the absolute path next to its own executable. The manifest selects `win32-gdi-helper`, fixes the protocol version and SHA-256 of that helper; exchanged file requires new package/link. The reading of JSON refuses duplicate keys, invalid syntax, excessive depth and incompatible type values.
 
-A criação usa token restrito derivado do usuário atual, grupo Administradores
-em deny-only, privilégios removidos salvo `SeChangeNotifyPrivilege` e nível de
-integridade baixo. A lista de SIDs restritores permite os acessos normais de
-leitura/inicialização do usuário e de recursos Windows necessários à interface.
-O auxiliar verifica seu token e a associação ao Job antes de aceitar comandos.
-Este perfil não é AppContainer nem uma declaração de bloqueio de toda leitura
-de arquivos do usuário. O contrato não oferece operações de arquivo/rede/COM,
-carregamento de DLL escolhida pelo convidado ou execução de código convidado
-no auxiliar.
+The creation uses restricted token derived from the current user, group Administrators in deny-only, privileges removed save `SeChangeNotifyPrivilege` and low integrity level. The list of Restrictor SIDs allows the normal accesses of the user reading/startup and Windows resources required for the interface. The helper checks your token and Job membership before accepting commands. This profile is not AppContainer or a blocking declaration of all user file reading. The contract does not offer file/network/COM operations, DLL loading chosen by the guest or guest code execution in the auxiliary.
 
-Somente duas pontas de pipes anônimos são herdadas, por uma lista explícita de
-handles. Stdout/stderr compartilham a mesma ponta de resposta. O ambiente contém
-somente `SystemRoot` e `WINDIR`, sem variáveis pessoais ou credenciais do processo
-gerenciador. O processo começa suspenso e entra no Job antes de executar.
+Only two anonymous pipe tips are inherited by an explicit list of handles. Stdout/stderr share the same answer tip. The environment contains only `SystemRoot` and `WINDIR`, without personal variables or credentials of the management process. The process starts suspended and enters the Job before running.
 
-O Job limita memória privada a **64 MiB** e processos ativos a **um**, encerra
-seus processos ao fechar e aplica restrições de UI a clipboard, handles externos,
-átomos globais, desktops e alterações de configurações do sistema. Não há fallback
-para um auxiliar sem essas restrições quando a criação falha.
+Job limits private memory to **64 MiB** and active processes to **one**, terminates its processes by closing and applies UI restrictions to clipboard, external handles, global atoms, desktops and system configuration changes. There is no fallback for an auxiliary without these restrictions when creation fails.
 
-Há uma única solicitação em trânsito. Cada pacote cabe no buffer do pipe; uma
-ponta de leitura mantida somente pelo pai verifica que o pedido anterior foi
-consumido antes da próxima escrita. Respostas extras, desconexão, alteração de
-envelope e contadores inválidos são recusados. A inicialização tem limite de dez
-segundos; cada resposta, dois segundos. Ao encerrar, o pai fecha o canal, espera
-até 500 ms e, se necessário, termina o Job e aguarda até dois segundos.
+There is a single request in transit. Each package fits into the pipe buffer; a read-out tip held only by the father verifies that the previous request was consumed before the next writing. Extra replies, disconnection, envelope change and invalid counters are refused. Initialization has a ten-second limit; each response, two seconds. When closing, the father closes the channel, waits until 500 ms and, if necessary, ends Job and waits for up to two seconds.
 
-## Limites do lote
+## Lot limits
 
-| Recurso | Limite/estado |
+| Resource | Limit/status |
 | --- | --- |
-| Janelas | Quatro por sessão |
-| Objetos, incluindo janelas/brushes/DCs | 64 por sessão |
-| Comandos | 1.024 por sessão |
-| Cliente da janela | 16×16 até 1.280×720 |
-| Posição inicial | −4.096 até 4.096 por eixo |
-| Título convidado | Até 63 caracteres ASCII |
-| Cores | RGB de 24 bits |
-| Referência convidada | Windows 10 x64 da matriz existente |
-| USER32 geral, controles e callbacks de mensagens | Pendentes da 14.10B |
-| Fontes/texto/imagens gerais e perfis NT adicionais | Pendentes da 14.10C/matriz |
-| DirectX e áudio | Não iniciados |
+| Windows | Four by meeting |
+| Objects, including windows/brushes/DCs | 64 by meeting |
+| Commands | 1.024 by meeting |
+| Window client | 16×16 up to 1.280×720 |
+| Position start | −4.096 up to 4.096 by axle |
+| Title guest | Up to 63 characters ASCII |
+| Cores | RGB of 24 bits |
+| Reference guest | Windows 10 x64 of existing matrix |
+| USER32 general, controls and callbacks of messages | Pending ed 14.10B |
+| Fonts/text/pictures general and profiles NT additional | Pending ed 14.10C/matrix |
+| DirectX and audio | Not started |
 
-O fechamento da janela e a entrada nativa ainda não são encaminhados à aplicação
-por este contrato. O loop modal de mover uma janela pode exceder o prazo de uma
-operação e terminar a sessão. Esses comportamentos pertencem ao lote USER32.
-Aplicações que saem com objetos vivos falham na conclusão; o supervisor recolhe
-o auxiliar. Não se anuncia compatibilidade GUI geral nem equivalência de GDI
-entre versões NT pela presença desse backend.
+The closing of the window and the native entry are not yet forwarded to the application by this contract. The modal loop of moving a window may exceed the time of an operation and terminate the session. These behaviors belong to the USER32 batch. Applications that leave with live objects fail to complete; the supervisor collects the helper. No general GUI compatibility or GDI equivalence between NT versions is announced by the presence of this backend.
 
-## Uso
+## Usage
 
-Fornecer os CRT/schema legais da referência já usada nas fases anteriores:
+Provide legal CRT/schema of the reference already used in previous phases:
 
 ```powershell
 python -B tools/native_gui_runtime.py --build BUILD --config Release --reference CRT --schema-reference SCHEMA --output app-native
 BUILD/Release/guardian-desktop.exe BUILD/guest/Release/guardian-kernel-native-gui.gk app-native/runtime.gpv app-native/manifest.json app-native/binding.gnt sessao-native --native-gui --seconds 8
 ```
 
-`--native-gui` deve corresponder ao backend do manifesto. Não se combina com
-`--integrated`, `--interactive`, `--script` ou `--window-script`. Uma pasta de
-saída existente é recusada e seus relatórios permanecem intactos.
+`--native-gui` must match the backend of the manifest. It does not match `--integrated`, `--interactive`, `--script` or `--window-script`. An existing output folder is refused and its reports remain intact.
 
-`native-gui.json` registra eventos por sequência/PID/TID/operação/resultado,
-restrições, saída do auxiliar e os últimos recursos conhecidos. `nativeCalls`
-contém, nesta ordem, contagens de criação de janela, brush, GetDC, FillRect,
-GetPixel, ReleaseDC, DeleteObject e destruição de janela. A conclusão normal
-exige zero objetos e saída zero do auxiliar. Depois de uma queda, os últimos
-contadores podem conter recursos vivos: a saída do processo e o teste de ausência
-de suas janelas comprovam o recolhimento, sem inventar uma resposta de destruição.
+`native-gui.json` records events by sequence/PID/TID/operation/result, restrictions, exit of the auxiliary and the last known features. `nativeCalls` contains, in this order, window creation counts, brush, GetDC, FillRect, GetPixel, ReleaseDC, DeleteObject and window destruction. Normal completion requires zero objects and zero output of the auxiliary. After a fall, the last counters may contain living resources: the process output and the absence test of their windows proves the recall, without inventing a destruction response.
 
-## Aceitação e continuidade
+## Acceptance and continuity
 
-Os testes novos são `native_gui_core`, `native_gui_broker`,
-`native_gui_integration` e `native_gui_runtime_tools`. Incluem envelopes inválidos,
-tipos/autoria/IDs expirados, cotas, manifesto, versões, duas sessões com DCs reais,
-cores obtidas por GDI, falha parcial de inicialização, auxiliar morto/suspenso,
-modos incompatíveis, vínculo SHA e preservação de relatórios anteriores.
-O teste do auxiliar também captura somente o cliente de seu próprio HWND com
-`PrintWindow` e confere a cor desenhada, além da consulta interna com `GetPixel`.
+The new tests are `native_gui_core`, `native_gui_broker`, `native_gui_integration` and `native_gui_runtime_tools`. They include invalid envelopes, expired types/author/IDs, quotas, manifest, versions, two sessions with real DCs, colors obtained by GDI, partial boot failure, dead/suspension helper, incompatible modes, SHA link and preservation of previous reports. The auxiliary test also captures only the client of his own HWND with `PrintWindow` and gives the color drawn, in addition to the internal consultation with `GetPixel`.
 
-São cinco cenários MiniNT por configuração: duas execuções normais com sessões
-distintas, queda do convidado, watchdog e morte do auxiliar. A aceitação exige
-**143 testes de regressão Release e 68 de aceitação Debug**, sem falhas/ignorados,
-com fontes, binários e entradas estáveis. O pacote extraído é conferido por hash
-e executado nas duas configurações; seus totais de cenários também incluem
-rejeições de estados inválidos herdadas das fases anteriores.
+There are five MiniNT scenarios per configuration: two normal executions with different sessions, guest drop, watchdog and assistant death. Acceptance requires **143 Release regression tests and 68 Debug acceptance tests**, without faults/ignored, with fonts, binaries and stable inputs. The extracted package is checked by hash and executed in both settings; its total scenarios also include rejected invalid states inherited from the previous stages.
 
-A primeira aceitação Debug encontrou cinco falhas herdadas de rede: o
-laboratório escolhia uma porta TCP e presumia disponibilidade do mesmo número
-em UDP, embora o Windows mantenha reservas distintas por protocolo. O laboratório
-passa a reservar o par antes de iniciar threads, com tentativas limitadas e
-fechamento dos sockets rejeitados. Testes exercitam reserva específica, colisão,
-esgotamento e propagação de outros erros. Não se alteram firewall ou reservas
-do sistema. O relatório da tentativa original é preservado junto da entrega.
+The first acceptance Debug found five inherited network failures: the laboratory chose a TCP port and assumed availability of the same number in UDP, although Windows maintains distinct reserves per protocol. The laboratory starts to reserve the pair before starting threads, with limited attempts and closing of rejected sockets. Tests exercise specific reserve, collision, exhaustion and spread of other errors. They do not change firewall or system reserves. The original attempt report is preserved at delivery.
 
-O pacote não inclui DLLs Microsoft de entrada, Flappy, ISOs, credenciais ou
-estados de VM. Debug do host exige o runtime de depuração do Visual Studio.
-Linux não foi revalidado. A entrega termina na **14.10A**; a **14.10B exige nova
-solicitação**.
+The package does not include Microsoft input DLLs, Flappy, ISOs, credentials or VM states. Host debug requires the debugging runtime of Visual Studio. Linux has not been revalidated. Delivery ends at **14.10A**; **14.10B requires new request**.
 
-Referências: [tokens restritos](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken),
-[processo com token](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw),
-[herança de handles](https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes)
-e [DCs do GDI](https://learn.microsoft.com/en-us/windows/win32/gdi/device-contexts).
+References: [restricted tokens](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-createrestrictedtoken), [process with token](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessasuserw), [handles inheritance](https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes) and [GDI](https://learn.microsoft.com/en-us/windows/win32/gdi/device-contexts) DCs].

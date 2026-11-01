@@ -28,7 +28,7 @@ def run(path, expected, complete, code=None):
 
 marker = b'AEGIS_SCANNER_TEST_' + b'POSITIVE_V1'
 clean = root / 'documento limpo.txt'
-clean.write_text('Documento de teste sem ameacas.\n', encoding='utf-8')
+clean.write_text('Test document without ameacas.\n', encoding='utf-8')
 run(clean, 'unknown', True, 0)
 positive = root / 'test-marker.txt'
 positive.write_bytes(marker)

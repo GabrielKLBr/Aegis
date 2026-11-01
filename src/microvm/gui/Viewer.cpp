@@ -110,7 +110,7 @@ Viewer::Viewer() : state_(std::make_unique<State>()) {
     auto &s = *state_;
     SDL_EventState(SDL_DROPFILE, SDL_DISABLE);
     SDL_EventState(SDL_DROPTEXT, SDL_DISABLE);
-    s.window = SDL_CreateWindow("Guardian - aplicativos convidados", SDL_WINDOWPOS_CENTERED,
+    s.window = SDL_CreateWindow("Guardian - invited apps", SDL_WINDOWPOS_CENTERED,
                                 SDL_WINDOWPOS_CENTERED, 640, 480, 0);
     if (!s.window)
         throw std::runtime_error(SDL_GetError());
@@ -136,7 +136,7 @@ Viewer::Viewer() : state_(std::make_unique<State>()) {
     constexpr DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     AdjustWindowRect(&r, style, FALSE);
     s.window =
-        CreateWindowW(c.lpszClassName, L"Guardian - aplicativos convidados", style, CW_USEDEFAULT,
+        CreateWindowW(c.lpszClassName, L"Guardian - invited apps", style, CW_USEDEFAULT,
                       CW_USEDEFAULT, r.right - r.left, r.bottom - r.top, nullptr, nullptr, c.hInstance, &s);
     if (!s.window)
         throw std::runtime_error("Graphics window creation failed");

@@ -1,20 +1,13 @@
-# Execução do convidado no Linux com KVM
+# Execution of the guest on Linux with KVM
 
-Atualização: 18/10/2026. O NX foi habilitado na BIOS e confirmado pelo Linux.
-`/dev/kvm` agora está acessível ao usuário; a API retornou versão 12.
-O executor Linux foi implementado e executa os kernels próprios em CPL0/CPL3.
-O produto Windows continua usando MSVC/MASM/WHP.
+Update: 18/10/2026. The NX has been enabled in BIOS and confirmed by Linux. `/dev/kvm` is now user accessible; the API has returned version 12. The Linux executable has been implemented and runs the kernels itself in CPL0/CPL3. The Windows product continues using MSVC/MASM/WHP.
 
-## Compilar e executar
+## Build and execute
 
-O host precisa de Linux x86-64, C++20, CMake, make, Python e OpenSSL 3.
-O convidado pode ser recompilado no Linux com uma instalação nativa de LLVM
-que contenha `clang`, `lld-link` e `llvm-ml`. Nenhum Windows SDK ou CRT é ligado.
-Nesta máquina foi preparado LLVM 23.1.3 no cache do usuário; não é necessário
-instalá-lo no sistema. O compilador não é incluído no pacote de execução.
+The host needs Linux x86-64, C++20, CMake, make, Python and OpenSSL 3. The guest can be recompiled on Linux with a native installation of LLVM containing `clang`, `lld-link` and `llvm-ml`. No Windows SDK or CRT is connected. In this machine LLVM 23.1.3 has been prepared in the user cache; it is not necessary to install it on the system. The compiler is not included in the execution package.
 
 ```bash
-# A árvore própria preserva caches e evidências dos builds anteriores.
+#  The tree itself preserves caches and evidence from previous builds.
 GUARDIAN_LINUX_BUILD_DIR="$PWD/build-linux-kvm/Release" ./Build-Linux.sh Release
 python3 tools/build_guest_linux.py --config Release
 
@@ -24,154 +17,80 @@ python3 tools/build_guest_linux.py --config Release
   "$PWD/resultado-kvm.json" --disk "$PWD/demonstracao.gvd" "$PWD/demonstracao.gvo" --create-disk
 ```
 
-`GUARDIAN_LLVM_ROOT` ou `--llvm` selecionam outra instalação de LLVM.
-`--output` seleciona a pasta do convidado. O script gera as doze imagens de
-produção, duas imagens de falha, os executáveis/DLLs de referência e os headers
-que incorporam seus bytes. Cada build registra a versão do compilador e os
-hashes das imagens. As ferramentas executadas no host são ELF.
+`GUARDIAN_LLVM_ROOT` or `--llvm` select another installation of LLVM. `--output` selects the guest folder. The script generates the twelve production images, two failed images, the reference executable/DLLs and the headers that incorporate their bytes. Each build records the compiler version and the hashes of the images. The tools executed in the host are ELF.
 
-PE/COFF continua sendo o formato das imagens do convidado. Os PEs próprios
-executam exclusivamente dentro da VM. O scanner não inicia os arquivos que lê.
-Não há Wine ou QEMU em nenhum dos dois fluxos.
+PE/COFF remains the format of the guest images. The PEs themselves run exclusively within the VM. The scanner does not start the files you read. There is no Wine or QEMU in either stream.
 
-O mesmo executor está disponível como `guardian-kvm <imagem> <contrato> <relatório>`.
-Os contratos são `basic`, `cpu`, `memory`, `threads`, `processes`, `io`, `storage` e `network`.
-As imagens `loader`, `runtime`, `lifetime` e `complete` usam o contrato `storage` e exigem
-base/overlay explícitos. O retorno zero exige o protocolo Hello/Diagnostic/Stop,
-status zero em CPL0 e os relatórios/contadores do contrato selecionado.
+The same executable is available as `guardian-kvm <imagem> <contrato> <relatório>`. Contracts are `basic`, `cpu`, `memory`, `threads`, `processes`, `io`, `storage` and `network`. Images `loader`, `runtime`, `lifetime` and `complete` use the `storage` contract and require explicit base/overlay. Zero return requires Hello/Diagnostic/Stop protocol, zero status at CPL0 and reports/counters of the selected contract.
 
-Cada VM tem uma vCPU e 16–64 MiB de RAM. `--ram-mib`, `--boot-id` e
-`--timeout-ms` selecionam os limites publicados na ajuda. O prazo máximo é
-30 segundos; um watchdog também encerra convidados que não produzem saídas.
-O relatório JSON registra backend, estado, temporizador, fault, contadores de
-recursos e resultados do disco. Arquivos de base/overlay são dados próprios de
-64 KiB; não são discos físicos. A base permanece somente para leitura.
+Each VM has a vCPU and 16–64 MiB of RAM. `--ram-mib`, `--boot-id` and `--timeout-ms` select the limits published in the help. The maximum time is 30 seconds; a watchdog also closes guests who do not produce outputs. The JSON report records backend, status, timer, default, resource counters and disk results. base/overlay files are own data of 64 KiB; they are not physical disks. The base remains only for reading.
 
-## Implementação e limites
+## Implementation and limits
 
-`src/linux/KvmMachine.cpp` cria a VM diretamente pela API KVM, instala RAM,
-registros x64, CPUID com NX e o estado inicial de ponto flutuante. O temporizador
-interrompe a execução por sinal dirigido à thread da vCPU, atende o relógio com
-a vCPU parada e injeta a interrupção somente quando o convidado permite.
-HLT, prazo vencido, orçamento excedido, I/O desconhecido e acessos físicos
-indevidos não são convertidos em conclusão bem-sucedida.
+`src/linux/KvmMachine.cpp` creates the VM directly by the KVM API, installs RAM, x64 records, CPUID with NX and the floating point initial state. The timer interrupts the execution by signal directed to the vCPU thread, meets the clock with the vCPU stop and injects the interruption only when the guest allows. HLT, expired time, over budget, unknown I/O and improper physical accesses are not converted to successful completion.
 
-O boot usa o mesmo `KernelBoot.cpp`, validações de protocolos e `IoBackend.cpp`
-do Windows. Os trechos Windows dos quatro arquivos compartilhados alterados
-foram comparados com o snapshot e preservam o conteúdo anterior. Essa inspeção
-não equivale a uma nova compilação/teste no Windows.
+Boot uses the same `KernelBoot.cpp`, protocol validations and `IoBackend.cpp` from Windows. Windows snippets of the four changed shared files were compared with snapshot and preserve previous content. This inspection does not match a new compilation/test on Windows.
 
-O armazenamento POSIX mantém o formato de base/overlay anterior, com bloqueio
-exclusivo, fingerprint da base, registros sequenciais, checksum e recuperação
-de cauda incompleta. Arquivos especiais, links finais, base e overlay com a
-mesma identidade e overlay já aberto são recusados. Escritas incompletas
-interrompem novas operações; não são publicadas em memória como sucesso.
+POSIX storage maintains the previous base/overlay format, with unique locking, base fingerprint, sequential records, checksum and incomplete tail recovery. Special files, end links, base and overlay with the same identity and already open overlay are rejected. Incomplete writings interrupt new operations; they are not published in memory as success.
 
-Há uma diferença material de proteção: a API pública de memória do KVM usada
-aqui fornece páginas físicas somente para leitura, mas não uma permissão de
-execução independente por página. O NX é aplicado pelas tabelas do convidado.
-O JSON informa `secondStageExecuteProtection: false`. Portanto este backend
-serve à execução e validação dos kernels próprios; a equivalência de proteção
-física com o WHP não é declarada. As fontes fixas do loader continuam sem busca
-em caminhos/DLLs do host. Não foi acrescentada execução de PEs arbitrários.
+There is a protective material difference: the public KVM memory API used here provides physical pages only for reading, but not an independent execution permission per page. NX is applied by the guest tables. JSON informs `secondStageExecuteProtection: false`. Therefore this backend serves the execution and validation of the own kernels; the physical protection equivalence with WHP is not declared. Fixed loader fonts remain unsearched in paths/DLLs of the host. No arbitrary EP execution was added.
 
-A adaptação do montador é textual e ocorre antes de gerar objetos: expande as
-macros MASM, ajusta diretivas/rótulos e expressa os offsets numéricos de FS/GS
-como endereços absolutos. A saída e a entrada de cada etapa ficam no build.
-Não há remendo de bytes em código de máquina. `ClangIntrinsics.asm` fornece as
-instruções declaradas pelos headers LLVM que esse compilador não expande.
+The adaptation of the assembler is textual and occurs before generating objects: expands the MASM macros, adjusts Directives/labels and expresses the numerical offsets of FS/GS as absolute addresses. The output and input of each step stay in the build. There is no byte patch in machine code. `ClangIntrinsics.asm` provides the instructions declared by LLVM headers that this compiler does not expand.
 
-Referência da interface: [documentação oficial da API KVM](https://docs.kernel.org/virt/kvm/api.html).
+Interface reference: [KVM](https://docs.kernel.org/virt/kvm/api.html) API official document.
 
-## Aceitação reproduzível
+## Reproducible acceptance
 
 ```bash
 python3 tools/validate_phase9.py
 ```
 
-O verificador cria uma pasta nova, recompila o host e o convidado, exige KVM
-disponível e registra falha se faltar alguma etapa. Não ignora testes:
+The verifier creates a new folder, recompiles the host and the guest, requires available KVM and records failure if any steps are missing. Do not ignore tests:
 
-| Matriz | Critério |
+| Matrix | Criteria |
 | --- | --- |
-| Debug e Release | 23 CTests por configuração |
-| AddressSanitizer/UndefinedBehaviorSanitizer | 23 CTests, incluindo boot real e host de disco |
-| Kernels próprios | 11 imagens × 2 configurações × 3 tamanhos de RAM × 2 boots = 132 boots |
-| Falhas de kernel e double fault/IST | 4 execuções recusadas como sucesso, com relatório fatal válido |
-| Estado persistente | Segundo boot usa o mesmo overlay, recupera a sequência anterior e mantém a base intacta |
-| Aplicações PE | Marcadores de DLL/TLS, 31 workers, filhos, rollback, saída explícita e captura real da pilha |
-| Executor KVM | 33 verificações, incluindo argumentos, sessão, boot adulterado, prazo e erros de dispositivo |
-| Armazenamento do host | 32 verificações de persistência, isolamento, corrupção, bloqueio e recuperação |
+| Debug and Release | 23 CTests by configuration |
+| AddressSanitizer/UndefinedBehaviorSanitizer | 23 CTests including real boot and disk host |
+| Kernels own | 11 images × 2 configurations × 3 sizes of RAM × 2 boots = 132 boots |
+| kernel and double fault/IST failures | 4 executions refused as success, with valid fatal report |
+| Status persistent | Second boot uses the same overlay, recovers the previous sequence and keeps the base intact |
+| Applications PE | DLL/TLS markers, 31 workers, children, rollback, explicit output and actual stack capture |
+| Executor KVM | 33 verifications, including arguments, session, tampered boot, deadline and device errors |
+| Storage do host | 32 Persistence, isolation, corruption, blocking and recovery checks |
 
-As evidências ficam em `build-linux-kvm/validation-<data>/validation.json`, com
-logs, JUnit, hashes das fontes/artefatos e relatórios individuais. Sentinelas no
-PATH detectam chamadas a Wine, programas Windows ou QEMU durante a validação.
-O manifesto só aprova a matriz se as fontes permanecerem iguais até o fim.
+The evidence remains in `build-linux-kvm/validation-<data>/validation.json`, with logs, JUnit, hashes of source code/artifacts and individual reports. Patents in PATH detect calls to Wine, Windows or QEMU programs during validation. The manifest only approves the matrix if the sources remain equal to the end.
 
-## Estado da fase 8
+## Phase 8 status
 
-A implementação restante foi concluída para a matriz de consoles próprios:
-exceções em CPL3, continuação, unwind não local e DLLs dinâmicas. A auditoria
-por aplicação, as recusas e os limites estão em
-[PHASE-8-COMPLETION.md](PHASE-8-COMPLETION.md).
-A aceitação nativa Windows desta revisão continua pendente. A fase 8 permanece
-aberta para essa aceitação e a fase 9 não foi iniciada.
+The remaining implementation has been completed for the console matrix itself: exceptions in CPL3, continuation, non-local unwind and dynamic DLLs. The application audit, refusals and limits are in [PHASE-8-COMPLETION.md](PHASE-8-COMPLETION.md). The native Windows acceptance of this review remains pending. Phase 8 remains open for such acceptance and phase 9 has not been started.
 
-Resultado histórico da fase 8: **132 boots, quatro recusas esperadas e 60 execuções CTest**,
-sem falhas ou testes ignorados. Evidência:
-`build-linux-kvm/validation-20261018-050639-287554/validation.json`.
-O pacote atualizado é `dist/guardianav-phase8-linux-x86_64-20261018.tar.gz`.
-Inclui os executores ELF, as 13 imagens (11 de produção e duas de falha),
-assinaturas, documentação e manifestos. Os pacotes históricos permanecem.
+Historical result of phase 8: **132 bootes, four expected refusals and 60 CTest executions**, no failed or ignored tests. Evidence: `build-linux-kvm/validation-20261018-050639-287554/validation.json`. The updated package is `dist/guardianav-phase8-linux-x86_64-20261018.tar.gz`. Includes ELF executables, 13 production (11 images and two failure), signatures, documentation and manifests. Historical packages remain.
 
-Resultado anterior do backend, preservado: 120 boots e 57 execuções CTest em
-`build-linux-kvm/validation-20261018-041930-839301/validation.json`.
-O pacote histórico `dist/guardianav-linux-kvm-x86_64-20261018.tar.gz` foi extraído,
-conferido por SHA-256 e executou dois boots adicionais de `lifetime`.
+Previous result of the backend, preserved: 120 boot and 57 CTest plays on `build-linux-kvm/validation-20261018-041930-839301/validation.json`. The historical `dist/guardianav-linux-kvm-x86_64-20261018.tar.gz` package was extracted, checked by SHA-256 and executed two additional `lifetime` boot.
 
-## Continuação da fase 9
+## Continuation of Phase 9
 
-Snapshots completos e gerenciamento pelo executável `guardian-vm` foram
-acrescentados. O verificador atual é `tools/validate_phase9.py`; o comando e as
-contagens da entrega anterior continuam identificados como evidência histórica.
-As provas novas cobrem registradores/XSAVE/interrupções, 16/32/64 MiB, retomadas,
-reinícios de disco, VMs simultâneas, falhas e isolamento. Ver [PHASE-9.md](PHASE-9.md).
+Full snapshots and executable management `guardian-vm` have been added. The current verifier is `tools/validate_phase9.py`; the command and counts of the previous delivery remain identified as historical evidence. registers/XSAVE/interruptions, 16/32/64 MiB, resumes, disk restarts, simultaneous VMs, failures and isolation. See [PHASE-9.md](PHASE-9.md).
 
-A fase 9 passou em 23 CTests por configuração (69 execuções), 132 boots de
-regressão, 81 retomadas/boots de snapshots e 24 boots pelo gerenciador. Evidência:
-`build-phase9/validation-20261018-103055-f78507d1/validation.json`.
-A aceitação nativa Windows permanece pendente.
+Phase 9 passed 23 CTests per configuration (69 plays), 132 regression boots, 81 resumes/boots snapshots and 24 bootes by the manager. Evidence: `build-phase9/validation-20261018-103055-f78507d1/validation.json`. Native Windows acceptance remains pending.
 
-## Fase 10 — Rede do convidado
+## Phase 10 — Guest Network
 
-Perfil em [PHASE-10.md](PHASE-10.md). Para teste direto, depois dos builds:
+Profile on [PHASE-10.md](PHASE-10.md). For direct testing, after builds:
 
 ```bash
 ./build-linux/Release/guardian-kvm build-guest-linux/Release/guardian-kernel-network.gk \
   network resultado-rede.json --network simulated --capture "$PWD/capturas" --timeout-ms 20000
 ```
 
-`network` começa sem rede. `guardian-vm network` configura serviços simulados,
-laboratórios e relay com destinos explícitos. A aceitação corrente é
-`python3 tools/validate_phase10.py`; scripts/resultados das fases 8/9 são históricos.
+`network` starts without network. `guardian-vm network` configures simulated services, laboratories and relays with explicit destinations. Current acceptance is `python3 tools/validate_phase10.py`; scripts/results of 8/9 phases are historical.
 
-Aceitação final da fase 10: 81 execuções CTest e 132 boots de regressão
-aprovados em Debug/Release/Sanitize, sem Wine/QEMU. Evidências e limites:
-[PHASE-10.md](PHASE-10.md). A aceitação nativa Windows permanece pendente.
+Final acceptance of the phase 10: 81 executions CTest and 132 Regression boots approved on Debug/Release/Sanitize, without Wine/QEMU. Evidence and limits: [PHASE-10.md](PHASE-10.md). Native Windows acceptance remains pending.
 
-## Fase 11 — Aplicações gráficas próprias
+## Phase 11 — Own graphics applications
 
-A imagem `guardian-kernel-graphics.gk` adiciona um contrato distinto, `graphics`,
-com uma aplicação CPL3 própria e duas ferramentas/janelas. O build gera 13 imagens de produção e dois controles
-fatais. `guardian-gui IMAGE OUTPUT [--interactive]` apresenta a saída por
-software; o gerenciador admite `create ID IMAGE graphics`, snapshots e clones
-do roteiro determinístico. O modo interativo é direto, sem snapshots.
+The `guardian-kernel-graphics.gk` image adds a distinct contract, `graphics`, with a proper CPL3 application and two tools/windows. The build generates 13 production images and two fatal controls. `guardian-gui IMAGE OUTPUT [--interactive]` features the output by software; the manager admits `create ID IMAGE graphics`, snapshots and clones of the deterministic script. The interactive mode is direct, without snapshots.
 
-A aceitação atual é `python3 tools/validate_phase11.py`; os validadores antigos
-são históricos. Veja [PHASE-11.md](PHASE-11.md) para suporte, bibliotecas,
-permissões e a separação entre validação Linux/KVM e Windows/MSVC/WHP.
+Current acceptance is `python3 tools/validate_phase11.py`; old validators are historical. See [PHASE-11.md](PHASE-11.md) for support, libraries, permissions and separation between Linux/KVM and Windows/MSVC/WHP. validation
 
-Aceitação final da fase 11: 96 CTests, 132 boots de regressão e 45
-boots/retomadas gráficos aprovados, com nove pausas gráficas e ASan/UBSan.
-Evidência `build-phase11/validation-20261018-191149-4baab81b/validation.json`.
-O gate nativo Windows permanece pendente.
+Final acceptance of phase 11: 96 CTests, 132 regression boots and 45 boots/resumes approved graphics, with nine graphical pauses and ASan/UBSan. Evidence `build-phase11/validation-20261018-191149-4baab81b/validation.json`. The native Windows gate remains pending.

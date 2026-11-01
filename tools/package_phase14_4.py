@@ -32,23 +32,7 @@ def main():
     copy(a.regression,'validation/regression-Release.xml')
     for name in ('win32_runtime.py','api_set.py','native_nt.py','pe_volume.py','nt_compatibility.py','inspect_gui_compatibility.py','smoke_phase14_4.py'):copy(nt.ROOT/'tools'/name,'tools/'+name)
     copy(nt.ROOT/'docs/PHASE-14.4.md','PHASE-14.4.md')
-    (out/'LEIA-ME.txt').write_text('''Aegis fase 14.4 - KERNEL32/KERNELBASE proprias no MiniNT x64
-
-Build de desenvolvimento Windows x64. Requer WHP, NX e runtime C++ VS 2022.
-Compatibilidade limitada a matriz descrita em PHASE-14.4.md; CRT/GUI gerais pendentes.
-As DLLs executaveis deste pacote sao do projeto; nao inclui binarios Microsoft.
-O schema Win10 usa dados re-encodificados da referencia legal; Win7/11 usam fixtures.
-
-No PowerShell, nesta pasta, use uma pasta de sessao que ainda nao existe:
-python tools/pe_volume.py verify Release/profiles/win10
-.\\Release\\guardian-pe.exe guest/Release/guardian-kernel-win32.gk Release/profiles/win10/runtime.gpv Release/profiles/win10/manifest.json Release/profiles/win10/binding.gnt sessao-nova
-
-Troque win10 por win7 ou win11 em todos os argumentos para outro perfil proprio.
-Troque Release por Debug para depuracao. boot.json e analysis.json registram resultados.
-Arquivos mutaveis e ambiente pertencem ao convidado; o volume de arquivos e efemero.
-Leia os limites de arquivos, I/O, Unicode, processos, thread pool e API sets no documento.
-Esta entrega nao inicia a 14.5.
-''',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis phase 14.4 - KERNEL32/KERNELBASE own in MiniNT x64\n\nWindows x64 development build. Requires WHP, NX and runtime C++ VS 2022.\nMatrix limited compatibility described in PHASE-14.4.md; CRT/GUI general pending.\nThe executeable DLLs of this package are from the project; it does not include Microsoft binarios.\nThe schema Win10 uses legal reference re-encodificados data; Win7/11 use fixtures.\n\nIn PowerShell, in this folder, use a session folder that does not yet exist:\npython tools/pe_volume.py verify Release/profiles/win10\n.\\Release\\guardian-pe.exe guest/Release/guardian-kernel-win32.gk Release/profiles/win10/runtime.gpv Release/profiles/win10/manifest.json Release/profiles/win10/binding.gnt sessao-nova\n\nSwap win10 for win7 or win11 in all arguments for another profile itself.\nSwitch Release by Debug for debugging. boot.json and analysis.json record results.\nMutable files and environment belong to the guest; the volume of files and ephemeral.\nRead the file limits, I/O, Unicode, processes, thread pool and API sets in the document.\nThis delivery does not start the 14.5.\n',encoding='utf-8')
     files={p.relative_to(out).as_posix():nt.sha(p.read_bytes()) for p in sorted(out.rglob('*')) if p.is_file()}
     (out/'manifest.json').write_bytes(nt.canonical({'schema':1,'phase':'14.4','files':files,'acceptance':{c:p['tests'] for c,p in proofs.items()},'regressionTests':len(cases),'windowsBinaryCompatibility':False,'phase14_5Started':False}))
     with zipfile.ZipFile(archive,'x',zipfile.ZIP_DEFLATED,compresslevel=6) as z:

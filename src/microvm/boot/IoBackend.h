@@ -3,7 +3,7 @@
 #include "guardian/StorageQuota.h"
 #include "../state/State.h"
 namespace guardian::io {
-// Bounded host-side RAM devices. No files, host disk, OS handles or user paths.
+// Boounded host-side RAM devices. No files, host disk, OS handsles or user paths.
 class Backend {
 public:
     explicit Backend(uint64_t boot) noexcept;

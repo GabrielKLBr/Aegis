@@ -1,140 +1,60 @@
-# Fase 14.2 — Carregador PE externo e volume de runtime
+# Phase 14.2 — External PE charger and runtime volume
 
-Implementação Windows/MSVC/WHP de 24/10/2026. Esta entrega amplia o carregador
-existente; não inicia a 14.3. O contrato executável continua sendo Guardian,
-com DLLs de teste próprias. Compatibilidade ampla com binários Windows e a
-execução do Flappy não estão declaradas.
+Windows/MSVC/WHP implementation of 24/10/2026. This delivery expands the existing charger; does not start at 14.3. The executable contract remains Guardian, with its own test DLLs. Wide compatibility with Windows binaries and Flappy execution are not declared.
 
-## Implementação e limites
+## Implementation and limits
 
-O novo `guardian-kernel-external-pe.gk` recebe um volume externo somente leitura
-(`runtime.gpv`). EXE, DLLs e manifests não precisam ser incorporados ao kernel.
-`guardian-pe` confere SHA-256 de kernel, EXE, volume e manifesto contra o vínculo
-de 176 bytes da 14.1 antes de preparar a execução. O volume e seus metadados
-ficam reservados no mapa de memória e protegidos contra escrita/execução. O
-parsing, as relocations, os imports e a execução do código acontecem no convidado
-em CPL3; não há execução do arquivo fornecido como processo do host.
+The new `guardian-kernel-external-pe.gk` receives an external read-only volume (`runtime.gpv`). EXE, DLLs and manifests do not need to be embedded into the kernel. `guardian-pe` confers SHA-256 kernel, EXE, volume and manifest against the 176 bytes link of the 14.1 before preparing the execution. The volume and its metadata are reserved on the memory map and protected against writing/implementation. Parsing, relocations, imports and execution of the code take place on the guest in CPL3; there is no execution of the file provided as the host process.
 
-`GUARDIAN_SCALABLE_PE` seleciona estes limites no novo kernel, nos testes e na
-DLL de runtime correspondente. Os kernels anteriores conservam seus limites e
-o tamanho de seus comandos. Não misturar DLLs Guardian de contratos diferentes.
+`GUARDIAN_SCALABLE_PE` selects these limits in the new kernel, tests and corresponding runtime DLL. Previous kernels retain their limits and the size of their commands. Do not mix Guardian DLLs from different contracts.
 
-| Recurso | Contrato externo 14.2 |
+| Resource | Contract external 14.2 |
 |---|---|
-| Arquivo PE e imagem mapeada | Até 8 MiB cada |
-| Catálogo de arquivos | 16 entradas, incluindo manifests |
-| Módulos PE | Até 16, sujeitos à memória disponível |
-| Volume de entrada | Até 64 MiB |
-| Páginas privadas por processo | Até 16.384 páginas / 64 MiB |
-| Arena virtual / regiões | 256 MiB / 256 regiões |
-| Seções por imagem | 32 |
-| Relocations / exports / funções de unwind | 8.192 / 8.192 / 4.096 |
-| TLS | Até 4 KiB por módulo, TEB de 128 KiB por thread |
-| Callbacks de inicialização | Até 144 por lote |
-| Alias de API / identidades de assembly | 16 / 8 |
-| Contextos de ativação / profundidade por thread | 8 / 8 |
-| Manifest / árvore de recursos | 4 KiB / orçamento de 256 diretórios |
-| Referências de recursos | 32 por processo |
+| PE file and mapped image | Up to 8 MiB each |
+| File Catalogue | 16 entries, including manifests |
+| Modules PE | Up to 16, subject to available memory |
+| Volume of entry | Up to 64 MiB |
+| Pages private by Case | Up to 16.384 pages / 64 MiB |
+| Arena virtual / regions | 256 MiB / 256 regions |
+| Image sections | 32 |
+| Relocations / exports / functions of unwind | 8.192 / 8.192 / 4.096 |
+| TLS | Up to 4 KiB per module, 128 KiB TEB per thread |
+| Callbacks of startup | Up to 144 by lot |
+| API alias / assembly identities | 16 / 8 |
+| Thread Activation / Depth Contexts | 8 / 8 |
+| Manifest / tree of resources | 4 KiB / budget of 256 directories |
+| References of resources | 32 by Case |
 
-Os limites são verificações de recusa, não promessa de que todos os máximos
-cabem simultaneamente. A aplicação de referência tem um payload de 2 MiB,
-imagem maior que 128 KiB, mais de quatro módulos e TLS de 2 KiB. A CLI reserva
-256 MiB de RAM e mantém o limite de execução de 30 segundos do contrato de boot.
+Limits are refusal checks, no promise that all maximums fit simultaneously. The reference application has a 2-MiB payload, image greater than 128 KiB, more than four modules and TLS of 2 KiB. CLI reserves 256 MiB of RAM and maintains the 30-second execution limit of the boot contract.
 
-## Busca, imports e ciclo de vida
+## Search, import and life cycle
 
-O catálogo aceita somente caminhos canônicos sob `C:\App`,
-`C:\Windows\System32` e `C:\Windows\WinSxS`. Recusa caminhos do host, travessia,
-streams alternativos, entradas duplicadas e regiões sobrepostas. A ordem do
-contrato é: caminho convidado explícito; alias de API registrado; diretório de
-assembly ativo; diretório do EXE; System32. `guardian-runtime-api.dll` e
-`user32.dll` são reservados ao System32 convidado. Não há busca por PATH, pasta
-atual ou diretórios do Windows host. A busca ignora maiúsculas/minúsculas e
-acrescenta `.dll` quando o nome solicitado não tem extensão.
+The catalog only accepts canonical paths under `C:\App`, `C:\Windows\System32` and `C:\Windows\WinSxS`. Refuses host paths, crossing, alternative streams, duplicate entries and overlapping regions. The order of the contract is: explicit guest path; registered API alias; active assembly directory; EXE directory; System32. `guardian-runtime-api.dll` and `user32.dll` are reserved to the guest System32. There is no search for PATH, current folder or Windows host directories. The search ignores uppercase/lowercase and adds `.dll` when the requested name has no extension.
 
-O mapa de API sets é explícito no pacote de cada perfil NT e vinculado pelo
-SHA-256. Não é um parser dos schemas nativos ApiSetNamespace v2/v6. Os três
-perfis da 14.1 continuam disponíveis; alterar o perfil exige outro pacote e
-vínculo. DLLs e contratos novos são responsabilidade das próximas subfases.
+The API Sets map is explicit in the package of each NT profile and linked by SHA-256. It is not a parser of native ApiSetNamespace v2/v6. schemas The three profiles of 14.1 remain available; changing the profile requires another package and link. DLLs and new contracts are the responsibility of the next subphases.
 
-Há imports por nome e ordinal, exports de dados, forwarders por nome/ordinal,
-recursos e delay imports. Os delay imports RVA são resolvidos antecipadamente
-antes de selar as seções; não há promessa de lazy binding, hooks de delay-load
-ou recuperação do IAT por `__FUnloadDelayLoadedDLL2`. Forwarders não usados não
-carregam seu destino; `GetProcAddress` pode carregar e inicializar dependências
-novas. Ciclos de resolução e grafos de DLLs cíclicos são recusados.
+There are imports by name and ordinal, data exports, forwarders by name/ordinal, features and delay imports. Delay imports RVA are resolved in advance before sealing the sections; there is no promise of lazy binding, delay-load hooks or recovery of IAT by `__FUnloadDelayLoadedDLL2`. Unused forwarders do not load their destination; `GetProcAddress` can load and boot new dependencies. Resolution cycles and graphs of cyclic DLLs are refused.
 
-`LoadLibraryA`, `FreeLibrary` e `GetProcAddress` usam o loader lock existente.
-Dependências iniciam antes dos dependentes; callbacks de TLS antecedem o
-DllMain correspondente. A liberação percorre a ordem inversa, respeita
-referências e mantém dependências de módulos ainda alcançáveis. Falhas no
-DllMain e no backend desfazem mapeamentos, referências e TLS. A referência
-Windows confirma também o PROCESS_DETACH do DllMain que recusou PROCESS_ATTACH.
-As seções são seladas como leitura, leitura/escrita ou leitura/execução; W+X
-é recusado. Gerações de módulos impedem reutilização de handles de recursos
-depois de descarregar e recarregar a mesma base.
+`LoadLibraryA`, `FreeLibrary` and `GetProcAddress` use the existing lock loader. Dependencies start before dependents; TLS callbacks precede the corresponding DllMain. The release runs through the reverse order, respects references and maintains dependencies of modules that are still reachable. DllMain and backend crashes mappings, references and TLS. The Windows reference also confirms PROCESS_DETACH of DllMain that refused PROCESS_ATTACH. Sections are sealed as read, reading/writing or reading/implementation; W+X is refused. Module Generations prevent resource reuse after downloading and reloading the same base.
 
-## Recursos e manifests
+## Resources and demonstrations
 
-O parser valida a árvore PE de recursos em três níveis e oferece consulta por
-IDs numéricos. O runtime próprio fornece `FindResourceA/ExA`, `LoadResource`,
-`LockResource` e `SizeofResource`. Nomes Unicode, MUI e a política completa de
-fallback por idioma não estão implementados; idioma omitido escolhe a primeira
-entrada numérica disponível. O diretório de certificados é tratado como
-metadado delimitado do arquivo, sem validar Authenticode.
+The parser validates the PE tree of features in three levels and provides query for numerical IDs. The runtime itself provides `FindResourceA/ExA`, `LoadResource`, `LockResource` and `SizeofResource`. Unicode, MIU names and the full language fallback policy are not implemented; omitted language chooses the first available numerical entry. The certificate directory is treated as a delimited file metadata without validating Authenticode.
 
-Manifests embutidos do EXE e manifests externos registrados no volume aceitam
-um subconjunto XML ASCII/UTF-8 de assemblyIdentity, dependency/dependentAssembly
-e compatibility/application/supportedOS. DTD, entidades, tags desconhecidas e
-atributos duplicados são recusados. A seleção de assembly exige nome, versão
-de quatro componentes, amd64 e win32. Contextos de ativação mantêm pilhas por
-thread, cookies LIFO e referências até a última desativação. A consulta própria
-de versão pode derivar o modo do supportedOS do EXE; isso não implementa
-GetVersionEx nem uma PEB/TEB nativa completa.
+EXE built-in manifests and external manifests registered in the volume accept an XML ASCII/UTF-8 subset of assemblyIdentity, dependency/dependentAssembly and compatibility/application/supportedOS. DTD, entities, unknown tags and duplicate attributes are refused. Assemblly selection requires name, four-component version, amd64 and win32. Activation settings maintain stacks by thread, LIFO cookies and references to the last deactivation. Version query itself can derive EXE supportedOS mode; this does not implement GetVersionEx or a full native PEB/TEB.
 
-Não há resolução completa de políticas WinSxS, assinaturas, publisher policy,
-COM/classes/janelas ou UAC/trustInfo. Esses requisitos são recusados, sem simular
-sucesso. O volume é um formato imutável Guardian de entrada, não NTFS nem a
-integração de arquivos mutáveis do perfil `resources`. ARM, x86/WoW64, managed
-PE, DLLs sem relocations quando deslocadas e diretórios PE ainda não atendidos
-são recusados. Criar processos filhos e restaurar snapshots neste novo caminho
-permanecem sem suporte explícito; threads próprias foram exercitadas. A GUI
-anterior permanece coberta pelos testes da fase 12, sem avanço da 12F.
+There is no complete resolution of WinSxS policies, subscriptions, publisher policy, COM/classes/windows or UAC/trustInfo. These requirements are rejected without simulating success. The volume is an unchanging Guardian input format, not NTFS or the integration of changeable files from the `resources` profile. ARM, x86/WoW64, managed PE, DLLs without relocations when displaced and PE directories not yet met are refused. Creating child processes and restoring snapshots on this new path remain unexplicited; own threads have been exercised. The previous GUI remains covered by phase 12 tests, without 12F advancement.
 
-## Reprodução e evidências
+## Reproduction and evidence
 
-Configurar no Windows com `BUILD_TESTING=ON`, `GUARDIAN_GUI_COMPATIBILITY_ONLY=ON`,
-`GUARDIAN_BUILD_PE_GUI=ON` e `GUARDIAN_BUILD_EXTERNAL_PE=ON`, usando Visual Studio
-2022 x64. Compilar `guardian-pe`, `guardian_external_application`,
-`guardian_external_widget2`, `external_pe_loader_tests`,
-`external_pe_native_tests` e os alvos de regressão desejados.
+Configure on Windows with `BUILD_TESTING=ON`, `GUARDIAN_GUI_COMPATIBILITY_ONLY=ON`, `GUARDIAN_BUILD_PE_GUI=ON` and `GUARDIAN_BUILD_EXTERNAL_PE=ON` using Visual Studio 2022 x64. Build `guardian-pe`, `guardian_external_application`, `guardian_external_widget2`, `external_pe_loader_tests`, `external_pe_native_tests` and desired regression targets.
 
-`python tools/pe_volume.py sample --build BUILD --config Release --kernel KERNEL --output NOVO_PACOTE --profile win10`
-produz a referência. `create --spec SPEC.json --kernel KERNEL --output NOVO_PACOTE`
-aceita o mesmo formato de especificação usado por `sample`. `verify PACOTE`
-confere a estrutura, hashes por arquivo, manifesto e vínculo.
+`python tools/pe_volume.py sample --build BUILD --config Release --kernel KERNEL --output NOVO_PACOTE --profile win10` produces the reference. `create --spec SPEC.json --kernel KERNEL --output NOVO_PACOTE` accepts the same specification format used by `sample`. `verify PACOTE` confers the structure, hashes per file, manifest and link.
 
-`guardian-pe KERNEL PACOTE/runtime.gpv PACOTE/manifest.json PACOTE/binding.gnt NOVA_SESSAO`
-executa e grava `boot.json`, a cópia do manifesto e os relatórios gráficos.
-O inventário estático dos PEs é salvo em `inventory.json`; não afirma execução
-nem cobertura de imports dinâmicos não observados.
+`guardian-pe KERNEL PACOTE/runtime.gpv PACOTE/manifest.json PACOTE/binding.gnt NOVA_SESSAO` executes and saves `boot.json`, copy of the manifest and graphical reports. The static inventory of PEs is saved in `inventory.json`; it does not affirm execution or coverage of unobserved dynamic imports.
 
-`tools/validate_phase14_2.py --build BUILD --config Release --output NOVA_ACEITACAO`
-executa 15 testes obrigatórios, recusa qualquer skip e fixa SHA-256 dos fontes
-e binários antes/depois. Repetir com Debug. Os testes incluem comparação no
-Windows real somente das DLLs próprias, execução do PE externo nos três perfis,
-TLS de worker, ordinal/dados/forwarders, inicialização tardia, DllMain recusado,
-delay imports, recursos, seleção de duas versões de assembly, cookies inválidos,
-recusa de pacote adulterado antes de criar a sessão e injeção de falhas no
-carregador. Um erro ou limite não pode deixar módulos ou processos vivos.
+`tools/validate_phase14_2.py --build BUILD --config Release --output NOVA_ACEITACAO` performs 15 mandatory tests, refuses any skip and fixed SHA-256 from sources and binary before/later. Repeat with Debug. Tests include real Windows comparison only of own DLLs, external PE execution in all three profiles, worker TLS, ordinal/data/forwarders, delayed startup, DllMain refused, delay imports, features, selection of two versions of assembly, invalid cookies, refusal of tampered package before creating the session and injection of crashes in the loader. An error or limit may not leave modules or processes alive.
 
-Evidências locais: `build-phase14.2/acceptance-Release/validation.json`,
-`build-phase14.2/acceptance-Debug/validation.json` e
-`build-phase14.2/acceptance-Release.xml` para a regressão completa. Apenas arquivos
-com `status: PASS`, fontes/binários estáveis e nenhum teste ignorado confirmam
-a respectiva aceitação. Builds ficam fora do repositório público.
+Local evidence: `build-phase14.2/acceptance-Release/validation.json`, `build-phase14.2/acceptance-Debug/validation.json` and `build-phase14.2/acceptance-Release.xml` for complete regression. Only files with `status: PASS`, source code/binary stable and no unknown test confirm their acceptance. Builds are outside the public repository.
 
-Referências: [formato PE](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format),
-[busca de DLL](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order),
-[DllMain](https://learn.microsoft.com/en-us/windows/win32/dlls/dllmain) e
-[contextos de ativação](https://learn.microsoft.com/en-us/windows/win32/sbscs/activation-contexts).
+References: [PE](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format) format, [search for DLL](https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-search-order), [DllMain](https://learn.microsoft.com/en-us/windows/win32/dlls/dllmain) and [activation context](https://learn.microsoft.com/en-us/windows/win32/sbscs/activation-contexts).

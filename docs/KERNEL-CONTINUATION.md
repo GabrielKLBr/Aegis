@@ -1,71 +1,49 @@
-# Continuação sobre a base GuardianAV — 15/10/2026
+# Continuation on the basis GuardianAV — 15/10/2026
 
-A pasta `D:\Desktop Folders (DO NOT ERASE)\AntiVirus` é a base desta continuação.
-O código existente foi aproveitado; nenhum diretório anterior de compilação foi
-apagado ou substituído. As novas compilações ficam em `build-codex`.
+The `D:\Desktop Folders (DO NOT ERASE)\AntiVirus` folder is the basis for this continuation. The existing code has been used; no previous build directory has been deleted or replaced. The new builds are in `build-codex`.
 
-**Atualização de 16/10/2026:** a etapa seguinte implementou estado de memória
-virtual e permissões no WHP, descritos em [VIRTUAL-MEMORY.md](VIRTUAL-MEMORY.md).
-Os resultados e limites do heap abaixo registram a etapa de 15/10; a documentação
-nova detalha os quatro testes e o comportamento atual dos syscalls de memória.
-Uma nova etapa no mesmo dia acrescentou a tabela única de handles e referências
-de objetos; consulte [KERNEL-OBJECTS.md](KERNEL-OBJECTS.md) para o estado atual,
-com seis testes de regressão do núcleo.
+**16/10/2026 update:**the following step implemented virtual memory state and permissions in the WHP, described in [VIRTUAL-MEMORY.md](VIRTUAL-MEMORY.md). The results and limits of the heap below record the 15/10 step; the new documentation details the four tests and current behavior of memory syscalls. A new step on the same day added the unique table of handles and object references; see [KERNEL-OBJECTS.md](KERNEL-OBJECTS.md) for the current state, with six core regression tests.
 
-## Arquitetura aproveitada
+## Enhanced architecture
 
-O `MicroVmMonitor` já usa diretamente Windows Hypervisor Platform, sem QEMU.
-O código do convidado executa na partition WHP. `MiniNt` atende os syscalls NT
-interceptados, enquanto `PeLoader`, `WinLoader`, `VirtualFs` e os demais módulos
-existentes fornecem o ambiente de execução. Essa personalidade NT é implementada
-no host: ainda não é um kernel NT completo inicializável em hardware independente.
+`MicroVmMonitor` already uses Windows Hypervisor Platform directly without QEMU. The guest code runs on the WHP partition. `MiniNt` meets the intercepted NT syscalls, while `PeLoader`, `WinLoader`, `VirtualFs` and the other existing modules provide the execution environment. This NT personality is implemented in the host: it is not yet a complete NT kernel bootable on independent hardware.
 
-Nesta etapa, a prioridade escolhida foi **o núcleo básico antes de ampliar a
-compatibilidade**. A interface Direct2D e os demais módulos existentes foram
-preservados. A ISO Windows não é necessária para estes testes.
+In this step, the priority chosen was **the basic core before expanding compatibility**. The Direct2D interface and the other existing modules were preserved. ISO Windows is not required for these tests.
 
-## Gerenciamento de heap implementado
+## Heap management implemented
 
-`src/microvm/host/GuestHeap.h` substitui o bump allocator dos sentinelas
-`Rtl*Heap` em `MiniNt`:
+`src/microvm/host/GuestHeap.h` replaces sentinel buffer allocator
+`Rtl*Heap` ed `MiniNt`:
 
-- Alinhamento de 16 bytes, arredondamento sem overflow e arena validada contra
-  a RAM real do convidado. A primeira página fica reservada para o handle.
-- Blocos livres são reutilizados; intervalos livres vizinhos são unidos.
-- Liberação duplicada, ponteiro interior e handle de outro heap são recusados.
-- Realocação preserva os dados. Falha por falta de memória ou tamanho inválido
-  mantém o bloco original válido. Há crescimento no mesmo lugar, redução e
-  movimentação quando necessária e permitida.
-- `HEAP_ZERO_MEMORY` zera a região nova; `HEAP_REALLOC_IN_PLACE_ONLY` impede
-  movimentação. Blocos de tamanho zero têm endereços distintos até serem liberados.
-- `RtlSizeHeap` devolve o tamanho solicitado de blocos válidos e `SIZE_T(-1)`
-  para blocos inválidos. Sem arena configurada não é fabricado um handle.
-- Os metadados ficam no host e são limitados a 16.384 segmentos. O estado é
-  vinculado a uma única RAM de convidado até sua reconfiguração explícita.
+- 16 byte alignment, overflow-free rounding and validated arena against
+  The guest's real RAM. The first page is reserved for the handle.
+- Free blocks are reused; neighbor free intervals are joined.
+- Duplicate release, internal pointer, and handle of another heap are refused.
+- Relocation preserves data. Failed due to invalid memory lack or size
+  keeps the original block valid. There is growth in the same place, reduction and movement when necessary and allowed.
+- `HEAP_ZERO_MEMORY` zeros the new region; `HEAP_REALLOC_IN_PLACE_ONLY` prevents
+  Zero-size blocks have different addresses until they are released.
+- `RtlSizeHeap` returns the requested size of valid blocks and `SIZE_T(-1)`
+  for invalid blocks. No configured arena is not manufactured a handle.
+- The metadata are in the host and are limited to 16,384 segments.
+  linked to a single guest RAM until its explicit reconfiguration.
 
-`GuestMemory.h` fornece cópia, leitura, escrita e zeragem com validação por
-subtração antes de formar ponteiros. Os helpers escalares e a leitura de
-`UNICODE_STRING` de `MiniNt` passaram a usar essa validação. Isso cobre esses
-acessos, sem afirmar que todos os parsers e syscalls antigos foram auditados.
+`GuestMemory.h` provides copy, reading, writing and zeroing with subtraction validation before forming pointers. The scalar helpers and `UNICODE_STRING` reading of `MiniNt` have started using this validation. This covers these accesses without stating that all the old parsers and syscalls have been audited.
 
-O caminho continua usando os patches já existentes: funções das DLLs reais
-chegam ao alocador próprio de `MiniNt`. O teste `vmwininit` agora descreve isso
-explicitamente, sem anunciar que o heap nativo do Windows foi inicializado.
-Seu sinal de encerramento do watchdog também passou a ser atômico.
+The path continues using the existing patches: real DLL functions reach the `MiniNt` allocator itself. The `vmwininit` test now explicitly describes this without announcing that the native Windows heap has been booted. Its watchdog closing signal has also become atomic.
 
-## Compilar e testar
+## Build and test
 
-Visual Studio 2022 com C++ x64, Windows SDK e CMake. No PowerShell comum:
+Visual Studio 2022 with C++ x64, Windows SDK and CMake. In common PowerShell:
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Release
 .\Build-Kernel.ps1 -Configuration Debug
-# Compilar também todos os executáveis já existentes:
+#  Also compile all existing executables:
 .\Build-Kernel.ps1 -Configuration Release -FullBuild
 ```
 
-O script compila ferramentas e executa os testes de memória. Para executar
-separadamente os exemplos antigos usados como regressão:
+The script compiles tools and executes memory tests. To perform separately the old examples used as regression:
 
 ```powershell
 .\build-codex\Release\vmpoc.exe
@@ -73,66 +51,39 @@ separadamente os exemplos antigos usados como regressão:
 .\build-codex\Release\vmwininit.exe
 ```
 
-`microvm_memory` valida limites, overflow, reutilização, união de intervalos,
-preservação de dados, crescimento e 2.500 operações combinadas contra blocos
-vivos. `microvm_heap_guest` executa programas pequenos gerados pelo próprio teste
-em **ring 3**, usando `SYSCALL`/`#UD` e o dispatcher existente de `MiniNt`; o
-convidado escreve e lê um marcador no bloco antes e depois da realocação.
-Não são carregadas amostras externas nesses testes.
+`microvm_memory` validates limits, overflow, reuse, interval union, data preservation, growth and 2,500 combined operations against live blocks. `microvm_heap_guest` executes small programs generated by the test itself in **ring 3**, using `SYSCALL`/`#UD` and the existing `MiniNt` dispatcher; the guest writes and reads a marker in the block before and after relocation. No external samples are loaded in these tests.
 
-O teste de convidado retorna código 77 se o hipervisor não estiver disponível;
-o CTest o mostra como ignorado, não como evidência de execução bem-sucedida.
-Nenhum recurso ou configuração de segurança do Windows é alterado.
+The guest test returns code 77 if the hypervisor is not available; CTest shows it as ignored, not as evidence of successful execution. No Windows security feature or configuration is changed.
 
-## Validação executada nesta máquina
+## Validation performed on this machine
 
-MSVC 19.44, SDK 10.0.26100.0, Windows x64 com WHP disponível:
+MSVC 19.44, SDK 10.0.26100.0, Windows x64 with WHP available:
 
-| Verificação | Debug | Release |
+| Scan | Debug | Release |
 |---|---|---|
-| `microvm_memory` | Passou | Passou |
-| `microvm_heap_guest` (execução real em ring 3) | Passou | Passou |
-| Exemplo existente `vmntdll` | Passou | Passou |
-| Exemplo existente `vmwininit` | Passou | Passou |
-| Compilação de todos os alvos do projeto | Não executada | Passou, 33 executáveis gerados |
+| `microvm_memory` | It's over. | It's over. |
+| `microvm_heap_guest` (real execution in ring 3) | It's over. | It's over. |
+| Example existing `vmntdll` | It's over. | It's over. |
+| Example existing `vmwininit` | It's over. | It's over. |
+| Compilation of all project targets | Not executed | It's over., 33 executable generated |
 
-`vmpoc` também executou seu programa de 13 bytes com as três saídas de porta e
-HLT esperados antes das alterações. O script `Build-Kernel.ps1` foi executado
-com sucesso em Release. Os testes WHP desta máquina **executaram**; não foram
-ignorados por falta de virtualização.
+`vmpoc` also ran its 13-byte program with the three port outputs and HLT expected before the changes. The `Build-Kernel.ps1` script was successfully executed in Release. The WHP tests of this machine** performed**; were not ignored due to lack of virtualization.
 
-Evidências locais: `build-codex/release-tests.log`, `debug-tests.log`,
-`existing-regressions.json`, `full-release-build.log` e `build-kernel-script.log`.
-O build completo mantém avisos de conversão de tipos em código anterior do
-modelo A; os novos alvos de memória foram compilados em Debug sem avisos.
+Local evidence: `build-codex/release-tests.log`, `debug-tests.log`, `existing-regressions.json`, `full-release-build.log` and `build-kernel-script.log`. The complete build maintains type conversion warnings in previous model A code; the new memory targets have been compiled into Debug without notices.
 
-## Limites e sequência do núcleo
+## Core limits and sequence
 
-O heap desta etapa tem uma única arena configurada e uma vCPU. Múltiplos heaps,
-destruição de heaps, exceções de heap e sincronização entre vCPUs ainda precisam
-ser implementados. As flags suportadas são `HEAP_NO_SERIALIZE`,
-`HEAP_ZERO_MEMORY` e, na realocação, `HEAP_REALLOC_IN_PLACE_ONLY`; outras são
-recusadas. `RtlCreateHeap` expõe a arena configurada, sem criar arenas independentes.
+The heap of this stage has a single configured arena and a vCPU. Multiple heaps, heap destruction, heap exceptions and synchronization between vCPUs still need to be implemented. Supported flags are `HEAP_NO_SERIALIZE`, `HEAP_ZERO_MEMORY` and, in reallocation, `HEAP_REALLOC_IN_PLACE_ONLY`; others are refused. `RtlCreateHeap` exposes the configured arena without creating independent arenas.
 
-O heap de 15/10, isoladamente, não implementava reserva/commit/decommit ou
-permissões de páginas. Esses recursos foram acrescentados na etapa seguinte de
-[memória virtual](VIRTUAL-MEMORY.md), incluindo `NtFreeVirtualMemory` e
-`NtProtectVirtualMemory` com efeitos verificáveis. Algumas esperas antigas
-continuam provisórias; handles/objetos, processos/threads e sincronização ainda
-precisam evoluir. O heap de `NtKernel` (modelo A) também permanece separado;
-os novos gerenciadores foram integrados ao `MiniNt` (modelo B).
+15/10 heap alone did not implement reserve/commit/decommit or page permissions. These features were added in the next step of [virtual memory](VIRTUAL-MEMORY.md), including `NtFreeVirtualMemory` and `NtProtectVirtualMemory` with verifiable effects. Some old waits remain provisional; handles/objects, cases/threads and synchronization still need to evolve. `NtKernel` (model A) heap also remains separate; the new managers have been integrated into `MiniNt` (model B).
 
-Os resultados históricos de chamar exports com argumentos nulos medem retorno
-ou falha dessas chamadas. Eles não equivalem a uma porcentagem de compatibilidade
-semântica com o Windows. Não foi estabelecida compatibilidade integral de NT,
-Win32, drivers ou execução segura de malware.
+Historical results of calling exports with null arguments measure return or failure of these calls. They do not equal a percentage of semantic compatibility with Windows. Full compatibility of NT, Win32, drivers or safe execution of malware has not been established.
 
-Há cópias dos seis arquivos existentes modificados antes desta etapa em
-`snapshots/codex-before-memory-20261015-231909/`.
+There are copies of the six existing files modified before this step in `snapshots/codex-before-memory-20261015-231909/`.
 
-Referências das semânticas usadas:
+References of the semantics used:
 
-- [HeapReAlloc: preservação, falha e flags](https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heaprealloc)
-- [HeapFree: liberação de blocos](https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapfree)
-- [HeapSize: retorno de tamanho](https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapsize)
+- [HeapReAlloc: preservation, failure and flags](https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heaprealloc)
+- [HeapFree: Block release](https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapfree)
+- [HeapSize: Return Size](https://learn.microsoft.com/en-us/windows/win32/api/heapapi/nf-heapapi-heapsize)
 - [Windows Hypervisor Platform](https://learn.microsoft.com/en-us/virtualization/api/hypervisor-platform/hypervisor-platform)

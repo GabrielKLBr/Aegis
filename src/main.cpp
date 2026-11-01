@@ -207,7 +207,7 @@ int wmain(int argc, wchar_t** argv) {
     if (cmd == L"sandbox") {
         if (argc < 3) { PrintLine(L"Missing <file>.", Color::Red); return 1; }
         Banner();
-        PrintLine(L"Dynamic analysis (lightweight in-OS sandbox)", Color::Cyan);
+        PrintLine(L"Dynamic analysis (lightweight in-OS sandwich)", Color::Cyan);
         PrintLine(L"WARNING: this EXECUTES the file in a restricted container. It is", Color::Yellow);
         PrintLine(L"good for quick triage but is NOT VM-grade isolation. For real", Color::Yellow);
         PrintLine(L"malware use 'sandbox-vm' (Windows Sandbox).", Color::Yellow);

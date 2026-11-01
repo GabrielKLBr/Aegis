@@ -34,20 +34,7 @@ def main():
             pe_volume.verify(profiles/profile)
     for name in ('pe_volume.py','nt_compatibility.py','inspect_gui_compatibility.py'):copy(nt.ROOT/'tools'/name,'tools/'+name)
     copy(nt.ROOT/'docs/PHASE-14.2.md','PHASE-14.2.md')
-    (out/'LEIA-ME.txt').write_text('''Aegis fase 14.2 - carregador externo MiniNT x64
-
-Build de desenvolvimento Windows x64. Requer WHP, NX e runtime C++ do Visual Studio 2022.
-As DLLs originais Windows e compatibilidade geral de aplicativos continuam pendentes.
-O programa de referencia esta dentro do volume convidado; use a CLI abaixo.
-
-No PowerShell, nesta pasta, escolha uma pasta de sessao que ainda nao existe:
-python tools/pe_volume.py verify Release/profiles/win10
-.\\Release\\guardian-pe.exe Release/guardian-kernel-external-pe.gk Release/profiles/win10/runtime.gpv Release/profiles/win10/manifest.json Release/profiles/win10/binding.gnt sessao-nova
-
-Troque win10 por win7 ou win11 em todos os argumentos para outro perfil alvo.
-Troque Release por Debug para a compilacao de depuracao. boot.json registra o resultado.
-Leia PHASE-14.2.md para limites e reproducao. A fase 14.3 nao foi iniciada.
-''',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis phase 14.2 - external charger MiniNT x64\n\nWindows x64 development build. Requires WHP, NX and C++ runtime from Visual Studio 2022.\nOriginal Windows DLLs and overall application compatibility remain pending.\nThe reference program is within the guest volume; use the CLI below.\n\nIn PowerShell, in this folder, choose a session folder that does not yet exist:\npython tools/pe_volume.py verify Release/profiles/win10\n.\\Release\\guardian-pe.exe Release/guardian-kernel-external-pe.gk Release/profiles/win10/runtime.gpv Release/profiles/win10/manifest.json Release/profiles/win10/binding.gnt sessao-nova\n\nSwitch win10 to win7 or win11 in all arguments for another target profile.\nSwitch Release by Debug for debugging compilation. boot.json records the result.\nRead PHASE-14.2.md for limits and reproduction. The 14.3 phase has not been initiated.\n',encoding='utf-8')
     files={str(p.relative_to(out)).replace('\\','/'):nt.sha(p.read_bytes()) for p in sorted(out.rglob('*')) if p.is_file()}
     (out/'manifest.json').write_bytes(nt.canonical({'schema':1,'phase':'14.2','files':files,
         'acceptance':{c:p['tests'] for c,p in proofs.items()},'windowsBinaryCompatibility':False,'phase14_3Started':False}))

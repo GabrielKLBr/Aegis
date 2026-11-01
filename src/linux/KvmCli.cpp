@@ -39,5 +39,5 @@ int GuardianKvmCli(int argc,char** argv){
         if(!result.ioConsole.empty())std::cout<<result.ioConsole;
         std::cout<<"KVM: "<<(result.success?"PASS":"FAIL")<<" | "<<result.diagnostic<<" | "<<result.error<<'\n';
         return result.success?0:3;
-    }catch(const std::exception& e){std::cerr<<"Falha: "<<e.what()<<'\n';return 2;}
+    }catch(const std::exception& e){std::cerr<<"Failed: "<<e.what()<<'\n';return 2;}
 }

@@ -25,10 +25,10 @@ def main():
     for file in (c.ROOT/'docs').glob('*'):
         if file.is_file() and file.suffix in ('.md','.json'):copy(file,'docs/'+file.name)
     copy(a.tests,'validation/campaign-tests.json')
-    (out/'LEIA-ME.txt').write_text('Aegis 14.14 - medicao de compatibilidade, sem aceitacao ampla.\n'
-        'Leia docs/PHASE-14.14.md. Os EXEs independentes e as DLLs Microsoft nao estao incluidos.\n'
-        'Reproduzir a campanha exige os mesmos arquivos locais por SHA-256 e as referencias legais.\n'
-        'EXEs em guest sao dados para o MiniNT; nao os execute no Windows.\n',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis 14.14 - compatibility medication without ampla.\n acceptance'
+        'Read docs/PHASE-14.14.md. Independent EXEs and Microsoft DLLs are not incluidos.\n'
+        'Playing the campaign requires the same local files by SHA-256 and legais.\n references'
+        'Exes in guest are data for MiniNT; do not execute them in Windows.\n',encoding='utf-8')
     manifest={'schema':1,'phase':'14.14','assessmentComplete':True,'broadCompatibilityAccepted':False,'thirdPartyExecutablesIncluded':False,'microsoftInputsIncluded':False,'snapshotsIncluded':False,'tests':unit,'cellsPerConfiguration':96,'files':{f.relative_to(out).as_posix():c.digest(f) for f in sorted(out.rglob('*')) if f.is_file()}}
     c.write(out/'manifest.json',manifest)
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:

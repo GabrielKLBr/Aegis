@@ -5,7 +5,7 @@
 //   * we can create a hardware-isolated partition via WHP (the "MicroVM floor"),
 //   * map guest RAM at a guest-physical address that is NOT host memory,
 //   * run a virtual processor, and
-//   * intercept the guest's device I/O as VM-exits.
+//   *Intercept the guest's device I/O the VM-exits.
 //
 // The guest is 13 bytes of 16-bit real-mode code that writes 'O', 'K', '!' to
 // I/O port 0xE9 (each OUT traps to us = the seed of PvConsole/PvDisk) and then
@@ -33,7 +33,7 @@ constexpr size_t kRamSize = 0x1000;  // one 4 KiB page, must be page-aligned
 // 16-bit real-mode program:
 //   mov al,'O' ; out 0xE9,al ; mov al,'K' ; out 0xE9,al ; mov al,'!' ; out 0xE9,al ; hlt
 const unsigned char kGuestCode[] = {
-    0xB0, 0x4F,        // mov al, 'O'
+    0xB0, 0x4F,        // mov al, O
     0xE6, 0xE9,        // out 0xE9, al
     0xB0, 0x4B,        // mov al, 'K'
     0xE6, 0xE9,        // out 0xE9, al
@@ -151,7 +151,7 @@ int main() {
             std::printf("  [VM-EXIT] guest OUT port 0x%04X = 0x%02X ('%c')\n",
                         port, ch, (ch >= 32 && ch < 127) ? ch : '.');
 
-            // WHP does not auto-advance RIP on I/O; we step past the OUT.
+            // WHP does not self-advance RIP on I/O; we step past the OUT.
             WHV_REGISTER_NAME ripName = WHvX64RegisterRip;
             WHV_REGISTER_VALUE ripVal;
             ZeroMemory(&ripVal, sizeof(ripVal));

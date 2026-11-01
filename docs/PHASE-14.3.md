@@ -1,147 +1,81 @@
-# Fase 14.3 — NTDLL e serviços nativos do MiniNT
+# Phase 14.3 — NTDLL and native MiniNT services
 
-Entrega Windows x64 de 24/10/2026. Esta subfase acrescenta uma matriz limitada
-de chamadas nativas ao kernel próprio da 14.2. O carregador e a execução CPL3
-continuam dentro do convidado WHP. A entrega não declara compatibilidade geral
-com aplicativos Windows, com o Flappy ou com a inicialização completa da NTDLL.
-A 14.4 exige outra solicitação.
+Windows x64 delivery of 24/10/2026. This subphase adds a limited array of native calls to the kernel itself of 14.2. The loader and CPL3 execution continue within the WHP guest. Delivery does not declare general compatibility with Windows applications, Flappy or with full startup of NTDLL. 14.4 requires another request.
 
-## Caminho das chamadas
+## Call Path
 
-`guardian-kernel-native-nt.gk` reaproveita memória, processos, objetos,
-escalonador, TLS, carregador PE e tratamento de exceções existentes. Os serviços
-nativos operam sobre esse estado real: reservar/comprometer/proteger memória,
-compartilhar páginas, bloquear/acordar threads e manter referências de handles
-produz efeitos no convidado. Não há um encaminhamento de syscalls ao Windows host.
+`guardian-kernel-native-nt.gk` Reuse memory, processes, objects, scheduler, TLS, PE charger and treatment of existing exceptions. Native services operate on this real state: reserve/compromise/protect memory, share pages, lock/wake up threads and maintain handles references produce effects on the guest. There is no referral of syscalls to Windows host.
 
-A NTDLL própria exporta 48 entradas Nt e seus 48 aliases Zw. Usa um pacote
-versionado de 104 bytes, aceito apenas quando a chamada parte desse módulo
-convidado. Serviços sem implementação retornam `STATUS_NOT_IMPLEMENTED` e geram
-telemetria. Argumentos, ponteiros, tamanhos, permissões, cotas e propriedade de
-processo são conferidos antes de acessar dados do usuário.
+NTDLL itself exports 48 Nt entries and its 48 Zw aliases. It uses a 104 byte version package, accepted only when the call part of this guest module. Unimplemented services return `STATUS_NOT_IMPLEMENTED` and generate telemetry. Arguments, pointers, sizes, permissions, quotas and process property are checked before accessing user data.
 
-Para uma NTDLL original fornecida legalmente, `native_nt.py` lê os stubs e o
-recurso de versão do mesmo conjunto imutável de bytes. Gera um mapa de números
-de serviços para operações internas, vinculado à DLL e ao perfil. O kernel
-recebe os argumentos pelo ABI x64 da DLL selecionada; não reutiliza a tabela
-de syscalls do host. Entradas desconhecidas, inclusive números coincidentes com
-o protocolo privado antigo, não entram nesse protocolo.
+For an original NTDLL legally provided, `native_nt.py` reads the stubs and version feature of the same immutable set of bytes. Generates a map of service numbers for internal operations linked to DLL and profile. The kernel receives arguments by ABI x64 from the selected DLL; does not reuse the host syscalls table. Unknown entries, including numbers matching the old private protocol, do not enter that protocol.
 
-O perfil determina versão, build e service pack nas estruturas convidadas.
-Há um PEB separado, TEB por thread e uma página de dados compartilhados em
-`0x7FFE0000`, somente leitura e sem execução para CPL3, com relógios coerentes
-com a fonte publicada pelo host. São estruturas parciais para esta matriz;
-`PEB_LDR_DATA`, parâmetros de processo completos e `LdrInitializeThunk` não
-estão implementados.
+The profile determines version, build and service pack in the invited structures. There is a separate PB, TEB by thread and a data page shared in `0x7FFE0000`, read-only and unexecuted for CPL3, with clocks consistent with the source published by the host. They are partial structures for this matrix; `PEB_LDR_DATA`, complete process parameters and `LdrInitializeThunk` are not implemented.
 
-## Matriz implementada
+## Implemented matrix
 
-| Família | Recorte funcional |
+| Family | Cut functional |
 |---|---|
-| Memória | NtAllocate/Free/Protect/QueryVirtualMemory no próprio processo; reserva, commit, decommit, release e arredondamento de páginas |
-| Seções | NtCreateSection/MapViewOfSection/UnmapViewOfSection anônimas; duas views compartilham os mesmos frames; views sobrevivem ao fechamento do handle |
-| Handles | NtClose, NtDuplicateObject no mesmo processo com SAME_ACCESS, NtQueryObject/BasicInformation; contagem e direitos preservados |
-| Processos/threads | NtOpenProcess/Thread, informações básicas do próprio processo/thread, NtCreateThreadEx, NtResumeThread, término do chamador/processo atual |
-| Sincronização | Eventos manuais/automáticos, mutants, semáforos e timers; espera simples/múltipla; prazos absolutos/relativos |
-| APC e tempo | NtQueueApcThread com três argumentos, NtTestAlert, NtDelayExecution alertável, horário e contador; retorno restaurado após callback |
-| Arquivos | NtCreate/Open/Read/WriteFile e QueryInformationFile/StandardInformation, I/O síncrono no volume RAM convidado |
-| Registro | NtCreate/OpenKey, Set/Query/DeleteValueKey e DeleteKey; direitos e ACLs do volume convidado |
-| RTL | Versão, inicialização/comparação de strings, conversão limitada de status, heaps com zero/realloc/free/size/destroy |
-| TLS/FLS | TLS PE já existente; FLS da fibra padrão por thread, valores separados e callbacks em saída normal/liberação |
-| Ldr | LoadDll, UnloadDll, GetDllHandle e GetProcedureAddress sobre catálogo e referências reais do carregador próprio |
-| Exceções | RtlRaiseException, SEH e captura de pilha pela infraestrutura existente; unwind x64 v1 e subconjunto v2 validado |
+| Memory | NtAllocate/Free/Protect/QueryVirtualMemory in the process itself; reserve, commit, decommit, release and rounding of pages |
+| Sections | NtCreateSection/MapViewOfSection/UnmapViewOfSection anonymous; two views share o same frames; views They survive. ed closing do handle |
+| Handles | NtClose, NtDuplicateObject in the same process with SAME_ACCESS, NtQueryObject/BasicInformation; count and rights preserved |
+| Cases/threads | NtOpenProcess/Thread, basic information from Case/thread, NtCreateThreadEx, NtResumeThread, end of the current chamador/Case |
+| Synchronization | Events manuals/automatic, mutants, traffic lights and timers; Wait. simple/multiple; time limits absolute/relative |
+| APC and time | NtQueueApcThread with three arguments, NtTestAlert, NtDelayExecution alertable, time and counter; return restored after callback |
+| Files | NtCreate/Open/Read/WriteFile and QueryInformationFile/StandardInformation, I/O synchronous no volume RAM guest |
+| Registration | NtCreate/OpenKey, Set/Query/DeleteValueKey and DeleteKey; rights and ACLs do volume guest |
+| RTL | Version, startup/comparison of strings, limited status conversion, heaps with zero/realloc/free/size/destroy |
+| TLS/FLS | already existing PE TLS; thread-standard fiber FLS, separate values and output normal/release callbacks |
+| Ldr | LoadDll, UnloadDll, GetDllHandle and GetProcedureAddress on catalog and actual proper loader references |
+| Exceptions | RtlRaiseException, SEH and catch of stack for infrastructure existing; unwind x64 v1 and subconjunto v2 validated |
 
-NtTerminateThread é término de baixo nível: não executa callbacks FLS nem
-notificações de DLL. Saída normal de thread continua a executá-los. APCs aninhadas,
-término remoto e criação de outro processo pelo ABI nativo permanecem recusados.
-NtTestAlert retorna sucesso após entregar APC; uma espera alertável interrompida
-retorna `STATUS_USER_APC`. Essa diferença foi conferida no Windows nativo.
+NtTerminateThread is a low-level end: it does not perform FLS callbacks or DLL notifications. Normal thread output continues to execute them. Nested APCs, remote termination and creation of another process by native ABI remain rejected. NtTestAlert returns success after delivering APC; a interrupted alert waiting returns `STATUS_USER_APC`. This difference was checked on native Windows.
 
-Operações nativas passam pela política/telemetria existente. `guardian-pe` grava
-`boot.json`, `analysis.json` e `analysis.html`. Há eventos de solicitação/resultado
-com status; operações de arquivo/registro também registram o recurso no volume.
-Isso amplia a observabilidade da fase 13, sem prometer detecção perfeita de malware.
+Native operations pass through existing policy/telemetry. `guardian-pe` records `boot.json`, `analysis.json` and `analysis.html`. There are request/result events with status; file/registry operations also record the feature in volume. This increases the observability of phase 13, without promising perfect malware detection.
 
-## Limites e pendências
+## Limits and to-dos
 
-| Recurso nativo | Limite desta entrega |
+| Appeal native | Limit of this delivery |
 |---|---|
-| Alocação VM / rastreamento | 8 MiB por chamada / 32 intervalos nativos por processo |
-| Seções anônimas | 8, até 256 KiB cada, 512 frames compartilháveis no total |
-| Handles nativos | 32 por processo, sujeitos também às cotas dos gerenciadores existentes |
-| Threads | Até 4 por processo e 16 slots globais; stacks e TEB/TLS privados |
-| Processos no caminho nativo | Um EXE externo por boot; criação nativa de filhos ainda recusada |
-| Heaps RTL | 4, até 1 MiB cada; flags suportadas explicitamente |
-| FLS | 31 índices na fibra padrão; outras fibras ainda não implementadas |
-| Arquivos/registro mutáveis | Volume RAM de 64 KiB; 32 nós, payload agregado até 16 KiB, operações/arquivos até 512 bytes |
-| Nomes nativos | ASCII imprimível em descritores Unicode, até 127 caracteres; comparação case-insensitive RTL apenas ASCII |
-| Unwind PE no kernel nativo | Até 8.192 funções por módulo; kernels anteriores mantêm 4.096 |
+| Allocation VM / tracking | 8 MiB per call / 32 native intervals per process |
+| Anonymous sections | 8, up to 256 KiB each, 512 frames shareable no total |
+| Handles natives | 32 per process, also subject to the quotas of existing managers |
+| Threads | Up to 4 per process and 16 global slots; private stacks and TEB/TLS |
+| Processes on the native path | An external EXE by boot; native rearing of children still refused |
+| Heaps RTL | 4, up to 1 MiB each; flags supported explicitly |
+| FLS | 31 indices in the standard fibre; other fibers not yet implemented |
+| Files/log changeable | Volume RAM 64 KiB; 32 knots, added payload up to 16 KiB, operations/files up to 512 bytes |
+| Names natives | ASCII printable in Unicode descriptors, up to 127 characters; case-insensitive comparison RTL only ASCII |
+| Unwind PE no kernel native | Up to 8.192 functions per module; previous kernels maintain 4.096 |
 
-As cotas não garantem que todos os máximos caibam simultaneamente. O volume RAM
-mutável é separado do volume de EXE/DLLs somente leitura: não é NTFS, não persiste
-e não permite que Ldr carregue uma DLL gravada nesse volume. Permanecem pendentes
-seções baseadas em arquivo/SEC_IMAGE, I/O assíncrono, namespaces de objetos
-nomeados, classes de informação adicionais, Unicode/NLS completo, outros flags
-de heap e a maior parte dos exports da NTDLL original.
+Quotas do not guarantee that all maximums will fit simultaneously. The changeable RAM volume is separated from the read-only EXE/DLLs volume: it is not NTFS, it does not persist and does not allow Ldr to load a saved DLL in that volume. Sections based on file/SEC_IMAGE, I/O asynchronous, named object namesspaces, additional information classes, Unicode/NLS complete, other heap flags and most of the original NTDLL exports remain pending.
 
-O carregador aceita o diretório LoadConfig como metadado limitado; isso não
-implementa CFG, CET ou todas as mitigações descritas nele. Unwind v2 aceita os
-metadados exercitados pela DLL e pela referência sintética. Epílogos fora do
-decodificador existente retornam recusa explícita; não se presume cobertura de
-todas as instruções possíveis. O host continua com o limite de imagem de kernel
-de 1,5 MiB. A CLI usa 256 MiB e o orçamento de execução de 30 segundos existente.
-Snapshots desse runtime e integração PE/SMP continuam pendentes.
+The loader accepts the LoadConfig directory as a limited metadata; this does not implement CGG, CET or all the mitigations described in it. Unwind v2 accepts metadata exercised by DLL and synthetic reference. Epilogues outside the existing decoder return explicit refusal; no coverage of all possible instructions is assumed. The host continues with the kernel image limit of 1.5 MiB. CLI uses 256 MiB and the existing 30-second execution budget. Snapshots of this runtime and PE/SMP integration remain pending.
 
-## Referências executadas e aceitação
+## References executed and acceptance
 
-O ensaio com DLL original usa a NTDLL x64 extraída da imagem 1 do `install.wim`
-da ISO Windows 10 22H2 pt-BR fornecida pelo usuário. A extração não executa a DLL
-no host. A versão real do arquivo é **10.0.19041.2788**; o perfil Win10 tem
-build 19045. Essa diferença da família de enablement é registrada, sem alegar
-que houve comparação com um kernel Windows 19045 original.
+The original DLL trial uses NTDLL x64 extracted from the image 1 ed `install.wim` ISO Windows 10 22H2 en-BR provided by the user. Extraction does not execute DLL on host. The actual version of the file is **10.0.19041.2788**; the Win10 profile has built 19045. This family difference of enablement is recorded without claiming that there was comparison with a Windows kernel 19045 original.
 
-- SHA-256 da DLL: `fdb2689bffabe7d2e300882ca1c3fc2fe24a998ffcbd5f48795c7d95712d1e98`.
-- SHA-1 coincide com a entrada extraída: `959735a57905cb6037af73cb29a4cf99fb5f95fe`.
-- 47 stubs reconhecidos no mapa. NtQuerySystemTime é uma rotina em modo usuário
-  que lê os dados compartilhados; não recebe um número inventado de syscall.
-- A matriz original exercita memória, seções, objetos, APCs, arquivos e algumas
-  rotinas RTL. Não exercita heap, FLS, Ldr nem SEH da DLL original.
-- A matriz com DLL própria exercita também registro, heaps, FLS, criação e
-  encerramento de threads, SEH, captura de pilha e referências de Ldr nos três
-  perfis: Win7 6.1.7601/SP1, Win10 10.0.19045 e Win11 10.0.22631.
-- Um executável de teste próprio compara ABI, memória, seções, objetos, APCs e
-  heaps com as APIs do Windows host. Outro compara unwind com RtlVirtualUnwind.
-  Isso não substitui referências nativas exatas de Win7/Win10/Win11, ainda pendentes.
+- SHA-256 ed DLL: `fdb2689bffabe7d2e300882ca1c3fc2fe24a998ffcbd5f48795c7d95712d1e98`.
+- SHA-1 matches the entry extracted: `959735a57905cb6037af73cb29a4cf99fb5f95fe`.
+- 47 stubs recognized on the map. NtQuerySystemTime is a user mode routine
+  which reads the shared data; does not receive an invented number of syscall.
+- The original matrix exercises memory, sections, objects, APCs, files and some
+  RTL routines. Do not exercise the original DLL's heap, FLS, Ldr or SEH.
+- The matrix with own DLL also exercises record, heaps, FLS, creation and
+  threads closure, SEH, stack capture and Ldr references in all three profiles: Win7 6.1.7601/SP1, Win10 10.0.19045 and Win11 10.0.22631.
+- A self-test executable compares ABI, memory, sections, objects, APCs and
+  Heaps with Windows host APIs. Another compares unwind with RtlVirtualUnwind. This does not replace exact native references of Win7/Win10/Win11, still pending.
 
-A aceitação exige 21 testes CTest por configuração, nenhum ignorado: os 15
-critérios da 14.2 e seis novos da 14.3. O teste da DLL original é obrigatório
-para a aceitação desta máquina; não é declarado aprovado por omissão quando
-`GUARDIAN_NATIVE_REFERENCE_DLL` não foi configurado. A regressão completa Release
-contém 96 testes. Relatórios locais em `build-phase14.3` e os arquivos de validação
-do pacote registram o resultado efetivamente obtido e os hashes estáveis dos
-fontes/binários. Tentativas anteriores e logs de falhas são preservados.
+Acceptance requires 21 CTest tests per configuration, none ignored: the 15 criteria of 14.2. and six new 14.3. The original DLL test is mandatory for acceptance of this machine; it is not declared approved by default when `GUARDIAN_NATIVE_REFERENCE_DLL` has not been configured. Full Release regression contains 96 tests. Local `build-phase14.3` reports and package validation files record the result effectively obtained and stable hashes of previous source code/binary. attempts and failed logs are preserved.
 
-Na regressão inicial, os 90 testes anteriores passaram; três dos seis testes
-novos falharam. A comparação nativa corrigiu a tradução de
-`STATUS_NOT_IMPLEMENTED` para erro Win32 1, e a reabertura de arquivo/registro
-passou a fornecer o tamanho exigido pela consulta de ACL. O reteste dos seis
-testes nativos passou. O resumo combina 96 testes distintos, sem esconder as
-falhas iniciais nem afirmar que a primeira execução completa foi aprovada.
+In the initial regression, the previous 90 tests passed; three of the six new tests failed. The native comparison corrected the translation of `STATUS_NOT_IMPLEMENTED` for Win32 1 error, and the reopening of file/registry started to provide the size required by the ACL consultation. The retest of the six native tests passed. The summary combines 96 distinct tests, without hiding the initial failures or stating that the first complete execution was approved.
 
-Os testes negativos incluem ponteiros de supervisor, overflow, commit que cruza
-página, handle obsoleto, direitos insuficientes, falha de alocação em múltiplos
-pontos e rollback de views. Os boots exigem liberação de todos os recursos além
-das 21 páginas permanentes do bootstrap, telemetria completa e chamadas
-desconhecidas recusadas. O pacote é verificado por hashes e iniciado novamente
-nas duas configurações.
+Negative tests include supervisor pointers, overflow, commit that crosses page, obsolete handle, insufficient rights, multiple point allocation failure, and view rollback. Boots require release of all features beyond the 21 permanent bootstrap pages, complete telemetry and unknown calls rejected. The package is checked by hashes and started again in both settings.
 
-## Reprodução
+## Reproduction
 
-Com MSVC 2022, SDK Windows, CMake, Python 3, WHP e NX ativos, configure o build
-com BUILD_TESTING, GUARDIAN_GUI_COMPATIBILITY_ONLY, GUARDIAN_BUILD_PE_GUI,
-GUARDIAN_BUILD_EXTERNAL_PE e GUARDIAN_BUILD_NATIVE_NT ligados. Defina
-`GUARDIAN_NATIVE_REFERENCE_DLL` para a cópia legal da DLL original Win10. Compile
-Release e Debug antes de executar:
+With MSVC 2022, Windows SDK, CMake, Python 3, WHP and NX active, set build with BUILD_TESTING, GUARDIAN_GUI_COMPATIBILITY_ONLY, GUARDIAN_BUILD_PE_GUI, GUARDIAN_BUILD_EXTERNAL_PE and GUARDIAN_BUILD_NATIVE_NT connected. Set `GUARDIAN_NATIVE_REFERENCE_DLL` for the legal copy of the original Win10 DLL. Compile Release and Debug before running:
 
 ```powershell
 ctest --test-dir BUILD -C Release -j 1 --output-on-failure
@@ -151,16 +85,11 @@ python tools/package_phase14_3.py --build BUILD --release ACEITACAO-RELEASE-NOVA
 python tools/smoke_phase14_3.py --package PACOTE-NOVO --output SMOKE-NOVO
 ```
 
-Para montar uma matriz própria: `python tools/native_nt.py bundle --build BUILD
---config Release --profile win10 --output VOLUME-NOVO`. A opção `--original`
-seleciona a DLL legal em vez da implementação própria. ISOs, WIMs e DLLs da
-Microsoft não fazem parte do Git público nem do pacote de builds. Os fontes
-completos do projeto vão para Aegis; a build desta fase vai para Aegis-builds
-privado, junto das fases anteriores.
+To mount a matrix of its own: `python tools/native_nt.py bundle --build BUILD --config Release --profile win10 --output VOLUME-NOVO`. The `--original` option selects the legal DLL instead of its own implementation. Microsoft's ISOs, WIMS and DLLs are not part of the public Git or builds package. The full sources of the project go to Aegis; the build of this phase goes to Aegis-builds private, along with the previous phases.
 
-## Fontes técnicas
+## Technical sources
 
 - [NtCreateSection — Microsoft](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-ntcreatesection).
 - [RtlGetVersion — Microsoft](https://learn.microsoft.com/en-us/windows/win32/devnotes/rtlgetversion).
-- [Tratamento de exceções x64 — Microsoft](https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64?view=msvc-170).
-- [Unwinder AMD64 do .NET — código oficial](https://github.com/dotnet/runtime/blob/main/src/coreclr/unwinder/amd64/unwinder.cpp).
+- [Exception treatment x64 — Microsoft](https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64?view=msvc-170).
+- [ .NET’s Unwinder AMD64 — official code](https://github.com/dotnet/runtime/blob/main/src/coreclr/unwinder/amd64/unwinder.cpp).

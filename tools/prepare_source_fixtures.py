@@ -15,7 +15,7 @@ def prepare(guest, output):
         source = guest / name
         data = source.read_bytes()
         if data[:2] != b"MZ":
-            raise ValueError("Imagem de teste inválida: " + name)
+            raise ValueError("Invalid test image: " + name)
         rows.append({"name": name, "source": "fresh-owned-guest-build/" + name,
                      "sha256": hashlib.sha256(data).hexdigest()})
     output.mkdir(parents=True, exist_ok=False)

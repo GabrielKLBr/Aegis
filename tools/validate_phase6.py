@@ -42,7 +42,7 @@ def matrices(build):
         details = (build / f"phase6-{config.lower()}-tests-details.log").read_text(encoding="utf-8", errors="replace")
         require("693 freestanding process/security checks PASS" in details and "983 freestanding scheduler checks PASS" in details,
                 "Native core checks missing: " + config)
-        require("630 freestanding I/O checks PASS" in details and "95 host I/O boundary checks PASS" in details, "I/O unit evidence missing")
+        require("630 freestanding I/O PASS checks" in details and "95 host I/O bondary checks PASS" in details, "I/O unit evidence missing")
         for name, filename, negatives in (("io", f"phase6-boots-{config}", 22),
                                          ("processes", f"phase6-regression-phase5-boots-{config}", 12),
                                          ("threads", f"phase6-regression-phase4-boots-{config}", 12),
@@ -131,7 +131,7 @@ def main():
             for name in names:
                 smoke.append(execute([tool, "--check", build / "guest" / config / (name + ".gk")], config, "PE: " + name))
             smoke.append(execute([tool, build / "guest" / config / "guardian-kernel-io.gk", "--io", "--ram-mib", "64", "--repeat", "2",
-                                  "--report", build / f"phase6-cli-{config}.json"], config, "I/O CLI boots"))
+                                  "--report", build / f"phase6-cli-{config}.json"], config, "I/O CLI boot"))
         write(build / "phase6-reference-programs.json", refs); write(build / "phase6-smoke.json", smoke)
     refs = read(build / "phase6-reference-programs.json"); smoke = read(build / "phase6-smoke.json")
     require(len(refs) == 14 and len(smoke) == 18 and all(r["exit_code"] == 0 for r in refs + smoke), "Reference/smoke validation missing")
@@ -149,7 +149,7 @@ def main():
     require(clean.count("Kernel PE32+ x64 valid") == 6 and "error " not in clean.lower(), "Clean build audit incomplete")
     modified = ["guest/CpuKernel.cpp", "guest/ProcessKernel.cpp", "guest/ProcessUser.asm", "guest/ProcessManager.cpp", "shared/guardian/Processes.h",
                 "guest/CMakeLists.txt", "cmake/GuardianPlatform.cmake", "src/microvm/boot/KernelBoot.h", "src/microvm/boot/KernelBoot.cpp",
-                "src/microvm/boot/BootMain.cpp", "README.md", "docs/ROADMAP-COMPLETO.md"]
+                "src/microvm/boot/BootMain.cpp", "README.md", "docs/COMPLETE-ROADMAP.md"]
     created = ["shared/guardian/Io.h", "guest/IoManager.h", "guest/IoManager.cpp", "guest/IoChecks.cpp", "guest/IoKernel.h", "guest/IoKernel.cpp",
                "src/microvm/boot/IoBackend.h", "src/microvm/boot/IoBackend.cpp", "test/GuestIoCoreTests.cpp", "test/GuestIoTransportTests.cpp", "test/GuestIoBootTests.cpp",
                "config/phase6-acceptance.json", "docs/PHASE-6.md", "tools/validate_phase6.py"]

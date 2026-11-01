@@ -27,11 +27,11 @@ def main():
     for name in frozen.inputs():copy(validation.ROOT/name,name)
     for name in ('README.md','SECURITY.md','signatures.txt'):copy(validation.ROOT/name,name)
     for file in (validation.ROOT/'docs').glob('*.md'):copy(file,'docs/'+file.name)
-    (out/'LEIA-ME.txt').write_text('Aegis 14.13A - pacotes automaticos e integracao dos servicos.\n'
-        'Leia docs/PHASE-14.13A.md. Prepare o catalogo local com tools/provision_runtime.py.\n'
-        'Este pacote nao inclui DLLs Microsoft, arquivos de programas externos, catalogos locais nem snapshots de memoria.\n'
-        'Nao execute os EXEs convidados no host. Os programas do diretorio guest sao dados para o MiniNT.\n'
-        'Validacao restrita a esta entrega; isto nao certifica compatibilidade ampla.\n',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis 14.13A - Automatic packages and integration of servicos.\n'
+        'Read docs/PHASE-14.13A.md. Prepare the local catalog with tools/provision_runtime.py.\n'
+        'This package does not include Microsoft DLLs, external program files, local catalogs or snapshots of memoria.\n'
+        'Do not execute guest EXes on the host. The guest directory programs are data for MiniNT.\n'
+        'Validation restricted to this delivery; this does not certify ampla.\n compatibility',encoding='utf-8')
     manifest={'schema':1,'phase':'14.13A','scope':'automatic-packages-current-runtime-integration',
               'tests':{c:r['tests'] for c,r in proofs.items()},'installedServiceTests':services['tests'],
               'earlierPhasesRevalidated':False,'microsoftInputsIncluded':False,

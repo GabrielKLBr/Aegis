@@ -1,111 +1,44 @@
-# 14.10G — Reprodução PCM, WinMM e WASAPI
+# 14.10G — Reproduction PCM, WinMM and WASAPI
 
-Entrega delimitada para **Windows x64, perfil NT 10.0.19045**, em modo
-`--audio`. A aplicação e os adaptadores das DLLs permanecem no MiniNT.
-Um auxiliar restrito executa as operações nativas de reprodução WinMM e
-WASAPI. Esta entrega não representa toda a pilha multimídia do Windows.
+Delimited delivery for **Windows x64, NT profile 10.0.19045**, in `--audio` mode. The application and adapters of DLLs remain in MiniNT. A restricted helper performs native playback operations WinMM and WASAPI. This delivery does not represent the entire multimedia stack of Windows.
 
-## Contrato e recursos
+## Contract and resources
 
-O kernel `guardian-kernel-audio.gk` anuncia `GuardianAudio/7/guest`.
-O protocolo 7 mantém os tamanhos do transporte anterior e acrescenta
-operações de áudio canônicas. O manifesto vincula kernel, volume, perfil e
-SHA-256 de `guardian-audio-host.exe`. O modo e as DLLs do protocolo 6 da
-14.10F continuam separados; os adaptadores gráficos do modo áudio são
-recompilados com o protocolo 7.
+The `guardian-kernel-audio.gk` kernel announces `GuardianAudio/7/guest`. Protocol 7 maintains the previous transport sizes and adds canonical audio operations. The manifest links `guardian-audio-host.exe` kernel, volume, profile and SHA-256. The mode and DLLs of 14.10F protocol 6 remain separate; the audio mode graphical adapters are recompiled with protocol 7.
 
-- **PCM:** inteiros de 16 bits, mono/estéreo, 22050, 44100 ou 48000 Hz.
-  Apenas uma saída virtual, correspondente à saída padrão do host.
-- **WinMM:** abrir, preparar/escrever/despreparar buffers, conclusão
-  assíncrona `WHDR_DONE`, pausa/reinício, posição, reset e fechamento.
-  Um thread do convidado consulta a conclusão nativa e atualiza os headers
-  do convidado. Apenas `CALLBACK_NULL`; nenhum callback nativo é encaminhado.
-- **WAV:** `PlaySoundW` síncrono com RIFF/WAVE PCM em memória ou arquivo do
-  convidado. O arquivo é lido e interpretado no convidado. Aliases, recursos,
-  loops, reprodução assíncrona e sons padrão do host não são implementados.
-- **WASAPI:** enumerador, coleção e endpoint virtuais, ativação de
-  `IAudioClient`, renderização compartilhada, buffers copiados, padding,
-  início/parada/reset e relógio nativo `IAudioClock`. O formato preferido da
-  saída virtual é PCM estéreo 48 kHz; não é o formato privado do dispositivo.
-  Conversão PCM é feita pelo mecanismo de áudio do Windows. Exclusivo,
-  eventos, loopback, propriedades do host e sessões personalizadas não são
-  liberados. As interfaces seguem os headers e a ABI do SDK.
-- **Falhas:** erros de inicialização e dispositivo são propagados. É possível
-  fechar e abrir outro cliente; não existe recuperação transparente nem
-  notificação de troca do dispositivo. Desconexão física não faz parte da
-  aceitação automatizada. `GetDevicePeriod`/`GetStreamLatency` e notificações
-  permanecem `E_NOTIMPL` na matriz.
+- **PCM:** 16-bit integers, mono/stereo, 22050, 44100 or 48000 Hz.
+  Only a virtual output, corresponding to the default host output.
+- **WinMM:** open, prepare/write/unprepare buffers, conclusion
+  asynchronous `WHDR_DONE`, pause/restart, position, reset and closing. A guest thread consults the native conclusion and updates the guest headers. Only `CALLBACK_NULL`; no native callback is forwarded.
+- **WAV:**`PlaySoundW` synchronous with RIFF/WAVE PCM in memory or file of
+  guest. The file is read and interpreted in the guest. Aliases, features, loops, asynchronous playback and host default sounds are not implemented.
+- **WASAPI:** enumerator, virtual collection and endpoint, activation of
+  `IAudioClient`, shared rendering, copied buffers, padding, start/stop/reset and native `IAudioClock` clock. The preferred virtual output format is PCM stereo 48 kHz; it is not the device's private format. PCM conversion is made by Windows audio engine. Exclusive, events, loopback, host properties and custom sessions are not released. Interfaces follow SDK headers and ABI.
+- **Failures:** boot errors and device are propagated. It is possible
+  close and open another client; there is no transparent recovery or device exchange notification. Physical disconnection is not part of automated acceptance. `GetDevicePeriod`/`GetStreamLatency` and notifications remain `E_NOTIMPL` in the matrix.
 
-IDs incluem sessão e são associados ao processo convidado. Threads do mesmo
-processo podem alimentar uma saída; o encerramento do thread que abriu a saída
-recolhe seus recursos. Ponteiros e handles de áudio nativos nunca cruzam o
-transporte. Buffers são copiados em blocos de até 512 bytes, com escrita
-sequencial e sem reutilização depois do envio. O auxiliar só libera memória
-WinMM depois da conclusão ou do reset; uma falha irrecuperável nessa limpeza
-encerra o auxiliar, em vez de liberar um buffer ainda usado pelo driver.
+IDs include session and are associated with the guest process. Threads of the same process can feed an output; closing the thread that opened the output collects its features. Native audio pointers and handsets never cross the transport. Buffers are copied in blocks of up to 512 bytes, with sequential writing and no reuse after upload. The helper only releases WinMM memory after completion or reset; an irrecoverable failure in this cleaning closes the auxiliary, instead of releasing a buffer still used by the driver.
 
-Limites: quatro streams, 32 buffers nativos, oito headers WinMM por stream,
-256 KiB por buffer, 1 MiB de dados simultâneos e 16 MiB enviados por sessão.
-O buffer WASAPI solicitado fica entre 20 e 500 ms; seu tamanho real vem da
-API nativa. Relógio e padding refletem o dispositivo, sem prometer igualdade
-de latência ou sincronização audiovisual completa.
+Limits: four streams, 32 native buffers, eight WinMM headers per stream, 256 KiB per buffer, 1 MiB simultaneous data and 16 MiB sent per session. The requested WASAPI buffer is between 20 and 500 ms; its real size comes from the native API. Clock and padding reflect the device without promising equal latency or full audiovisual synchronization.
 
-O auxiliar mantém token restrito, integridade baixa, Job de um processo e
-256 MiB, dois handles herdados e os prazos da 14.10F. O Job encerra o auxiliar
-com o supervisor. Isso mantém as limitações de contenção documentadas na
-14.10F: não é AppContainer nem uma prova de impossibilidade de escape.
-Não há captura de microfone/câmera/loopback. A saída de som é um efeito
-permitido no host; a validação não grava a saída nem garante percepção física
-do som. O corpus independente usa silêncio.
+The helper keeps token restricted, low integrity, Job of a process and 256 MiB, two inherited handles and the deadlines of 14.10F. Job closes the auxiliary with the supervisor. This keeps the containment limitations documented in 14.10F: it is neither AppContainer nor an escape proof. There is no capture of microphone/camera/loopback. Sound output is a allowed effect on the host; validation does not record the output or ensure physical perception of sound. The independent corpus uses silence.
 
-## Matriz e limites de compatibilidade
+## Matrix and compatibility limits
 
-[audio-api-matrix.json](../config/audio-api-matrix.json) distingue operações
-nativas, estado local, recusas e pendências. Exports não equivalem à
-implementação de todos os modos de uma API. Referências COM herdadas não são
-uma medida de compatibilidade universal. Os objetos WASAPI deste recorte
-permanecem no thread criador; marshaling entre apartments não é implementado.
+[audio-api-matrix.json](../config/audio-api-matrix.json) distinguishes native operations, local state, refusals and to-ed. Exports do not equal the implementation of all modes of an API. Inherited COM references are not a measure of universal compatibility. WASAPI objects of this cut remain in the creator thread; marshalling between apartments is not implemented.
 
-Media Foundation, vídeo e codecs de mídia comprimida continuam pendentes,
-assim como XAudio2, DirectSound, MIDI, captura, notificações e controle global
-de volume. Imports ausentes são rejeitados antes do boot. As operações
-gráficas herdadas mantêm os limites da 14.10F. Outros perfis NT não são
-anunciados neste lote. Não há novo classificador de malware nesta entrega.
+Media Foundation, video and compressed media codecs remain pending, as well as XAudio2, DirectSound, MIDI, capture, notifications and global volume control. Absent imports are rejected before boot. The inherited graphical operations keep the limits of 14.10F. Other NT profiles are not announced in this batch. There is no new malware classifier on this delivery.
 
-## Validação reproduzível
+## Reproducible validation
 
-`AudioClient.cpp` usa imports e interfaces normais do SDK. O mesmo EXE é
-executado nativamente e no MiniNT: reprodução, conclusão, cancelamento,
-pausa, posição, buffers/padding e relógio WASAPI, além de WAV em memória e
-arquivo. Uma variante separada verifica as recusas de política.
+`AudioClient.cpp` uses standard SDK import and interfaces. The same EXE runs natively and on MiniNT: playback, completion, cancellation, pause, position, buffers/padding and WASAPI watch, as well as WAV in memory and file. A separate variant checks policy refusals.
 
-O teste independente do projeto **Whisky** é compilado sem alterar o fonte
-fixado em [audio-corpus.json](../config/audio-corpus.json). O recibo registra
-o hash do fonte e do binário. O mesmo EXE nativo/convidado reproduz 600 ms de
-PCM silencioso. Fonte e EXE externos não são redistribuídos no pacote.
+The independent test of the project **Whisky** is compiled without changing the source fixed in [audio-corpus.json](../config/audio-corpus.json). The receipt records the hash of the source and binary. The same EXE native/guest reproduces 600 ms of silent PCM. External source and EXE are not redistributed in the package.
 
-`AudioBrokerTests.cpp` cobre sessão/processo estrangeiros, ordem dos blocos,
-buffers em uso, cotas, reset, encerramento de thread e falha do auxiliar.
-As ferramentas verificam modo, manifesto, imports e vínculo do auxiliar.
-A aceitação final executa somente os quatro testes `audio_*`, em Release e
-Debug, e repete os testes da 14.10G no pacote extraído. Por solicitação do
-usuário, não exige repetir as baterias das fases anteriores. Comparações
-gráficas e tentativas de regressão anteriores foram preservadas como histórico,
-sem serem apresentadas como a aceitação final deste lote.
+`AudioBrokerTests.cpp` covers foreign meeting/Case, order of blocks, buffers in use, quotas, reset, thread closure, and auxiliary failure. The tools check mode, manifest, imports and auxiliary link. Final acceptance only performs the four `audio_*` tests, in Release and Debug, and repeats the 14.10G tests in the extracted package. At user's request, it does not require repeating the batteries of the previous phases. Graphic comparisons and previous regression attempts were preserved as historical, without being presented as the final acceptance of this batch.
 
-Uma tentativa antiga registrou falha intermitente de temporização da 12D;
-duas repetições isoladas passaram com os mesmos fontes e binários. Outra
-rodada foi interrompida por falta de memória no host. Esses resultados não
-foram convertidos em aprovações nem implicam que a falha da 12D foi corrigida.
+An old attempt recorded intermittent failure of 12D timing; two isolated repetitions passed with the same sources and binaries. Another round was interrupted by lack of memory in the host. These results were not converted into approvals nor implied that the failure of 12D was corrected.
 
-Configure `GUARDIAN_BUILD_AUDIO=ON` e `GUARDIAN_AUDIO_CORPUS` com a pasta
-do fonte independente fixado. Compile `guardian_audio_runtime` e
-`guardian-desktop` para Release/Debug. Execute `ctest -R '^audio_'` com as
-referências locais legais configuradas. Para gerar um volume, use
-`tools/audio_runtime.py --build BUILD --config Release --reference CRT
---schema-reference SCHEMA --output NOVO --asset tone.wav`. Inicie
-`guardian-desktop.exe` com os cinco caminhos usuais de kernel/volume/manifesto/
-binding/saída e `--audio --seconds 30`.
+Configure `GUARDIAN_BUILD_AUDIO=ON` and `GUARDIAN_AUDIO_CORPUS` with the fixed independent source folder. Compile `guardian_audio_runtime` and `guardian-desktop` for Release/Debug. Run `ctest -R '^audio_'` with the legal local references configured. To generate a volume, use `tools/audio_runtime.py --build BUILD --config Release --reference CRT --schema-reference SCHEMA --output NOVO --asset tone.wav`. Start `guardian-desktop.exe` with the five usual paths of kernel/volume/manifest/ binding/exit and `--audio --seconds 30`.
 
-Fontes são publicados no Aegis; builds somente no Aegis-builds privado.
-Parar após esta entrega, sem iniciar a 14.11 ou outro lote de mídia.
+Sources are posted in Aegis; builds only in private Aegis-builds. Stop after this delivery, without starting at 14.11 or other batch of media.

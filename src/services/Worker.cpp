@@ -222,8 +222,8 @@ Json Desktop(const fs::path &bundle, ULONGLONG deadline) {
 #else
     (void)bundle;
     (void)deadline;
-    throw std::runtime_error("Esta build não inclui o runtime gráfico. Compile com "
-                             "GUARDIAN_BUILD_EXTERNAL_PE=ON e o runtime de áudio habilitado.");
+    throw std::runtime_error("This build does not include graphic runtime. Compile with "
+                             "GUARDIAN_BUILD_EXTERNAL_PE=ON and audio runtime enabled.");
 #endif
 }
 } // namespace

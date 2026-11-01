@@ -1,99 +1,40 @@
-# Fase 8 — Threads PE com dados privados e contenção
+# Phase 8 — PE Threads with private data and containment
 
-Data de referência: 17/10/2026. Estado da fase: **em andamento**.
-Este terceiro marco continua o runtime da fase 8. A fase 9 não foi iniciada.
+Reference date: 17/10/2026. Phase State: ** in progress**. This third milestone continues the runtime of phase 8. Phase 9 was not initiated.
 
-## Comportamento implementado
+## Behavior implemented
 
-A DLL própria passa a exportar `CreateThread`, `ResumeThread`,
-`GetExitCodeThread` e `SwitchToThread`. `WaitForSingleObject` e `CloseHandle`
-aceitam os handles das novas threads; `ReleaseMutex` continua exigindo mutex.
-A criação aceita execução imediata ou `CREATE_SUSPENDED`. Identidade, token,
-direitos e processo de origem são determinados no kernel do convidado.
+The own DLL goes on to export `CreateThread`, `ResumeThread`, `GetExitCodeThread` and `SwitchToThread`. `WaitForSingleObject` and `CloseHandle` accept the handles of the new threads; `ReleaseMutex` continues to require mutex. Creation accepts immediate execution or `CREATE_SUSPENDED`. Identity, token, rights and process of origin are determined in the guest kernel.
 
-Cada worker recebe uma pilha com 60 KiB comprometidos e uma primeira página
-não mapeada, além de uma página privada para TEB, vetor TLS, dois blocos TLS e
-inicialização. O PEB e o heap são compartilhados pelo processo. A thread inicial
-continua usando seu TEB privado na página de bootstrap. Não há estruturas do
-host expostas à aplicação por essas APIs.
+Each worker receives a stack of 60 KiB committed and a first unmapped page, as well as a private page for TEB, TLS vector, two TLS blocks and startup. The PEB and heat are shared by the process. The initial thread continues using its private TEB on the bootstrap page. There are no host structures exposed to the application by these APIs.
 
-O bootstrap chama callbacks TLS e DLL com `DLL_THREAD_ATTACH` antes da função
-da thread e `DLL_THREAD_DETACH` após seu retorno. Um mutex por processo serializa
-essas chamadas e a inicialização/finalização do processo; o bloqueio é feito
-pelo escalonador. O código dos callbacks pode ceder execução sem permitir que
-outro callback entre ao mesmo tempo. O primeiro attach do processo usa o motivo
-próprio de processo, sem duplicar o attach de thread.
+Bootstrap calls TLS and DLL calls with `DLL_THREAD_ATTACH` before the thread and `DLL_THREAD_DETACH` function after their return. A process mutex serializes these calls and the process startup/completion; the lock is done by the scheduler. The callback code can yield execution without allowing another callback to enter at the same time. The first process attach uses the process itself without doubling the thread attach.
 
-Ao retornar, o resultado DWORD sinaliza o objeto de término. Já na tabela de
-páginas do kernel, são liberados TEB, pilha, vínculo do processo e slot do
-escalonador. O objeto de término sobrevive enquanto houver handles ou esperas:
-um handle antigo mantém seu resultado depois de o slot receber outra geração
-de thread. Fechar o último handle de uma thread ainda viva não elimina seu
-vínculo interno. Permissões de consulta, espera e modificação são independentes.
+On return, the DWORD result signals the end object. In the kernel tabs, TEB, stack, process link, and scheduler slot are released. The end object survives as long as there are handles or waits: an old handle keeps its result after the slot receives another thread generation. Closing the last handle of a still-living thread does not eliminate its internal link. Query, wait, and modification permissions are independent.
 
-A criação faz rollback se a reserva, o commit ou a preparação do TLS falhar.
-A quota de quatro threads inclui a inicial. Endereços de entrada precisam estar
-nas seções RX dos PEs carregados; esta restrição é mais estreita que a API do
-Windows, que pode aceitar uma entrada inválida e falhar na execução posterior.
+Creation rollbacks if booking, commit or preparation of TLS fails. The four threads quota includes initial. Input addresses need to be in the RX sections of the loaded PEs; this restriction is narrower than the Windows API, which can accept an invalid entry and fail to execute later.
 
-## Provas de comportamento
+## Tests of behavior
 
-A aplicação própria cria três workers suspensos por rodada, em dez rodadas.
-Confere `STILL_ACTIVE`, timeout antes de retomar, contagem anterior de suspensão,
-limite de threads, resultado e espera repetida após término. Mantém o handle da
-primeira thread durante todas as rodadas para verificar a preservação do objeto
-antigo. Handles fechados e uso de thread como mutex são recusados.
+The application itself creates three workers suspended per round, in ten rounds. Checks `STILL_ACTIVE`, timeout before resuming, previous suspension count, thread limit, result and wait repeated after termination. Keeps the handle of the first thread during all rounds to check the preservation of the old object. Handles closed and use thread as mutex are refused.
 
-Os 30 workers verificam TEB, pilha, identidade, TLS e último erro independentes.
-Usam o mesmo heap e seção crítica, cedendo execução tanto dentro da seção
-quanto com blocos de heap em uso. Há 360 incrementos protegidos por boot, com
-preservação e zeragem dos dados após realocação. Uma thread adicional sai com um
-mutex adquirido, exercitando abandono, espera, aquisição e liberação pelo outro
-participante. Os 31 pares de callbacks de thread precisam estar equilibrados
-antes do término do programa. O bloco TLS completo da DLL na thread inicial
-precisa permanecer byte a byte igual durante todas as rodadas. A DLL também
-cede execução em seus callbacks e
-recusa reentrada concorrente.
+The 30 workers check for TEB, stack, identity, TLS and last independent error. They use the same heat and critical section, yielding execution both within the section and with battery blocks in use. There are 360 increments protected by boot, with preservation and zeroing of data after relocation. An additional thread comes out with an acquired mutex, exercising abandonment, waiting, acquisition and release by the other participant. The 31 pairs of thread callbacks need to be balanced before the program ends. The full TLS block of DLL in the initial thread needs to remain byte to byte equal throughout all rounds. DLL also gives up execution on its callbacks and concurrent reentry.
 
-O teste nativo mantém as 693 verificações anteriores e acrescenta **904**
-verificações de ciclo de vida, incluindo 64 reutilizações, espera pendente,
-permissões, resultado antigo após reutilização, recusa de reap de thread viva,
-recusa de ID obsoleto e fechamento do handle antes da saída. A contagem final de
-páginas, threads, handles, objetos e referências deve voltar à base inicial.
+The native test maintains the previous 693 checks and adds **904** life cycle checks, including 64 reuses, pending wait, permissions, old result after reuse, refusal of reap of live thread, refusal of obsolete ID and closing of the handle before exit. The final count of pages, threads, handles, objects and references should return to the initial base.
 
-Uma prova dirigida reproduziu uma escrita indevida dos sentinelas FS/GS do
-bootstrap antigo no TLS da thread principal. O teste do bloco completo recusou
-a versão anterior à correção com status 51036, preservado em
-`build-codex/phase8-concurrency-tls-before-fix.json`. O caminho de criação agora
-reserva esses sentinelas ao workload antigo. A matriz final exige a preservação
-do bloco inteiro e retorno zero com a correção.
+A directed proof reproduced an improper writing of the old bootstrap FS/GS sentinels in the main thread TLS. The complete block test refused the previous version of the correction with status 51036, preserved in `build-codex/phase8-concurrency-tls-before-fix.json`. The path of creation now reserves these sentinels to the old workload. The final matrix requires the preservation of the entire block and zero return with correction.
 
-O marcador `PE private TEB TLS thread lifecycle contention PASS` depende do
-retorno zero da aplicação e da limpeza completa conferida pelo kernel.
-A matriz usa somente PEs de referência do projeto, em CPL3 e WHP reais.
+The `PE private TEB TLS thread lifecycle contention PASS` marker depends on the zero return of the application and the complete cleaning provided by the kernel. The matrix uses only project reference PEs, in real CPL3 and WHP.
 
-## Validação e preservação
+## Validation and preservation
 
-O contrato exige 35 testes por configuração em Debug e Release, sem ignorados,
-720 boots positivos (80 deste runtime e 640 de regressão), 240 cenários externos
-de falha e os pares persistentes de arquivos/registro do marco anterior. Os
-80 boots do runtime somam 2.480 workers e 28.800 incrementos protegidos.
+The contract requires 35 tests per configuration in Debug and Release, without ignored, 720 positive boots (80 of this runtime and 640 regression), 240 external failure scenarios and persistent files/log pairs of the previous milestone. The 80 boot runtime add 2,480 workers and 28,800 protected increments.
 
-São executados os sete programas de referência por configuração, auditorias das
-nove imagens e provas da CLI. Uma árvore independente,
-`build-phase8-concurrency-clean`, recompila as nove imagens de produção e faz
-suas auditorias. Os nomes dos alvos de produção permanecem os mesmos.
+The seven reference programs are executed by configuration, audits of the nine CLI images and tests. An independent tree, `build-phase8-concurrency-clean`, recompiles the nine production images and does its audits. The names of the production targets remain the same.
 
-Novas evidências e discos usam o prefixo `phase8-concurrency-`. O snapshot dos
-17 originais é `snapshots/codex-before-phase8-concurrency-20261017`.
-São conferidos por SHA-256 os 457 arquivos históricos de evidência e os discos
-da fase 7 e dos dois marcos anteriores da fase 8. Não são alteradas opções de
-boot, segurança ou NX do Windows.
+New evidence and disks use the `phase8-concurrency-` prefix. The snapshot of the original 17 is `snapshots/codex-before-phase8-concurrency-20261017`. SHA-256 checked the 457 historical evidence files and the disks of phase 7 and the two previous milestones of phase 8. No boot, security or Windows NX options are changed.
 
-Contrato: `config/phase8-concurrency-acceptance.json`.
-Verificador: `tools/validate_phase8_concurrency.py`.
-Manifesto: `build-codex/phase8-concurrency-change-manifest.json`.
-Os documentos dos marcos anteriores conservam os resultados e limites históricos.
+Contract: `config/phase8-concurrency-acceptance.json`. Checker: `tools/validate_phase8_concurrency.py`. Manifesto: `build-codex/phase8-concurrency-change-manifest.json`. The documents of earlier milestones retain the results and historical limits.
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Debug -FullBuild *> build-codex\phase8-concurrency-full-debug-script.log
@@ -105,23 +46,13 @@ cmake --build build-phase8-concurrency-clean --config Debug --target guardian_gu
 python tools\validate_phase8_concurrency.py --snapshot snapshots\codex-before-phase8-concurrency-20261017 --run-programs
 ```
 
-## Limites e continuação
+## Limits and continuation
 
-Este marco aceita quatro threads por processo e uma vCPU; não implementa SMP.
-A reserva/commit de pilha é fixa; tamanhos personalizados, atributos de segurança
-e outras flags de criação são recusados. O heap continua limitado a 8 KiB e
-cada módulo recebe no máximo 256 bytes de TLS. `SwitchToThread` informa se havia
-outro participante pronto e entrega a decisão ao escalonador existente.
+This milestone accepts four threads per process and a vCPU; it does not implement SMP. The reserve/commit stack is fixed; custom sizes, security attributes and other creation flags are rejected. The heat remains limited to 8 KiB and each module receives a maximum of 256 bytes of TLS. `SwitchToThread` informs if there was another participant ready and delivers the decision to the existing scheduler.
 
-Ainda há um único processo PE no teste. A criação de filhos PE e a vida completa
-da thread principal/última thread, incluindo `ExitThread` explícito, continuam
-pendentes. Os workers deste marco terminam retornando da função; a aplicação
-principal espera por todos antes de retornar. O término com workers ainda
-ativos precisa da próxima matriz de ciclo de vida. Não há suporte declarado a
-código arbitrário, handlers SEH de usuário, unwind x64 em execução ou carga e
-descarga dinâmica de DLLs. A validação final por aplicação permanece pendente.
+There is still a single PE process in the test. The creation of PE children and the full life of principal/last thread, including `ExitThread` explicit, remain pending. The workers of this milestone end up returning from the function; the main application waits for everyone before returning. The termination with still active workers needs the next life cycle matrix. There is no declared support for arbitrary code, user SEH handlers, unwind x64 in running or dynamic loading and unloading of DLLs. The final validation per application remains pending.
 
-Referências de contrato: [CreateThread](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createthread),
+Contract references: [CreateThread](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createthread),
 [GetExitCodeThread](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getexitcodethread),
-[DllMain](https://learn.microsoft.com/en-us/windows/win32/dlls/dllmain) e
+[DllMain](https://learn.microsoft.com/en-us/windows/win32/dlls/dllmain) and
 [SwitchToThread](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-switchtothread).

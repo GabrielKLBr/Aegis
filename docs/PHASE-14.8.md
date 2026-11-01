@@ -1,126 +1,55 @@
-# Fase 14.8 — componentes e serviços de desktop no MiniNT
+# Phase 14.8 — desktop components and services in MiniNT
 
-Esta entrega implementa um lote delimitado de COM, RPC, automação, propriedades,
-Shell, controles e diálogos para o perfil **Windows 10 x64**. Os aplicativos de
-aceitação são executáveis e uma DLL independentes, compilados com imports
-normais do SDK Windows. As bibliotecas próprias cumprem os cenários descritos
-abaixo; não se declara implementação completa dessas DLLs nem compatibilidade
-geral com componentes arbitrários do Windows.
+This delivery implements a delimited batch of COM, PRC, automation, properties, Shell, controls and dialogs for the profile **Windows 10 x64**. Acceptable applications are executable and an independent DLL compiled with normal SDK Windows imports. The libraries themselves comply with the scenarios described below; they are not declared complete implementation of these DLLs or general compatibility with arbitrary Windows components.
 
-## Execução e isolamento
+## Execution and isolation
 
-`guardian-kernel-components.gk` conserva os serviços da 14.7 e acrescenta um
-canal de comunicação entre processos do convidado. O kernel copia mensagens
-limitadas, verifica PID/TID, identidade e integridade, atribui identificadores
-monotônicos e controla a propriedade de endpoints e respostas. Há **12 endpoints,
-16 chamadas simultâneas e 768 bytes por mensagem**. Excesso de recursos falha;
-cancelamento e saída de processos/threads recolhem as chamadas e endpoints.
-Respostas de outro processo ou thread não são aceitas.
+`guardian-kernel-components.gk` preserves the services of 14.7 and adds a communication channel between guest processes. The kernel copies limited messages, checks PID/TID, identity and integrity, assigns monotonic identifiers and controls the property of endpoints and answers. There are **12 endpoints, 16 simultaneous calls and 768 bytes per message**. Excess of features fails; cancellation and output of cases/threads collect calls and endpoints. Answers from another process or thread are not accepted.
 
-A entrada A8 é reconhecida somente em código executável de `combase.dll` no
-convidado. O transporte não contém endereços de funções, ponteiros de objetos ou
-handles do host. Factories, objetos COM, callbacks de janela, stubs RPC e loops
-de servidor executam em CPL3. Ativação usa o registro virtual, o carregador de
-DLLs e a criação de processos do MiniNT. Nenhuma chamada é encaminhada ao COM,
-RPC, Explorer, seletor de arquivos ou registro do host.
+The A8 entry is recognized only in executable code of `combase.dll` in the guest. The transport does not contain addresses of functions, object pointers or host handles. Factories, COM objects, window callbacks, PRC stubs and server loops run in CPL3. Activation uses virtual registry, DLL loader and process creation of MiniNT. No call is forwarded to COM, PRC, Explorer, file selector or host log.
 
-Os testes de referência `component_windows_*` executam programas próprios no
-Windows para comparar contratos. Eles não registram classes persistentes no
-host nem abrem diálogos pessoais. Os aplicativos de aceitação executam no MiniNT.
+`component_windows_*` reference tests run their own programs on Windows to compare contracts. They do not register persistent classes in the host or open personal dialogues. Acceptance applications run on MiniNT.
 
-## Contratos implementados
+## Contracts implemented
 
-| Família | Lote implementado |
+| Family | Lot implemented |
 | --- | --- |
-| OLE32 / COMBASE | Inicialização STA/MTA por thread, contagem balanceada, mudança de modelo recusada, consulta de apartment, ativação de DLL via `DllGetClassObject`, ativação de processo via `LocalServer32`, factories e locks, revogação e descarregamento condicionado a `DllCanUnloadNow`. |
-| Marshaling | Streams de memória limitados, `CoMarshalInterface`, `CoUnmarshalInterface`, `CoReleaseMarshalData` e transferência entre threads para `IDispatch`. Proxies enviam dados ao apartment proprietário; `CoWaitForMultipleHandles` e a consulta de mensagens do USER32 atendem as chamadas no convidado. |
-| OLEAUT32 | BSTR com comprimento explícito, inclusive NUL embutido; VARIANT escalares, strings e cópia de arrays; SAFEARRAY unidimensional limitado a 256 elementos de I4/UI4/R8/BSTR/VARIANT. Cópia profunda, bounds, locks e liberação. Ordinais da interface OLEAUT usados pelos import libraries do SDK são preservados. |
-| RPCRT4 | UUIDs locais, strings/bindings `ncalrpc`, buffers RPC limitados e dispatch tables explícitas de interface versão 1.0 com sintaxe NDR32 2.0. O stub do aplicativo trata o payload; não há um interpretador NDR geral nem suporte a stubs MIDL arbitrários. |
-| PROPSYS | `IPropertyStore` em memória, até 16 propriedades, enumeração, cópia, leitura e commit; PROPVARIANT escalares, strings de até 255 caracteres e blobs de até 512 bytes. |
-| COMCTL32 | EDIT, lista de uma coluna, barra de progresso e seleção de páginas. Até 32 itens de texto por controle; seleção e notificações usam estruturas próprias do contrato Win32. |
-| COMDLG32 | Abrir/salvar por diálogo próprio no MiniNT, campo editável, confirmação, cancelamento, restituição do estado do proprietário e validação do caminho. A seleção devolve somente caminhos do convidado. |
-| SHELL32 / SHLWAPI | Pastas conhecidas virtuais, operações limitadas de caminhos, execução de `.exe` presente no pacote, espera pelo processo e cópia/movimento/exclusão de arquivo único no namespace convidado. |
-| UXTHEME | Handles de tema próprios, validação de janela, desenho básico e liberação. Não reproduz os recursos visuais completos do Windows. |
+| OLE32 / COMBASE | Initialization STA/MTA by thread, balanced count, rejected model change, apartment query, DLL activation via `DllGetClassObject`, process activation via `LocalServer32`, facts and locks, revocation and download conditioned to `DllCanUnloadNow`. |
+| Marshaling | Limited Memory Streams, `CoMarshalInterface`, `CoUnmarshalInterface`, `CoReleaseMarshalData` and transfer between threads to `IDispatch`. Proxies send data to the owner's apartment; `CoWaitForMultipleHandles` and the USER32 message query respond to the guest's calls. |
+| OLEAUT32 | BSTR with explicit length, including built-in NUL; VARIANT scalars, strings and copy arrays; ONE-dimensional SAFEARRAY limited to 256 elements of I4/UI4/R8/BSTR/VARIANT. Deep copy, bundles, locks and release. Ordinals of the OLEAUT interface used by SDK import libraries are preserved. |
+| RPCRT4 | Local UUIDs, strings/bindings `ncalrpc`, limited PRC buffers, and explicit interface table 1.0 with NDR32 2.0 syntax. The application stub handles payload; there is no general NDR interpreter or arbitrary MIDL stub support. |
+| PROPSYS | `IPropertyStore` in memory, up to 16 properties, enumeration, copying, reading and commit; PROPVARIANT scalars, strings up to 255 characters and blobs up to 512 bytes. |
+| COMCTL32 | EDIT, column list, progress bar and page selection. Up to 32 text items per control; selection and notifications use Win32 contract structures. |
+| COMDLG32 | Open/save by own dialogue in MiniNT, editable field, confirmation, cancellation, owner status refund and path validation. Selection returns only guest paths. |
+| SHELL32 / SHLWAPI | Virtual known folders, limited path operations, execution of `.exe` present in the package, wait for the process and copy/movement/exclusion of unique file in the guest namespace. |
+| UXTHEME | Own theme handles, window validation, basic design and release. Do not play full Windows visual features. |
 
-Marshaling de chamadas de automação admite até quatro argumentos escalares ou
-BSTR de até 128 caracteres. `GetIDsOfNames` admite um nome por chamada. Interfaces
-arbitrárias, ponteiros, arrays remotos, type libraries, ActiveX, agregação,
-monikers, DCOM e autenticação remota ficam fora deste contrato. Inicializações
-MTA são atendidas; uma DLL registrada como `Both` pode ser ativada em STA/MTA.
-Transições automáticas para um modelo incompatível ainda falham explicitamente.
+Marshaling automation calls admits up to four scalar arguments or BSTR of up to 128 characters. `GetIDsOfNames` admits a name per call. Arbitrary interfaces, pointers, remote arrays, type libraries, ActiveX, aggregation, monikers, DCOM and remote authentication stay out of this contract. MTA bootings are met; a DLL registered as `Both` can be enabled in STA/MTA. Automatic transitions to an incompatible model still fail explicitly.
 
-O servidor STA precisa atender seu loop de chamadas/mensagens. O timeout padrão
-das chamadas remotas é de três segundos e cancela a resposta pendente; ele não
-termina arbitrariamente o código que já entrou no servidor. Encerramento ou
-revogação do endpoint desconecta os proxies correspondentes. O listener RPC
-suportado é o síncrono; o modo que exigiria workers automáticos é recusado.
-TCP, HTTP e outros transportes externos não são habilitados por esta fase.
+The STA server needs to meet your calls/messages. loop The default timeout for remote calls is three seconds and cancels the pending response; it does not arbitrarily terminate the code that has already entered the server. Ending or revoking the endpoint disconnects the corresponding proxies. The supported PRC listener is the synchronous one; the mode that would require automatic workers is refused. TCP, HTTP and other external transports are not enabled by this phase.
 
-## Catálogo e estado persistente
+## Catalog and persistent status
 
-GPV versão 2 comporta até **32 arquivos**, mantendo o cabeçalho anterior e uma
-tabela adicional de entradas. O kernel desta fase admite até **24 módulos** por
-processo. Os limites de 8 MiB por arquivo e 64 MiB por volume são mantidos; o
-bundle inclui somente dependências alcançáveis e os servidores explicitamente
-fornecidos. O leitor continua validando GPV versão 1; o host exige o kernel de
-componentes para um volume versão 2. Extents, duplicidades e hashes continuam
-validados antes da execução. Não foi ampliado o protocolo de dados do runtime.
+GPV version 2 includes up to **32 files**, keeping the previous header and an additional input table. The kernel of this phase admits up to **24 modules** per process. The 8 MiB limits per file and 64 MiB per volume are maintained; the bundle includes only reachable dependencies and explicitly provided servers. The reader continues validating GPV version 1; the host requires the kernel of components for a volume version 2. Extensions, duplicities and hashes remain validated prior to execution. Runtime data protocol has not been expanded.
 
-O disco mutável continua com 64 KiB, 32 nós e arquivos de até 512 bytes. Chaves
-de registro com GUID de 38 caracteres usam o payload antes não utilizado de
-nós Key, com flag e validação específicas. Tamanho dos registros e dois slots
-de commit permanecem preservados. Consulta e enumeração devolvem o GUID inteiro;
-dois GUIDs com o mesmo prefixo não se tornam a mesma chave. Estados anteriores
-são lidos; estados que usam o novo recurso devem ser usados com esta versão do
-runtime, sem misturá-los com builds históricas.
+The changeable disk continues with 64 KiB, 32 nodes and files up to 512 bytes. Record keys with 38 characters GUID use previously unused payload from Key nodes, with specific flag and validation. Records size and two commit slots remain preserved. Query and enumeration return the entire GUID; two GUIDs with the same prefix do not become the same key. Previous states are read; states using the new feature should be used with this version of runtime, without mixing them with historical builds.
 
-## Limites de desktop
+## Desktop Limits
 
-A apresentação continua no visualizador único da 14.7. O diálogo de arquivos é
-um formulário limitado; ainda não é o seletor do Explorer com navegação completa.
-Não há impressão, hooks de diálogo, templates personalizados, seleção múltipla,
-associações gerais de arquivos, execução de URLs, elevação ou integração com o
-Explorer. Confirmação de sobrescrita de arquivo existente não está implementada
-e é recusada. EDIT não implementa seleção, caret completo ou IME; listas não
-implementam múltiplas colunas, virtualização ou ordenação. Não há TreeView,
-toolbars e pacote completo de controles comuns nesta matriz.
+The presentation continues in the 14.7 unique viewer. The file dialogue is a limited form; it is not yet the Explorer selector with full navigation. There is no printing, dialog hooks, custom templates, multiple selection, general file associations, URL execution, elevation or integration with Explorer. Confirmation of existing file overwriting is not implemented and is rejected. EDIT does not implement selection, complete default or IME; lists do not implement multiple columns, virtualization or sorting. There is no TreeView, toolbars and complete package of common controls in this matrix.
 
-Temas usam o desenho e a fonte bitmap próprios. A verificação gráfica exige
-texto visível no campo do diálogo, entrada de texto/backspace, seleção e
-movimento da barra de progresso. Os diagnósticos não fatais de CRT e os limites
-de rastreamento da 14.7 continuam documentados em [PHASE-14.7.md](PHASE-14.7.md).
+Themes use the drawing and the bitmap font itself. Graphical verification requires visible text in the dialog field, input of text/backspace, selection and movement of the progress bar. Non-fatal CRT diagnoses and tracking limits of the 14.7 continue to be documented in [PHASE-14.7.md](PHASE-14.7.md).
 
-## Aceitação e reprodução
+## Acceptance and reproduction
 
-Os oito testes novos são `component_core`, `component_runtime_tools`,
-`component_windows_client`, `component_windows_controls`, `component_windows_rpc`,
-`component_com_integration`, `component_rpc_integration` e
-`component_controls_integration`.
+The eight new tests are `component_core`, `component_runtime_tools`, `component_windows_client`, `component_windows_controls`, `component_windows_rpc`, `component_com_integration`, `component_rpc_integration` and `component_controls_integration`.
 
-A matriz cobre componente em DLL, factory em outro processo, retorno de valores
-e strings, execução na STA proprietária, chamadas MTA concorrentes, classes e
-valores persistidos em outra sessão, classe ausente, erro do componente, queda
-de servidor, timeout, RPC escalar, procedimento inválido, endpoint encerrado,
-controles, diálogo confirmado/cancelado, entrada editável e processo iniciado
-pelo Shell. O núcleo testa cotas, propriedade, resposta falsificada, cancelamento,
-limpeza, formatos de volume e corrupção dos nomes longos do registro.
+The matrix covers component in DLL, factory in another process, return values and strings, execution in the proprietary STA, concurrent MTA calls, classes and values persisted in another session, missing class, component error, server crash, timeout, PRC scale, invalid procedure, endpoint closed, controls, confirmed/cancelled dialogue, editable entry and process initiated by Shell. The core tests quotas, property, falsified response, cancellation, cleaning, volume formats and corruption of long names of the registry.
 
-`tools/validate_phase14_8.py` exige **124 testes de regressão em Release** e
-**49 testes de aceitação em Debug**, sem falhas ou ignorados. Fontes, binários e
-entradas legais são comparados antes/depois. O Flappy original da 14.7 integra
-a regressão. Evidências ficam nos arquivos `validation.json`, `ctest.xml` e logs.
-O pacote só pode ser criado com evidências estáveis e é executado novamente
-nas duas configurações antes da publicação privada.
+`tools/validate_phase14_8.py` requires **124 Regression Tests in Release** and **49 Acceptance Tests in Debug**, No Fails or Ignored. Sources, Binarys and Legal Entries are compared before/later. The original 14.7 Flappy integrates the regression. Evidence remains in the `validation.json`, `ctest.xml` and logs files. The package can only be created with stable evidence and is executed again in both settings before private publication.
 
-`tools/component_runtime.py bundle` prepara o volume a partir das DLLs próprias,
-de referências CRT e schema locais. Referências Microsoft, Flappy, ISOs, volumes
-GPV e dados de sessão não são redistribuídos. A invocação usa o mesmo
-`guardian-desktop.exe` com `guardian-kernel-components.gk`; os comandos completos
-e os testes do pacote acompanham a build privada.
+`tools/component_runtime.py bundle` prepares the volume from its own DLLs, CRT references and local schema. References Microsoft, Flappy, ISOs, GPV volumes and session data are not redistributed. Invocation uses the same `guardian-desktop.exe` with `guardian-kernel-components.gk`; complete commands and package tests follow the private build.
 
-A 14.9 e a 12F permanecem separadas e não são iniciadas por esta entrega.
+The 14.9 and 12F remain separate and are not initiated by this delivery.
 
-Referências de contrato: [apartments STA](https://learn.microsoft.com/windows/win32/com/single-threaded-apartments),
-[inicialização COM](https://learn.microsoft.com/windows/win32/learnwin32/initializing-the-com-library),
-[marshaling](https://learn.microsoft.com/windows/win32/api/combaseapi/nf-combaseapi-comarshalinterface)
-e [IMarshal](https://learn.microsoft.com/windows/win32/api/objidl/nn-objidl-imarshal).
+Contract references: [Apartments STA](https://learn.microsoft.com/windows/win32/com/single-threaded-apartments), [COM initialisation]](https://learn.microsoft.com/windows/win32/learnwin32/initializing-the-com-library), [marshaling]](https://learn.microsoft.com/windows/win32/api/combaseapi/nf-combaseapi-comarshalinterface) and [Imarshal]](https://learn.microsoft.com/windows/win32/api/objidl/nn-objidl-imarshal).

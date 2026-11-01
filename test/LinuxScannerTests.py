@@ -46,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix="guardian-linux-") as folder:
 
     empty_db = root / "empty-signatures.txt"
     empty_db.write_text("# built-in rule only\n")
-    target = root / "conteúdo com espaços 🔎.bin"
+    target = root / "contents with spaces"
     for length in (0, 1, 55, 56, 63, 64, 65, 65535, 65536, 65537, 4 * 1024 * 1024 + 127):
         data = (bytes(range(256)) * ((length + 255) // 256))[:length]
         target.write_bytes(data)

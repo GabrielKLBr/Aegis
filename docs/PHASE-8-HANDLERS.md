@@ -1,112 +1,59 @@
-# Fase 8 — Preparação da busca de tratadores x64
+# Phase 8 — Preparation of the search for x64 handlers
 
-**Continuação em 18/10:** a busca foi integrada ao despacho CPL3, continuação,
-unwind não local e DLLs dinâmicas. A matriz Linux passou. O documento abaixo
-preserva a preparação anterior; a aceitação Windows desta revisão exige agora
-40 CTests por configuração e continua pendente. Estado e comandos atuais:
-[PHASE-8-COMPLETION.md](PHASE-8-COMPLETION.md).
+**Continuation at 18/10:** the search was integrated into the CPL3 dispatch, continuation, unwind and dynamic DLLs. The Linux matrix passed. The document below preserves the previous preparation; Windows acceptance of this review now requires 40 CTests per configuration and still pending. Current status and commands: [PHASE-8-COMPLETION.md](PHASE-8-COMPLETION.md).
 
-Referência: 18/10/2026. Plataforma do produto: **Windows x64, MSVC e WHP**.
-Estado: **preparação implementada, validação nativa pendente**.
-A fase 8 continua em andamento; a fase 9 não foi iniciada. O último marco
-validado no Windows continua sendo [PHASE-8-UNWIND.md](PHASE-8-UNWIND.md).
+Reference: 18/10/2026. Product platform: **Windows x64, MSVC and WHP**. Status: **preparation implemented, native validation pending**. Phase 8 continues to be underway; phase 9 has not been started. The last milestone validated in Windows remains [PHASE-8-UNWIND.md](PHASE-8-UNWIND.md).
 
-## Alteração
+## Amendment
 
-`guest/Unwind.h` expõe `InspectHandler`. A operação restaura virtualmente um
-chamador e identifica o tratador de exceção ou de término em `UNWIND_INFO` v1.
-Devolve endereço do tratador, dados da linguagem, base da alocação fixa da
-função (establisher frame) e identidade da função primária. Os endereços são
-metadados do convidado; nenhuma rotina é chamada.
+`guest/Unwind.h` exposes `InspectHandler`. The operation virtually restores a caller and identifies the exception or end handle in `UNWIND_INFO` v1. Returns the handle address, language data, fixed function allocation basis (stablisher frame) and primary function identity. Addresses are guest metadata; no routine is called.
 
-Aceita EHANDLER, UHANDLER ou ambos e segue cadeias até a função primária,
-limitadas a 32 entradas. Não publica tratador durante o prólogo inicial,
-epílogo, função folha ou quando o tipo solicitado não corresponde às flags.
-Um registrador de frame ainda não estabelecido por SET_FPREG não é usado como
-base da pilha. O percurso ignora os slots de operandos ao procurar essa operação.
+Accepts EHANDLER, UHANDLER or both and follows strings up to primary function, limited to 32 entries. Do not publish handle during the initial prologue, epilogue, sheet function or when the requested type does not match flags. A frame logger not yet established by SET_FPREG is not used as the base of the stack. The path ignores the operating slots when searching for this operation.
 
-O trailer do tratador respeita o preenchimento para alinhamento de quatro bytes.
-A rotina deve ficar dentro da mesma imagem e passar pela consulta de mapeamento
-executável fornecida pelo backend. Essa consulta é obrigatória na nova API.
-Os dados de linguagem são opcionais: seu endereço pode apontar imediatamente
-após a imagem, sem conceder permissão de leitura naquele endereço.
+The handle trailer respects the completion for alignment of four bytes. The routine should stay within the same image and go through the executable mapping query provided by the backend. This query is mandatory in the new API. Language data is optional: your address can point immediately after the image, without granting reading permission at that address.
 
-Todas as leituras continuam passando pelo backend, com limites de imagem e
-pilha. Falha, metadados incompatíveis ou limite excedido preservam tanto o
-contexto quanto a saída de metadados. Uma operação bem-sucedida sem tratador
-zera os metadados. O resultado `End` também preserva ambas as saídas.
+All readings continue to go through the backend, with image and stack limits. Failure, incompatible metadata or exceeded limit preserve both context and metadata output. A successful unhandling operation zeros metadata. The `End` result also preserves both outputs.
 
-`Step`, `Capture` e o loader mantêm a recusa anterior a registros/imagens com
-tratadores de linguagem. A nova inspeção ainda não está ligada às traps nem a
-uma API de usuário. Não há nova declaração de suporte a SEH, exceções C++,
-recuperação de faults, retorno de handlers ou unwind não local.
+`Step`, `Capture` and the loader maintain previous refusal to records/pictures with language handlers. The new inspection is not yet linked to traps or a user API. There is no new SEH support statement, C++ exceptions, Fault recovery, handler return or unwind non-local.
 
-O formato segue [tratamento de exceções x64 da Microsoft](https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64?view=msvc-170)
-e [RtlVirtualUnwind](https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-rtlvirtualunwind).
-O formato dos dados de linguagem permanece responsabilidade do futuro tratador.
+The format follows [treatment of exceptions x64 from Microsoft](https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64?view=msvc-170) and [RtlVirtualUnwind](https://learn.microsoft.com/en-us/windows/win32/api/winnt/nf-winnt-rtlvirtualunwind). The format of language data remains the responsibility of the future handler.
 
-## Verificação nesta sessão
+## Verification at this session
 
-O ambiente disponível é Linux. Somente os componentes C++ independentes do
-sistema operacional foram compilados diretamente; o CMake do produto continua
-exclusivo do Windows. WHP, MSVC, MASM e o oráculo do Windows não foram executados.
+The available environment is Linux. Only operating system independent C++ components have been compiled directly; the product CMake remains unique to Windows. WHP, MSVC, MASM and the Windows oracle have not been executed.
 
-| Verificação isolada | Resultado local |
+| Verification isolated | Local result |
 | --- | --- |
-| Novos testes, sem otimização e com AddressSanitizer/UndefinedBehaviorSanitizer | 3.059 verificações aprovadas |
-| Novos testes, otimizados | 3.059 verificações aprovadas |
-| Cenários principais de inspeção | 155 aprovados |
-| Pontos de falha de leitura injetada nesses cenários | 980 aprovados |
-| Regressão portátil do motor anterior, nas duas compilações | 1.045 verificações, 59 cenários, 391 pontos de falha e controle adicional de sete pontos |
-| Compilação freestanding isolada, sem exceções C++/RTTI | aprovada; sem símbolos externos no objeto GCC produzido |
-| Comparação com Windows, imagem do kernel e boots WHP | **pendentes** |
+| New tests without optimization and with AddressSanitizer/UndefinedBehaviorSanitizer | 3.059 verifications approved |
+| New tests, optimized | 3.059 verifications approved |
+| Scenes main of inspection | 155 approved |
+| Reading failure points injected into these scenarios | 980 approved |
+| Portable return of the previous engine in both compilations | 1,045 checks, 59 scenarios, 391 fail points and additional seven-point control |
+| Isolated freestanding compilation, no C++/RTTI exceptions | approved; no external symbols on the GCC object produced |
+| Comparison with Windows, kernel image and WHP boots | **pending** |
 
-Os controles adicionais cobrem trailer sem códigos, dados opcionais no fim da
-imagem, exatamente 32 entradas de cadeia e recusa de uma 33ª entrada. Há recusas
-de endereço não executável, flags incompatíveis, trailer truncado e falha tardia
-sem publicar contexto parcial.
+Additional controls cover trailer without codes, optional data at the end of the image, exactly 32 chain entries and refusal of a 33rd entry. There are non-executable address refusals, incompatible flags, truncated trailer and late failure without publishing partial context.
 
-Os testes anteriores receberam apenas condicionais de compilação para permitir
-essa verificação isolada. No Windows continuam chamando `RtlVirtualUnwind` e
-mantêm os marcadores históricos. Fora do Windows imprimem expressamente que
-a comparação nativa não foi executada.
+Previous tests have only received build conditionals to allow this isolated scan. In Windows they continue calling `RtlVirtualUnwind` and keep historical markers. Outside Windows they explicitly print that the native comparison has not been performed.
 
-Evidência desta sessão: `build-phase8-handlers-precheck/validation.json` e logs
-na mesma pasta. Esses resultados não substituem a aceitação no Windows.
+Evidence of this session: `build-phase8-handlers-precheck/validation.json` and logs in the same folder. These results do not replace Windows acceptance.
 
-## Repetir a validação no Windows
+## Repeat validation in Windows
 
-Na pasta do projeto, com Visual Studio 2022 C++ x64, Windows SDK, CMake 4+,
-Python 3.9+ e WHP disponível:
+In the project folder, with Visual Studio 2022 C++ x64, Windows SDK, CMake 4+, Python 3.9+ and WHP available:
 
 ```powershell
 python tools\validate_phase8_handlers.py
 ```
 
-O verificador exige Windows x64 e cria uma árvore nova com nome
-`build-phase8-handlers-windows-<data>-<id>`. Compila todos os alvos em Debug e
-Release, audita o convidado e exige os **38 CTests**, sem falhas ou ignorados.
-Inclui as provas WHP anteriores, a comparação dos 59 cenários antigos e 153
-comparações novas de contexto, seleção de tratador, dados e establisher frame.
-Essas 153 comparações estão implementadas no teste, mas ainda não executadas.
+The verifier requires Windows x64 and creates a new tree with the name `build-phase8-handlers-windows-<data>-<id>`. Compiles all targets in Debug and Release, audits the guest and requires **38 CTests**, flawless or ignored. Includes the previous WHP tests, comparison of the 59 old scenarios and 153 new context comparisons, selection of handler, data and publisher frame. These 153 comparisons are implemented in the test, but not yet executed.
 
-O manifesto `phase8-handlers-windows-validation.json` registra falhas e só
-indica validação aprovada se as duas configurações cumprirem o contrato. Os
-hashes das fontes são conferidos antes e depois. Logs e discos históricos de
-`build-codex` não são usados como destino desta execução.
+The `phase8-handlers-windows-validation.json` manifest records failures and only indicates approved validation if the two settings comply with the contract. Font hashes are checked before and after. `build-codex` historical logs and disks are not used as the destination of this execution.
 
-Contrato: `config/phase8-handlers-acceptance.json`.
-Cópia dos seis arquivos anteriores:
-`snapshots/codex-before-phase8-handlers-20261018/`, com manifesto SHA-256.
+Contract: `config/phase8-handlers-acceptance.json`. Copy of the previous six files: `snapshots/codex-before-phase8-handlers-20261018/`, with SHA-256 manifest.
 
-## Continuação
+## Continue
 
-Primeiro executar a validação nativa e corrigir eventuais divergências. Depois
-integrar a busca ao despacho em CPL3, definir o contexto completo e validar
-chamada, retorno e continuação de handlers sem aceitar endereços/permissões
-indevidos. Os limites de pilha devem vir do vínculo PID/TID no kernel, como na
-captura anterior, e não de campos modificáveis no TEB.
+First perform native validation and correct any divergences. Then integrate the search to dispatch in CPL3, set the full context and validate call, return and continuation of handlers without accepting addresses/permissions undue. Stack limits should come from the PID/TID link in the kernel, as in the previous capture, and not from modifiable fields in the TEB.
 
-Continuam pendentes unwind não local, carga/descarga dinâmica de DLLs, ampliação
-das falhas de inicialização/execução/término e auditoria final por aplicação.
-Esta preparação não conclui a fase 8 nem autoriza iniciar a fase 9.
+Non-local unwind, load/discharge dynamic DLLs, expansion of startup/implementation/end failures and final audit per application remain pending. This preparation does not complete phase 8 or authorises to start phase 9.

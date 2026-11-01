@@ -23,7 +23,7 @@ struct ProcessEnv {
 };
 
 struct ModuleSpec {
-    std::wstring name;   // BaseDllName, e.g. "ntdll.dll"
+    std::wstring name;   // BaseDllName, e.g. ntdll.dll
     uint64_t     base;   // DllBase
     uint32_t     size;   // SizeOfImage
 };

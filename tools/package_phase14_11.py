@@ -47,16 +47,16 @@ def main():
     for file in (validation.ROOT/'test/frameworks').rglob('*'):
         if file.is_file():copy(file,'test/frameworks/'+file.relative_to(validation.ROOT/'test/frameworks').as_posix())
     for name in ('PHASE-14.11.md','PHASE-14.10G.md'):copy(validation.ROOT/'docs'/name,'docs/'+name)
-    (out/'LEIA-ME.txt').write_text(
-        'Aegis 14.11: CIL limitado, WinForms selecionado, WinRT escalar e instalacao portatil no MiniNT.\n'
-        'Leia docs/PHASE-14.11.md. Windows x64/WHP e ferramentas de desenvolvimento necessarias.\n'
-        'Runtimes Microsoft/CRT, ASan e schemas de referencia nao incluidos: forneca referencias locais legais.\n'
-        'Execute os clientes de instalacao/copia e os EXEs gerenciados SOMENTE no MiniNT.\n'
-        'Para reproduzir: '+('tools/validate_framework_forms.py' if a.forms else 'tools/validate_frameworks.py')+' --build ESTA_PASTA --config Release ou Debug, '
-        'com --reference, --schema-reference, --asan-runtime e --output novos.\n'
-        'Para o lote grafico, forneca --corpus PASTA_LOCAL; baixa fonte externo fixado se ausente.\n'
-        'O exemplo externo e seu binario nao sao redistribuidos neste pacote.\n'
-        'Nao implementa CLR ou WinForms completos, WPF/WinUI, MSI ou instalacao de drivers.\n',encoding='utf-8')
+    (out/'README.txt').write_text(
+        'Aegis 14.11: Limited CIL, selected WinForms, WinRT scale and portable installation in MiniNT.\n'
+        'Read docs/PHASE-14.11.md. Windows x64/WHP and necessarias.\n development tools'
+        'Runtimes Microsoft/CRT, ASan and reference schemas not included: provide local references legais.\n'
+        'Run instalacao/copia customers and EXEs managed ONLY in MiniNT.\n'
+        'To reproduce: '+('tools/validate_framework_forms.py' if a.forms else 'tools/validate_frameworks.py')+' --build ESTA_PASTA --config Release or Debug, '
+        'with --reference, --schema-reference, --asan-runtime and --output novos.\n'
+        'For the graphic batch, supply --corpus PASTA_LOCAL; low external source fixed if ausente.\n'
+        'The external example and its binary are not redistributed in this pacote.\n'
+        'Does not implement complete CLR or WinForms, WPF/WinUI, MSI or drivers.\n installation',encoding='utf-8')
     manifest={'schema':1,'phase':'14.11','configurations':['Release','Debug'],
               'tests':{config:proof['tests'] for config,proof in accepted.items()},
               'earlierPhasesRevalidated':False,'microsoftInputsIncluded':False,'externalFormsSourceIncluded':False,'scopeKey':'managed-forms' if a.forms else 'frameworks-foundation',

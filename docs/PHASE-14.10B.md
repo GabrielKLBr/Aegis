@@ -1,141 +1,57 @@
-# 14.10B — USER32 e controles nativos
+# 14.10B — USER32 and native controls
 
-Entrega delimitada de Windows 10 x64. O novo modo `--native-user32` usa
-`user32.dll` e `win32u.dll` próprios no MiniNT, um kernel próprio e protocolo v2.
-Os imports usuais do SDK são atendidos por essa DLL. O auxiliar restrito cria
-HWNDs e controles **BUTTON, STATIC e EDIT reais** com USER32 do Windows.
-Seu conteúdo não vem de imagens rasterizadas pelo MiniNT. A apresentação 12F
-e o protocolo GDI explícito da 14.10A continuam disponíveis em modos separados.
+Delimited Windows 10 x64 delivery. The new `--native-user32` mode uses `user32.dll` and `win32u.dll` itself in the MiniNT, a proper kernel and v2 protocol. SDK's usual imports are attended by this DLL. The restricted helper creates HWNDs and controls **BUTTON, REAL STATIC and EDIT** with Windows USER32. Its content does not come from images rasterized by MiniNT. The 12F presentation and the 14.10A explicit GDI protocol remain available in separate modes.
 
-## Contrato e implementação
+## Contract and implementation
 
-- Registro de classes da aplicação, WNDPROC, userdata, subclassificação de
-  janelas próprias e TIMERPROC permanecem no convidado. A classe nativa da
-  janela principal é fixa. Apenas os três controles permitidos são criados
-  como classes nativas adicionais. Não se carrega DLL nem callback da aplicação
-  no processo do host.
-- Criação/destruição, filhos e janelas com proprietário, geometria, reparenting
-  de filhos, estilos declarados, visibilidade, habilitação, foco, conversão de
-  coordenadas, invalidação e temporizadores usam USER32 real. A modalidade
-  inicial consiste em desabilitar o proprietário e criar uma janela possuída.
-- BUTTON aceita pushbutton, default pushbutton, checkbox e autocheckbox;
-  STATIC aceita texto alinhado; EDIT aceita uma linha. Texto é UTF-16, até 255
-  unidades, com pares substitutos validados; adaptadores ANSI usam CP1252.
-  `WM_SETTEXT/GETTEXT/GETTEXTLENGTH`, `BM_CLICK/GETCHECK/SETCHECK` e
-  `EM_GETSEL/SETSEL` têm contratos explícitos. Ponteiros de seleção ficam no
-  convidado; no IPC circula somente o resultado numérico validado.
-- `WM_COMMAND` troca o HWND nativo do controle pelo ID da sessão. Mudanças de
-  posição transportam campos de WINDOWPOS, que é reconstruída na memória do
-  convidado. Nenhum endereço da estrutura do Windows é devolvido ao programa.
-- `SendMessage` para uma WNDPROC da mesma thread executa o callback no MiniNT.
-  Entre threads, mensagens escalares declaradas usam uma solicitação correlata:
-  o remetente processa chamadas síncronas recebidas enquanto espera, inclusive
-  chamadas aninhadas, e recebe o resultado da WNDPROC destinatária. O prazo é
-  **2 segundos**. Expirar cancela a mensagem ainda enfileirada e recusa resposta
-  tardia. Mensagens postadas preservam FIFO por thread; chamadas síncronas e
-  notificações de operações nativas são atendidas antes do retorno da API.
-- `GetMessage/PeekMessage/DispatchMessage` atendem as filas convidadas. Entrada
-  nativa já é traduzida pelo loop do Windows; `TranslateMessage` não duplica
-  caracteres. Timers usam IDs internos no auxiliar e retornam o ID da aplicação;
-  funções de timer são executadas na thread convidada correspondente. O teste de callback
-  cancela seu próprio timer, verificando também essa reentrância; timers muito
-  curtos podem saturar um consumidor mais lento que o período solicitado.
-- A thread de interface nativa nunca chama uma WNDPROC convidada e não espera
-  seu retorno. Uma thread de transporte entrega tarefas a uma janela interna;
-  essa janela também atende IPC durante loops modais de movimentação do Windows.
-  A supervisão encerra um auxiliar que para de responder ao IPC.
-- A visão convidada usa **96 DPI lógicos**. O auxiliar converte geometria e
-  entrada para os pixels do monitor, atende mudanças nativas de DPI e devolve
-  coordenadas lógicas. Isso não afirma igualdade de métricas entre versões NT,
-  fontes ou topologias de múltiplos monitores.
+- Application class registration, WNDPROC, userdata, subclassification of
+  own windows and TIMERPROC remain in the guest. The native class of the main window is fixed. Only the three allowed controls are created as additional native classes. You do not load DLL or callback from the application in the host process.
+- Creation/destruction, children and windows with owner, geometry, repairing
+  of children, declared styles, visibility, driver's license, focus, coordinate conversion, invalidation and timers use real USER32. The initial modality is to disable the owner and create a possessed window.
+- BUTTON accepted pushbutton, default pushbutton, checkbox and autocheckbox;
+  STATIC accepts aligned text; EDIT accepts a line. Text is UTF-16, up to 255 units, with validated substitute pairs; ANSI adapters use CP1252. `WM_SETTEXT/GETTEXT/GETTEXTLENGTH`, `BM_CLICK/GETCHECK/SETCHECK` and `EM_GETSEL/SETSEL` have explicit contracts. Selection points stay in the guest; in the IPC only circulates the validated numerical result.
+- `WM_COMMAND` changes the native HWND control by session ID.
+  position transport WINDOWPOS fields, which is rebuilt in guest memory. No address of Windows structure is returned to the program.
+- `SendMessage` for a WNDPROC of the same thread executes callback in MiniNT.
+  Among threads, declared scalar messages use a related request: the sender processes synchronous calls received while waiting, including nested calls, and receives the result of the recipient WNDPROC. The deadline is **2 seconds**. Expire cancels the message still queued and refuses late response. Posted messages preserve FIFO by thread; synchronous calls and notifications of native operations are met before the return of the API.
+- `GetMessage/PeekMessage/DispatchMessage` attends guest queues.
+  native is already translated by the Windows loop; `TranslateMessage` does not duplicate characters. Timers use internal IDs in the helper and return the application ID; timer functions are executed in the corresponding invited thread. Callback test cancels its own timer, also checking this reentry; very short timers can saturate a consumer slower than the requested period.
+- The native interface thread never calls a guest WNDPROC and does not wait
+  your return. A transport thread delivers tasks to an internal window; this window also serves IPC during modal Windows drive loops. Supervision closes an auxiliary that stops responding to the IPC.
+- The guest view uses **96 DPI logical**. The assistant converts geometry and
+  input to the monitor pixels, meets native DPI changes and returns logical coordinates. This does not affirm equality of metrics between NT versions, sources or multiple monitor topologies.
 
-Os exports efetivos estão em `guest/fixtures/NativeUser32.def`; a lista é o
-contrato do lote, não uma declaração de USER32 completa. Os adaptadores seguem
-os contratos documentados de [SendMessage](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessage)
-e [notificações de controles](https://learn.microsoft.com/en-us/windows/win32/controls/control-messages)
-dentro dos limites declarados acima.
+The actual exports are in `guest/fixtures/NativeUser32.def`; the list is the batch contract, not a complete USER32 declaration. The adapters follow the documented contracts of [SendMessage](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendmessage) and [control notifications](https://learn.microsoft.com/en-us/windows/win32/controls/control-messages) within the limits stated above.
 
-## Isolamento e encerramento
+## Isolation and closure
 
-O processo reutiliza o lançamento supervisionado da 14.10A: token restrito,
-integridade baixa, Job com um processo e 64 MiB privados, dois endpoints herdados
-e ambiente contendo apenas SystemRoot/WINDIR. O manifesto fixa o SHA256 do
-auxiliar ao lado de `guardian-desktop.exe`; não escolhe um executável arbitrário.
-O perfil não é AppContainer e não impede toda leitura de arquivos pelo auxiliar.
+The process reuses the supervised launch of 14.10A: restricted token, low integrity, Job with a process and 64 private MiB, two inherited endpoints and environment containing only SystemRoot/WINDIR. The manifest fixes SHA256 from the auxiliary next to `guardian-desktop.exe`; does not choose an arbitrary executable. The profile is not AppContainer and does not prevent all file reading by the assistant.
 
-O contrato permite até 32 janelas, 32 timers, 256 eventos, 32 envios pendentes e
-65.536 operações por sessão. IDs são monotônicos e vinculados à sessão,
-processo e thread. Operações com dono incompatível, ID expirado, campos extras,
-mensagem nativa não permitida, texto inválido ou cota excedida retornam erro.
-HWND, procedimentos, objetos GDI e ponteiros de estruturas do host não são IDs.
+The contract allows up to 32 windows, 32 timers, 256 events, 32 pending shipments and 65,536 operations per session. IDs are monotonic and linked to the session, process and thread. Operations with incompatible owner, expired ID, extra fields, unauthorised native message, invalid text or exceeded quota return error. HWND, procedures, GDI objects and host structures pointers are not IDs.
 
-Comandos de conclusão e término são exclusivos do kernel; tentativas diretas
-da aplicação são recusadas e testadas, inclusive com ponteiro de requisição
-inválido. O kernel informa o término de cada thread ao auxiliar: suas janelas e timers
-são removidos, e remetentes pendentes recebem erro. Ao término normal de todos
-os processos, o kernel conclui o canal; uma falha convidada não é convertida em
-sucesso. Queda do auxiliar, prazo da VM e transporte travado encerram o Job.
-`native-user32.json` registra operações, autores convidados, erros, chamadas
-nativas, recursos da última resposta e resultado do processo auxiliar.
+Completion and termination commands are unique to the kernel; direct application attempts are rejected and tested, including invalid request pointer. The kernel informs the end of each thread when assisting: its windows and timers are removed, and pending senders are misplaced. At the normal end of all processes, the kernel completes the channel; a guest failure is not converted to success. Auxiliary crash, VM deadline, and locked transport closes the Job. `native-user32.json` records operations, guest authors, errors, native calls, last response features, and auxiliary process result.
 
-## Validação e uso
+## Validation and use
 
-O critério de entrega exige **147 testes Release** de regressão e **72 Debug**
-de aceitação, sem falhas ou ignorados e com fontes/binários estáveis. Os quatro
-testes novos cobrem contrato, processo restrito real, programas SDK dentro do
-MiniNT e rejeições de empacotamento/execução. O pacote extraído repete a
-aceitação gráfica anterior e os cenários novos em ambas as configurações.
-Os relatórios originais acompanham a build privada.
+The delivery criterion requires **147 Release** regression tests and **72 Debug** acceptance, flawless or ignored and with stable source code/binary. The four new tests cover contract, real restricted process, SDK programs within MiniNT and empacotamento/implementation. rejections The extracted package repeats previous graphical acceptance and new scenarios in both settings. Original reports accompany the private build.
 
-O teste anterior de recursos também foi corrigido: a rejeição de SMP agora usa
-a RAM que o próprio teste já verificou como admitida. Pedir 128 MiB fixos nessa
-etapa podia produzir primeiro um erro real de orçamento de memória, mascarando
-o diagnóstico de CPU que o teste pretendia verificar. O registro da primeira
-regressão Release com essa falha é preservado no pacote.
+The previous resource test was also corrected: the rejection of SMP now uses the RAM that the test itself has already verified as admitted. Ask 128 MiB fixed in this step could first produce a real memory budget error, masking the CPU diagnosis that the test intended to verify. The record of the first release regression with this failure is preserved in the package.
 
-O corpus novo contém dois programas independentes: controles/notificações e
-mensagens entre threads, além de variantes de entrada, falha e travamento.
-Testes verificam classes de controles reais, texto no EDIT do Windows, clique,
-entrada por mensagens Windows direcionadas exclusivamente aos próprios controles,
-retorno síncrono, reentrância, timeout sem callback tardio, payload WINDOWPOS,
-IPC em loop modal nativo, cotas, autoria, duas sessões e limpeza após falhas.
-O cenário entre threads injeta 200 caracteres Windows apenas na própria janela:
-ele verifica mensagens da aplicação e deixa o término da thread remover a
-entrada nativa pendente. Uma fila de entrada contínua não deve ser esvaziada
-como condição de saída desse teste. O relatório inclui tipos de mensagens,
-flags e tamanho da fila para diagnosticar atrasos e ordenação.
-Não se usa injeção global de mouse/teclado nem se executa amostra maliciosa.
+The new corpus contains two independent programs: controls/notifications and messages between threads, as well as input variants, failure and locking. Tests check real control classes, text in Windows EDIT, click, input by Windows messages directed exclusively to the controls themselves, synchronous return, reentry, timeout without late callback, payload WINDOWPOS, IPC in native modal loop, quotas, authorship, two sessions and cleaning after failures. The scenario between threads injects 200 Windows characters only into the window: it checks application messages and leaves the end of the thread remove the pending native input. A continuous input queue should not be emptied as output condition of this test. The report includes types of messages, flags and queue size to diagnose delays and ordering. No global injection of mouse/keyboard is used nor if it executes malicious sample.
 
-Compilar com MSVC/Windows SDK, Python e as referências legais já utilizadas nas
-fases anteriores. Alvo agregado: `guardian_native_user32_runtime`.
+Build with MSVC/Windows SDK, Python and legal references already used in previous phases. Aggregated target: `guardian_native_user32_runtime`.
 
 ```text
 python -B tools/native_user32_runtime.py --build PASTA-BUILD --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output pacote-guest
 PASTA-BUILD/Release/guardian-desktop.exe PASTA-BUILD/guest/Release/guardian-kernel-native-user32.gk pacote-guest/runtime.gpv pacote-guest/manifest.json pacote-guest/binding.gnt sessao-nova --native-user32 --seconds 8
 ```
 
-Usar diretório de saída novo. CRT Microsoft, schema legal de referência, Flappy,
-ISOs, discos e estados pessoais não são distribuídos na build. O ZIP contém
-somente binários próprios, ferramentas, documentação e evidências selecionadas.
+Use new output directory. Microsoft CRT, legal reference schema, Flappy, ISOs, disks and personal states are not distributed in the build. ZIP contains only own binaries, tools, documentation and selected evidence.
 
-## Limites e próximo lote
+## Limits and next batch
 
-Ainda não há USER32 universal, GDI de aplicativos gerais, fontes/imagens completas,
-menus, diálogos completos, clipboard, drag-and-drop, IME, accessibility, common
-controls adicionais, custom draw, owner draw ou DirectX neste modo. Não se
-subclassifica o procedimento nativo de um controle pelo callback convidado.
-Mensagens que exigem resposta imediata da aplicação durante o procedimento
-nativo precisam de contrato próprio antes de serem habilitadas.
+There is still no universal USER32, GDI of general applications, complete source code/pictures, menus, full dialogues, clipboard, drag-and-drop, IME, accessibility, additional common controls, custom draw, owner draw or DirectX in this mode. The native procedure of a control by the guest callback is not subclassified. Messages that require immediate response of the application during the native procedure need to be signed by themselves before being enabled.
 
-Controles são de uma linha, sem senha; extra styles, menus nativos e recursos
-arbitrários de cursor/ícone e brushes de classe são recusados no registro.
-A criação de classe aceita procedimento e nome, sem extra bytes nem class styles.
-Mostrar janela não força ativação de outro aplicativo do host. Timer sem HWND e
-ID automático, mudança entre top-level/child, troca de proprietário, políticas
-AttachThreadInput e tradução de teclas postadas manualmente não são cobertas.
-Invalidação da janela própria usa o fundo padrão do Windows; BeginPaint/HDC e
-desenho personalizado ficam na **14.10C**, sem fallback silencioso para pixels.
-A compatibilidade de outro perfil NT e a fidelidade em múltiplos monitores
-precisam de comparação específica; executar USER32 do host não comprova ambas.
+Controls are from a line, no password; extra styles, native menus and arbitrary cursor/icon features and class brushes are rejected in the registry. Class creation accepts procedure and name, no extra bytes or classes styles. Show window does not force activation of another host application. Timer without HWND and automatic ID, change between top-level/child, owner swapping, AttachThreadInput policies, and manually posted key translation are not covered. Invalidation of the window itself uses Windows default background; BeginPaint/HDC and custom design are in **14.10C**, no silent fallback for pixels. Compatibility of another NT profile and fidelity on multiple monitors need specific comparison; running USER32 from the host does not prove both.
 
-**Parar ao concluir a 14.10B. A 14.10C depende de nova solicitação.**
+**Stop at completion of 14.10B. The 14.10C depends on new request.**

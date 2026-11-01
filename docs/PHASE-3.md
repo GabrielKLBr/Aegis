@@ -1,101 +1,56 @@
-# Fase 3 — Memória no kernel convidado
+# Phase 3 — Memory in the guest kernel
 
-Base: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
-Imagem: `guardian-kernel-memory.gk`, versão 0.3.0, x64, uma vCPU, WHP.
-Estado: concluída em 16/10/2026. A fase 4 não foi iniciada.
+Base: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`. Image: `guardian-kernel-memory.gk`, version 0.3.0, x64, a vCPU, WHP. Status: completed in 16/10/2026. Phase 4 was not initiated.
 
-## Implementação
+## Implementation
 
-O gerenciador executa em CPL0 dentro do convidado. O host fornece RAM e aplica
-as permissões físicas do WHP; reserva de endereços, escolha de frames, tabelas
-de páginas e proteção virtual são responsabilidade do convidado. O código
-freestanding não usa alocadores, contêineres ou APIs do Windows host.
+The manager executes in CPL0 within the guest. The host provides RAM and applies the physical permissions of the WHP; address reservation, choice of frames, page tables, and virtual protection are the guest's responsibility. Freestanding code does not use Windows host allocators, containers, or APIs.
 
-`guest/MemoryManager.cpp` adapta as regras dos modelos existentes
-`src/microvm/host/GuestVirtualMemory.h` e `GuestHeap.h`. O código anterior
-permanece como referência semântica e continua sendo testado. As imagens das
-fases 1 e 2 continuam disponíveis; a nova imagem reutiliza as tabelas de CPU,
-transições CPL0/CPL3, syscalls e tratamento de exceções da fase 2.
+`guest/MemoryManager.cpp` adapts the rules of existing models `src/microvm/host/GuestVirtualMemory.h` and `GuestHeap.h`. The previous code remains as semantic reference and continues to be tested. Phase 1 and 2 images remain available; the new image reuses CPU tables, CPL0/CPL3 transitions, syscalls and phase 2 exception treatment.
 
-### Frames físicos e tabelas
+### Physical frames and tables
 
-- O alocador admite exclusivamente regiões `Available` do mapa de boot
-  previamente validado. Boot, imagem, pilha do kernel, região de bootstrap de
-  usuário e o primeiro MiB ficam fora da lista livre.
-- Frames de dados e frames de tabelas têm contabilização e tipos distintos.
-  Liberação inválida, com tipo incorreto ou repetida, é recusada. Páginas são
-  zeradas na alocação e liberação. Há alocação de blocos físicos contíguos para
-  arenas internas e uma cota determinística para testes de falta de recursos.
-- Cada espaço tem PML4, PDPT, diretórios e tabelas próprios. A região baixa
-  possui um mapeamento de identidade supervisor; código de bootstrap de usuário
-  é compartilhado como RX e pilha/dados de bootstrap são privados por espaço.
-- A arena privada de usuário começa em `0x40000000`. Commit cria tabelas e
-  frames de dados conforme necessário. Trocar espaço escreve CR3; alterações
-  no espaço ativo recarregam CR3 para invalidar traduções antigas. Não há PCID,
-  páginas globais, múltiplas vCPUs ou necessidade de TLB shootdown nesta etapa.
-- Destruir o espaço ativo é proibido. O teste final conserva deliberadamente
-  um espaço com cinco frames de tabelas e 16 de pilha/dados. Esses 21 frames
-  são recursos vivos contabilizados, não vazamento.
+- Allocator only admits `Available` boot map regions
+  previously validated. Boot, image, kernel stack, user bootstrap region and the first MiB are off the free list.
+- Data frames and table frames have different accounting and types.
+  Invalid release, with incorrect or repeated type, is refused. Pages are zeroed in the allocation and release. There is allocation of contiguous physical blocks to internal arenas and a deterministic quota for lack of resources tests.
+- Each space has PML4, PDPT, proper directories and tables.
+  it has a supervisor identity mapping; user bootstrap code is shared as RX and stack/data bootstrap are private by space.
+- The private user arena starts in `0x40000000`. Commit creates tables and
+  Data frames as needed. Exchange space writes CR3; changes in active space reload CR3 to invalidate old translations. There is no PCID, global pages, multiple vCPUs or need for TLB shootdown in this step.
+- Destroying active space is forbidden. The final test deliberately preserves
+  a space with five frames of tables and 16 of stack/data. These 21 frames are living resources accounted for, not leak.
 
-### Operações virtuais
+### Virtual operations
 
-| Operação | Comportamento |
+| Operation | Behavior |
 |---|---|
-| Reserva | Granularidade de 64 KiB na base; extensão arredondada em páginas de 4 KiB. Registra a região sem consumir frames. Conflitos e limite de metadados têm falha explícita. |
-| Commit | Arredonda o intervalo em páginas; exige uma reserva única que contenha o intervalo. Aloca e zera os frames. Recommit preserva conteúdo e proteção das páginas já comprometidas. |
-| Decommit | Retorna páginas ao alocador e conserva a reserva. Tamanho zero na base da reserva abrange a região inteira. |
-| Liberação | Exige a base exata e tamanho zero; remove reserva, páginas e tabelas vazias. |
-| Consulta | Distingue livre, reservado e comprometido; informa base de alocação, proteção original, proteção atual e extensão até a próxima mudança. |
-| Proteção | Valida todo o intervalo antes de mudar qualquer página. Exige todas as páginas comprometidas e retorna a proteção anterior da primeira. |
+| Reserve | Granularity of 64 KiB at the base; rounded extension in pages of 4 KiB. Registers the region without consuming frames. Conflicts and metadata limit have explicit failure. |
+| Commit | Rounds the range in pages; requires a unique reserve that contains the range. Allocation and zeros frames. Recommit preserves content and protection of already committed pages. |
+| Decommit | Returns pages to the allocator and saves the reservation. Zero size at the base of the reservation covers the entire region. |
+| Release | Requires exact base and size zero; removes empty pages, and tables. |
+| Consultation | Distinguish free, reserved and committed; informs allocation base, original protection, current protection and extension until next change. |
+| Protection | Validates the entire interval before changing any page. Requires all compromised pages and returns the previous protection of the first. |
 
-As proteções suportadas são sem acesso, leitura, leitura/escrita e
-execução/leitura, com guarda opcional nas três últimas. Escrita e execução
-simultâneas são recusadas. Intervalos inválidos, overflow e cruzamento de
-reservas não alteram o estado anterior. Falta de frames durante commit desfaz
-apenas as páginas novas e remove tabelas que ficaram vazias. Reservas e dados
-já existentes sobrevivem à falha.
+Supported protections are without access, read, reading/writing and implementation/reading, with optional save in the last three. Simultaneous writing and execution are refused. Invalid intervals, overflow and crossover of reservations do not change the previous state. Lack of frames during commit only undoes new pages and removes tables that have been empty. Reservations and existing data survive the failure.
 
-### Page faults e isolamento
+### Page faults and isolation
 
-O processador executa leituras, escritas e chamadas em CPL3 para testar as
-permissões. A IDT do convidado recebe o page fault, registra endereço e código
-de erro e termina a entrada de usuário de forma controlada. Uma nova entrada
-continua funcionando. Fault inesperado de kernel segue o encerramento fatal
-diagnosticado da fase 2.
+The processor performs readings, writing, and calls in CPL3 to test permissions. The guest's RTD receives the default page, records address and error code, and terminates user entry in a controlled manner. A new entry continues to work. Unexpected kernel Fault follows the diagnosed fatal closure of phase 2.
 
-Guarda é uma condição de uso único. O primeiro acesso recebe page fault e
-consome a guarda; a operação é encerrada e registrada. A próxima entrada pode
-acessar a página com a proteção restaurada. Ainda não existe entrega de
-`STATUS_GUARD_PAGE_VIOLATION` a um dispatcher de exceções NT em modo usuário.
+Guard is a single use condition. The first access receives page fault and consumes guard; the operation is closed and registered. The next entry can access the page with restored protection. There is still no delivery of `STATUS_GUARD_PAGE_VIOLATION` to a dispatcher of NT exceptions in user mode.
 
-Dois espaços mapeiam o mesmo endereço virtual para dados diferentes. O código
-de usuário não consegue ler a imagem do kernel nem o alias físico dos dados
-do outro espaço. A troca de CR3 e a remoção de acesso são exercitadas após o
-endereço já ter sido usado, verificando a invalidação de traduções anteriores.
+Two spaces map the same virtual address for different data. User code cannot read the kernel image or physical aliases of data from the other space. CR3 exchange and access removal are exercised after the address has already been used, checking the invalidation of previous translations.
 
-### Heap e fronteira com WHP
+### Heap and border with WHP
 
-O heap interno usa uma arena de frames obtidos pelo alocador convidado,
-alinhamento de 16 bytes, divisão e união de blocos, alocação zerada e realloc
-que preserva a alocação original quando não consegue crescer. Seus metadados
-ficam na arena supervisor, sem acesso de CPL3. Não é ainda a implementação dos
-exports Rtl/Heap do Windows dentro do novo kernel.
+The internal heap uses an arena of frames obtained by the guest allocator, alignment of 16 bytes, division and union of blocks, zeroed allocation and realloc that preserves the original allocation when it cannot grow. Its metadata stay in the supervisory arena without CPL3 access. It is not yet the implementation of the Windows Rtl/Heap exports within the new kernel.
 
-Permissões virtuais nas PTEs e permissões físicas WHP são controles separados.
-O dispositivo `0xED`, definido em `shared/guardian/Memory.h`, aceita requisições
-fixas de uma página em `0x108000` e recebe o relatório em `0x109000`. O host
-valida versão, tamanho, sessão, sequência, alinhamento, limites, direitos
-R/RW/RX e pertencimento a uma região `Available`. Nenhum ponteiro fornecido
-pelo convidado é convertido em ponteiro do host. Páginas de boot, kernel e
-regiões reservadas não podem receber novas permissões por esse dispositivo.
+Virtual permissions in the PTEs and physical permissions WHP are separate controls. The `0xED` device, defined in `shared/guardian/Memory.h`, accepts fixed requests from a page in `0x108000` and receives the report in `0x109000`. The host validates version, size, session, sequence, alignment, limits, R/RW/RX rights and belongs to a `Available` region. No pointer provided by the guest is converted to host pointer. Boot pages, kernel and reserved regions cannot receive new permissions from this device.
 
-Transições para RX alteram tanto a PTE quanto a permissão física; antes de
-zerar e reciclar o frame, a permissão física volta a RW. Requisição inválida
-ou falha do WHP encerra a execução, sem simular sucesso. Nos testes nativos,
-falhas transitórias de concessão também exercitam a reversão do estado.
-As proteções físicas existentes da imagem e dos dados de boot são preservadas.
+Transitions to RX change both PTE and physical permission; before zeroing and recycling the frame, physical permission returns to RW. Invalid request or failure of the WHP terminates execution without simulating success. In native tests, transient concession failures also exercise state reversal. Existing physical protections of the image and boot data are preserved.
 
-## Compilação e execução
+## Compilation and execution
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Debug -FullBuild
@@ -105,100 +60,63 @@ As proteções físicas existentes da imagem e dos dados de boot são preservada
 .\build-codex\Release\guardian_boot.exe .\build-codex\guest\Release\guardian-kernel-memory.gk --memory --ram-mib 64 --repeat 2 --report .\build-codex\phase3-cli-Release.json
 ```
 
-`--memory` seleciona explicitamente o contrato da fase 3 e habilita a base de
-CPU. A imagem é carregada no WHP; ela não é executada como processo Windows.
-Não há QEMU nem alteração nas configurações de boot ou segurança do host.
-Compilador e SDK são os mesmos da fase 2. O aviso LNK4281 é esperado para a base
-fixa do kernel em 2 MiB, definida pelo contrato do carregador.
+`--memory` explicitly selects the phase 3 contract and enables the CPU base. The image is loaded into the WHP; it is not executed as Windows process. There is no QEMU or change in the host boot or security settings. Compiler and SDK are the same as in Phase 2. The LNK4281 warning is expected for the kernel fixed base in 2 MiB, defined by the loader contract.
 
-## Validação e evidências
+## Validation and evidence
 
-Critérios reproduzíveis: `config/phase3-acceptance.json`.
+Criteria playable: `config/phase3-acceptance.json`.
 
-O build completo e os 21 testes passaram em Debug e Release, sem testes
-ignorados. As duas configurações executaram 80 boots da fase 3 e outros 160 de
-regressão das fases 1 e 2. Os sete programas de referência passaram em cada
-configuração. As três imagens de produção foram inspecionadas pelo carregador
-estrito; uma compilação Debug nova, sem BUILD_TESTING, também compilou e
-auditou as três. O kernel de memória ocupa 430080 bytes em Debug e 421888 em
-Release. Cada configuração produziu 50 executáveis e cinco imagens de kernel
-(três de produção e duas negativas da fase 2).
+The complete build and the 21 tests passed in Debug and Release, without ignored tests. The two configurations performed 80 phase 3 boots and other 160 phase 1 and 2 regression programs. The seven reference programs passed in each configuration. The three production images were inspected by the strict loader; a new Debug compilation, without BUILD_TESTING, also compiled and audited the three. The memory kernel occupies 430080 bytes in Debug and 421888 in Release. Each configuration produced 50 executables and five kernel images (three production and two negatives in Phase 2).
 
-| Configuração | RAM | Boots da fase 3 | Tempo por boot observado |
+| Configuration | RAM | Phase 3 Boots | Time by boot observed |
 |---|---|---|---|
 | Debug | 16 MiB | 20 | 76,175–88,307 ms |
 | Debug | 64 MiB | 20 | 295,859–311,536 ms |
 | Release | 16 MiB | 20 | 73,655–86,793 ms |
 | Release | 64 MiB | 20 | 268,526–330,636 ms |
 
-Os tempos incluem a preparação do host e o autoteste, inclusive zerar e
-esgotar a RAM livre. São medições desta máquina, sem garantia de latência em
-tempo real. A suíte levou 15,43 s em Debug e 16,29 s em Release.
+The times include host preparation and self-testing, including zeroing and exhausting free RAM. They are measurements of this machine without guarantee of real-time latency. The suite took 15.43 s in Debug and 16.29 s in Release.
 
-- `guest_memory`: executa o mesmo núcleo freestanding com backing de RAM
-  nativo. Cobre arredondamento, consulta, proteção, guarda, falta de frames e
-  metadados, rollback com conteúdo anterior, falhas de concessão física,
-  esgotamento real, limites de espaços, 1.000 ciclos, heap e contrato do canal.
-- `guest_memory_boot`: 20 boots com 16 MiB e 20 com 64 MiB por configuração.
-  Cada boot executa 150 entradas em CPL3: 142 completam e oito page faults são
-  contidos. A máscara final de verificações é 4095.
-- Cada boot contém uma guarda consumida, 30 falhas de alocação esperadas,
-  esgotamento e recuperação de todos os frames disponíveis, 128 ciclos de
-  reserva/commit/liberação e cinco verificações do heap. O pico de frames é
-  igual ao total inicialmente livre; o estado final retém apenas os 21 frames
-  do espaço ainda ativo.
-- O canal do host é exercitado com 18 cenários externos inválidos por
-  configuração: formato, versão, sessão, replay, GPA inválido ou protegido,
-  direitos W+X, tamanho, bits reservados, IN, OUT largo, ordem e relatório.
-- A regressão preserva 40 boots da fase 1 e 40 da fase 2 por configuração,
-  incluindo os respectivos cenários negativos e os dez testes do MiniNt.
+- `guest_memory`: runs the same freestanding core with RAM backing
+  native. Cover rounding, query, protection, guard, lack of frames and metadata, rollback with previous content, failure of physical concession, real exhaustion, space limits, 1,000 cycles, heap and channel contract.
+- `guest_memory_boot`: 20 boots with 16 MiB and 20 with 64 MiB per configuration.
+  Each boot runs 150 entries in CPL3: 142 complete and eight page failures are contained. The final check mask is 4095.
+- Each boot contains one guard consumed, 30 allocation failures expected,
+  exhaustion and recovery of all available frames, 128 cycles of reserve/commit/release and five verifications of the heap. The frame peak is equal to the initially free total; the final state retains only the 21 frames of the still active space.
+- Host channel is exercised with 18 invalid external scenarios by
+  configuration: format, version, session, replay, invalid or protected GPA, W+X rights, size, reserved bits, IN, OUT wide, order and report.
+- The regression preserves 40 phase 1 and 40 phase 2 boots by configuration,
+  including their negative scenarios and the ten MiniNt tests.
 
-Os relatórios novos usam o prefixo `phase3-`, inclusive nas regressões. Os
-JSONs, logs e manifestos das fases anteriores não são sobrescritos. O backup
-dos oito arquivos anteriores alterados está em
-`snapshots/codex-before-phase3-20261016-170923/`; o arquivo
-`historical-evidence.json` registra os hashes anteriores para comparação final.
-Os 99 arquivos históricos verificados mantêm os hashes anteriores.
+New reports use the `phase3-` prefix, including in the regressions. JSONs, logs, and manifests from previous phases are not overwritten. The backup of the eight previous files changed is in `snapshots/codex-before-phase3-20261016-170923/`; the `historical-evidence.json` file records previous hashes for final comparison. The 99 verified historical files keep the previous hashes.
 
-Evidências em `build-codex/`:
+Evidence ed `build-codex/`:
 
-- `phase3-full-debug-script.log`, `phase3-full-release-script.log` e os logs
-  correspondentes `phase3-*-tests-details.log`.
-- `phase3-boots-Debug.json`, `phase3-boots-Release.json` e seus
-  `.negative.json`; regressões em `phase3-regression-phase1-*` e
+- `phase3-full-debug-script.log`, `phase3-full-release-script.log` and o logs
+  correspondent `phase3-*-tests-details.log`.
+- `phase3-boots-Debug.json`, `phase3-boots-Release.json` and your
+  `.negative.json`; `phase3-regression-phase1-*` regressions and
   `phase3-regression-phase2-*`.
-- `phase3-reference-programs.json`, `phase3-smoke.json` e
+- `phase3-reference-programs.json`, `phase3-smoke.json` and
   `phase3-cli-Debug.json` / `phase3-cli-Release.json`.
 - `phase3-image-audit.json`, `phase3-build-boundaries.json`,
-  `phase3-clean-configure.log` e `phase3-clean-debug-build.log`.
-- `phase3-change-manifest.json`: fontes alteradas e novas, hashes, backup e
-  matriz de resultados. O verificador pode ser repetido sem executar programas:
-  `python tools/validate_phase3.py --snapshot snapshots/codex-before-phase3-20261016-170923`.
+  `phase3-clean-configure.log` and `phase3-clean-debug-build.log`.
+- `phase3-change-manifest.json`: modified and new fonts, hashes, backup and
+  The verifier can be repeated without running programs: `python tools/validate_phase3.py --snapshot snapshots/codex-before-phase3-20261016-170923`.
 
-## Limites e parada
+## Limits and Stop
 
-O contrato atual suporta até quatro espaços e 64 reservas por espaço, com
-arena privada de 16 MiB. A matriz de hardware cobre RAM de 16 e 64 MiB. As
-estruturas aceitam o teto de RAM de 1 GiB da ABI, que não foi medido nessa
-matriz. A pilha de usuário continua fixa em 60 KiB utilizáveis, com guarda de
-4 KiB. O heap tem tamanho de arena definido pelo chamador.
+The current contract supports up to four spaces and 64 reserves per space, with a 16 MiB private arena. The hardware matrix covers RAM of 16 and 64 MiB. The structures accept the RAM ceiling of 1 GiB from ABI, which was not measured in that matrix. The user stack remains fixed at 60 KiB usable, with a guard of 4 KiB. The heap has an arena size defined by the caller.
 
-As operações são APIs internas do kernel. Processos, identificação de donos,
-handles, syscalls de memória compatíveis com NT e tratamento de exceções NT
-ficam nas fases correspondentes. O commit é imediato e zerado; não há swap,
-pagefile, copy-on-write ou mapeamento de arquivos nesta etapa. O mapeamento de
-identidade do kernel continua supervisor, com proteções físicas da imagem
-aplicadas pelo host. Há uma vCPU e não há concorrência entre threads.
+Operations are kernel internal APIs. Processes, owner identification, handles, NT compatible memory syscalls and NT exception processing stay in the corresponding steps. The commit is immediate and zeroed; there is no swap, pagefile, copy-on-write or file mapping at this stage. Kernel identity mapping remains supervisor, with physical image protections applied by the host. There is a vCPU and there is no competition between threads.
 
-A conclusão desta fase não implica compatibilidade com aplicações ou drivers
-Windows nem conclusão do antivírus. Ao concluir a fase 3, parar. A fase 4 só
-começa após nova solicitação do usuário.
+The completion of this phase does not imply compatibility with Windows applications or drivers or completion of the antivirus. At completion of phase 3, stop. Phase 4 only starts after new user request.
 
-## Referências técnicas
+## Technical references
 
-- [Manuais Intel: paginação, CR3, permissões e page faults](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html)
-- [Estados das páginas virtuais](https://learn.microsoft.com/en-us/windows/win32/memory/page-state)
-- [Reserva e commit com VirtualAlloc](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc)
-- [Decommit e liberação com VirtualFree](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualfree)
+- [Intel Manuals: pagination, CR3, permissions and page failures](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html)
+- [Establishment of virtual pages](https://learn.microsoft.com/en-us/windows/win32/memory/page-state)
+- [Book and commit with VirtualAlloc](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualalloc)
+- [Decommit and release with VirtualFree](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualfree)
 - [Guard pages](https://learn.microsoft.com/en-us/windows/win32/memory/creating-guard-pages)
-- [WHP: mapeamento de memória física do convidado](https://learn.microsoft.com/en-us/virtualization/api/hypervisor-platform/funcs/whvmapgparange)
+- [WHP: Guest physical memory mapping](https://learn.microsoft.com/en-us/virtualization/api/hypervisor-platform/funcs/whvmapgparange)

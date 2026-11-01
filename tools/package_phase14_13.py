@@ -29,14 +29,14 @@ def main():
     for name in ('NativeUserIntegrationTests.py','NativeCheckpointTests.cpp'):copy(validation.ROOT/'test'/name,'test/'+name)
     for name in ('Compat32ConsoleEntry.cpp','UnifiedProbe.cpp'):copy(validation.ROOT/'guest/fixtures'/name,'guest/fixtures/'+name)
     copy(validation.ROOT/'docs/PHASE-14.13.md','docs/PHASE-14.13.md')
-    (out/'LEIA-ME.txt').write_text('Aegis 14.13: scanner, pacotes por SHA-256 e recuperacao USER32 basica.\n'
-        'Windows x64/WHP, Python, MSVC/SDK e runtime ASan local necessarios.\n'
-        'EXEs convidados nao devem ser executados no host. Leia docs/PHASE-14.13.md.\n'
-        'Reproduza tools/validate_unified.py --build ESTA_PASTA --config Release ou Debug '
+    (out/'README.txt').write_text('Aegis 14.13: scanner, packages by SHA-256 and recovery USER32 basica.\n'
+        'Windows x64/WHP, Python, MSVC/SDK and Runtime ASan local necessarios.\n'
+        'Invited EXES should not be executed in the host. Read docs/PHASE-14.13.md.\n'
+        'Play tools/validate_unified.py --build ESTA_PASTA --config Release or Debug '
         '--reference CRT_LOCAL --schema-reference SCHEMA_LOCAL --corpus CACHE_LOCAL '
         '--asan-runtime ASAN_LOCAL --output PASTA_NOVA.\n'
-        'Referencias Microsoft, corpus externo, registros provisionados e snapshots de memoria nao incluidos.\n'
-        'Snapshots GDI/DirectX/audio, conexoes abertas e USER32 com timers/sends pendentes sao recusados.\n',encoding='utf-8')
+        'Microsoft references, external corpus, provised records and memory snapshots not incluidos.\n'
+        'GDI/DirectX/audio snapshots, open connections and USER32 with timers/sends pending are recusados.\n',encoding='utf-8')
     manifest={'schema':1,'phase':'14.13','scope':'unified-handoff-and-basic-user32-recovery','tests':{c:r['tests'] for c,r in accepted.items()},'earlierPhasesRevalidated':False,'microsoftInputsIncluded':False,'externalSourceOrBinaryIncluded':False,'memorySnapshotsIncluded':False,'liveGdiAudioSnapshots':False,'files':{f.relative_to(out).as_posix():snapshots.sha(f) for f in sorted(out.rglob('*')) if f.is_file()}}
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:

@@ -1,179 +1,87 @@
-# 14.10E — GDI ampliado em janelas do host
+# 14.10E — GDI enlarged in host windows
 
-Entrega delimitada para aplicações x64 no perfil **NT 10.0.19045**. O modo
-**--expanded-gdi** acrescenta operações GDI à ponte nativa. Windows desenha
-texto, fontes, curvas, regiões e bitmaps nas janelas da sessão; aplicação,
-DLLs e callbacks permanecem no MiniNT. Imagens da aplicação podem atravessar
-o contrato limitado. Uma janela rasterizada previamente no convidado não
-conta como aceitação deste modo.
+Delimited delivery for x64 applications in the profile **NT 10.0.19045**. **--expanded-gdi** mode adds GDI operations to the native bridge. Windows draws text, fonts, curves, regions and bitmaps in the session windows; application, DLLs and callbacks remain in the MiniNT. Images of the application may cross the limited contract. A rastered window previously in the guest does not count as acceptance this way.
 
-## Protocolo e contratos
+## Protocol and contracts
 
-Kernel guardian-kernel-expanded-gdi.gk, capacidade GuardianExpandedGdi/5/guest,
-protocolo v5 e auxiliar guardian-expanded-gdi-host.exe. O manifesto vincula
-kernel, volume, perfil, modo e SHA-256 do auxiliar. As variantes A–D continuam
-separadas. Command (972 bytes), Reply (896) e Packet (3260) preservam o tamanho
-anterior; magic/version distinguem a nova variante. Não há ponteiros,
-procedimentos ou handles nativos do host no convidado.
+Kernel guardian-kernel-expanded-gdi.gk, capacity GuardianExpandedGdi/5/guest, protocol v5 and auxiliary guardian-expanded-gdi-host.exe. The manifest links kernel, volume, profile, mode and SHA-256 The A–D variants remain separate. Command (972 bytes), Reply (896) and Packet (3260) preserve the previous size; magic/version distinguish the new variant. There are no native host hands, procedures or hands on the guest.
 
-A [matriz versionada](../config/gdi-api-matrix.json) contém **411 entradas**:
-358 com implementação restrita, 31 pendentes e 22 recusadas por política.
-Entradas incluem variantes e aliases internos em DLLs diferentes; isso não
-significa 358 APIs universais ou implementações independentes. A matriz
-registra ANSI/Unicode, encaminhamento, dependências e limites. O inventário
-confere os exports reais e as lacunas, mas não substitui a execução dos testes.
-O relatório registra separadamente o status da ponte e o retorno da API nativa.
+The [versioned matrix](../config/gdi-api-matrix.json) contains **411 entries**: 358 with restricted implementation, 31 pending and 22 rejected by policy. Inputs include internal variants and aliases in different DLLs; this does not mean 358 universal APIs or independent implementations. The matrix records ANSI/Unicode, forwarding, dependencies and limits. The inventory confers real exports and gaps, but does not replace the execution of the tests. The report records separately the status of the bridge and the return of the native API.
 
-MessageBeep permanece exportado por compatibilidade, retorna falha explícita
-e registra diagnóstico; áudio é pendência da 14.10G. TranslateMessage no
-convidado recebe entrada que o auxiliar já traduziu; síntese de caracteres
-a partir de teclas postadas não é declarada. APIs pendentes sem export,
-como wsprintfA/W, são recusadas no inventário antes da execução.
+MessageBeep remains exported by compatibility, returns explicit failure and records diagnosis; audio is pending from 14.10G. TranslateMessage in guest receives input that the helper has already translated; character synthesis from posted keys is not declared. Pending APIs without export, such as wsprintfA/W, are rejected in inventory before execution.
 
-## Ampliação implementada
+## Zoom implemented
 
-- Curvas: Ellipse, RoundRect, Arc, Chord, Pie, Polyline, Polygon, PolyBezier,
-  variantes To e PolyPolygon; canetas com estilos e pincéis hachurados.
-- Regiões: elipses/retângulos arredondados, combinação, deslocamento, limites,
-  interseção com ponto/retângulo, recorte combinado, exclusão e deslocamento.
-- Paths: início/fim/cancelamento, fechamento, preenchimento, contorno,
-  conversão em região, recorte, achatamento e alargamento; leitura limitada.
-- Estado: SaveDC/RestoreDC herdados preservam os estados nativos; modos de
-  mapeamento, origens/extensões, conversão LP/DP, transformações afins,
-  direção de arco, ROP2, modos de estiramento e cores de objetos DC.
-- Raster: BitBlt/StretchBlt/PatBlt com ROPs enumeradas, SetPixel, DIBs BI_RGB
-  de 24/32 bits em ambas as orientações, sincronização da memória da aplicação
-  com o bitmap nativo e StretchDIBits SRCCOPY.
-- Texto: variantes A em CP1252 e W em UTF-16 validado, alinhamento, espaçamento,
-  justificação, ExtTextOut com recorte/opacidade/avanços, índices de glifos,
-  extensões cumulativas, larguras ABC, métricas e descritores de fontes.
-- Catálogo adicional: Tahoma, Verdana, Times New Roman, Courier New, Calibri,
-  Cambria e Georgia, além das famílias anteriores. Pedidos permanecem no
-  catálogo; face resolvida, métricas e glifos são os do Windows host.
-- Cursores padrão são aplicados somente sobre clientes das janelas da sessão;
-  arquivos de cursor e mudanças globais de exibição do cursor não são expostos.
+- Curves: Ellipse, RoundRect, Arc, Chord, Pie, Polyline, Polygon, PolyBezier,
+  To and PolyPolygon variants; pens with hachured styles and brushes.
+- Regions: elipses/rectangles rounded, combination, displacement, limits,
+  intersection with point/rectangle, combined cutting, exclusion and displacement.
+- Paths: beginning/end/cancellation, closure, filling, contour,
+  conversion into region, cut-off, flattening and enlargement; limited reading.
+- Status: SaveDC/RestoreDC inherited preserve the native states; modes of
+  mapping, origins/extensions, LP/DP conversion, related transformations, arc direction, ROP2, stretch modes and DC object colors.
+- Raster: BitBlt/StretchBlt/PatBlt with ROPs enumeradas, SetPixel, DIBs BI_RGB
+  24/32 bits in both directions, application memory synchronization with native bitmap and StretchDIBits SRCOPY.
+- Text: A variants in CP1252 and W in UTF-16 validated, alignment, spacing,
+  justification, ExtTextOut with clipping/opacity/progresses, glyph indexes, cumulative extensions, ABC widths, metrics and font descriptors.
+- Catalog additional: Tahoma, Verdana, Times New Roman, Courier New, Calibri,
+  Cambria and Georgia, in addition to previous families. Requests remain in the catalog; resolved face, metrics and glyphs are those of Windows host.
+- Default cursors are applied only to session window clients;
+  cursor files and global cursor display changes are not displayed.
 
-GetObject traduz descritores; bmBits aponta para memória do convidado quando
-aplicável. Ponteiros do bitmap nativo e bytes de padding não são copiados.
-Seleções ativas e salvas continuam protegidas contra exclusão.
+GetObject translates descriptors; bmBits points to guest memory when applicable. Native bitmap pointers and padding bytes are not copied. Active and saved selections remain protected from exclusion.
 
-## Compatibilidade medida de criação e pintura
+## Compatibility measure of creation and painting
 
-Exemplos independentes revelaram lacunas além dos exports GDI:
+Independent examples revealed gaps beyond GDI exports:
 
-- CW_USEDEFAULT em janelas principais usa a política lógica do convidado:
-  posição 120,100 e tamanho 640×480. Não representa toda a política de
-  posicionamento/cascata de uma instalação Windows.
-- SW_SHOWDEFAULT usa o padrão do convidado, SW_SHOWNORMAL.
-- As combinações permitidas de CS_HREDRAW, CS_VREDRAW e CS_DBLCLKS correspondem
-  a classes nativas pré-registradas no auxiliar.
-- InvalidateRect e UpdateWindow têm caminhos distintos. A primeira invalida
-  de forma assíncrona; a segunda apresenta a região já inválida. Uma pintura
-  entregue fica pendente até EndPaint, preservando invalidações posteriores
-  sem criar ciclos extras quando o programa invalida antes de BeginPaint.
-  Se o host redimensiona durante um callback de pintura, classes com
-  CS_HREDRAW/CS_VREDRAW recebem nova invalidação após a entrega de WM_SIZE
-  ao convidado. Isso evita preservar desenho calculado com o tamanho antigo.
-- Mudanças nativas consecutivas de posição e tamanho mantêm a última
-  WM_WINDOWPOSCHANGED, WM_MOVE e WM_SIZE de cada janela enquanto aguardam o
-  convidado. Isso evita esgotar a fila de 256 eventos ao arrastar uma janela
-  durante um cálculo longo. Mensagens explicitamente postadas e envios com
-  resposta não entram nessa combinação. Um teste força 400 alterações sem
-  consumir eventos e confere a geometria final e a limpeza.
+- CW_USEDEFAULT in main windows uses the guest's logical policy:
+  position 120,100 and size 640×480. It does not represent the entire position/cascade policy of a Windows installation.
+- SW_SHOWDEFAULT uses the guest pattern, SW_SHOWNORMAL.
+- Allowable combinations of CS_HREDRAW, CS_VREDRAW and CS_DBLCLKS correspond
+  the pre-registered native classes in the auxiliary.
+- InvalidateRect and UpdateWindow have different paths.
+  in an asynchronous way; the second presents the already invalid region. A painting delivered is pending until EndPaint, preserving subsequent invalidations without creating extra cycles when the program invalidates before BeginPaint. If the host resizes during a painting callback, classes with CS_HREDRAW/CS_VREDRAW receive new invalidation after delivery of WM_SIZE to the guest. This avoids preserving calculated drawing with the old size.
+- Consecutive native changes in position and size keep the last
+  WM_WINDOWPOSCHANGED, WM_MOVE and WM_SIZE from each window while waiting for the guest. This avoids exhausting the 256 event queue by dragging a window during a long calculation. explicitly posted messages and replies do not enter this combination. A 400-factor test without consuming events and confers final geometry and cleaning.
 
-A regressão do modo 12F também corrigiu o roteiro de DPI: uma mudança de
-escala usa a geometria nativa atual, mesmo antes de o convidado confirmar um
-redimensionamento. O teste força duas trocas de DPI sem confirmação e confere
-o tamanho lógico final em uma janela com moldura. A área cliente usa a
-escala solicitada; as bordas usam o DPI real do HWND, que não muda quando o
-teste envia uma troca sintética de DPI. Isso evita acrescentar pixels de
-moldura à área cliente a cada transição. O programa integrado exige cliente 480×300 em
-240,160 e DPI lógico 96; a contagem incidental de duas mensagens WM_SIZE
-foi substituída por esse estado verificável e pelo recebimento de WM_SIZE.
-O histórico nativo registra cada transição de DPI no momento em que ela
-acontece, além dos quadros. Uma ida a 144 e volta a 96 antes do próximo quadro
-não desaparece das evidências por combinação de quadros. O teste força essa
-sequência sem confirmação intermediária do convidado.
+The 12F mode regression also corrected the DPI script: a scale change uses the current native geometry, even before the guest confirms a resizing. The test forces two DPI exchanges without confirmation and confers the final logical size in a framed window. The client area uses the requested scale; the edges use the actual DPI of the HWND, which does not change when the test sends a synthetic DPI exchange. This prevents adding frame pixels to the client area for each transition. The integrated program requires a client 480×300 in 240,160 and logical DPI 96; the incidental count of two WM_SIZE messages was replaced by this verifiable state and by receiving WM_SIZE. The native history records each DPI transition at the time it happens, in addition to the frames. One goes to 144 and back to 96 before the next frame does not disappear from the evidence by combination of frames. The test forces this sequence without intermediate confirmation of the guest.
 
-O caso negativo de travamento usa três segundos para incluir a inicialização
-a frio e exige timedOut, falha do convidado e primeira imagem sincronizada,
-além da recuperação de todas as janelas.
+The negative locking case uses three seconds to include cold boot and requires timedOut, guest failure and first synchronized image, as well as recovery of all windows.
 
-A política guest-bounded-rectangles da 14.10D permanece. O desktop lógico é
-1280×720 a 96 DPI. Versão do host, versão alvo e diferenças são registradas
-separadamente; não se anuncia equivalência com todos os perfis NT, fontes,
-temas e configurações de DPI.
+The 14.10D guest-bound-rectangles policy remains. The logical desktop is 1280×720 to 96 DPI. Host version, target version and differences are recorded separately; no equivalence with all NT profiles, fonts, themes and DPI settings is announced.
 
-## Limites e recusas
+## Limits and refusals
 
-Mantêm-se 32 janelas/superfícies, 128 entradas GDI, 32 DCs, 24 MiB de pixels e
-8 MiB enviados por sessão, além dos limites de menus/ícones/timers da 14.10D.
-Bitmaps têm até 512×512; pontos e retângulos usam coordenadas limitadas.
-Polys têm até 32 pontos por chamada e paths até 128 pontos; GetPath devolve
-até 32. Regiões têm até 64 KiB de dados e limites de geometria. Transformações
-devem ser finitas, limitadas e não singulares. Fontes têm dimensões e estilos
-limitados; textos usuais têm até 127 unidades e ExtTextOut até 64.
+32 windows/surfaces, 128 GDI entries, 32 DCs, 24 MiB of pixels and 8 MiB sent per session, in addition to the menus/icons/timers limits of 14.10D. Bitmaps have up to 512×512; points and rectangles use limited coordinates. Polys have up to 32 points per call and path up to 128 points; GetPath returns up to 32. Regions have up to 64 KiB of data and geometry limits. Transformations must be finite, limited and non-natural. Sources have limited dimensions and styles; usual texts have up to 127 units and ExtTextOut up to 64.
 
-Os ROPs aceitos estão enumerados no contrato. Tamanhos negativos e espelhamento
-de bitmaps, formatos comprimidos/paletizados, fontes por caminho ou memória,
-captura do desktop/outras aplicações, impressão e escapes de drivers ficam
-fora do contrato. Texto dentro de um path aberto é recusado. AlphaBlend,
-metafiles, GetFontData, enumeração irrestrita de fontes e outras lacunas estão
-identificadas na matriz.
+Accepted ROPs are listed in the contract. Negative sizes and mirroring bitmaps, tablets/paletizados formats, path or memory fonts, desktop/other capture, printing and driver exhausts are out of contract. Text within an open path is refused. AlphaBlend, metafiles, GetFontData, unrestricted enumeration of sources and other gaps are identified in the matrix.
 
-O auxiliar mantém token restrito, integridade baixa, Job com um processo e
-64 MiB, dois endpoints herdados, sequência, autoria dos objetos e prazos.
-Paths, regiões e buffers ampliam a superfície de ataque GDI; uma lista de
-nomes não garante ausência de escape. O auxiliar não é AppContainer e seu
-perfil não impede toda leitura de arquivos. Ver [SECURITY.md](../SECURITY.md).
+The helper keeps restricted token, low integrity, Job with a process and 64 MiB, two inherited endpoints, sequence, authorship of objects and deadlines. Paths, regions and buffers expand the attack surface GDI; a list of names does not guarantee absence of escape. The helper is not AppContainer and its profile does not prevent all file reading. See [SECURITY.md](../SECURITY.md).
 
-## Corpus e evidências
+## Corpus and evidence
 
-A cena SDK própria compara seis páginas de pixels e métricas entre Windows
-e MiniNT: formas, regiões, transformações, paths, raster 24/32 bits e texto.
-Inclui entrada, redimensionamento, pintura finita, glifos, descritores e limpeza.
+The SDK scene itself compares six pages of pixels and metrics between Windows and MiniNT: shapes, regions, transformations, paths, raster 24/32 bits and text. Includes input, resize, finite painting, glyphs, descriptors and cleaning.
 
-O corpus externo acrescenta Bezier e Clover, atribuídos a Charles Petzold,
-compilados sem alteração dos fontes com o SDK Windows, em ANSI e Unicode.
-O mesmo EXE é executado na referência nativa e no MiniNT; não é ligado contra
-as bibliotecas de importação próprias. Comparam-se pixels do cliente em dois
-tamanhos e mudanças por mouse no Bezier. O WhatSize é um caso negativo:
-wsprintfA/W permanecem pendentes, sem substituir formatação por sucesso vazio.
+The external corpus adds Bezier and Clover, assigned to Charles Petzold, compiled without changing the sources with the Windows SDK, in ANSI and Unicode. The same EXE runs in the native reference and MiniNT; it is not connected against the own import libraries. Customer pixels are compared in two sizes and mouse changes in Bezier. WhatSize is a negative case: wsprintfA/W remain pending, without replacing formatting by empty success.
 
-[Origem e hashes dos exemplos](../config/gdi-corpus.json) fixam um espelho
-público. O [site do autor](https://www.charlespetzold.com/books/) oferece os
-fontes; o download do ZIP retornou HTTP 465 nesta execução, portanto não se
-declara comparação de bytes com esse ZIP. Os fontes e binários desses exemplos
-não são redistribuídos. Recibos de compilação vinculam fontes e EXEs utilizados.
-O Flappy original permanece no MiniNT; não é executado no host.
+[Origin and hashes of the examples](../config/gdi-corpus.json) fix a public mirror. [Author's website](https://www.charlespetzold.com/books/) provides the fonts; ZIP download returned HTTP 465 in this execution, so no byte comparison is declared with this ZIP. The sources and binaries of these examples are not redistributed. Compilation receipts link fonts and EXEs used. The original Flappy remains in MiniNT; it is not executed in the host.
 
-**Critério final:** 167 testes Release de regressão, 92 Debug de aceitação,
-sem ignorados e com fontes/binários estáveis; mais teste do ZIP extraído nas
-duas configurações e verificação dos arquivos após a execução. O pacote
-preserva as evidências de falhas de desenvolvimento. O laboratório loopback
-reserva TCP e UDP em candidatos independentes, pois faixas reservadas pelo
-Windows podem diferir entre protocolos. Corpus aprovado é um
-recorte medido, não compatibilidade GDI geral.
+** Final criteria:** 167 Regression Release tests, 92 Acceptance Debug, without ignored and with stable source code/binary; more ZIP testing extracted in both configurations and verification of files after execution. The package preserves evidence of development failure. The Loopback laboratory reserves TCP and UDP in independent candidates, as tracks reserved by Windows may differ between protocols. Approved Corpus is a measured cutout, not general GDI compatibility.
 
-## Uso
+## Usage
 
-Alvo CMake: guardian_expanded_gdi_runtime. Fornecer CRT/schema legais e, para
-reproduzir o corpus externo, fontes correspondentes aos hashes configurados:
+Target CMake: guardian_expanded_gdi_runtime. Provide legal CRT/schema and, to reproduce the external corpus, fonts corresponding to configured hashes:
 
     cmake -S . -B PASTA_BUILD -DGUARDIAN_GUI_COMPATIBILITY_ONLY=ON -DGUARDIAN_EXPANDED_GDI_CORPUS=PASTA_FONTES
     cmake --build PASTA_BUILD --config Release --target guardian_expanded_gdi_runtime
 
-Acrescentar as opções de referências CRT, schema e Flappy das fases anteriores.
+Add the CRT, schema and Flappy reference options from previous phases.
 
     python -B tools/expanded_gdi_runtime.py --build PASTA_BUILD --config Release --reference PASTA_CRT --schema-reference SCHEMA --output PACOTE_NOVO
     PASTA_BUILD/Release/guardian-desktop.exe PASTA_BUILD/guest/Release/guardian-kernel-expanded-gdi.gk PACOTE_NOVO/runtime.gpv PACOTE_NOVO/manifest.json PACOTE_NOVO/binding.gnt SESSAO_NOVA --expanded-gdi --seconds 30
 
-A galeria guardian-expanded-gdi-scene.exe é o padrão deste criador. O CLI
-mantém o prazo de 1–30 segundos; fechar a janela permite o encerramento normal.
-Para Flappy, fornecer --application e os assets settings.txt/icon.ico.
-Saídas devem ser novas. O teste do pacote requer também --corpus-binaries
-apontando para a pasta externa que contém Release/Debug e seus recibos.
+The gallery guardian-expanded-gdi-scene.exe is the default of this creator. CLI maintains the time limit of 1–30 seconds; closing the window allows normal closure. For Flappy, provide --application and the assets settings.txt/icon.ico. Outputs must be new. The package test also requires --corpus-binaries pointing to the external folder that contains Release/Debug And your receipts.
 
-**Parar na 14.10E. DirectX/Direct2D/DirectWrite/codecs continuam na 14.10F,
-dependendo de nova solicitação.**
+**Stop at 14.10E. DirectX/Direct2D/DirectWrite/codecs continue at 14.10F, depending on new request.**
 

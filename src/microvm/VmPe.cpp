@@ -130,7 +130,7 @@ int main() {
     MicroVm vm;
     if (!vm.Create(kRam, kExcBitmap)) { std::printf("  [FAIL] %ls (try 'av vmcheck')\n", vm.Error().c_str()); return 1; }
 
-    // The synthetic kernel's import resolver: generate a hardened stub per fn.
+    // The synthetic kernel's import resolve: generate a hardened stub per fn.
     // Each stub uses the real SYSCALL instruction (ring-3 -> #UD -> our kernel),
     // so the loaded PE goes through the same evasion-resistant path as vmguard.
     uint64_t stubNext = kStubGpa;

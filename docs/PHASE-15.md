@@ -1,64 +1,24 @@
-# Fase 15 — Quarentena e gerenciamento de ameaças
+# Phase 15 — Quarantine and Threat Management
 
-Esta entrega substitui o armazenamento XOR e o fallback que truncava o original.
-A quarentena funciona sem o MiniNT. As operações do aplicativo usam a engine de
-antivírus e um processo auxiliar com o token restrito do usuário autenticado.
-O supervisor SYSTEM não abre caminhos de arquivos enviados pelo cliente.
+This delivery replaces the XOR storage and fallback that truncated the original. Quarantine works without MiniNT. Application operations use the antivirus engine and an auxiliary process with the restricted user token authenticated. SYSTEM supervisor does not open file paths sent by the client.
 
-## Operações e integridade
+## Operations and integrity
 
-O cofre por usuário fica no LocalAppData real conhecido pelo Windows, em
-`Aegis/quarantine-v2`. A variável de ambiente LOCALAPPDATA não escolhe seu destino.
-SQLite mantém conteúdo, metadados e histórico em transações com journal DELETE,
-synchronous FULL e secure_delete. Extensões SQLite são desabilitadas no build.
-Conteúdo e metadados têm criptografia autenticada AES-256-GCM com domínios e
-nonces independentes. A chave é protegida pela DPAPI do usuário. O histórico
-criptografado encadeia hashes e mantém uma cabeça autenticada na mesma transação.
-A abertura detecta alteração, truncamento do histórico e sumiço/ressurreição de
-entradas em relação às ações registradas.
+The safe per user is in the actual LocalAppData known by Windows, in `Aegis/quarantine-v2`. The LOCALAPPDATA environment variable does not choose its destination. SQLite maintains content, metadata and history in transactions with DELETE journal, FULL synchronous and secure_delete. SQLite extensions are disabled in the build. Contents and metadata have authenticated AES-256-GCM encryption with independent domains and nonces. The key is protected by the user's DPAPI. Encrypted history hashes chain and keeps an authenticated head in the same transaction. The opening detects alteration, history truncation and disappearance/resurrection of entries in relation to registered actions.
 
-Isolar mantém o arquivo aberto sem compartilhamento para escrita/exclusão,
-registra identidade, SHA-256, tamanho, atributos, horários e DACL. Para uma detecção,
-o hash precisa coincidir com os bytes verificados pelo scanner. Uma cópia cifrada
-é confirmada e relida antes de excluir o original pelo seu handle. Não há
-fallback para truncar ou sobrescrever o original. Falhas posteriores conservam
-uma entrada recuperável; estados preparados ou pendentes exigem revisão e não
-provocam exclusão automática ao abrir o programa.
+Isolate keeps the file open without sharing to writing/exclusion, registers identity, SHA-256, size, attributes, schedules and DACL. For a detection, hash needs to match the bytes checked by the scanner. A encrypted copy is confirmed and reread before deleting the original by its handle. There is no fallback to truncate or overwrite the original. Subsequent failures save a recoverable input; prepared or pending states require revision and do not cause automatic deletion when opening the program.
 
-Restaurar exige diretório escolhido e nome novo, sem sobrescrever destinos.
-O conteúdo é autenticado e conferido por SHA-256, escrito num temporário privado
-que nega execução, descarregado e relido. O Windows publica esse mesmo arquivo
-por renomeação sem substituição. DACL, atributos suportados e horários são
-restaurados; as ACEs originais ficam protegidas contra herança adicional do novo
-diretório. A cópia no cofre permanece até uma exclusão explícita. O programa não
-executa o arquivo restaurado. Se o histórico estiver cheio ou sua escrita falhar,
-a recuperação explicitamente solicitada ainda pode produzir uma cópia verificada;
-a resposta informa `complete=false`, `copyRestored=true`, `historyUpdated=false`
-e preserva o cofre. Não anuncia uma operação inteiramente concluída nesse caso.
+Restore requires chosen directory and new name without overwriting destinations. The content is authenticated and checked by SHA-256, written in a private temporary that denies execution, downloaded and reloaded. Windows publishes the same file by renaming without overwriting. DACL, supported attributes and schedules are restored; the original ACEs are protected from additional inheritance of the new directory. The copy in the vault remains up to an explicit deletion. The program does not execute the restored file. If the history is full or its writing fails, the explicitly requested recovery can still produce a verified copy; the reply informs `complete=false`, `copyRestored=true`, `historyUpdated=false` and preserves the vault. It does not announce a fully completed operation in this case.
 
-Excluir remove somente a entrada do cofre numa transação com sua ação de histórico.
-Não exclui arquivos existentes na origem nem cópias já restauradas. Isso é exclusão
-lógica: não garante apagamento físico em SSD, backups ou versões anteriores.
+Delete removes only the entry of the vault into a transaction with its history action. It does not delete existing files in the source or copies already restored. This is logical deletion: it does not guarantee physical deletion in SSD, backups or previous versions.
 
-## Interface e serviço
+## Interface and service
 
-A página Quarentena oferece atualização, isolamento manual, seleção de item,
-restauração para destino novo, exclusão com confirmação e histórico paginado.
-Detecções de varredura oferecem Isolar vinculado ao hash da detecção. A interface
-mostra a resposta efetiva do serviço, inclusive falhas e cópias que requerem revisão.
-Ações ocorrem fora da thread gráfica. Desligar a engine impede essas operações na
-interface; não existe execução privilegiada alternativa na UI.
+The Quarantine page provides update, manual isolation, item selection, restore to new destination, deletion with confirmation and paged history. Scan detections offer Isolate linked to the detection hash. The interface shows the effective response of the service, including failures and copies that require revision. Actions occur outside the graphical thread. Shutting down the engine prevents these operations in the interface; there is no alternative privileged execution in the UI.
 
-O protocolo acrescenta as operações 6–10 somente à engine de antivírus.
-Solicitações de alteração usam JSON schema 2 de até 64 KiB. O diretório do cofre
-é fixado pelo worker; não pode ser escolhido no pedido de serviço. Listagens têm
-prévias limitadas de campos longos, identificadas por `previewTruncated`; os valores
-completos permanecem cifrados. O histórico retorna até 128 ações por resposta,
-com `nextBefore` para buscar páginas anteriores. Todas as páginas são verificadas
-contra a cadeia completa ao abrir o cofre.
+The protocol adds operations 6–10 only to the antivirus engine. Change requests use JSON schema 2 up to 64 KiB. The safe directory is fixed by the worker; it cannot be chosen in the service request. Lists have limited previews of long fields, identified by `previewTruncated`; complete values remain encrypted. History returns up to 128 actions per response, with `nextBefore` to search for previous pages. All pages are checked against the full string when opening the vault.
 
-A ferramenta `guardian-quarantine.exe` permite um cofre explicitamente escolhido
-para diagnóstico e testes. Exemplo com arquivos próprios e inertes:
+The `guardian-quarantine.exe` tool allows an explicitly chosen safe for diagnostic and testing. Example with own and inert files:
 
 ```text
 guardian-quarantine --root D:\teste\cofre --action isolate --input D:\teste\inert.bin
@@ -69,46 +29,28 @@ guardian-quarantine --root D:\teste\cofre --action audit --before NUMERO
 guardian-quarantine --root D:\teste\cofre --action erase --id ID
 ```
 
-O serviço oferece `--q-list`, `--q-audit [pagina.json]`, `--q-isolate pedido.json`,
-`--q-restore pedido.json` e `--q-erase pedido.json`. Pedidos incluem `schema: 2` e,
-respectivamente, `source/sha256/threat/reason`, `id/directory/filename`, `id`.
-A paginação do histórico usa `before`. O cliente de console antigo também usa o
-novo cofre e recusa isolamento de detecção sem hash.
+The service offers `--q-list`, `--q-audit [pagina.json]`, `--q-isolate pedido.json`, `--q-restore pedido.json` and `--q-erase pedido.json`. Requests include `schema: 2` and, respectively, `source/sha256/threat/reason`, `id/directory/filename`, `id`. History pagination uses `before`. The old console client also uses the new safe and hashless detection refusal.
 
-## Limites e modelo de proteção
+## Limits and protection model
 
-- Até 64 MiB por arquivo, 256 entradas, 8192 ações e 262144 páginas SQLite de
-  4096 bytes (1 GiB, além do journal temporário). Limites recusam novos isolamentos
-  antes de remover o original. Histórico cheio não é descartado automaticamente;
-  a recuperação explícita continua disponível com aviso de histórico incompleto.
-- Caminhos locais absolutos com menos de 240 caracteres; volumes locais fixos ou
-  removíveis. UNC, dispositivos, traversal, ADS, junctions/reparse points,
-  hardlinks, EFS, arquivos comprimidos/esparsos/offline são recusados.
-- Apenas arquivos pertencentes ao usuário atual com DACL concreta. Não há
-  restauração de SACL, outro proprietário, alternate streams ou privilégios de
-  backup. Arquivos bloqueados ou sem autorização de exclusão permanecem na origem.
-- ACLs limitam acesso ao usuário e SYSTEM. A DPAPI é vinculada ao perfil do usuário
-  e normalmente ao computador. Perder o perfil/chave pode impedir recuperação.
-  Não se reinicializa uma chave ausente sobre um banco existente; banco ausente,
-  vazio ou sem cabeça de histórico também não é reinicializado com chave antiga.
-- O cofre não é uma fronteira contra um processo que já controle a mesma conta:
-  esse processo pode usar as credenciais DPAPI e permissões do usuário. A proteção
-  contra adulteração por malware com a mesma identidade depende de um broker/cofre
-  protegido do serviço, a aprofundar na fase 16. Criptografia e cadeia de auditoria
-  não são apresentadas como resistência a esse adversário ou a rollback completo
-  de uma cópia antiga consistente do banco e da chave.
-- Temporários privados de uma restauração abruptamente interrompida podem ficar
-  no destino, sem execução permitida; não há varredura automática que apague
-  arquivos do usuário. Arquivos legados XOR não são importados nem removidos.
-- As provas incluem encerramento abrupto de processos, não corte físico de energia.
-  Durabilidade depende de NTFS/SQLite/armazenamento cumprirem o flush. Não há
-  certificação de proteção antimalware ou de recuperação em qualquer falha física.
+- Up to 64 MiB per file, 256 entries, 8192 actions and 262144 SQLite pages
+  4096 bytes (1 GiB, in addition to temporary journal). Limits refuse new isolations before removing the original. Full history is not discarded automatically; explicit recovery remains available with incomplete history notice.
+- Absolute local paths with less than 240 characters; fixed local volumes or
+  removable. UNC, devices, traversal, ADS, junctions/reparse points, hardlinks, EFS, tablets/esparsos/offline files are rejected.
+- Only files belonging to the current user with concrete DACL. There is no
+  SACL restoration, other owner, alternate streams or backup privileges. Files blocked or without deletion authorization remain at source.
+- ACLs limit access to user and SYSTEM. DPAPI is linked to user profile
+  and usually to the computer. Losing profile/key can prevent recovery. A missing key is not restarted on an existing bank; missing, empty or no history head is also not restarted with old key.
+- The safe is not a border against a process that already controls the same account:
+  this process can use DPAPI credentials and user permissions. Protection against malware tampering with the same identity depends on a protected service broker/vault, to deepen in phase 16. Cryptography and audit chain are not presented as resistance to this opponent or full rollback of a consistent old copy of the bank and key.
+- Private temporarys of abruptly disrupted restoration may remain
+  in destination, no execution allowed; there is no auto scan that deletes user files. XOR legacy files are neither imported nor removed.
+- The evidence includes abrupt closure of processes, not physical cutting of energy.
+  Durability depends on NTFS/SQLite/storage complying with flush. There is no certification of antimalware protection or recovery in any physical failure.
 
-## Validação e reprodução
+## Validation and reproduction
 
-A campanha usa arquivos novos e inertes, operações NTFS reais e um driver de
-injeção de falhas separado. A ferramenta de produção não aceita esses comandos.
-O driver de teste não é instalado como componente de serviço.
+The campaign uses new and inert files, real NTFS operations and a separate crash injection driver. The production tool does not accept these commands. The test driver is not installed as a service component.
 
 ```text
 python tools/validate_quarantine.py --build BUILD --config Release --output PASTA_NOVA
@@ -117,23 +59,8 @@ python tools/validate_quarantine_services.py --build BUILD --output NOVA_PASTA_S
 python tools/package_quarantine.py --build BUILD --release PROVA_RELEASE --debug PROVA_DEBUG --services PROVA_SERVICOS --output NOVO_PACOTE
 ```
 
-São validados bytes, SHA, horários, DACL, ACL do cofre, nomes Unicode, arquivo vazio,
-conflitos, troca após detecção, bloqueio, somente leitura, links/streams, quotas,
-SQLITE_FULL, interrupções em isolamento/restauração/exclusão, tags GCM, chave
-perdida, inventário versus histórico e recuperação com histórico indisponível.
-A integração usa o serviço instalado, scanner com marcador inerte, token restrito,
-isolamento, listagem, restauração, conflito, exclusão, histórico e engine desligada.
-As configurações Release e Debug aprovam **57/57** casos cada; a integração do
-serviço instalado aprova **13/13** casos. A interface é compilada em Release/Debug e seu contrato de dados é exercitado
-pelo cliente do serviço; não equivale a teste manual completo de cliques da GUI.
-A aceitação é repetida a partir do pacote extraído, cujos bytes são conferidos.
-Não são repetidas as baterias de compatibilidade 12F–14.x.
-Os [resultados por caso](PHASE-15-RESULTS.json) registram a aceitação desta fase.
+Bytes, SHA, schedules, DACL, safe ACL are validated, Unicode names, empty file, conflicts, exchange after detection, blocking, read-only, links/streams, quotas, SQLITE_FULL, interruptions in isolation/restoration/exclusion, GCM tags, lost key, inventory versus history and recovery with unavailable history. Integration uses the installed service, inert marker scanner, restricted token, isolation, listing, restoration, conflict, deletion, history and engine offline. Release and Debug settings approve **57/57** cases each; integration of the installed service approves **13/13** cases. The interface is compiled in Release/Debug and your data contract is exercised by the service client; it does not equate to the complete GUI click manual test. Acceptance is repeated from the extracted package, the bytes of which are checked. 12F compatibility batteries are not repeated–14.x. The [case results](PHASE-15-RESULTS.json) record the acceptance of this phase.
 
-Chaves DPAPI, bancos de quarentena, arquivos de usuário, referências Microsoft e
-catálogos locais de execução não entram no pacote. Fontes vão ao repositório
-público; os binários e suas provas ficam no repositório privado de builds.
+DPAPI keys, quarantine banks, user files, Microsoft references, and local execution catalogs do not enter the package. Sources go to the public repository; binaries and their proofs stay in the private builds repository.
 
-Referências: [DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata),
-[renomeação sem substituição](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info),
-[SQLite synchronous](https://www.sqlite.org/pragma.html#pragma_synchronous).
+References: [DPAPI](https://learn.microsoft.com/en-us/windows/win32/api/dpapi/nf-dpapi-cryptprotectdata), [renamed without replacement](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info), [SQLite syncronous](https://www.sqlite.org/pragma.html#pragma_synchronous).

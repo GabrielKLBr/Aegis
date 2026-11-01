@@ -50,33 +50,7 @@ def main():
     copy(nt.ROOT/'config/internet-ordinals.json','config/internet-ordinals.json')
     copy(nt.ROOT/'test/fixtures/internet/certificates.json','test/fixtures/internet/certificates.json')
     for name in ('LICENSE.txt','UPSTREAM.json'):copy(nt.ROOT/'guest/third_party/bearssl'/name,'licenses/BearSSL/'+name)
-    (out/'LEIA-ME.txt').write_text('''Aegis 14.9 - rede e criptografia do MiniNT x64
-
-Requer Windows x64, WHP e NX ativos e Visual C++ runtime no host.
-Contem kernels/DLLs proprios, clientes e provas das fases 14.7 a 14.9.
-O modo padrao e offline. TLS 1.2 executa dentro do convidado.
-Os certificados/chaves de teste sao sinteticos e intencionalmente publicos.
-Nunca instale esses certificados como confiaveis no Windows.
-
-Nao inclui DLLs Microsoft de entrada, Flappy, ISO, discos nem estados de VM.
-Use referencias CRT/schema locais legais e o Flappy original com settings/icon.
-
-Exemplo offline, em uma pasta nova, a partir da raiz deste pacote:
-python -B tools/internet_runtime.py bundle --build . --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output internet
-.\\Release\\guardian-desktop.exe guest/Release/guardian-kernel-internet.gk internet/runtime.gpv internet/manifest.json internet/binding.gnt sessao
-
-A politica de destinos pode ser gerada de JSON com o subcomando policy.
-Acrescente --network-policy politica.bin para usa-la; leia PHASE-14.9.md.
-O --state aceita o disco virtual persistido; snapshots de RAM nao sao aceitos
-pelo transporte da 14.9. O estado pode conter chaves do convidado.
-
-Verificacao completa do pacote, criando outra pasta de evidencia:
-python -B tools/smoke_phase14_9.py --package . --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --application CAMINHO-FLAPPY --output EVIDENCIA-NOVA
-
-As janelas continuam no visualizador da 14.7; a 12F nao foi iniciada.
-Leia PHASE-14.9.md e os documentos anteriores para cotas e limitacoes.
-A fase 14.10 nao faz parte desta entrega.
-''',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis 14.9 - MiniNT x64 network and encryption\n\nRequires Windows x64, WHP and NX active and Visual C++ runtime on host.\nIt contains kernels/DLLs itself, customers and tests of the 14.7 phases to 14.9.\nThe standard and offline mode. TLS 1.2 performs within the guest.\nThe test certificados/chaves are synthetic and intentionally public.\nNever install these certificates as reliable on Windows.\n\nIt does not include Microsoft input DLLs, Flappy, ISO, disks or VM states.\nUse CRT/schema references cool locations and the original Flappy with settings/icon.\n\nExample offline, in a new folder, from the root of this package:\npython -B tools/internet_runtime.py bundle --build . --config Release --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --output internet\n.\\Release\\guardian-desktop.exe guest/Release/guardian-kernel-internet.gk internet/runtime.gpv internet/manifest.json internet/binding.gnt sessao\n\nThe destination policy can be generated from JSON with the policy subcommand.\nAdd --network-policy policy.bin to use-la; read PHASE-14.9.md.\n--state accepts the virtual disk persisted; RAM snapshots are not accepted\nby transporting 14.9. The state may contain guest keys.\n\nComplete package check, creating another evidence folder:\npython -B tools/smoke_phase14_9.py --package . --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --application FLAPPY-PATH --output NEW-EVIDENCE\n\nThe windows are still in the 14.7 viewer; 12F has not been started.\nRead PHASE-14.9.md and previous documents for quotas and limitations.\nThe 14.10 phase is not part of this delivery.\n',encoding='utf-8')
     files={path.relative_to(out).as_posix():nt.sha(path.read_bytes()) for path in sorted(out.rglob('*')) if path.is_file()};(out/'manifest.json').write_bytes(nt.canonical({'schema':1,'phase':'14.9','files':files,'acceptance':{'Release':len(REQUIRED),'Debug':len(REQUIRED)},'regressionTests':TOTAL_TESTS,'microsoftInputBinariesIncluded':False,'externalApplicationIncluded':False,'completeWindowsGui':False,'phase12FStarted':False,'phase14_8Started':True,'phase14_9Started':True,'phase14_10Started':False,'hostTls':False,'hostCredentials':False,'completeWindowsNetworking':False,'completeCOM':False,'completeNDR':False}))
     with zipfile.ZipFile(archive,'x',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
         for path in sorted(out.rglob('*')):

@@ -30,28 +30,7 @@ def main():
     for name in ('crt_runtime.py','win32_runtime.py','native_nt.py','api_set.py','nt_compatibility.py','inspect_gui_compatibility.py','pe_volume.py','smoke_phase14_5.py'):copy(nt.ROOT/'tools'/name,'tools/'+name)
     copy(nt.ROOT/'test/CrtIntegrationTests.py','test/CrtIntegrationTests.py')
     copy(nt.ROOT/'docs/PHASE-14.5.md','PHASE-14.5.md')
-    (out/'LEIA-ME.txt').write_text('''Aegis 14.5 - componentes proprios de compatibilidade CRT no MiniNT x64
-
-Requer Windows x64, WHP, NX e o Visual C++ runtime instalado no host.
-Este pacote contem o kernel, as DLLs proprias e aplicativos de teste compilados
-pelo MSVC /MD, alem das evidencias Release/Debug. Nao contem DLLs de entrada
-Microsoft, ISOs nem volumes que incorporem essas DLLs.
-
-Para executar, forneca a pasta local de referencias legais exatas da politica
-config/crt-references.json e o apisetschema.dll Win10 legal da fase 14.4.
-No PowerShell, nesta pasta, usando pastas de saida que ainda nao existem:
-
-python tools/crt_runtime.py bundle --build . --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --application guardian-crt.exe --output execucao
-.\\Release\\guardian-pe.exe guest/Release/guardian-kernel-crt.gk execucao/runtime.gpv execucao/manifest.json execucao/binding.gnt sessao
-
-Para repetir toda a matriz do pacote, incluindo os dois casos de recusa:
-python tools/smoke_phase14_5.py --package . --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output EVIDENCIA-NOVA
-
-O volume gerado contem as DLLs fornecidas; mantenha-o local. As entradas nunca
-sao executadas como programas no host. A compatibilidade e limitada ao corpus
-documentado. GUI, rethrow/nested C++ e CRT geral ainda nao estao aceitos.
-A fase 14.6 nao foi iniciada.
-''',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis 14.5 - components of CRT compatibility in MiniNT x64\n\nRequires Windows x64, WHP, NX and Visual C++ runtime installed on the host.\nThis package contains kernel, own DLLs and compiled test applications\nby MSVC /MD, apart from evidence Release/Debug. Do not contain inbound DLLs\nMicrosoft, ISOs or volumes incorporating these DLLs.\n\nTo execute, provides the local directory of policy exact legal references\nconfig/crt-references.json and apisetschema.dll Win10 legal 14.4 phase.\nIn PowerShell, in this folder, using output folders that do not yet exist:\n\npython tools/crt_runtime.py bundle --build . --config Release --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --application guardian-crt.exe --output execucao\n.\\Release\\guardian-pe.exe guest/Release/guardian-kernel-crt.gk execucao/runtime.gpv execucao/manifest.json execucao/binding.gnt sessao\n\nTo repeat the entire matrix of the package, including the two refusal cases:\npython tools/smoke_phase14_5.py --package . --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --output NEW-EVIDENCE\n\nThe generated volume contains the supplied DLLs; keep local-o. The entries never\nare executed as programs in the host. Compatibility is limited to the corpus\ndocumented. GUI, rethrow/nested C++ and CRT general are not yet accepted.\nThe 14.6 phase was not initiated.\n',encoding='utf-8')
     files={p.relative_to(out).as_posix():nt.sha(p.read_bytes()) for p in sorted(out.rglob('*')) if p.is_file()}
     (out/'manifest.json').write_bytes(nt.canonical({'schema':1,'phase':'14.5','files':files,'acceptance':{c:p['tests'] for c,p in proofs.items()},'regressionTests':len(cases),'microsoftInputBinariesIncluded':False,'fullCrtCompatibility':False,'phase14_6Started':False}))
     with zipfile.ZipFile(archive,'x',zipfile.ZIP_DEFLATED,compresslevel=6) as z:

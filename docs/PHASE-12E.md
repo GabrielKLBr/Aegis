@@ -1,131 +1,69 @@
-# Fase 12E — ambiente de uso e dados sintéticos
+# Phase 12E — environment of use and synthetic data
 
-**Atualização Windows de 23/10/2026:** a matriz atual passou em MSVC/WHP: 80 testes distintos Debug, com retestes documentados, e 80/80 Release em uma suíte completa, sem ignorados. [Correções e evidências](REVISAO-WINDOWS-FASES12B-13-20261023.md). Os registros Linux abaixo são históricos; as pendências de escopo e de comparação entre versões continuam abertas.
+**23/10/2026 Windows Update:**The current matrix has passed on MSVC/WHP: 80 distinct tests Debug, with documented retests, and 80/80 Release in a complete suite, without ignoring. [Corrections and Evidence](WINDOWS-PHASES12B-13-REVIEW-20261023.md). The Linux records below are historical; the scope and comparison pending versions remain open.
 
-A fase 13 foi autorizada posteriormente em 22/10/2026: [registro](PHASE-13.md). Os resultados e limites desta entrega da 12E são preservados abaixo.
+Phase 13 was later authorised in 22/10/2026: [registration](PHASE-13.md). The results and limits of this 12E delivery are preserved below.
 
-**Estado em 22/10/2026:** implementação concluída e aceita na matriz Linux/KVM
-nativa: **56 Debug, 56 Release e 34 ASan/UBSan**, todos aprovados, sem ignorados.
-O produto permanece Windows/MSVC/WHP; não foi usado Wine ou QEMU.
-A aceitação nativa Windows desta revisão e as pendências das fases 12B/12C
-continuam abertas. Por isso, o resultado técnico mantém `phaseComplete: false`
-e `prerequisitesComplete: false`; a aceitação local da 12E não encerra esses
-requisitos. A fase 13 não foi iniciada.
+**State in 22/10/2026:**implementation completed and accepted in the native Linux/KVM matrix: **56 Debug, 56 Release and 34 ASan/UBSan**, all approved without ignored. The product remains Windows/MSVC/WHP; was not used Wine or QEMU. The native Windows acceptance of this review and the pending 12B/12C phases remain open. Therefore, the technical result keeps `phaseComplete: false` and `prerequisitesComplete: false`; local acceptance of 12E does not meet these requirements. Phase 13 has not been started.
 
-O código está na pasta original do HD. A base anterior está preservada em
-`build-phase12e/baseline-20261021/original-source.zip`, com hashes de 460 arquivos
-em `baseline.json`. Os builds desta fase ficam fora do NTFS em
-`/home/gabri/Projetos/GuardianAV-12E-build-20261021`.
+The code is in the original folder of the HD. The previous base is preserved in `build-phase12e/baseline-20261021/original-source.zip`, with 460 hashes files in `baseline.json`. The builds of this phase are outside the NTFS in `/home/gabri/Projetos/GuardianAV-12E-build-20261021`.
 
-## Perfil versionado
+## Profile versioned
 
-O perfil `GuardianProfile/1` usa uma semente de 32 bits, conteúdo v1 e três
-cenários x64: Win7/7601, Win10/19045 e Win11/22631. Sua conta sintética
-`lab-SEMENTE` corresponde ao token real do convidado: usuário 100, grupo 10.
-Não há senhas, login Windows ou contas copiadas do host. A página de perfil é
-somente de leitura, vinculada ao NT do hardware e validada na restauração.
-Hardware e identidade do perfil são sintéticos e reproduzíveis.
+The `GuardianProfile/1` profile uses a 32-bit seed, v1 content and three x64 scenarios: Win7/7601, Win10/19045 and Win11/22631. Your synthetic `lab-SEMENTE` account corresponds to the actual guest token: user 100, group 10. There are no passwords, Windows login or accounts copied from the host. The profile page is read-only, linked to the hardware NT and validated in the restoration. Hardware and profile identity are synthetic and reproducible.
 
-O catálogo instalado contém apenas **Guardian Docs 1**, um executável próprio
-que roda em CPL3 e lê texto/CSV por APIs do convidado. O executável fica no
-catálogo imutável do kernel, com hash dos bytes reais; não se cria um falso
-`.exe` no volume de arquivos de 512 bytes. Arquivos de catálogo e registro
-declaram esse armazenamento explicitamente. Não se declara Office, navegador
-ou outro programa que o perfil não execute.
+The installed catalog contains only **Guardian Docs 1**, a proper executable running in CPL3 and reading text/CSV by guest APIs. The executable is in the kernel's unchanging catalog with real bytes hash; a fake `.exe` is not created in the 512 bytes file volume. Catalog and log files declare that storage explicitly. Office, browser or other program is not declared that the profile does not run.
 
-Os documentos são `C:\welcome.txt`, `C:\budget.csv` e `C:\notes.txt`.
-Um atalho próprio `GuardianShortcut/1` abre o texto pela associação registrada.
-Esse formato não é um arquivo Windows `.lnk`. Associações `.txt` e `.csv`
-resolvem para o leitor realmente executado por `CreateProcessA` no convidado.
-O histórico é próprio do leitor; não representa navegação de um browser.
+The documents are `C:\welcome.txt`, `C:\budget.csv` and `C:\notes.txt`. A proper shortcut `GuardianShortcut/1` opens the text by the registered association. This format is not a Windows `.lnk` file. `.txt` and `.csv` associations resolve for the reader actually executed by `CreateProcessA` in the guest. The history is the reader's own; it does not represent browser navigation.
 
-Todo o conteúdo inicial é gerado dentro do convidado a partir da semente e
-da versão do cenário. O perfil só recebe parâmetros tipados; não recebe
-contas, documentos, credenciais, diretórios pessoais ou navegação do host.
-Não se adiciona canal de importação nesta fase; transferências não suportadas
-continuam recusadas pelos canais existentes.
+All initial content is generated within the guest from the seed and the scenario version. The profile only receives typed parameters; it does not receive accounts, documents, credentials, personal directories or host navigation. No import channel is added at this stage; unsupported transfers continue to be refused by existing channels.
 
-## Datas e evolução
+## Dates and evolution
 
-Datas de criação, acesso e escrita passam a ser persistidas em uma extensão
-identificada do cabeçalho do volume. O tamanho dos nós, dos slots e dos
-comandos existentes permanece igual. Volumes antigos com a extensão zerada
-continuam legíveis; datas antigas desconhecidas são retornadas como zero.
+Dates of creation, access and writing will be persisted in an identified extension of the volume header. The size of nodes, slots and existing commands remains the same. Old volumes with zero extension remain readable; old unknown dates are returned as zero.
 
-`GetFileTime` e `SetFileTime` cobrem arquivos com handles do subconjunto já
-suportado, resolução de um segundo e datas representáveis em segundos Unix positivos de
-32 bits. Precisão/valores especiais não suportados são recusados. Ponteiro
-nulo ou FILETIME zero mantém o campo, seguindo a documentação de
-[SetFileTime](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfiletime)
-e [GetFileTime](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfiletime).
-Datas iniciais são ajustadas explicitamente para compor o cenário sintético;
-leituras/escritas posteriores atualizam as datas pelo relógio real do convidado.
-O relógio do host permanece intacto.
+`GetFileTime` and `SetFileTime` cover files with already supported subset handles, resolution of a second and representative dates in 32-bit positive Unix seconds. Precision/values special unsupported are refused. Zero pointer or FILETIME keeps the field, following the documentation of [SetFileTime](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfiletime) and [GetFileTime](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfiletime). Initial dates are explicitly set to compose the synthetic scenario; subsequent readings/written update dates by the actual guest clock. The host clock remains intact.
 
-O marcador final do provisionamento é confirmado junto com arquivos e registro.
-O histórico registra aberturas reais do leitor, mantém uma janela limitada e
-um contador acumulado. O perfil persistente conserva notas e evolução em boots,
-clones e snapshots; o descartável recomeça em um boot novo. A reprodução da
-base inicial exige a mesma semente, cenário, versão e imagem do catálogo.
+The final supply marker is confirmed along with files and record. The history records real reader openings, keeps a limited window and a accumulated counter. The persistent profile keeps notes and evolution in boot, clones and snapshots; the disposable starts again in a new boot. The playback of the initial base requires the same seed, scenario, version and image as the catalog.
 
-## Validação e entrega
+## Validation and delivery
 
-A revisão estável `acceptance-20261021-full-02` passou na matriz completa:
+The stable review `acceptance-20261021-full-02` passed in the full matrix:
 
-| Configuração | CTests aprovados | Falhas / ignorados |
+| Configuration | CTests approved | Failures / ignored |
 |---|---:|---:|
 | Debug | 56 | 0 / 0 |
 | Release | 56 | 0 / 0 |
 | ASan/UBSan | 34 | 0 / 0 |
 | Total | 146 | 0 / 0 |
 
-Os testes específicos da 12E verificaram:
+The specific tests of 12E verified:
 
-- Núcleo: 89 verificações por configuração, incluindo versão/semente,
-  repetição, datas reais, direitos, valores não suportados e recuperação de
-  commit interrompido.
-- Boots em Debug e Release: seis pares NT/semente, duas execuções de cada
-  base, 12 retomadas e 12 rejeições de alteração do perfil por configuração.
-  O volume inicial inteiro foi comparado. No total, são 24 bases novas,
-  24 retomadas e 24 rejeições de perfil alterado.
-- Oracle independente em Python: bytes dos documentos, conta, associações,
-  catálogo contra o PE realmente compilado e datas no volume. Foram 514
-  verificações em Debug e 584 em Release, incluindo consultas de progresso;
-  a diferença na contagem depende da duração das VMs.
-- Abertura dos três documentos por processos reais do leitor; notas e
-  histórico preservados em reinício, clone e snapshot, rollback correto e
-  perfil descartável reiniciado sem dados da sessão anterior.
-- Canário pessoal criado apenas no host ausente da RAM e do volume convidado;
-  arquivo de controle do host intacto. A importação de base pessoal pela
-  criação do perfil foi recusada. Este teste cobre esses canais e canários,
-  sem representar uma prova geral de ausência de todo dado pessoal possível.
+- Core: 89 configuration checks, including version/seed,
+  repetition, actual dates, rights, unsupported values and aborted commit recovery.
+- Boots in Debug and Release: six pairs NT/seed, two runs each
+  base, 12 resumes and 12 rejections of profile change by configuration. The whole initial volume was compared. In total, there are 24 new bases, 24 resumes and 24 rejections of altered profile.
+- Python independent Oracle: bytes of documents, account, associations,
+  catalogue against actually compiled PE and dates in volume. There were 514 checks in Debug and 584 in Release, including progress queries; the difference in counting depends on the duration of VMs.
+- Opening of the three documents by the reader's actual processes; notes and
+  history preserved in restart, clone and snapshot, correct rollback and disposable profile restarted without data from the previous session.
+- personal canary created only in the absent RAM host and guest volume;
+  Host control file intact. Personal base import by profile creation was refused. This test covers these channels and canaries without representing a general proof of absence of all possible personal data.
 
-Os 405 arquivos de entrada de código permaneceram idênticos durante e após a
-matriz. O SHA-256 de `source-inputs.json` é
-`21ec810bb30a745b919eaa5a9191875ce6d27c419e3c7b907a757ed44cdf522c`.
-A primeira tentativa foi substituída antes de terminar, após a checagem Windows
-detectar uma colisão do macro `Yield` na ordem de inclusão de um cabeçalho do
-teste. Nenhum resultado parcial dessa tentativa foi contado na aceitação.
-A revisão final passou na checagem cruzada de sintaxe de dez unidades Windows.
-Essa checagem não executa `.exe` e não equivale à compilação MSVC ou à execução
-WHP nativa, que continuam pendentes.
+The 405 source input files remained identical during and after the matrix. `source-inputs.json` SHA-256 is `21ec810bb30a745b919eaa5a9191875ce6d27c419e3c7b907a757ed44cdf522c`. The first attempt was replaced before finishing, after Windows check detect a collision of the `Yield` macro in the order of inclusion of a test header. No partial result of this attempt was counted in acceptance. The final revision passed the cross-check of ten Windows units syntax. This check does not run `.exe` and does not equal to the MSVC compilation or native WHP execution, which remain pending.
 
-Os builds e a matriz começaram em 21/10; os diretórios e pacotes conservam essa
-data. Na pasta original do HD:
+Builds and matrix started in 21/10; directories and packages keep that date. In the original HD folder:
 
-- Evidências selecionadas: `build-phase12e/acceptance-20261021-full-02/`, com
-  resultado, inventário, logs, JUnit e relatórios próprios de cada configuração.
-- Revisão das alterações e sintaxe Windows: `build-phase12e/review/`.
-- Fontes: `build-phase12e/delivery-20261021/GuardianAV-12E-fontes-20261021.zip`.
+- Selected evidence: `build-phase12e/acceptance-20261021-full-02/`, with
+  result, inventory, logs, JUnit and reports specific to each configuration.
+- Revision of Windows changes and syntax: `build-phase12e/review/`.
+- Source: `build-phase12e/delivery-20261021/GuardianAV-12E-fontes-20261021.zip`.
 - Linux: `build-phase12e/delivery-20261021/GuardianAV-12E-linux-20261021.tar.gz`,
-  com dez ferramentas ELF, vinte kernels e os programas próprios como dados
-  do convidado. O kernel inclui o catálogo usado durante a execução.
-- Integridade e verificação da entrega: `SHA256SUMS.txt`, `delivery.json` e
-  `package-verification.json` no mesmo diretório de entrega. A verificação
-  adicional extrai o pacote, executa o núcleo e inicia o perfil pelo programa
-  entregue, conferindo a abertura dos três documentos.
+  with ten ELF tools, twenty kernels and the programs themselves as guest data. The kernel includes the catalog used during execution.
+- Integrity and verification of delivery: `SHA256SUMS.txt`, `delivery.json` and
+  `package-verification.json` in the same delivery directory. Additional verification extracts the package, executes the core and starts the profile by the delivered program, checking the opening of the three documents.
 
-### Uso
+### Usage
 
 ```text
 guardian-vm --root CATALOGO create-environment escritorio guardian-kernel-environment.gk --nt win11 --seed 42
@@ -135,39 +73,21 @@ guardian-vm --root CATALOGO status escritorio
 guardian-vm --root CATALOGO restart escritorio
 ```
 
-Adicionar `--disposable` na criação para recomeçar a cada boot. Os perfis
-existentes não recebem dados automaticamente. A semente e o cenário ficam
-vinculados à VM; para outra base, criar outra VM. Alterar a versão NT do
-hardware para divergir do perfil é recusado. Os comandos de sessão, snapshot,
-clone e restauração da 12D continuam disponíveis.
+Add `--disposable` in creation to restart every boot. Existing profiles do not receive data automatically. The seed and scenario are linked to VM; to another base create another VM. Changing the NT version of the hardware to diverge from the profile is refused. Session commands, snapshot, clone and restore from 12D remain available.
 
-O console do boot mostra `12E DOC OPEN` três vezes e `12E DONE visits=N opens=3`. A abertura de texto e a validação de CSV ocorrem no processo leitor,
-com a identidade da conta do convidado. O histórico mantém os últimos 12
-registros e o total de visitas; as notas recebem uma linha por visita, até o
-limite real de 512 bytes do arquivo. Falta de espaço ou documento inválido
-é falha explícita da operação.
+The boot console shows `12E DOC OPEN` three times and `12E DONE visits=N opens=3`. Text opening and validation of CSV occur in the reader process, with the identity of the guest account. History keeps the last 12 records and total visits; notes receive a line per visit, up to the actual limit of 512 bytes of the file. Lack of space or invalid document is explicit operation failure.
 
-Reproduzir a matriz em um diretório novo:
+Play matrix in a new directory:
 
 ```text
 python tools/validate_phase12e.py --output DIRETORIO_NOVO --llvm LLVM_NATIVO --openssl-root OPENSSL_NATIVO
 ```
 
-No Windows, usar o terminal x64 do Visual Studio e omitir os caminhos Linux.
-O validador exige MSVC para a aceitação Windows e conserva as comparações e
-pendências das subfases anteriores. A fase 13 não faz parte desta autorização.
+On Windows, use Visual Studio's x64 terminal and omit Linux paths. The validator requires MSVC for Windows acceptance and saves comparisons and to-ed from previous subphases. Phase 13 is not part of this authorization.
 
 
-## Limites preservados
+## Preserved limits
 
-O perfil de aplicação usa uma vCPU e o volume existente de 32 nós, com 16 KiB
-de dados e arquivos de até 512 bytes. Os recursos ampliados do contrato próprio
-`resources` da 12B não foram integrados a este perfil. Não há desktop Windows,
-Office, browser ou compatibilidade geral com programas de terceiros. As três
-versões NT são cenários do subconjunto implementado. O leitor, o atalho e o
-histórico são próprios e seus formatos ficam explícitos. Importação de contas,
-credenciais, pastas pessoais e navegação não foi acrescentada.
+The application profile uses a vCPU and the existing volume of 32 nodes, with 16 KiB of data and files up to 512 bytes. The expanded features of the 12B `resources` own contract have not been integrated into this profile. There is no Windows desktop, Office, browser or general compatibility with third party programs. The three NT versions are scenarios of the implemented subset. The reader, shortcut and history are unique and their formats are explicit. Import of accounts, credentials, personal folders, and browsing has not been added.
 
-A conclusão desta entrega é a implementação e a aceitação Linux dos perfis
-sintéticos da 12E. A próxima fase depende de nova solicitação, sem encerrar
-as validações Windows e os requisitos anteriores ainda pendentes.
+The completion of this delivery is the implementation and acceptance of Linux synthetic profiles of 12E. The next phase depends on a new request, without terminating Windows validations and the previous requirements still pending.

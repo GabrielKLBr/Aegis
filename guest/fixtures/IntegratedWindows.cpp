@@ -10,13 +10,13 @@ namespace {
 HWND root=nullptr,peer=nullptr,child=nullptr;unsigned keys=0,ups=0,characters=0,clicks=0,moves=0,sizes=0,focus=0,paints=0;bool modal=false,ownerRestored=false,logicalGeometry=false,failed=false;
 void Check(bool yes,const char* label){if(!yes){failed=true;std::printf("12F FAIL %s error=%lu\n",label,GetLastError());}}
 LRESULT CALLBACK Proc(HWND h,UINT message,WPARAM wp,LPARAM lp){
-    if(message==WM_PAINT){PAINTSTRUCT paint{};const auto dc=BeginPaint(h,&paint);if(!dc)return 0;RECT rect{};GetClientRect(h,&rect);const auto brush=CreateSolidBrush(h==child?RGB(30,160,70):h==peer?RGB(170,70,30):RGB(25,65,120));FillRect(dc,&rect,brush);DeleteObject(brush);SetTextColor(dc,RGB(255,255,255));SetBkMode(dc,TRANSPARENT);const wchar_t text[]=L"MiniNT 12F - janelas independentes";TextOutW(dc,8,8,text,int(sizeof(text)/sizeof(wchar_t))-1);EndPaint(h,&paint);++paints;return 0;}
+    if(message==WM_PAINT){PAINTSTRUCT paint{};const auto dc=BeginPaint(h,&paint);if(!dc)return 0;RECT rect{};GetClientRect(h,&rect);const auto brush=CreateSolidBrush(h==child?RGB(30,160,70):h==peer?RGB(170,70,30):RGB(25,65,120));FillRect(dc,&rect,brush);DeleteObject(brush);SetTextColor(dc,RGB(255,255,255));SetBkMode(dc,TRANSPARENT);const wchar_t text[]=L"MiniNT 12F - independent windows";TextOutW(dc,8,8,text,int(sizeof(text)/sizeof(wchar_t))-1);EndPaint(h,&paint);++paints;return 0;}
     if(message==WM_SETFOCUS){++focus;return 0;}
     if(message==WM_MOVE){++moves;return 0;}
     if(message==WM_SIZE){++sizes;InvalidateRect(h,nullptr,TRUE);return 0;}
     if(message==WM_LBUTTONDOWN){++clicks;return 0;}
     if(message==WM_CHAR){if(wp=='A'||wp=='a'||wp==0xE9)++characters;return 0;}
-    if(message==WM_KEYDOWN){if(wp=='A'){++keys;Check(((uint64_t(lp)>>16)&255)==30,"physical scan code");}if(wp=='M'&&!modal){modal=true;Check(MessageBoxW(root,L"Dialogo executando dentro do MiniNT. Enter para fechar.",L"12F Modal",MB_OK)==IDOK,"modal result");ownerRestored=IsWindowEnabled(root)!=FALSE;Check(ownerRestored,"owner enabled after modal");}return 0;}
+    if(message==WM_KEYDOWN){if(wp=='A'){++keys;Check(((uint64_t(lp)>>16)&255)==30,"physical scan code");}if(wp=='M'&&!modal){modal=true;Check(MessageBoxW(root,L"Dialog running inside MiniNT. Enter to close.",L"12F Modal",MB_OK)==IDOK,"modal result");ownerRestored=IsWindowEnabled(root)!=FALSE;Check(ownerRestored,"owner enabled after modal");}return 0;}
     if(message==WM_KEYUP){if(wp=='A')++ups;return 0;}
     if(message==WM_CLOSE){if(h==root){RECT client{},bounds{};logicalGeometry=GetClientRect(h,&client)&&client.right==480&&client.bottom==300&&GetWindowRect(h,&bounds)&&bounds.left==240&&bounds.top==160&&GetDpiForWindow(h)==96;}DestroyWindow(h);return 0;}
     if(message==WM_DESTROY){if(h==root)PostQuitMessage(0);return 0;}

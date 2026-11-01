@@ -55,7 +55,7 @@ DWORD Setup(HWND owner, bool uninstall) {
     const auto exe = Executable().parent_path() / L"guardian-engine-service.exe";
     Check(fs::is_regular_file(exe), "Service installer missing beside the app");
     if (!uninstall) for (const auto* name : PackageFiles)
-        Check(fs::is_regular_file(exe.parent_path() / name), "O pacote dos serviços está incompleto; use a pasta preparada para instalação.");
+        Check(fs::is_regular_file(exe.parent_path() / name), "The service package is incomplete; use the folder prepared for installation.");
     const auto parameters = std::wstring(uninstall ? L"--uninstall --owner " : L"--install --owner ") + UserSid();
     SHELLEXECUTEINFOW info{}; info.cbSize = sizeof(info);
     info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_NO_UI;
@@ -72,7 +72,7 @@ Json Call(Kind kind, Operation operation, const fs::path& input,
           const std::function<void(const Json&)>& progress, const std::atomic<bool>* cancel, uint32_t milliseconds) {
     const auto status = Query(kind);
     if (status.error) WinError("Query engine service", status.error);
-    Check(status.Running(), kind == Kind::Antivirus ? "O serviço do antivírus está desligado. Ligue-o em Configurações." : "O serviço do MiniNT está desligado. Ligue-o em Configurações.");
+    Check(status.Running(), kind == Kind::Antivirus ? "The antivirus service is offline. Connect it to Settings." : "The MiniNT service is off. Connect it to Settings.");
     const auto path = fs::absolute(input).lexically_normal().wstring();
     Check(path.find(L'\0') == path.npos, "Input path contains NUL");
     Request request{Magic, Version, kind, operation, uint32_t(path.size()), milliseconds};
@@ -86,7 +86,7 @@ Json Call(Kind kind, Operation operation, const fs::path& input,
         if (pipe.value != INVALID_HANDLE_VALUE) break;
         const auto error = GetLastError();
         if (error != ERROR_PIPE_BUSY && error != ERROR_FILE_NOT_FOUND) WinError("Connect to Aegis engine", error);
-        Check(!(cancel && cancel->load()), "Análise cancelada");
+        Check(!(cancel && cancel->load()), "Analysis cancelled");
         if (GetTickCount64() >= opening) WinError("Engine busy or unavailable", ERROR_BUSY);
         Sleep(25);
     }

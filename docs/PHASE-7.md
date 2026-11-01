@@ -1,205 +1,91 @@
-# Fase 7 — Volume, arquivos e registro persistente
+# Phase 7 — Volume, files and persistent registry
 
-Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
-Imagem: `guardian-kernel-storage.gk`, versão 0.7.0, x64, uma vCPU, WHP.
-Estado: concluída em 16/10/2026. A fase 8 não foi iniciada.
+Active base: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`. Image: `guardian-kernel-storage.gk`, version 0.7.0, x64, a vCPU, WHP. Status: completed in 16/10/2026. Phase 8 was not initiated.
 
-## Implementação
+## Implementation
 
-O convidado possui agora um volume persistente com arquivos, diretórios,
-links de arquivo, permissões, compartilhamento e registro virtual. A lógica
-executa no kernel próprio. O host mantém uma base somente para leitura e um
-overlay separado, recebendo apenas operações de bloco com offset e tamanho
-limitados. Nomes de arquivos e chaves recebidos de CPL3 não chegam às APIs de
-arquivos ou registro do Windows host.
+The guest now has a persistent volume with files, directories, file links, permissions, share, and virtual registry. Logic runs on its own kernel. The host maintains a read-only basis and a separate overlay, receiving only block operations with offset and limited size. File and key names received from CPL3 do not reach the file APIs or Windows host registry.
 
-`guest/Volume.cpp` implementa o volume freestanding. `StorageKernel.cpp`
-liga sua ABI às identidades e espaços de memória da fase 5 e ao dispositivo
-de blocos da fase 6. `PersistentBlockStore.cpp` implementa a persistência do
-dispositivo no host. As imagens anteriores continuam usando seus contratos,
-inclusive o disco volátil da imagem exclusiva de I/O.
+`guest/Volume.cpp` implements freestanding volume. `StorageKernel.cpp` connects its ABI to the identities and memory spaces of phase 5 and to the block device of phase 6. `PersistentBlockStore.cpp` implements device persistence in the host. Previous images continue using their contracts, including the volatile disk of I/O. unique image
 
-### Base e overlays
+### Base and overlays
 
-A base tem exatamente 64 KiB e é aberta com acesso de leitura. O overlay é
-um arquivo exclusivo, identificado por formato, versão e fingerprint da base.
-Ele armazena um journal limitado de alterações de setores. Cada registro tem
-sequência, número do setor, tamanho e checksum. Ao reabrir, os registros válidos
-são aplicados sobre a base. Dois overlays da mesma base permanecem independentes.
+The base has exactly 64 KiB and is open with read access. Overlay is an exclusive file, identified by format, version and fingerprint of the base. It stores a limited journal of sector changes. Each record has a sequence, sector number, size and checksum. When reopening, valid records are applied on the basis. Two overlays of the same base remain independent.
 
-Os caminhos dos dois arquivos são opções do controlador no host. Precisam ser
-absolutos, distintos e apontar a arquivos comuns. Arquivos de reparse point,
-diretórios e caminhos de dispositivos como `PhysicalDrive` são recusados.
-O compartilhamento de handles impede reabrir a base para escrita como overlay,
-inclusive quando dois nomes apontam ao mesmo arquivo. Um overlay existente
-precisa ter formato e fingerprint válidos; não é truncado para reutilização.
+The paths of the two files are controller options in the host. They need to be absolute, distinct and point to common files. Reparse point files, directories and device paths such as `PhysicalDrive` are rejected. Handles sharing prevents reopening the base for writing as overlay, including when two names point to the same file. An existing overlay needs valid format and fingerprint; it is not truncated for reuse.
 
-`--create-disk` cria a base caso esteja ausente, sem substituir uma base
-existente. Um overlay novo recebe seu próprio cabeçalho. Há limite de 4.096
-registros; o esgotamento retorna erro, sem sobrescrever o histórico. Compactação
-do journal ainda não é implementada. Os artefatos dos testes ficam no diretório
-de build e são preservados.
+`--create-disk` creates the base if it is missing, without replacing an existing base. A new overlay gets its own header. There is a limit of 4,096 records; exhaustion returns error without overwriting the history. Journal compression is not yet implemented. Test artifacts are in the build directory and are preserved.
 
-### Flush e recuperação
+### Flush and recovery
 
-O volume serializa arquivos, metadados, descritores de segurança, links e
-registro em uma imagem de 24.064 bytes, dentro de dois slots separados no disco.
-O espaço inicial de 4 KiB continua reservado ao diagnóstico de blocos da fase 6.
-Os slots começam em `0x1000` e `0x8800`; nenhum pedido ultrapassa os 64 KiB.
+The volume serializes files, metadata, security descriptors, links, and record in a 24,064 byte image, within two separate slots on the disk. The initial space of 4 KiB remains reserved for the diagnosis of blocks of phase 6. Slots start in `0x1000` and `0x8800`; no request exceeds 64 KiB.
 
-Flush grava primeiro o corpo da nova imagem no slot inativo e chama o flush do
-dispositivo. Depois grava seu cabeçalho de commit, com sequência e checksum,
-e chama flush novamente. A versão ativa em memória só avança após sucesso.
-O dispositivo persistente usa `FlushFileBuffers` sobre o overlay autorizado.
-Arquivo e registro pertencem ao mesmo commit do volume.
+Flush first records the body of the new image in the inactive slot and calls the device flush. Then saves its commit header, with sequence and checksum, and calls flush again. The active version in memory only advances after success. The persistent device uses `FlushFileBuffers` over the authorized overlay. File and record belong to the same volume commit.
 
-Ao montar, o kernel valida os dois slots e escolhe a maior sequência válida.
-Uma gravação incompleta no slot inativo não invalida o slot anterior. Foram
-exercitadas 47 posições de falha antes da publicação do cabeçalho. O teste
-também cobre falha no flush final: o resultado não é confirmado ao chamador,
-embora uma nova imagem completa já possa estar visível na reabertura.
+When mounting, the kernel validates the two slots and chooses the largest valid sequence. An incomplete recording in the inactive slot does not invalidate the previous slot. 47 failure positions were exercised before the header was published. The test also covers failure in the final flush: the result is not confirmed to the caller, although a new full image may already be visible in the reopen.
 
-Uma cauda parcial do journal do overlay é removida somente depois de validar
-seu cabeçalho e todos os registros completos anteriores. Um registro completo
-com checksum inválido faz a abertura falhar; ele não é ignorado silenciosamente.
-Dentro do convidado, dois snapshots inválidos e não vazios produzem diagnóstico;
-não ocorre reformatação automática de dados corrompidos. Formatação inicial
-ocorre apenas quando as duas áreas de imagem estão zeradas.
+A partial overlay journal tail is removed only after validating its header and all previous complete records. A complete record with invalid checksum makes the opening fail; it is not silently ignored. Within the guest, two invalid and non-empty snapshots produce diagnostics; there is no automatic reformatting of corrupted data. Initial formatting occurs only when the two image areas are zeroed.
 
-Checksums são verificações de integridade, não autenticação criptográfica.
-Mesmo com checksum recalculado, metadados passam por validação de limites,
-tipos, nomes canônicos, IDs e gerações, pais, profundidade, ciclos, raízes,
-links, descritores e tipos de valores. A validade da imagem não autoriza
-acesso a caminhos do host.
+Checksums are integrity checks, not cryptographic authentication. Even with recalculated checksum, metadata are validated by limits, types, canonical names, IDs and generations, parents, depth, cycles, roots, links, descriptors and types of values. Image validity does not allow access to host paths.
 
-### Arquivos, diretórios e links
+### Files, directories and links
 
-Há criação e abertura com disposições existentes/novo/abrir ou criar, leitura,
-escrita com offset, EOF, truncamento, enumeração, renomeação e exclusão.
-Expandir um arquivo por truncamento ou escrever após EOF preserva zeros no
-intervalo. Limites e permissões são verificados antes de alterar bytes. Uma
-escrita de zero bytes não expande o arquivo.
+There is creation and opening with existing/new/open provisions or create, read, write with offset, EOF, truncation, enumeration, renaming and deletion. Expanding a file by truncation or writing after EOF preserves zeros in the range. Limits and permissions are checked before changing bytes. A zero byte writing does not expand the file.
 
-Handles pertencem ao processo e guardam direitos concedidos e máscaras de
-compartilhamento de leitura, escrita e exclusão. Novas aberturas verificam a
-compatibilidade nos dois sentidos. Um handle copiado de outro processo não
-passa a ser válido. Alterar uma DACL restringe novas aberturas sem revogar
-direitos já concedidos a handles existentes.
+Handles belong to the process and retain granted rights and sharing masks for reading, writing and deletion. New openings check compatibility in both directions. A handle copied from another process is not valid. Changing a DACL restricts new openings without repealing rights already granted to existing handles.
 
-Renomeação valida o destino, colisões, compartilhamento e profundidade antes
-de mudar a árvore; mover um diretório para dentro de si é recusado. Diretório
-não vazio não é excluído. A exclusão de um arquivo remove seu nome, mas handles
-e links existentes podem manter os dados vivos até a última referência.
-Na montagem, referências voláteis de processos anteriores não são restauradas.
+Renameting validates the destination, collisions, sharing and depth before changing the tree; moving a directory inside is refused. Not empty directory is not deleted. Deletion of a file removes its name, but existing handles and links can keep the data alive until last reference. In assembly, volatile references from previous processes are not restored.
 
-Links são hard links de arquivos dentro do volume, com destino por ID e geração.
-Compartilham conteúdo, ACL e controle de abertura do arquivo. A exclusão do nome
-original não destrói um arquivo ainda alcançável por outro link. Links de
-diretórios, symlinks e reparse points não são implementados; são recusados.
+Links are hard links of files within the volume, destined for ID and generation. They share content, ACL and file opening control. The deletion of the original name does not destroy a file that is still reachable by another link. Directory links, symlinks and reparse points are not implemented; they are rejected.
 
-O namespace de arquivos aceita somente caminhos absolutos `C:\...`, internos
-ao convidado. Componentes são ASCII, com comparação sem distinção entre A–Z,
-espaços internos e limite de tamanho. `..`, componentes vazios, trailing
-dot/space, caminhos relativos, ADS, UNC, outros drives e namespaces de
-dispositivos são recusados. Não há normalização que permita sair do volume.
+The file namespace only accepts absolute `C:\...` paths, internal to the guest. Components are ASCII, with no distinction between A–Z, internal spaces and size limit. `..`, empty components, dot/space railing, relative paths, ADS, UNC, other drives and device namesspaces are denied. There is no normalization that allows you to exit the volume.
 
-### Registro, permissões e notificações
+### Registration, permissions and notifications
 
-O registro possui `HKLM` e `HKCU` separado por identidade numérica do convidado.
-Criar uma árvore de chaves é transacional: falha de permissão ou de capacidade
-desfaz os componentes já criados. Chaves e valores têm nomes independentes,
-inclusive quando compartilham o mesmo texto. O nome vazio representa o valor
-padrão.
+The record has `HKLM` and `HKCU` separated by the guest's numerical identity. Creating a key tree is transactional: permission or capacity failure undoes the components already created. Keys and values have independent names, including when they share the same text. The empty name represents the default value.
 
-Há criação, consulta, definição e exclusão de valores, enumeração de valores
-e subchaves e exclusão de chaves sem subchaves. Excluir uma chave remove seus
-valores. `None`, `Binary`, `DWORD`, `QWORD`, `String`, `ExpandString` e
-`MultiString` têm validação de tamanho e terminação; números usam little endian,
-e strings armazenam bytes UTF-16LE. Expansão de variáveis e paridade Unicode
-completa não são declaradas nesta ABI.
+There is creation, query, definition and deletion of values, enumeration of values and subkeys and deletion of keys without subkeys. Delete a key removes their values. `None`, `Binary`, `DWORD`, `QWORD`, `String`, `ExpandString` and `MultiString` have size and termination validation; numbers use little endian, and strings store bytes UTF-16LE. Expansion of variables and complete Unicode parity are not declared in this ABI.
 
-Notificações são assinaturas voláteis por processo, com filtro para nomes,
-valores ou segurança e opção de subárvore. Um evento de conclusão do escalonador
-permite esperar sem ocupar a CPU. A consulta retorna as mudanças e encerra a
-assinatura; o chamador registra outra se quiser continuar. Cancelamento ou saída
-do processo libera o evento e os slots. Assinaturas não são persistidas.
+Notifications are volatile signatures by process, with filter for names, values or security and subtree option. A scheduler completion event allows you to wait without occupying the CPU. The query returns the changes and closes the signature; the caller registers another if you want to continue. Cancellation or exit of the process releases the event and slots. Subscriptions are not persisted.
 
-Arquivos, diretórios e chaves usam os tokens, grupos, DACLs canônicas e política
-de integridade da fase 5. Travessia/enumeração, leitura, escrita, exclusão,
-criação de filhos e leitura/alteração da DACL têm direitos próprios. Alterar
-a DACL não altera proprietário, grupo ou integridade por esse caminho. O
-processo recebe seu token do kernel; a chamada CPL3 não fornece uma identidade.
+Files, directories, and keys use DACL's tokens, groups, canonical DACLs, and phase 5 integrity policy. Crossing/enumeration, reading, writing, deletion, child rearing, and reading/Amendment have rights of their own. Changing DACL does not change owner, group, or integrity by that way. The process receives its kernel token; the call CPL3 does not provide an identity.
 
-### ABI e integração
+### ABI and integration
 
-`shared/guardian/Storage.h` define a imagem, comandos e relatório versionados.
-A syscall interna `0x80` recebe um comando de 880 bytes. O kernel valida todo
-o intervalo de entrada e saída no espaço do processo antes de executar a
-operação. Um destino supervisor ou não gravável é recusado antes de qualquer
-alteração de arquivos ou registro. Flags, tipos, versões e campos reservados
-usados pelo contrato são validados.
+`shared/guardian/Storage.h` defines the image, commands, and versioned report. The internal syscall `0x80` receives a command of 880 bytes. The kernel validates the entire input and output range in the process space before performing the operation. A supervisory or non-recordable destination is refused before any file or registry changes. Flags, types, versions, and fields reserved by the contract are validated.
 
-Operações do volume usam o driver de blocos da fase 6, com transferências
-limitadas a 512 bytes. Mount e flush são operações síncronas serializadas em
-CPL0; a fila de I/O de usuário da fase 6 continua assíncrona. A enumeração do
-barramento anuncia a capacidade persistente para esta imagem. O relatório da
-fase usa a porta `0xF1` e GPA fixo `0x10F000`, após os relatórios de processos
-e I/O e antes do relatório de CPU.
+Volume operations use the Phase 6 block driver with transfers limited to 512 bytes. Mount and flush are serialized synchronous operations in CPL0; the Phase 6 user I/O queue remains asynchronous. The bus enumeration announces the persistent capacity for this image. The phase report uses the `0xF1` port and fixed GPA `0x10F000`, after process reports and I/O and before the CPU report.
 
-## Aceitação e regressões
+## Acceptance and regressions
 
-O mesmo conjunto de 784 verificações de volume executa nativamente e em CPL0
-a cada boot de armazenamento. Inclui compartilhamento, ACLs, integridade,
-direitos já concedidos, tombstones, hard links, truncamento, caminhos inválidos,
-registro, tipos, enumeração, identidade HKCU, notificações com espera real,
-quotas, rollback, snapshots interrompidos e metadados malformados. Há 128 ciclos
-de criação/exclusão/saída de processo, sem handles ou notificações restantes.
+The same set of 784 volume checks performs natively and in CPL0 for each storage boot. Includes sharing, ACLs, integrity, rights already granted, tombstones, hard links, truncating, invalid paths, registration, types, enumeration, HKCU identity, notifications with real waiting, quotas, rollback, interrupted snapshots and malformed metadata. There are 128 process creation/exclusion/exit cycles, no handles or notifications remaining.
 
-As 32 verificações específicas do backend do host cobrem isolamento de overlays,
-base inalterada, exclusividade, fingerprint, recuperação de cauda, corrupção,
-limites e persistência real de arquivo/registro depois de reabrir o arquivo
-de disco, incluindo flush interrompido.
+The 32 host backend-specific checks cover overlay isolation, unaltered base, exclusivity, fingerprint, tail recovery, corruption, limits and actual persistence of file/registry after reopening the disk file, including aborted flush.
 
-A matriz WHP executa 20 pares de reinicialização por configuração: dez com
-16 MiB e dez com 64 MiB. O primeiro boot grava um contador em arquivo e no
-registro; o segundo precisa recuperar ambos com valores correspondentes antes
-de alterá-los novamente. Cada par usa um overlay novo da mesma base; os hashes
-da base permanecem iguais. O programa CPL3 também cria/escreve/lê um arquivo,
-altera/consulta HKCU, enumera o diretório, força uma recusa de ponteiro e faz
-flush. Os cenários anteriores de I/O e processos continuam na mesma imagem.
+The WHP matrix executes 20 reboot pairs by configuration: ten with 16 MiB and ten with 64 MiB. The first boot saves a file counter and log; the second needs to recover both with corresponding values before changing them again. Each pair uses a new overlay from the same base; the base hashes remain the same. The CPL3 program also creates/write/read a file, altera/consultation HKCU, enumerates the directory, forces a pointer refusal and flushes. Previous scenarios of I/O and processes continue in the same image.
 
-Há 18 casos externos negativos por configuração, incluindo relatório inválido,
-ordem/replay/IN/OUT largo, escrita na enumeração protegida, dispositivo removido,
-volume corrompido, barramento inválido e ausência de timer limitada pelo watchdog.
-Um volume corrompido mantém os registros originais, sem reformatação.
-Critérios: `config/phase7-acceptance.json`.
+There are 18 negative external cases by configuration, including invalid report, wide order/replay/IN/OUT, written in protected enumeration, removed device, corrupted volume, invalid bus and no timer limited by watchdog. A corrupted volume keeps the original records without reformatting. Criteria: `config/phase7-acceptance.json`.
 
-## Resultado verificado
+## Check result
 
-| Verificação | Resultado |
+| Scan | Result |
 |---|---|
-| Build completo Debug / Release | aprovado / aprovado |
-| CTest por configuração | 31 aprovados, zero falhas e zero ignorados |
-| Núcleo do volume | 784 verificações nativas e em cada boot |
-| Backend persistente do host | 32 verificações por configuração |
-| Boots positivos de armazenamento | 80, em 40 pares de reinicialização |
-| Boots positivos de regressão das fases 1–6 | 480 |
-| Casos externos negativos | 240 (36 de armazenamento e 204 de regressão) |
-| Exemplos confiáveis | sete por configuração, 14 execuções aprovadas |
-| Build Debug limpo independente | aprovado, sete imagens auditadas |
-| Artefatos por configuração | 60 executáveis e nove imagens |
-| Fronteiras freestanding verificadas | 32 combinações de alvo/configuração |
-| Evidências históricas preservadas | 288 arquivos com SHA-256 inalterado |
+| Build complete Debug / Release | approved / approved |
+| CTest by configuration | 31 approved, zero failed and zero ignored |
+| Core do volume | 784 native checks and on each boot |
+| Backend persistent do host | 32 verifications by configuration |
+| Boots positive of storage | 80, ed 40 pairs of reboot |
+| Phase 1–6 positive regression boots | 480 |
+| Cases external negative | 240 (36 storage and 204 regression) |
+| Examples reliable | seven per configuration, 14 approved executions |
+| Build Debug clean independent | approved, seven pictures auditadas |
+| Artifacts by configuration | 60 executable and nine pictures |
+| Borders freestanding verified | 32 combinations of target/configuration |
+| Evidence historical preserved | 288 files with SHA-256 unchanged |
 
-Os tempos dos boots de armazenamento da matriz foram 304,628–558,013 ms em
-Debug e 324,984–717,217 ms em Release nesta máquina; não são garantia de prazo.
-A imagem ocupa 815.104 bytes de espaço virtual em Debug e 770.048 em Release,
-dentro do limite de 1 MiB do carregador. As sete imagens de produção de cada
-configuração passaram as auditorias de imports/TLS/relocations/W+X. Os dois
-boots adicionais da CLI por configuração também recuperaram o volume; eles
-não estão somados aos 560 boots da matriz.
+The storage boot times of the matrix were 304,628–558,013 ms in Debug and 324,984–717,217 ms in Release on this machine; they are not guarantee of time. The image occupies 815,104 bytes of virtual space in Debug and 770.048 in Release, within the limit of 1 MiB of the loader. The seven production images of each configuration passed the audits of imports/TLS/relocations/W+X. The two additional bootes of the CLI by configuration also recovered the volume; they are not added to the 560 bootes of the matrix.
 
-## Compilar e executar
+## Build and execute
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Debug -FullBuild
@@ -209,67 +95,39 @@ New-Item -ItemType Directory -Path .\build-codex\meu-volume -Force
 .\build-codex\Release\guardian_boot.exe .\build-codex\guest\Release\guardian-kernel-storage.gk --storage --disk .\build-codex\meu-volume\base.gvd --overlay .\build-codex\meu-volume\sessao.gvo --create-disk --ram-mib 64 --repeat 2 --report .\build-codex\meu-volume\boots.json
 ```
 
-`--storage` exige base e overlay explícitos. Reutilizar o overlay recupera seus
-commits; escolher outro overlay da mesma base cria um ambiente independente.
-Esses arquivos são o formato próprio deste protótipo, não ISO/VHDX/NTFS.
-WHP é usado diretamente, sem QEMU ou mudanças nas configurações do Windows.
-Não foram executadas amostras de malware.
+`--storage` requires explicit base and overlay. Reuse overlay recovers your commits; choosing another overlay from the same base creates an independent environment. These files are the proper format of this prototype, not ISO/VHDX/NTFS. WHP is used directly, without QEMU or changes in Windows settings. No malware samples have been executed.
 
-## Evidências e recuperação
+## Evidence and recovery
 
-Os resultados novos usam exclusivamente o prefixo `phase7-`, inclusive as
-regressões das fases 1–6. Os 288 arquivos históricos têm seus hashes preservados.
-O backup dos quinze arquivos anteriores alterados está em
-`snapshots/codex-before-phase7-20261016-210839/`, junto do inventário histórico.
-Há 14 arquivos novos de implementação, testes, configuração e documentação.
+New results only use prefix `phase7-`, including phase regressions 1–6. The 288 historical files have their hashes preserved. Backup of the 15 previous files changed is in `snapshots/codex-before-phase7-20261016-210839/`, next to the historical inventory. 14 new implementation files, tests, configuration and documentation.
 
-Os logs `phase7-full-*-script.log` e `phase7-*-tests-details.log` registram build
-e CTest. `phase7-boots-*` e `phase7-regression-phase1-*` até
-`phase7-regression-phase6-*` guardam matrizes e negativos. Os diretórios
-`phase7-*-volumes-*` e `phase7-boots-*-volumes/` guardam os discos dos testes.
-`phase7-reference-programs.json`, `phase7-smoke.json` e `phase7-cli-*` registram
-exemplos e CLI. Auditorias e build limpo estão em `phase7-image-audit.json`,
-`phase7-build-boundaries.json`, logs `phase7-clean-*` e
-`build-codex-phase7-clean/`.
+The `phase7-full-*-script.log` and `phase7-*-tests-details.log` logs record build and CTest. `phase7-boots-*` and `phase7-regression-phase1-*` up to `phase7-regression-phase6-*` save matrices and negatives. The `phase7-*-volumes-*` and `phase7-boots-*-volumes/` directories store the test disks. `phase7-reference-programs.json`, `phase7-smoke.json` and `phase7-cli-*` record examples and CLI. Audits and clean build are in `phase7-image-audit.json`, `phase7-build-boundaries.json`, `phase7-clean-*` and `build-codex-phase7-clean/` logs.
 
-`phase7-change-manifest.json` inclui hashes de fontes, backups, executáveis,
-imagens, bases, overlays e evidências. Revalidar sem executar programas:
-`python tools/validate_phase7.py --snapshot snapshots/codex-before-phase7-20261016-210839`.
-As tentativas intermediárias foram preservadas. O uso excessivo de pilha em
-Debug foi corrigido evitando grandes imagens temporárias e múltiplas cópias
-temporárias de comandos. A guard page e o stack probe real permanecem ativos.
-LNK4281 é o aviso esperado da base fixa do kernel em 2 MiB.
+`phase7-change-manifest.json` includes source hashes, backups, executables, images, bases, overlays and evidence. Revalidate without running programs: `python tools/validate_phase7.py --snapshot snapshots/codex-before-phase7-20261016-210839`. Intermediate attempts have been preserved. Excessive stack usage in Debug has been corrected by avoiding large temporary images and multiple temporary copies of commands. Guard page and actual stack probe remain active. LNK4281 is the expected warning of kernel fixed base in 2 MiB.
 
-## Limites e parada
+## Limits and Stop
 
-| Recurso | Limite desta etapa |
+| Resource | Limit of this step |
 |---|---:|
-| Disco virtual | 64 KiB |
-| Nós, incluindo raízes, arquivos, chaves e valores | 32 |
-| Conteúdo de um arquivo/valor | 512 bytes |
-| Handles globais / por processo | 32 / 8 |
-| Assinaturas de registro | 8 |
-| Caminho / componente, incluindo NUL | 128 / 32 bytes ASCII |
-| Profundidade | 8 componentes |
-| Registros por overlay | 4.096 |
-| Imagem por snapshot / slots | 24.064 bytes / 2 |
+| Virtual Disk | 64 KiB |
+| We, including roots, files, keys and values | 32 |
+| Content of a file/value | 512 bytes |
+| Handles global / by Case | 32 / 8 |
+| Signatures of log | 8 |
+| Path/component, including NUL | 128 / 32 bytes ASCII |
+| Depth | 8 components |
+| Records by overlay | 4.096 |
+| Image by snapshot / slots | 24.064 bytes / 2 |
 
-O formato é próprio e limitado. Não implementa NTFS/FAT, hives Windows, ACLs NT
-completas, streams, links de diretório, montagem de volumes externos, memória
-mapeada de arquivos, expansão automática do disco ou compactação do overlay.
-Flush persiste o volume inteiro; não há um cache de páginas de arquivos.
-Os limites tornam a superfície verificável antes da ampliação de capacidade
-e compatibilidade. O produto e o kernel Windows completo continuam em
-desenvolvimento, sem promessa de invisibilidade do sandbox.
+The format is proper and limited. It does not implement NTFS/FAT, Windows hives, full NT ACLs, streams, directory links, external volume mount, mapped file memory, automatic disk expansion or overlay compaction. Flush persists the entire volume; there is no file page cache. Limits make the surface verifiable before capacity magnification and compatibility. The complete Windows product and kernel remain in development without promise of sandbox invisibility.
 
-Ao concluir a fase 7, parar. A fase 8 só começa após nova solicitação.
+At the end of phase 7, stop. Phase 8 only begins after further request.
 
-## Referências de semântica
+## Semantic references
 
 - [Microsoft: FlushFileBuffers](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers)
-- [Microsoft: flush de dados em buffer](https://learn.microsoft.com/en-us/windows/win32/fileio/flushing-system-buffered-i-o-data-to-disk)
-- [Microsoft: tipos de valores de registro](https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-value-types)
-- [Microsoft: notificações de registro](https://learn.microsoft.com/pt-br/windows/win32/api/winreg/nf-winreg-regnotifychangekeyvalue)
+- [Microsoft: data flush in buffer](https://learn.microsoft.com/en-us/windows/win32/fileio/flushing-system-buffered-i-o-data-to-disk)
+- [Microsoft: Record Value Types](https://learn.microsoft.com/en-us/windows/win32/sysinfo/registry-value-types)
+- [Microsoft: registry notifications](https://learn.microsoft.com/pt-br/windows/win32/api/winreg/nf-winreg-regnotifychangekeyvalue)
 
-Essas referências orientam a semântica. Os limites e diferenças da ABI própria
-estão descritos acima; não se declara paridade geral com APIs Windows.
+These references guide semantics. The limits and differences of the ABI itself are described above; it is not declared general parity with Windows APIs.

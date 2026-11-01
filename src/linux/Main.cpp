@@ -137,8 +137,8 @@ struct Report {
     void Finish() const {
         if(json)std::cout<<"],\"filesScanned\":"<<files<<",\"threatsFound\":"<<threats
             <<",\"errors\":"<<errors<<",\"skipped\":"<<skipped<<",\"partial\":"<<partial<<"}\n";
-        else std::cout<<"Arquivos: "<<files<<" | Correspondências: "<<threats<<" | Erros: "<<errors
-            <<" | Ignorados: "<<skipped<<" | Parciais: "<<partial<<'\n';
+        else std::cout<<"Files: "<<files<<" . Correspondences: "<<threats<<" Errors: "<<errors
+            <<" Ignorant: "<<skipped<<" Partial: "<<partial<<'\n';
         if(!std::cout)throw std::runtime_error("report output could not be written");
     }
 };
@@ -179,14 +179,14 @@ void ScanPath(const fs::path& path,const std::vector<Rule>& rules,Report& report
     }
 }
 void Help(){
-    std::cout<<"GuardianAV - ferramentas nativas Linux\n"
-        "Uso:\n  guardianav scan <arquivo-ou-pasta> [...] [--signatures arquivo] [--json]\n"
-        "  guardianav hash <arquivo> [--json]\n  guardianav inspect-kernel <imagem.gk> [--json]\n"
-        "  guardianav boot-kernel <imagem.gk> <contrato> <relatorio.json> [opções]\n"
+    std::cout<<"GuardianAV - native Linux\n tools"
+        "Uso:\n  guardianav scan <file-or-paste> [...] [--signatures file] [--json]\n"
+        "  guardianav hash < archive> [--json]\n guardianav inspect-kernel <imagem.gk> [--json]\n"
+        "  guardianav boot-kernel <imagem.gk> <contract> <relatorio.json> [options]\n"
         "  guardianav --capabilities\n  guardianav --version\n"
-        "O scanner somente lê arquivos. Correspondências são limitadas às assinaturas.\n"
-        "Saída: 0=sem correspondências, 1=detecção, 2=uso/base inválidos, 3=leitura ou cobertura incompleta.\n"
-        "A VM usa KVM; exige NX e acesso a /dev/kvm. A interface Windows depende do Windows.\n";
+        "The scanner reads only files. Matches are limited to assinaturas.\n"
+        "Output: 0=no correspondence, 1=detection, 2=uso/base invalids, 3=reading or coverage incompleta.\n"
+        "VM uses KVM; requires NX and access to /dev/kvm. The Windows interface depends on Windows.\n";
 }
 fs::path DefaultRules(const char* executable){
     std::error_code ec;auto binary=fs::read_symlink("/proc/self/exe",ec);
@@ -227,12 +227,12 @@ int Run(int argc,char** argv){
     if(command=="hash"){
         try {const auto file=ReadFile(paths[0]);if(json)std::cout<<"{\"path\":"<<Json(paths[0].string())<<",\"sha256\":"<<Json(file.sha256)<<",\"bytes\":"<<file.bytes<<"}\n";
             else std::cout<<file.sha256<<"  "<<Json(paths[0].string())<<'\n';return 0;
-        }catch(const std::exception& e){std::cerr<<"Falha de leitura: "<<e.what()<<'\n';return 3;}
+        }catch(const std::exception& e){std::cerr<<"Reading failure: "<<e.what()<<'\n';return 3;}
     }
     if(command=="inspect-kernel"){
         try {const auto image=av::microvm::boot::KernelImage::Read(paths[0]);
             std::cout<<"{\"valid\":true,\"executed\":false,\"base\":"<<image.Base()<<",\"bytes\":"<<image.Size()<<",\"entry\":"<<image.Entry()<<",\"sections\":"<<image.Sections().size()<<"}\n";return 0;
-        }catch(const std::exception& e){std::cerr<<"Imagem recusada: "<<e.what()<<'\n';return 3;}
+        }catch(const std::exception& e){std::cerr<<"Image refused: "<<e.what()<<'\n';return 3;}
     }
     const auto rules=LoadRules(database);Report report(json);
     for(const auto& path:paths)ScanPath(path,rules,report);
@@ -241,5 +241,5 @@ int Run(int argc,char** argv){
 }
 }
 int main(int argc,char** argv){
-    try {return Run(argc,argv);}catch(const std::exception& e){std::cerr<<"Erro: "<<e.what()<<'\n';return 2;}
+    try {return Run(argc,argv);}catch(const std::exception& e){std::cerr<<"Error: "<<e.what()<<'\n';return 2;}
 }

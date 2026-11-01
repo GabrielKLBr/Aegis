@@ -72,7 +72,7 @@ uint16_t Rd16(MicroVm& vm, uint64_t gva) {
     return v;
 }
 // Read a UNICODE_STRING's buffer (length in bytes) into a narrow path, stripping
-// the NT "\??\" / "\\?\" device prefix so it reads like a DOS path.
+// The NT "\??\" / "\\?\" device prefix so it reads like a DOS path.
 std::string ReadNtPath(MicroVm& vm, uint64_t unicodeStringPtr) {
     const GuestMemory memory(vm.RamData(), vm.RamSize());
     if (!memory.Contains(unicodeStringPtr, 16) || !vm.CanAccessMemory(unicodeStringPtr, 16, 1)) return {};

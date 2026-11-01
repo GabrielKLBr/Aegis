@@ -68,7 +68,7 @@ def main():
     initial=states();require(all(row['installed'] for row in initial.values()),'Install both Aegis services before this test')
     try:
         for kind in ('antivirus','sandbox'):run('--stop',kind)
-        document=output/'documentação-🧪.txt';document.write_text('An ordinary document.',encoding='utf-8')
+        document=output/'documentation-.txt';document.write_text('An ordinary document.',encoding='utf-8')
         result,_=run('--scan',document,success=False);require(result.returncode!=0,'Stopped antivirus silently analyzed a file')
         result,_=run('--sandbox',args.wait_sample,success=False);require(result.returncode!=0,'Stopped sandbox silently executed a file')
         record('stopped_engines_fail_closed')

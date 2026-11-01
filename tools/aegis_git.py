@@ -39,7 +39,7 @@ def command(args, cwd=None, env=None, input_text=None):
                        capture_output=True, text=True, encoding="utf-8", errors="replace")
     if p.returncode:
         # Do not include command arguments: credentials never belong in diagnostics.
-        raise Error(p.stderr.strip() or p.stdout.strip() or "Falha ao executar a ferramenta")
+        raise Error(p.stderr.strip() or p.stdout.strip() or "Failed to execute tool")
     return p.stdout.strip()
 
 
@@ -65,19 +65,19 @@ def source_files(root):
                     files.append(p)
     for p in files:
         if p.is_symlink() or not p.resolve().is_relative_to(root):
-            raise Error("Link de fonte recusado: " + str(p.relative_to(root)))
+            raise Error("Source link denied: " + str(p.relative_to(root)))
         data = p.read_bytes()
         if data[:2] == b"MZ" or data[:4] in (b"\x7fELF", b"PK\x03\x04", b"!<ar"):
-            raise Error("Binário disfarçado de fonte: " + str(p.relative_to(root)))
+            raise Error("Binary disguised as source: " + str(p.relative_to(root)))
         if p.suffix.lower() != ".png":
             try:
                 data.decode("utf-8-sig")
             except UnicodeDecodeError as e:
-                raise Error("Arquivo não textual: " + str(p.relative_to(root))) from e
+                raise Error("Nontext file: " + str(p.relative_to(root))) from e
             if b"\0" in data or SECRET.search(data):
-                raise Error("Possível segredo ou binário em: " + str(p.relative_to(root)))
+                raise Error("Possible secret or binary on: " + str(p.relative_to(root)))
         elif not data.startswith(b"\x89PNG\r\n\x1a\n"):
-            raise Error("Imagem PNG inválida: " + str(p.relative_to(root)))
+            raise Error("Invalid PNG image: " + str(p.relative_to(root)))
     return sorted(files)
 
 
@@ -90,7 +90,7 @@ def audit(root):
 
 def validate_repo(name):
     if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", name) or ".." in name:
-        raise Error("Use o formato dono/repositorio")
+        raise Error("Use dono/repositorio format")
     return name
 
 
@@ -98,13 +98,13 @@ def github_repo(root):
     url = git(root, "remote", "get-url", "origin")
     match = re.fullmatch(r"(?:https://github\.com/|git@github\.com:)([^/]+/[^/]+?)(?:\.git)?", url)
     if not match:
-        raise Error("origin deve apontar para github.com, sem credenciais na URL")
+        raise Error("origin should point to github.com without URL credentials")
     return validate_repo(match[1])
 
 
 def require_repository_root(root):
     if Path(git(root, "rev-parse", "--show-toplevel")).resolve() != root.resolve():
-        raise Error("Selecione a raiz do repositório, não uma subpasta")
+        raise Error("Select repository root, not subfolder")
 
 
 def token_from_system():
@@ -133,13 +133,13 @@ class GitHub:
     def __init__(self, token=None):
         self.token = token if token is not None else token_from_system()
         if not self.token:
-            raise Error("Autentique com gh auth login ou defina GH_TOKEN nesta sessão. "
-                        "No menu, a opção de autenticação também aceita token em memória.")
+            raise Error("Authenticate with gh auth login or set GH_TOKEN in this session. "
+                        "In the menu, the authentication option also accepts token in memory.")
         self.opener = urllib.request.build_opener(NoRedirect)
 
     def request(self, method, path, data=None):
         if not path.startswith("/") or path.startswith("//"):
-            raise Error("Caminho de API inválido")
+            raise Error("Invalid API Path")
         payload = None if data is None else json.dumps(data).encode("utf-8")
         req = urllib.request.Request("https://api.github.com" + path, data=payload, method=method,
                                      headers={"Authorization": "Bearer " + self.token,
@@ -153,9 +153,9 @@ class GitHub:
                 return json.loads(body) if body else None
         except urllib.error.HTTPError as e:
             try:
-                message = json.loads(e.read()).get("message", "Falha da API")
+                message = json.loads(e.read()).get("message", "API Failure")
             except (ValueError, UnicodeError):
-                message = "Falha da API"
+                message = "API Failure"
             raise Error(f"GitHub HTTP {e.code}: {message}") from None
 
     def pages(self, path):
@@ -166,7 +166,7 @@ class GitHub:
             rows.extend(part)
             if len(part) < 100:
                 return rows
-        raise Error("Limite de paginação atingido; restrinja a consulta")
+        raise Error("pagination limit reached; restrict query")
 
     def git_env(self):
         env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
@@ -179,7 +179,7 @@ class GitHub:
 
     def create_repo(self, name, public=False):
         if not re.fullmatch(r"[A-Za-z0-9_.-]+", name) or name.startswith("-"):
-            raise Error("Nome de repositório inválido")
+            raise Error("Invalid repository name")
         return self.request("POST", "/user/repos", {"name": name, "description": DESCRIPTION,
                             "private": not public, "auto_init": False, "has_wiki": False})
 
@@ -192,7 +192,7 @@ def stage_sources(root):
     tracked = set(git(root, "ls-files", "-z").split("\0")) - {""}
     forbidden = sorted(n for n in tracked if n not in allowed and (root / n).exists())
     if forbidden:
-        raise Error("Há arquivos rastreados fora dos fontes; revise com git rm --cached: "
+        raise Error("There are files tracked out of sources; review with git rm --cached: "
                     + ", ".join(forbidden[:8]))
     for start in range(0, len(files), 80):
         git(root, "add", "--", *[str(p.relative_to(root)) for p in files[start:start + 80]])
@@ -219,7 +219,7 @@ def check_publish(root):
                 and not any(p.startswith("build") or p in {"__pycache__", "dist", "out"}
                             for p in parts[1:-1]))
             if not permitted:
-                raise Error("Histórico contém arquivo excluído da publicação: " + name)
+                raise Error("History contains deleted file from publication: " + name)
             # Git object contents are immutable. Check every historical path,
             # but read identical contents once per audit. PNG and text remain
             # separate because text must also pass the NUL/credential checks.
@@ -230,11 +230,11 @@ def check_publish(root):
                                   check=True, capture_output=True).stdout
             if (data[:2] == b"MZ" or data[:4] in (b"\x7fELF", b"PK\x03\x04", b"!<ar")
                     or (Path(name).suffix != ".png" and (b"\0" in data or SECRET.search(data)))):
-                raise Error("Histórico contém binário/possível segredo: " + name)
+                raise Error("History contains binary/possible secret: " + name)
             checked.add(key)
     tracked = set(filter(None, git(root, "ls-files", "-z").split("\0")))
     if tracked - allowed:
-        raise Error("Índice contém arquivos fora dos fontes")
+        raise Error("Contents contains files outside sources")
 
 
 def push(root, api):
@@ -244,12 +244,12 @@ def push(root, api):
     git(root, "push", "--set-upstream", "origin", branch, env=api.git_env())
 
 
-def publish(root, repo, create=False, public=False, message="Publica os fontes do Aegis", api=None):
+def publish(root, repo, create=False, public=False, message="Publish Aegis fonts", api=None):
     """Prepare and review locally before creating a remote or sending anything."""
     repo = validate_repo(repo)
     files = source_files(root)
     if not files:
-        raise Error("Nenhum fonte encontrado")
+        raise Error("No font found")
     p = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
                        capture_output=True, text=True)
     if p.returncode:
@@ -258,7 +258,7 @@ def publish(root, repo, create=False, public=False, message="Publica os fontes d
     require_repository_root(root)
     remotes = git(root, "remote").splitlines()
     if "origin" in remotes and github_repo(root).lower() != repo.lower():
-        raise Error("origin aponta para outro repositório; selecione a pasta correta")
+        raise Error("origin points to another repository; select the correct folder")
     stage_sources(root)
     changed = git(root, "diff", "--cached", "--name-only")
     if changed:
@@ -269,10 +269,10 @@ def publish(root, repo, create=False, public=False, message="Publica os fontes d
     if create:
         account, name = repo.split("/")
         if api.request("GET", "/user")["login"].lower() != account.lower():
-            raise Error("A criação automática utiliza a conta autenticada, não outra conta/organização")
+            raise Error("Automatic creation uses authenticated account, not other account/organization")
         row = api.create_repo(name, public)
         if row["full_name"].lower() != repo.lower():
-            raise Error("Repositório criado não corresponde ao destino")
+            raise Error("Created Repository does not match destination")
     else:
         row = api.request("GET", "/repos/" + repo)
     if "origin" not in remotes:
@@ -285,40 +285,40 @@ def publish(root, repo, create=False, public=False, message="Publica os fontes d
 
 def choose(rows, label):
     if not rows:
-        raise Error("Nenhuma opção disponível")
+        raise Error("No option available")
     for i, row in enumerate(rows, 1):
         print(f"{i}. {label(row)}")
     try:
-        n = int(input("Número (0 cancela): "))
+        n = int(input("Number (0 cancels): "))
     except ValueError:
-        raise Error("Selecione um número") from None
+        raise Error("Select a number") from None
     if n == 0:
         return None
     if not 1 <= n <= len(rows):
-        raise Error("Opção fora da lista")
+        raise Error("Option out of list")
     return rows[n - 1]
 
 
 def menu(root):
     api = None
     while True:
-        print(f"\nAegis — {root}\n1 Status e diferenças\n2 Selecionar repositório/clonar"
-              "\n3 Criar repositório\n4 Selecionar/criar branch\n5 Atualizar (fast-forward)"
-              "\n6 Revisar e fazer commit dos fontes\n7 Enviar branch\n8 Listar/abrir PR"
-              "\n9 Criar PR em rascunho\n10 Gerar revisão de testes do sandbox"
-              "\n11 Auditar fontes\n12 Autenticar\n13 Publicar esta pasta em outro repositório\n0 Sair")
-        option = input("Opção: ").strip()
+        print(f"\nAegis — {root}\n1 Status and differences\n2 Select repository/clone"
+              "\n3 Create repository\n4 Select/create branch\n5 Update (fast forward)"
+              "\n6 Review and commit source\n7 Send branch\n8 List/open PR"
+              "\n9 Create draft PR\n10 Generate sandbox test review"
+              "\n11 Audit source\n12 Authenticate\n13 Publish this folder to another repository\n0 Exit")
+        option = input("Option: ").strip()
         try:
             if option == "0":
                 return
             if option == "12":
-                api = GitHub(getpass.getpass("Token GitHub (somente nesta sessão): ").strip())
-                print("Conta:", api.request("GET", "/user")["login"])
+                api = GitHub(getpass.getpass("Token GitHub (only in this session): ").strip())
+                print("Account:", api.request("GET", "/user")["login"])
             elif option == "13":
-                repo = input("Destino dono/repositorio: ").strip()
-                create = input("Criar esse repositório agora? [s/N]: ").lower() == "s"
-                public = create and input("Visibilidade [privado/publico]: ").lower() == "publico"
-                message = input("Mensagem do commit: ").strip() or "Atualiza fontes do Aegis"
+                repo = input("Destination owner/repository: ").strip()
+                create = input("Create this repository now? [y/N]: ").lower() == "y"
+                public = create and input("Visibility [private/public]: ").lower() == "public"
+                message = input("Commit message: ").strip() or "Update Aegis source"
                 print(json.dumps(publish(root, repo, create, public, message, api=api), indent=2))
             elif option == "1":
                 print(git(root, "status", "--short", "--branch"))
@@ -330,56 +330,56 @@ def menu(root):
                     rows = api.pages("/user/repos?sort=updated&affiliation=owner,collaborator,organization_member")
                     row = choose(rows, lambda r: r["full_name"])
                     if row:
-                        target = Path(input("Pasta local existente ou nova para clone: ")).expanduser().resolve()
+                        target = Path(input("Existing or new local folder for clone: ")).expanduser().resolve()
                         if not target.exists():
                             command(["git", "clone", "--", row["clone_url"], target], env=api.git_env())
                         if github_repo(target).lower() != row["full_name"].lower():
-                            raise Error("A pasta aponta para outro repositório")
+                            raise Error("Folder points to another repository")
                         root = target
                 elif option == "3":
-                    name = input("Nome do novo repositório: ").strip()
-                    public = input("Visibilidade [privado/publico]: ").strip().lower() == "publico"
+                    name = input("New repository name: ").strip()
+                    public = input("Visibility [private/public]: ").strip().lower() == "public"
                     print(api.create_repo(name, public)["html_url"])
-                    print("Selecione-o na opção 2 para clonar. Fontes locais não foram movidos.")
+                    print("Select it in option 2 to clone. Local source files have not been moved.")
                 elif option == "5":
                     github_repo(root)
                     print(git(root, "pull", "--ff-only", env=api.git_env()))
                 elif option == "7":
                     push(root, api)
-                    print("Branch enviada.")
+                    print("Branch sent.")
                 elif option == "8":
                     repo = github_repo(root)
                     row = choose(api.pages(f"/repos/{repo}/pulls?state=open"),
                                  lambda r: f"#{r['number']} {r['title']}")
                     if row:
                         print(row["html_url"])
-                        if input("Obter essa PR em uma branch local? [s/N]: ").lower() == "s":
+                        if input("Get this PR at a local branch? [y/N]: ").lower() == "y":
                             if git(root, "status", "--porcelain"):
-                                raise Error("Salve as mudanças locais antes de trocar de branch")
+                                raise Error("Save local changes before changing branches")
                             branch = "pr/" + str(row["number"])
                             git(root, "fetch", "origin", f"pull/{row['number']}/head:{branch}", env=api.git_env())
                             git(root, "switch", branch)
                 elif option == "9":
                     repo = github_repo(root)
                     info = api.request("GET", f"/repos/{repo}")
-                    base = input(f"Branch de destino [{info['default_branch']}]: ").strip() or info["default_branch"]
+                    base = input(f"Target branch [{info['default_branch']}]: ").strip() or info["default_branch"]
                     head = git(root, "symbolic-ref", "--short", "HEAD")
-                    title = input("Título da PR: ").strip()
-                    body = input("Descrição da mudança: ").strip()
+                    title = input("PR Title: ").strip()
+                    body = input("Description of change: ").strip()
                     if not title or head == base:
-                        raise Error("Use título e branch de trabalho diferente do destino")
+                        raise Error("Use different title and work branch from destination")
                     push(root, api)
                     row = api.request("POST", f"/repos/{repo}/pulls", {
                         "title": title, "body": body, "head": head, "base": base, "draft": True})
                     print(row["html_url"])
             elif option == "4":
                 rows = git(root, "for-each-ref", "--format=%(refname:short)", "refs/heads", "refs/remotes/origin").splitlines()
-                branch = choose(["[Criar branch]", *[r for r in rows if not r.endswith("/HEAD")]], str)
+                branch = choose(["[Create branch]", *[r for r in rows if not r.endswith("/HEAD")]], str)
                 if branch:
                     if git(root, "status", "--porcelain"):
-                        raise Error("Salve as mudanças locais antes de trocar de branch")
-                    if branch == "[Criar branch]":
-                        name = input("Nome: ").strip()
+                        raise Error("Save local changes before changing branches")
+                    if branch == "[Create branch]":
+                        name = input("Name: ").strip()
                         git(root, "check-ref-format", "--branch", name)
                         print(git(root, "switch", "-c", name))
                     elif branch.startswith("origin/"):
@@ -387,12 +387,12 @@ def menu(root):
                     else:
                         print(git(root, "switch", branch))
             elif option == "6":
-                print(f"{stage_sources(root)} fontes selecionados.")
+                print(f"{stage_sources(root)} source files selected.")
                 print(git(root, "diff", "--cached", "--stat"))
                 print(git(root, "diff", "--cached"))
-                message = input("Mensagem do commit (vazio cancela): ").strip()
+                message = input("Commit message: ").strip()
                 if not message:
-                    print("Commit cancelado; seleção preservada para revisão.")
+                    print("Commit cancelled; selection preserved for review.")
                 else:
                     print(git(root, "commit", "-m", message))
             elif option == "10":
@@ -402,9 +402,9 @@ def menu(root):
                 proof = audit(root)
                 print(json.dumps({k: v for k, v in proof.items() if k != "sources"}, indent=2))
             else:
-                print("Opção desconhecida.")
+                print("Option unknown.")
         except (Error, OSError, ValueError, subprocess.SubprocessError) as e:
-            print("Erro:", e)
+            print("Error:", e)
 
 
 def main():
@@ -418,17 +418,17 @@ def main():
     create.add_argument("name")
     create.add_argument("--public", action="store_true")
     commands.add_parser("push")
-    builds = commands.add_parser("prepare-builds", help="Exportar builds para uma pasta nova")
+    builds = commands.add_parser("prepare-builds", help="Export builds to a new folder")
     builds.add_argument("--output", type=Path, required=True)
-    builds.add_argument("--entry", action="append", required=True, help="ROTULO=CAMINHO")
-    builds_push = commands.add_parser("publish-builds", help="Enviar exportação somente a destino privado")
+    builds.add_argument("--entry", action="append", required=True, help="LABEL=CAME")
+    builds_push = commands.add_parser("publish-builds", help="Send export only to private destination")
     builds_push.add_argument("--repo", required=True)
     builds_push.add_argument("--create", action="store_true")
-    publish_parser = commands.add_parser("publish", help="Auditar, selecionar fontes, commit e push")
+    publish_parser = commands.add_parser("publish", help="Audit, select fonts, commit and push")
     publish_parser.add_argument("--repo", required=True)
     publish_parser.add_argument("--create", action="store_true")
     publish_parser.add_argument("--public", action="store_true")
-    publish_parser.add_argument("--message", default="Publica os fontes do Aegis")
+    publish_parser.add_argument("--message", default="Publish Aegis fonts")
     args = parser.parse_args()
     root = args.root.expanduser().resolve()
     if args.action == "prepare-builds":
@@ -448,7 +448,7 @@ def main():
         print(json.dumps({"repository": row["full_name"], "url": row["html_url"], "private": row["private"]}))
     elif args.action == "push":
         push(root, GitHub())
-        print("Branch enviada.")
+        print("Branch sent.")
     elif args.action == "publish":
         print(json.dumps(publish(root, args.repo, args.create, args.public, args.message), indent=2))
     else:
@@ -459,7 +459,7 @@ if __name__ == "__main__":
     try:
         main()
     except (Error, OSError, ValueError, subprocess.SubprocessError) as error:
-        print("Erro:", error, file=sys.stderr)
+        print("Error:", error, file=sys.stderr)
         sys.exit(1)
     except (KeyboardInterrupt, EOFError):
         print("\nEncerrado.")

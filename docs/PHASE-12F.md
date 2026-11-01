@@ -1,140 +1,65 @@
-# Fase 12F — janelas independentes do MiniNT no Windows
+# Phase 12F — MiniNT independent windows on Windows
 
-Esta entrega acrescenta um modo opcional de apresentação para o corpus
-**Windows 10 x64** já aceito nas fases 14.7–14.9. Cada janela de nível superior,
-incluindo diálogos pertencentes a outra janela, ganha um HWND independente no
-desktop do host. Controles e demais janelas filhas são desenhados dentro de sua
-janela principal. O Flappy original e os aplicativos próprios da matriz são
-os critérios de aceitação; não há promessa de compatibilidade gráfica geral.
+This delivery adds an optional presentation mode for the corpus **Windows 10 x64** already accepted in phases 14.7–14.9. Each top-level window, including dialogues belonging to another window, wins an independent HWND on the host desktop. Controls and other daughter windows are drawn within your main window. The original Flappy and the matrix's own applications are the acceptance criteria; there is no promise of general graphical compatibility.
 
-O EXE, suas DLLs e seus callbacks continuam no MiniNT. O componente do Windows
-cria suas próprias janelas, apresenta imagens e devolve eventos tipados. Não
-executa WNDPROCs, callbacks ou endereços de funções fornecidos pelo convidado.
-Não há encaminhamento arbitrário de mensagens USER32/GDI.
+EXE, its DLLs and its callbacks continue in MiniNT. The Windows component creates its own windows, displays images, and returns typed events. It does not perform WNDPROCs, callbacks, or function addresses provided by the guest. No arbitrary forwarding of USER32/GDI. messages
 
-**Distinção de escopo:** esta 12F apresenta imagens rasterizadas pelo MiniNT.
-Executar as operações de criação de controles e desenho pelas APIs reais do
-Windows host é o requisito adicional planejado em **14.10A–14.10D** do
-[roadmap](ROADMAP-COMPLETO.md#subfase-1410--gui-nativa-no-host-directx-mídia-e-áudio).
-A [14.10A](PHASE-14.10A.md) acrescenta a primeira ponte de comandos nativos;
-14.10B–14.10D continuam pendentes. Os testes desta 12F não comprovam essa
-renderização nativa. EXE, DLLs e callbacks continuarão no convidado também
-nessa evolução.
+** Scope distinction:** this 12F presents images rasterized by MiniNT. Running control creation and drawing operations by the actual Windows host APIs is the additional requirement planned in **14.10A–14.10D** of [roadmap](COMPLETE-ROADMAP.md#1410-subphase--gui-native-to-host-directx-media-and-audio). A [14.10A](PHASE-14.10A.md) adds the first native command bridge; 14.10B–14.10D remain pending. The tests of this 12F do not prove this native rendering. EXE, DLLs and callbacks will continue in the guest as well in this evolution.
 
-## Ponte e isolamento
+## Bridge and isolation
 
-`guardian-kernel-integrated.gk` herda o kernel da 14.9 e acrescenta o protocolo
-`GuardianWindowBridge/1`. O modo é selecionado por `--integrated`; a enumeração
-negocia essa capacidade separadamente. Kernels anteriores recusam esse modo.
-O modo do visualizador único permanece disponível com `--interactive`.
+`guardian-kernel-integrated.gk` inherits the kernel from 14.9 and adds the `GuardianWindowBridge/1` protocol. The mode is selected by `--integrated`; the enumeration negotiates this capacity separately. Previous kernels refuse this mode. The unique viewer mode remains available with `--interactive`.
 
-O host atribui um identificador aleatório de sessão a cada inicialização. O
-protocolo binário contém esse identificador, boot, versão, tamanho e sequência.
-Usa o canal F8 existente com uma operação separada. Quadros têm início,
-metadados, uma imagem para cada janela principal visível e commit. A apresentação
-só recebe um quadro depois de validar todas as imagens, dimensões e relações.
-Duplicidades, lacunas, replay, proprietário de outro processo, ciclos, IDs
-ressuscitados e mudanças de PID/TID de um ID são recusados.
+The host assigns a session random identifier to each startup. The binary protocol contains this identifier, boot, version, size and sequence. It uses the existing F8 channel with a separate operation. Frames have start, metadata, an image for each main window visible and commit. The presentation only gets a frame after validating all images, dimensions and relationships. Duplicities, gaps, replay, owner of another process, cycles, resurrected IDs, and PID/TID changes of an ID are denied.
 
-Cada imagem é desenhada separadamente pelo compositor convidado. Assim, uma
-janela coberta por outra conserva seu conteúdo, inclusive fora da região visível
-do desktop virtual. Não se recortam janelas a partir da imagem já achatada do
-desktop. O caminho anterior de composição e seus hashes são preservados.
+Each image is drawn separately by the guest composer. Thus, one window covered by another keeps its contents, including outside the visible region of the virtual desktop. No windows are cut from the already flattened image of the desktop. The previous path of composition and its hashes are preserved.
 
-HWNDs reais ficam exclusivamente no apresentador. Mesmo um número convidado
-igual ao valor de um HWND externo é tratado como ID opaco e recebe uma nova
-janela própria. Relações de proprietário são traduzidas somente entre janelas
-principais da mesma sessão. Proprietário que seja uma janela filha está fora
-deste contrato e é recusado.
+Real HWNDs are exclusively on the host. Even a guest number equal to the value of an external HWND is treated as opaque ID and gets a new window of its own. Owner relations are translated only between main windows of the same session. Owner who is a daughter window is outside this contract and is refused.
 
-O título tem prefixo `[MiniNT]`. Popups sem barra de título recebem uma borda
-azul de identificação, desenhada apenas na apresentação. Estilos nativos são
-selecionados de uma lista limitada. A ordenação e a prioridade `topmost` do
-convidado são aplicadas entre as janelas da sessão; não tornam a aplicação
-globalmente superior às outras aplicações do host.
+The title has `[MiniNT]` prefix. Untitled popups receive a blue border identification, designed only in the presentation. Native styles are selected from a limited list. The guest's sorting and priority `topmost` are applied between session windows; they do not make the application globally superior to other host applications.
 
-## Entrada, foco, tamanho e DPI
+## Input, focus, size and DPI
 
-O apresentador possui uma thread de interface separada da execução da VM.
-Arrastar/redimensionar uma janela no loop modal do Windows não bloqueia a thread
-que executa o MiniNT. Uma caixa de quadros pendentes mantém o estado mais recente
-e contabiliza quadros substituídos. Isso limita memória; janelas transitórias
-que aparecem e desaparecem entre apresentações podem não chegar a ser exibidas.
+The presenter has a separate interface thread from the VM execution. Drag/resize a window in the Windows modal loop does not block the thread running MiniNT. A pending frame box maintains the latest state and accounts for replaced frames. This limits memory; transitory windows that appear and disappear between presentations may not be shown.
 
-Teclas físicas, texto Unicode, mouse, foco, blur, fechamento e geometria têm
-formatos próprios. Cada evento identifica sua sessão e janela. O kernel resolve
-o controle filho destinatário dentro daquela janela, preserva o scan code e
-executa os callbacks no convidado. Blur atrasado de uma janela não limpa o foco
-de outra. Eventos para janelas apagadas ou desabilitadas são descartados ou
-recusados e contabilizados. Filas e limites excedidos encerram a execução com
-erro observável.
+Physical keys, Unicode text, mouse, focus, blur, closing and geometry have their own formats. Each event identifies your session and window. The kernel resolves the recipient child control within that window, preserves the scan code and executes the callbacks in the guest. Late blur from one window does not clear the focus of another. Events for deleted or disabled windows are discarded or rejected and counted. Overruns and limits close the execution with observable error.
 
-Foco do convidado só é aplicado à interface nativa quando a janela atualmente
-ativa do Windows já pertence àquela sessão. O apresentador não chama
-`SetForegroundWindow` nem injeta teclado/mouse em outras aplicações. Não há
-hooks globais. Texto comprometido é separado das teclas físicas, evitando uma
-segunda tradução de caracteres pelo host.
+Guest focus is only applied to the native interface when the currently active Windows window already belongs to that session. The host does not call `SetForegroundWindow` or inject keyboard/mouse into other applications. There are no global hooks. Committed text is separated from the physical keys, avoiding a second character translation by the host.
 
-O espaço lógico do convidado permanece em **96 DPI**. A thread de apresentação
-usa percepção de DPI por monitor e converte coordenadas/tamanhos para **96–240
-DPI** no host. `WM_DPICHANGED` ajusta a apresentação; movimento e tamanho do
-cliente retornam ao MiniNT em coordenadas lógicas. Isto é virtualização de DPI,
-não implementação de toda a API Windows de DPI por monitor no convidado.
-O contexto de DPI alterado é apenas o da thread, sem mudar configurações do PC.
+The guest's logical space remains at **96 DPI**. The presentation thread uses DPI perception by monitor and converts coordinates/sizes to **96–240 DPI** in the host. `WM_DPICHANGED` adjusts the presentation; customer's movement and size return to MiniNT in logical coordinates. This is DPI virtualization, not implementation of the entire Windows API of DPI by monitor in the guest. The changed DPI context is only thread without changing PC settings.
 
-Fechar a janela nativa envia uma solicitação ao programa convidado. A janela
-permanece até o programa a destruir, inclusive quando ele abre um diálogo de
-confirmação. Modalidade mantém o proprietário nativo desabilitado e o restaura
-quando o convidado o habilita. Minimização/restauração são operações de
-apresentação; não se declara suporte completo a todos os estados Win32.
+Close the native window sends a request to the guest program. The window remains until the program is destroyed, including when it opens a confirmation dialog. Modality keeps the native owner disabled and restores it when the guest enables it. Minimization/restoration are presentation operations; no full support is declared for all Win32 states.
 
-## Cotas e limites
+## Quotas and limits
 
-| Recurso | Limite |
+| Resource | Limit |
 | --- | --- |
-| Janelas convidadas, incluindo filhos | 32 por sessão |
-| Cliente de uma janela principal | 1.280 × 720 pixels lógicos |
-| Imagens de um quadro | 16 MiB somados |
-| Quadros e comandos do protocolo | 4.096 quadros e 131.072 comandos por sessão |
-| Taxa de apresentação | 512 transações de quadro e 128 MiB de imagens por segundo |
-| Entrada | Fila nativa de 2.048 eventos e 4.096 eventos entregues por sessão |
-| Identidades de janela ao longo da sessão | 4.096, sem reutilização após exclusão |
-| Roteiro de testes | 2.048 ações, até 30 segundos |
-| Capturas de diagnóstico | Até 16 imagens de cliente por execução |
+| Guest windows, including children | 32 by meeting |
+| Client of a main window | 1.280 × 720 pixels logical |
+| Images of one tableau | 16 MiB added |
+| Tables and commands of the Protocol | 4,096 frames and 131,072 commands per session |
+| Rate of presentation | 512 table transactions and 128 MiB images per second |
+| Entry | Native file of 2,048 events and 4,096 events delivered per session |
+| Window identities throughout the session | 4.096, without reuse after exclusion |
+| Test script | 2.048 actions, up to 30 seconds |
+| Captures of diagnosis | Up to 16 client images per execution |
 
-Movimentos repetidos e geometria pendente podem ser combinados. Taxas de quadros
-são limites de transações, incluindo flushes, e não uma garantia de FPS. A
-memória de apresentação nativa também depende da escala de DPI, dentro do
-intervalo admitido. Não há GPU passthrough, DirectX, composição transparente
-completa, IME completo, clipboard, arrastar arquivos ou acesso ao Explorer.
-As limitações de USER32/GDI/controles das fases 14.7 e 14.8 continuam valendo.
+Repeated motions and pending geometry can be combined. Frame rates are transaction limits, including flushes, and not an FPS guarantee. Native presentation memory also depends on the DPI scale within the allowed range. There is no GPU passthrough, DirectX, complete transparent composition, complete IME, clipboard, drag files or access to Explorer. The USER32/GDI/controls limitations of phases 14.7 and 14.8 continue to apply.
 
-O CLI conserva seu orçamento de **1–30 segundos** por execução. Captura e
-restauração de snapshots de RAM dessa família gráfica continuam recusadas.
-O disco virtual de 64 KiB pode ser exportado e fornecido a uma nova sessão por
-`--state`; ela recebe um novo namespace e novas janelas nativas. Não se
-ressuscitam HWNDs ou recursos do processo anterior.
+CLI saves its budget of **1–30 seconds** per run. Capture and restore of RAM snapshots from this graphics family remain rejected. The 64 KiB virtual disk can be exported and provided to a new session by `--state`; it receives a new namespace and new native windows. HWNDs or features from the previous process are not resurrected.
 
-## Uso
+## Usage
 
-O exemplo prepara o aplicativo próprio. Referências CRT/schema são entradas
-locais legais e não acompanham as builds:
+The example prepares the application itself. CRT/schema references are legal local entries and do not follow the builds:
 
 ```powershell
 python -B tools/integrated_runtime.py --build PASTA-BUILD --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output runtime-12f
 .\PASTA-BUILD\Release\guardian-desktop.exe PASTA-BUILD/guest/Release/guardian-kernel-integrated.gk runtime-12f/runtime.gpv runtime-12f/manifest.json runtime-12f/binding.gnt sessao-12f --integrated --seconds 30
 ```
 
-O aplicativo de teste próprio exige A, texto, clique, movimento/tamanho e M para
-abrir seu diálogo; o roteiro de aceitação automatiza essa interação. Para o
-Flappy, acrescente `--application CAMINHO-FLAPPY --asset CAMINHO-SETTINGS
---asset CAMINHO-ICON` à criação do pacote. A execução do arquivo externo é
-sempre no MiniNT. A rede continua offline por padrão; uma política explícita da
-14.9 pode ser fornecida separadamente.
+The own test application requires A, text, click, movement/size and M to open your dialog; the acceptance script automates this interaction. For Flappy, add `--application CAMINHO-FLAPPY --asset CAMINHO-SETTINGS --asset CAMINHO-ICON` to the package creation. Execution of the external file is always in MiniNT. The network remains offline by default; an explicit policy of 14.9 can be provided separately.
 
-`--window-script ARQUIVO` é um roteiro tipado do host, para testes reproduzíveis.
-Não pode ser combinado com `--interactive` ou o `--script` do visualizador.
-O formato é `milissegundos|título convidado|operação|argumentos`, por exemplo:
+`--window-script ARQUIVO` is a host type script for playable tests. It cannot be combined with `--interactive` or `--script` of the viewer. The format is `milissegundos|título convidado|operação|argumentos`, for example:
 
 ```text
 300|12F Main|down|65|30|1
@@ -144,59 +69,20 @@ O formato é `milissegundos|título convidado|operação|argumentos`, por exempl
 2400|@focused|close
 ```
 
-Os títulos precisam ser únicos para seleção explícita; `@focused` seleciona a
-janela principal do foco convidado. O relógio começa na primeira apresentação
-nativa. As ações `scale` e `fail` exercitam caminhos sintéticos de DPI e falha;
-não modificam a escala do monitor nem configurações do Windows. Não existe
-operação de mensagem Windows arbitrária nesse arquivo.
+Titles need to be unique for explicit selection; `@focused` selects the main window of the guest focus. The watch starts at the first native presentation. `scale` and `fail` actions exercise synthetic DPI paths and fail; they do not modify the display scale or Windows settings. There is no arbitrary Windows message operation in this file.
 
-`window-bridge.json` registra quadros, comandos, descartes e uma linha do tempo
-de tipos/destinos dos eventos, sem seu texto ou códigos de tecla.
-`native-windows.json` registra criação, destruição, geometria, DPI, coalescência
-e erros. Capturas `native-window-*.ppm` usam `WM_PRINTCLIENT` somente nas
-janelas próprias e permitem conferir conteúdo sem capturar o desktop pessoal.
-O programa do host sempre recolhe suas janelas ao encerrar ou falhar.
+`window-bridge.json` records frames, commands, discards and a timeline of types/destinations of events without its text or key codes. `native-windows.json` records creation, destruction, geometry, DPI, coalescence and errors. `native-window-*.ppm` captures use `WM_PRINTCLIENT` only in their own windows and allow you to check content without capturing the personal desktop. The host program always collects your windows when closing or failing.
 
-## Aceitação
+## Acceptance
 
-Os seis testes novos são `window_bridge_core`, `window_bridge_native`,
-`window_bridge_runtime_tools` e as integrações `window_bridge_programs_integration`,
-`window_bridge_flappy_integration` e `window_bridge_components_integration`.
-Pacotes e roteiros inválidos são recusados antes de iniciar a VM. Uma pasta de
-saída existente é recusada sem sobrescrever os relatórios da sessão anterior.
+The six new tests are `window_bridge_core`, `window_bridge_native`, `window_bridge_runtime_tools` and `window_bridge_programs_integration`, `window_bridge_flappy_integration` and `window_bridge_components_integration` integrations. Invalid packages and scripts are rejected before starting VM. An existing output folder is refused without overwriting the reports from the previous session.
 
-O núcleo verifica o protocolo, cotas, replay, relações, identidade de sessão,
-desenho independente, recortes, janela fora do desktop, foco, entrada dirigida,
-geometria e conversões de DPI. O teste nativo cria HWNDs reais de sessões
-distintas, confere seus pixels, entrada, modalidade, minimizar/restaurar,
-mensagens sintéticas de DPI, limpeza e preservação de uma janela externa de
-controle. Injeções de falha após criação de HWND e alocação de DIB/DC verificam
-recolhimento de recursos parciais; esses pontos de injeção só existem no teste
-nativo, sem exposição no protocolo ou executável de produção. Um ID convidado com o valor de um HWND externo não recebe poder sobre
-ele.
+The core checks the protocol, quotas, replay, relationships, session identity, independent design, clippings, window outside the desktop, focus, directed input, geometry and DPI conversions. The native test creates real HWNDs of different sessions, confers its pixels, input, modality, minimize/restore, synthetic DPI messages, cleaning and preservation of an external control window. Failure injections after HWND creation and allocation of DIB/DC verify partial resource collection; these injection points only exist in the native test, without exposure in the protocol or executable production. A guest ID with the value of an external HWND does not receive power over it.
 
-São **11 cenários MiniNT por configuração**: aplicativo próprio em duas sessões,
-queda do convidado, watchdog, falha simulada da ponte, alternativa do visualizador,
-três execuções do Flappy original e dois diálogos de controles, confirmado e
-cancelado. O Flappy testa configurações alternativas, movimento, texto e efeito
-dos comandos de voo. EXE, settings e ícone originais são conferidos antes/depois.
-Os eventos automatizados usam APIs Win32 somente nas janelas próprias de teste;
-isso não representa uma avaliação manual de todos os teclados, monitores ou
-configurações de desktop.
+They are **11 MiniNT scenarios by configuration**: own application in two sessions, guest drop, watchdog, simulated bridge failure, viewer alternative, three executions of the original Flappy and two control dialogues, confirmed and cancelled. Flappy tests alternate settings, motion, text and effect of flight commands. EXE, settings and original icon are checked before/later. Automated events use Win32 APIs only in the test windows; this does not represent a manual evaluation of all keyboards, monitors or desktop settings.
 
-O validador `tools/validate_phase12f.py` exige **139 testes de regressão Release
-e 64 de aceitação Debug**, sem falhas ou ignorados e com fontes, binários e
-referências estáveis. O pacote só é criado com essas provas e é testado outra
-vez após extração e verificação de todos os arquivos/ZIP, nas duas configurações.
-Inclui as regressões das fases anteriores. Resultados concretos e hashes ficam
-nos manifestos e relatórios da build privada. Debug dos testes do host exige
-também o runtime de depuração do Visual Studio. Linux não foi revalidado.
+The `tools/validate_phase12f.py` validator requires **139 Release and 64 Debug acceptance tests**, without faults or ignored and with stable source code, binaries and references. The package is only created with these tests and is tested again after extraction and verification of all files/ZIP in both settings. It includes the regressions of the previous phases. Concrete results and hashes are on the manifests and reports of the private build. Debug of the host tests also requires the debugging runtime of Visual Studio. Linux has not been revalidated.
 
-A 12F termina nesta matriz. A interface principal WinUI e a compatibilidade
-gráfica mais ampla conservam seus próprios lotes no roadmap. A **14.10 não é
-iniciada** por esta entrega.
+The 12F ends in this matrix. The WinUI main interface and the wider graphical compatibility keep their own lots on roadmap. **14.10 is not started** by this delivery.
 
-Referências de contrato: [SetWindowPos](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-setwindowpos),
-[contexto de DPI por thread](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-setthreaddpiawarenesscontext),
-[ajuste do frame para DPI](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-adjustwindowrectexfordpi)
-e [WM_DPICHANGED](https://learn.microsoft.com/windows/win32/hidpi/wm-dpichanged).
+Contract references: [SetWindowPos](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-setwindowpos), [context of DPI by thread](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-setthreaddpiawarenesscontext), [frame adjustment for DPI](https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-adjustwindowrectexfordpi) and [WM_DPICHANGED](https://learn.microsoft.com/windows/win32/hidpi/wm-dpichanged)].

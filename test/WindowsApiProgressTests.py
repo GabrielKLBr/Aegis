@@ -19,11 +19,11 @@ class CatalogueTests(unittest.TestCase):
     def test_deterministic_complete_site(self):
         with tempfile.TemporaryDirectory() as folder:
             output=Path(folder);progress.generate(site.ROOT,output);site.generate(site.ROOT,output)
-            files={p.name:p.read_bytes() for p in output.iterdir()}
+            files={p.relative_to(output).as_posix():p.read_bytes() for p in output.rglob('*') if p.is_file()}
             self.assertTrue({'index.html','progress.html','progress.json','windows-apis.html','windows-apis.json','.nojekyll'}<=files.keys())
             self.assertIn(b'href="progress.html"',files['index.html']);self.assertIn(b'href="windows-apis.html"',files['index.html'])
             self.assertEqual(len(json.loads(files['windows-apis.json'])['entries']),len(self.rows))
             progress.generate(site.ROOT,output);site.generate(site.ROOT,output)
-            self.assertEqual(files,{p.name:p.read_bytes() for p in output.iterdir()})
+            self.assertEqual(files,{p.relative_to(output).as_posix():p.read_bytes() for p in output.rglob('*') if p.is_file()})
 
 if __name__=='__main__':unittest.main()

@@ -1,182 +1,94 @@
-# 14.14 — Linha de base de compatibilidade e prontidão para a fase 15
+# 14.14 — Baseline for compatibility and readiness for phase 15
 
-**29/10/2026: avaliação reproduzível entregue; aceitação de compatibilidade ampla
-não atingida.** Esta entrega mede o fluxo unificado da 14.13A. Não implementa
-as APIs que faltam nem inicia a fase 15.
+**29/10/2026: Replayable evaluation delivered; wide compatibility acceptance not achieved.**This delivery measures the unified flow of 14.13A. It does not implement APIs that are missing or initiate phase 15.
 
-## Protocolo congelado antes da campanha
+## Protocol frozen before the marketing year
 
-A política estabelecida na 14.1 foi preservada: pelo menos 32 aplicações,
-quatro em cada uma das oito categorias, oito por arquitetura nativa x86/x64,
-75% funcionais por perfil e 50% por categoria. Fixtures próprias não contam;
-versões alternativas de um mesmo programa não ampliam o denominador.
+The policy established in 14.1 has been preserved: at least 32 applications, four in each of the eight categories, eight by native architecture x86/x64, 75% funtionals per profile and 50% by category. Fixtures themselves do not count; alternative versions of the same program do not extend the denominator.
 
-O [corpus congelado](../config/nt-compatibility/phase14.14-corpus.json) registra
-32 identidades de aplicação, versões por recurso `VS_FIXEDFILEINFO`, SHA-256,
-arquitetura, origem, passos e critérios de sucesso. São **13 x86, 18 x64 e um
-AnyCPU**. AnyCPU não é contado como x86. A seleção, o congelamento e a primeira
-campanha foram feitos nessa ordem. Nenhum programa foi substituído após falhar.
-O identificador do plano é
-`c49fc515bb21d1b0fbc84722f1c0f29577f0e9228823eb9f34970277e01b7ed1`.
+The [frozen corpus](../config/nt-compatibility/phase14.14-corpus.json) records 32 application identities, versions by `VS_FIXEDFILEINFO`, SHA-256, architecture, origin, steps and success criteria. They are **13 x86, 18 x64 and a AnyCPU**. AnyCPU is not counted as x86. The selection, freezing and the first campaign were done in that order. No program was replaced after failure. The plan identifier is `c49fc515bb21d1b0fbc84722f1c0f29577f0e9228823eb9f34970277e01b7ed1`.
 
-A amostra é de conveniência: programas instalados e componentes Windows
-disponíveis localmente, com concentração em produtos Microsoft. São aplicações
-distintas, não 32 fornecedores ou projetos independentes. Não representa o
-ecossistema Windows e não sustenta uma afirmação sobre a maioria dos programas.
-Os executáveis foram copiados para um cache local, sem alterações, e conferidos
-antes/depois da campanha. Nem eles nem as DLLs Microsoft são redistribuídos.
+The sample is of convenience: installed programs and Windows components available locally, with concentration on Microsoft products. They are distinct applications, not 32 independent suppliers or projects. It does not represent the Windows ecosystem and does not support a statement about most programs. Executables have been copied to a local cache, no changes, and checked before/later from the campaign. Neither they nor Microsoft DLLs are redistributed.
 
-O Hello World vem do fonte C independente já fixado na 14.12. Seu fonte está
-inalterado, mas o binário usa uma entrada própria e um subconjunto literal de
-CRT. Essa adaptação consta no plano. Não é um executável Windows de distribuição
-original. A versão sem recurso de versão é identificada pelo hash e proveniência.
+Hello World comes from the independent C font already fixed on 14.12. Its source is unchanged, but binary uses its own input and a literal subset of CRT. This adaptation is in the plan. It is not an original distribution Windows executable. The version without version feature is identified by hash and provenance.
 
-As expectativas de Sort, Findstr, More e Ping foram consultadas na documentação
-primária: [Sort](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/sort),
-[Findstr](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/findstr),
-[More](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/more) e
-[Ping](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ping).
-Essas expectativas não substituem uma referência nativa executada.
+The expectations of Sort, Findstr, More and Ping were consulted in the primary documentation: [Sort](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/sort), [Findstr](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/findstr), [More](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/more) and [Ping](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/ping). These expectations do not replace a native reference executed.
 
-## Método e fronteira da medição
+## Method and measurement border
 
-`tools/compatibility_campaign.py` congela entradas, executa os controladores e
-agrega resultados por aplicação, categoria, arquitetura, perfil e configuração.
-Usa os binários estáveis da 14.13A, com hashes registrados; não recompila nem
-atualiza os serviços instalados. Uma fixture própria verifica WHP/VM antes de
-cada configuração, fora do denominador independente.
+`tools/compatibility_campaign.py` freezes entries, executes controllers, and aggregates results by application, category, architecture, profile, and configuration. Uses stable torques of 14.13A, with registered hashes; does not recompile or update installed services. A fixture itself checks WHP/VM before each setting, outside the independent denominator.
 
-Cada EXE do perfil oferecido é submetido ao controlador com o catálogo padrão
-da 14.13A e orçamento de quatro segundos de execução. A preparação mantém seus
-limites de DLLs, imagem de 8 MiB e armazenamento. A maioria é recusada na
-preparação, antes de entrar no aplicativo. `dispatchAttempted` indica chamada
-ao controlador, não comprovação de execução do EXE no convidado.
+Each EXE of the offered profile is submitted to the controller with the standard 14.13A catalog and four-second running budget. The preparation maintains its DLL limits, 8 MiB image and storage. Most are refused in preparation before entering the application. `dispatchAttempted` indicates call to the controller, no EXE execution proof in the guest.
 
-O único oráculo automatizado de uso completo desta campanha é o Hello World:
-linha exata esperada, saída zero, relatório completo e ausência de recursos vivos
-ou fault. Os demais têm roteiros completos congelados, mas essa campanha faz
-uma sondagem de inicialização. O harness ainda não fornece argumentos, arquivos
-auxiliares, servidores de laboratório ou automação específica desses roteiros.
-Se a inicialização já é rejeitada, o bloqueio impede o roteiro; se o aplicativo
-chega a executar, ele permanece parcial sem testemunho do uso previsto.
-Janela criada, export resolvido ou código de saída zero não bastam.
+The only automated oracle of full use of this campaign is the Hello World: exact expected line, zero output, full report and no live resources or default. The others have frozen complete scripts, but this campaign does an initialization scan. Harness still does not provide arguments, auxiliary files, laboratory servers or automation specific to these scripts. If startup is already rejected, blocking prevents the script; if the application runs, it remains partial without testimony to the intended use. Window created, exported solved or zero output code does not suffice.
 
-São registrados estes resultados:
+These results are recorded:
 
-- **functional:** o roteiro tem evidência suficiente do uso previsto;
-- **partial:** carregou/executou, mas o roteiro não foi concluído ou verificado;
-- **incompatible:** o fluxo atual encontrou uma barreira de preparação, formato,
-  capacidade ou kernel antes de obter uso verificável;
-- **not-evaluated:** o perfil não é oferecido pelo runtime unificado.
+- ** Functional:** the script has sufficient evidence of the intended use;
+- **Partial:**loaded/executed, but the script has not been completed or verified;
+- **uncompatible:** the current flow found a preparation barrier, format,
+  ability or kernel before obtaining verifiable use;
+- **Not-evaluated:** the profile is not offered by unified runtime.
 
-Uma falha de infraestrutura reconhecida invalida a campanha, sem reduzir
-artificialmente a taxa de compatibilidade. Fontes, binários, plano e entradas
-devem permanecer estáveis. Toda célula pertence ao denominador congelado;
-perfis sem execução conservam taxa observada nula em JSON (`null`), e não uma
-taxa medida de 0%. Não se troca o identificador NT para fingir outra execução.
+A recognized infrastructure failure invalidates the campaign without artificially reducing the compatibility rate. Sources, binaries, plan and inputs must remain stable. Every cell belongs to the frozen denominator; unexecuted profiles retain zero observed rate in JSON (`null`), and not a measured rate of 0%. The NT identifier is not exchanged to fake another execution.
 
-O executável selecionado e suas DLLs não são executados/carregados no host.
-Somente controladores/helpers próprios são iniciados. Não houve execução nativa
-dos programas de referência, alteração de proteções do Windows ou pedido de
-elevação. A coleta do recurso de versão é leitura de metadados, não validação
-da assinatura ou do fornecedor.
+The selected executable and its DLLs are not executed/loaded in the host. Only controllers/helpers itself are started. There was no native execution of the reference programs, change of Windows protections or request for lifting. Collection of the version feature is metadata reading, non-validation of the subscription or supplier.
 
-## Resultado
+## Result
 
-Matriz por aplicação e dados completos sanitizados:
-[tabela](PHASE-14.14-RESULTS.md) · [JSON](PHASE-14.14-RESULTS.json).
+Application matrix and sanitized complete data: [table](PHASE-14.14-RESULTS.md) · [JSON](PHASE-14.14-RESULTS.json).
 
-| Configuração | Perfil | Funcionais | Parciais | Incompatíveis | Não avaliados |
+| Configuration | Profile | Functional | Partial | Incompatible | Not evaluated |
 |---|---|---:|---:|---:|---:|
 | Release | NT 10.0.19045 | 1/32 | 1 | 30 | 0 |
 | Debug | NT 10.0.19045 | 1/32 | 1 | 30 | 0 |
-| Release e Debug, cada | NT 6.1.7601 | 0 | 0 | 0 | 32 |
-| Release e Debug, cada | NT 10.0.22631 | 0 | 0 | 0 | 32 |
+| Release and Debug, each | NT 6.1.7601 | 0 | 0 | 0 | 32 |
+| Release and Debug, each | NT 10.0.22631 | 0 | 0 | 0 | 32 |
 
-**3,125% do corpus selecionado** completou o roteiro no perfil Win10, nas duas
-configurações. É somente o Hello World adaptado. Entre os 31 executáveis de
-aplicações/componentes instalados, nenhum completou seu roteiro. O Flappy
-executou parcialmente; não foi comprovada uma partida jogável.
+**3,125% dthe selected corpus** completed the script in the Win10 profile, in both configurations. It is only the adapted Hello World. 31 executable from applications/components installed, none completed their script. Flappy partially executed; no playable match was proven.
 
-No Win10, as barreiras se repetiram em ambas as configurações:
+In Win10, the barriers were repeated in both configurations:
 
-| Barreira | Aplicações |
+| Barrier | Applications |
 |---|---:|
-| Importações indisponíveis nos modelos automáticos | 25 |
-| Imagem maior que o limite atual: CMake, qBittorrent e Audacity | 3 |
-| Rejeição pelo leitor/loader/kernel: FileZilla e NASM | 2 |
-| Execução parcial: Flappy | 1 |
-| Roteiro observado: Hello World | 1 |
+| Imports unavailable nos templates automatic | 25 |
+| Image larger than the current limit: CMake, qBittorrent and Audacity | 3 |
+| reader/loader/kernel rejection: FileZilla and NASM | 2 |
+| Partial execution: Flappy | 1 |
+| Screenplay observed: Hello World | 1 |
 
-FileZilla atingiu `Import directory quota`. NASM foi rejeitado pelo loader,
-com `error=7` e status do kernel 50712; não foi uma falha de execução nativa do
-NASM no Windows. O Flappy esbarra em recursos auxiliares e limitações do CRT.
-Ocorrências frequentes incluem `kernel32!FormatMessageW` e exports de MSVCRT
-x86. Um símbolo ausente do modelo pode existir em outro pacote; o relatório
-não o transforma automaticamente em API sem implementação em todo o projeto.
+FileZilla has reached `Import directory quota`. NASM has been rejected by the loader, with `error=7` and kernel status 50712; it was not a native NASM execution failure on Windows. Flappy bumps into CRT auxiliary features and limitations. Frequent occurrences include `kernel32!FormatMessageW` and MSVCRT x86 exports. A missing model symbol may exist in another package; the report does not automatically transform it into an API without implementation throughout the project.
 
-O runtime unificado oferece apenas o perfil Win10. Não foi avaliada conformidade
-nativa dos builds exatos 7601, 19045 e 22631. Componentes extraídos de uma
-instalação Windows mais nova podem exigir aquele sistema; seus resultados aqui
-não demonstram regressão em comparação com Windows 10 real. A seleção por perfil
-e as referências nativas precisam ser ampliadas numa futura campanha.
+Unified runtime offers only the Win10 profile. Native compliance of exact builds 7601, 19045 and 22631 has not been evaluated. Components extracted from a newer Windows installation may require that system; its results here do not demonstrate regression compared to actual Windows 10. Profile selection and native references need to be expanded in a future campaign.
 
-As 192 células são 32 aplicações × três perfis × duas configurações; não são
-192 aplicações nem 192 execuções de aplicativos no convidado. Houve 64 chamadas
-de avaliação ao controlador, e 128 células de perfil não oferecido. Nenhuma
-categoria atingiu 50%; console chegou a 25%. A meta de 75% por perfil não foi
-atingida. Contagem de funções catalogadas não equivale a aplicações funcionais.
+As 192 cells are 32 applications × three profiles × two configurations; are not 192 applications or 192 executions of apps on the guest. 64 the controller’s assessment calls, and 128 profile cells not offered. No category reached 50%; console has reached 25%. 75% by profile has not been reached. Cataloged function count does not equal functional applications.
 
-## Desempenho e limites da observação
+## Observation performance and limits
 
-Cada célula executada registra tempo total, CPU, picos de working set/commit
-privado e bytes de I/O **do controlador**, incluindo preparação e relatórios.
-Os dados não incluem processos de RAM/helper, não medem RAM física total e não
-devem ser apresentados como consumo total do sandbox. Os boots registram
-separadamente RAM configurada da VM, 256 MiB, e duração do trecho do convidado.
+Each executed cell records total time, CPU, set/commit peaks, private I/O and bytes of the controller**, including preparation and reports. Data does not include RAM/helper processes, do not measure total physical RAM and should not be presented as total Sandbox consumption. Boots separately record configured RAM from VM, 256 MiB, and duration of the guest snippet.
 
-A mediana de tempo do controlador foi aproximadamente 176 ms em Release e
-172 ms em Debug, dominada pelas recusas de preparação. Os maiores picos de
-commit privado do controlador foram aproximadamente 23,81 e 32,79 MiB.
-São observações de uma rodada sob carga do host, sem referência nativa,
-intervalos estatísticos ou comparação de desempenho entre sistemas NT.
-Não medem desempenho de uma aplicação funcional típica nem garantem ausência
-de vazamentos em uso prolongado.
+The controller's median time was approximately 176 ms in Release and 172 ms in Debug, dominated by the preparation refusals. The controller's largest private commit peaks were approximately 23.81 and 32.79 MiB. They are observations of a round under host load, without native reference, statistical intervals or performance comparison between NT systems. They do not measure performance of a typical functional application nor guarantee absence of leaks in prolonged use.
 
-## Pendências anteriores e prontidão para a fase 15
+## Previous pendencies and readiness for phase 15
 
-As suítes completas das fases antigas não foram repetidas. O resultado Windows
-de [12B–13](REVISAO-WINDOWS-FASES12B-13-20261023.md) é histórico; esta campanha
-não o invalida e também não o converte em compatibilidade ampla.
+The complete suites of the old phases have not been repeated. The Windows result of [12B–13](WINDOWS-PHASES12B-13-REVIEW-20261023.md) is historical; this campaign does not invalidate it and does not convert it into broad compatibility.
 
-| Área anterior | Limite relevante preservado | Efeito na próxima fase |
+| Area anterior | Relevant limit preserved | Effect on the next phase |
 |---|---|---|
-| 8 e 14.2–14.12: PE, DLLs, processos | ABI, arquiteturas, imagens e APIs parciais; não é um NT completo | Exigir resultado inconclusivo quando faltar cobertura |
-| 9–10 e 14.9: dispositivos/rede | Este fluxo está offline, sem fixture de rede dos roteiros | Não alegar análise de comportamento de rede real nesta campanha |
-| 11, 12F e 14.10: gráficos/entrada | Ponte de janelas e chamadas tipadas, sem compatibilidade gráfica total | UI do produto deve explicar recurso indisponível |
-| 12B–12E: ambiente/semântica | Comparação exata com versões NT e avaliação representativa continuam pendentes | Nenhuma alegação de invisibilidade do sandbox |
-| 13: análise | Telemetria de operações instrumentadas; nem toda função local de DLL gera evento | Compatibilidade não mede detecção de malware |
-| 14.13: recuperação | USER32 básico, uma vCPU; GDI/DirectX/áudio vivos e conexões abertas fora do contrato | Quarentena não pode depender de um snapshot completo de qualquer app |
+| 8 and 14.2–14.12: PE, DLLs, cases | ABI, architectures, images and partial APIs; not a full NT | Require inconclusive result when no coverage |
+| 9–10 and 14.9: devices/network | This stream is offline, no network fixture of the scripts | Do not claim real network behavior analysis in this campaign |
+| 11, 12F and 14.10: graphs/entry | Window bridge and typed calls without full graphical compatibility | Product UI should explain resource unavailable |
+| 12B-12E: environment/semantics | Exact comparison with NT versions and representative evaluation remain pending | No claims of sandbox invisibility |
+| 13: Analysis | Telemetry of instrumented operations; not every local DLL function generates event | Compatibility does not measure malware detection |
+| 14.13: recovery | Basic USER32, a vCPU; living GDI/DirectX/audio and open connections outside the contract | Quarantine cannot depend on a full snapshot of any app |
 
-**Pronto para começar a implementação da fase 15, com escopo de produto básico;
-não pronto para lançamento com promessa de compatibilidade ampla.** A quarentena
-pode ser desenvolvida/testada com arquivos inertes e a verificação estática,
-sem depender de executar programas incompatíveis no MiniNT.
+**Ready to start implementation of phase 15, with basic product scope; not ready to launch with broad compatibility promise.**Quanity can be developed/tested with inert files and static verification, without relying on running incompatible programs in MiniNT.
 
-A revisão de `src/Quarantine.cpp` encontrou armazenamento XOR simples,
-metadados não transacionais e um fallback de truncamento do original após falha
-de exclusão. A fase 15 deve substituir esse fluxo antes de sua aceitação:
-integridade, identidade do arquivo, permissões, publicação durável, conflitos,
-falta de espaço e falhas precisam preservar o original. A campanha não acionou
-essa quarentena nem modificou os arquivos originais dos programas.
+The `src/Quarantine.cpp` review found simple XOR storage, non-transactional metadata, and a truncating fallback of the original after deletion failure. Phase 15 should replace this flow before its acceptance: integrity, file identity, permissions, durable publication, conflicts, lack of space, and failures need to preserve the original. The campaign did not trigger this quarantine or modify the original files of the programs.
 
-Os próximos lotes de compatibilidade ficam registrados: argumentos e assets
-explícitos; CRT/API-set/ordinais e funções centrais x86; quotas/loader para os
-casos identificados; depois roteiros completos, referências e perfis NT.
-Esses lotes não foram iniciados. Não há medição de eficácia antimalware,
-falsos positivos, resistência a escape ou certificação de lançamento aqui.
+Next batches of compatibility are recorded: explicit arguments and asset; CRT/API-set/ordinais and central functions x86; quotas/loader for identified cases; then complete scripts, references and NT profiles. These batches have not been started. There is no measurement of antimalware efficacy, false positives, escape resistance or release certification here.
 
-## Reprodução e pacote
+## Playout and package
 
 ```text
 python test/CompatibilityCampaignTests.py RESULTADO.json
@@ -185,15 +97,6 @@ python tools/compatibility_campaign.py run --plan PLANO --cache CACHE_CONGELADO 
 python tools/compatibility_campaign.py report --plan PLANO --release RESULTADOS_RELEASE --debug RESULTADOS_DEBUG --output RELATORIO.json
 ```
 
-O cache local exige os mesmos bytes por SHA-256; versões diferentes requerem
-um novo plano, sem sobrescrever a campanha histórica. Caminhos locais não vão
-ao GitHub público. `test/CompatibilityCampaignTests.py` aprovou **24/24** casos
-de política, identidade, denominadores, oráculos, integridade e erros de
-infraestrutura. Isso valida a medição, não aprova compatibilidade dos programas.
+The local cache requires the same bytes by SHA-256; different versions require a new plan, without overwriting the historical campaign. Local paths do not go to public GitHub. `test/CompatibilityCampaignTests.py` has approved **24/24** cases of policy, identity, denominators, oracles, integrity and infrastructure errors. This validates the measurement, does not approve compatibility of the programs.
 
-`tools/package_compatibility_campaign.py` exige as provas atuais em Release e
-Debug e esses testes. O arquivo privado contém fontes, controladores próprios
-e evidências, sem EXEs de terceiros, DLLs Microsoft ou snapshots de memória.
-A extração é conferida por hash; o coletor e os testes são executados a partir
-do pacote, incluindo um caso funcional, uma recusa por importações e perfis
-sem suporte. A fase 15 aguarda nova solicitação.
+`tools/package_compatibility_campaign.py` requires current evidence in Release and Debug and these tests. The private file contains sources, own controllers and evidence without third-party EXEs, Microsoft DLLs or memory snapshots. Extract is checked by hash; the collector and tests are executed from the package, including a functional case, a refusal by imports and unsupported profiles. Phase 15 awaits further request.

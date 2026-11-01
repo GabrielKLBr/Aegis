@@ -1,94 +1,48 @@
-# Mutexes e semáforos do MiniNt — 16/10/2026
+# MiniNt Mutexes and traffic lights — 16/10/2026
 
-Esta etapa continua o núcleo existente em
-`D:\Desktop Folders (DO NOT ERASE)\AntiVirus`, usando WHP diretamente.
-Os objetos e as filas vivem no MiniNt; handles do convidado não se tornam
-handles de sincronização do Windows host.
+This step continues the existing core in `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`, using WHP directly. Objects and queues live in MiniNt; guest handles do not become Windows host synchronization handsets.
 
-## Operações implementadas
+## Operations implemented
 
-| Operação | Comportamento |
+| Operation | Behavior |
 |---|---|
-| `NtCreateSemaphore` | Cria um semáforo sem nome, com contagens inicial e máxima válidas. |
-| `NtReleaseSemaphore` | Acrescenta uma quantidade positiva, verifica o máximo antes de alterar o estado e pode retornar a contagem anterior. |
-| `NtQuerySemaphore` | Retorna as contagens corrente e máxima em oito bytes. |
-| `NtCreateMutant` | Cria um mutex sem nome, livre ou inicialmente pertencente à thread corrente. |
-| `NtReleaseMutant` | Só a thread dona pode liberar; aquisições recursivas exigem liberações correspondentes. |
-| `NtQueryMutant` | Retorna contagem, propriedade pela thread chamadora e estado de abandono, em oito bytes. |
-| `NtWaitForSingleObject` | Espera também em semáforos e mutexes, com poll, timeout relativo/absoluto ou bloqueio conforme o escalonador existente. |
+| `NtCreateSemaphore` | Creates a nameless traffic light, with initial and maximum valid counts. |
+| `NtReleaseSemaphore` | Add a positive amount, check the maximum before changing the state and can return the previous count. |
+| `NtQuerySemaphore` | Returns current and maximum counts in eight bytes. |
+| `NtCreateMutant` | Creates a nameless mutex, free or initially belonging to the current thread. |
+| `NtReleaseMutant` | Only a thread owner may release; acquisitions recursivas require releases correspondent. |
+| `NtQueryMutant` | Returns count, property by the caller thread and abandonment status, in eight bytes. |
+| `NtWaitForSingleObject` | It also waits in traffic lights and mutexes, with poll, timeout relative/absolute or blocking according to the existing scheduler. |
 
-As criações validam a saída, atributos, direitos e contagens antes de publicar
-um handle. Nomes, diretórios de objetos e descritores de segurança continuam
-fora deste subconjunto. `NtOpenSemaphore` e `NtOpenMutant` retornam
-`STATUS_NOT_SUPPORTED`; não fabricam handles para objetos com nome.
+Creations validate output, attributes, rights, and counts before publishing a handle. Names, directories of objects and security descriptors remain outside this subset. `NtOpenSemaphore` and `NtOpenMutant` return `STATUS_NOT_SUPPORTED`; do not manufacture handles for named objects.
 
-## Contagens e transferência
+## Counts and transfer
 
-Um semáforo tem contagem entre zero e seu máximo positivo, limitado a `INT32_MAX`.
-Uma espera satisfeita consome uma unidade. Uma liberação que excederia o máximo
-retorna `STATUS_SEMAPHORE_LIMIT_EXCEEDED` sem alterar a contagem. Valores de
-liberação nulos ou negativos são recusados.
+A traffic light has a countdown between zero and its positive maximum, limited to `INT32_MAX`. A satisfied wait consumes a unit. A release that would exceed the maximum returns `STATUS_SEMAPHORE_LIMIT_EXCEEDED` without changing the count. Null or negative release values are refused.
 
-Quando existem waiters, a liberação reserva uma unidade para cada espera
-concluída antes de permitir que a thread chamadora continue. Portanto, ela não
-pode consumir com um poll a unidade já destinada a outra thread. Uma thread
-suspensa pode ter sua espera concluída e sua unidade reservada; sua suspensão
-continua impedindo a execução. O semáforo não tem proprietário e o término de
-uma thread não devolve automaticamente unidades já consumidas.
+When there are waiters, the release reserves a unit for each wait completed before allowing the caller thread to continue. Therefore, it cannot consume with one poll the drive already destined to another thread. A suspended thread may have its wait completed and its drive booked; its suspension continues preventing execution. The traffic light has no owner and the termination of a thread does not automatically return units already consumed.
 
-O mutex mantém ID da dona e profundidade de recursão nos metadados do host.
-A contagem consultada é `1 - profundidade`: um quando livre, zero na primeira
-aquisição e valores negativos nas seguintes. A recursão não pode fazer essa
-contagem ultrapassar o limite inferior de um `LONG`. Neste subconjunto, o limite
-é comunicado por `STATUS_MUTANT_LIMIT_EXCEEDED`, sem injetar uma exceção NT no
-convidado.
+The mutex keeps owner ID and recursion depth in the host metadata. The checked count is `1 - profundidade`: one when free, zero in the first acquisition and negative values in the following. The recursion cannot make this count exceed the lower limit of a `LONG`. In this subset, the limit is communicated by `STATUS_MUTANT_LIMIT_EXCEEDED` without injecting an NT exception into the guest.
 
-Na última liberação, o mutex é atribuído à próxima thread elegível antes de
-concluir sua espera. Outra thread não pode adquiri-lo entre a sinalização e a
-retomada da dona escolhida. O modelo usa a ordem FIFO de espera para esses dois
-objetos; isso é uma escolha desta implementação, não uma garantia de ordem das
-APIs do Windows.
+In the last release, the mutex is assigned to the next eligible thread before completing its wait. Another thread cannot acquire it between the signage and the return of the chosen owner. The model uses the FIFO waiting order for these two objects; this is a choice of this implementation, not a guarantee of order of Windows APIs.
 
-Os novos caminhos do escalonador expiram os prazos antes de escolher um waiter.
-Uma espera já expirada retorna `STATUS_TIMEOUT` e não consome a liberação nem
-recebe propriedade posteriormente. A política continua sendo cooperativa, em
-uma única vCPU, sem preempção.
+The new scheduler paths expire the deadlines before choosing a waiter. An already expired wait returns `STATUS_TIMEOUT` and does not consume the release or receive ownership later. The policy remains cooperative, in a single vCPU, without preemption.
 
-## Abandono e vida útil
+## Abandonment and useful life
 
-Quando uma thread termina, todos os mutexes que ela possui são abandonados,
-independentemente da profundidade de recursão. Isso vale para o retorno natural
-da rotina e para `NtTerminateThread` sobre outra thread, inclusive uma dona que
-recebeu propriedade enquanto estava suspensa.
+When a thread ends, all the mutexes it has are abandoned, regardless of the recursion depth. This goes for the natural return of the routine and for `NtTerminateThread` over another thread, including a owner who received property while suspended.
 
-O próximo adquirente recebe `STATUS_ABANDONED_WAIT_0` (`0x80`) e passa a ser o
-dono. O estado de abandono é consumido nessa aquisição; uma aquisição recursiva
-seguinte retorna sucesso normal. Se não houver waiter, o objeto permanece
-livre e marcado como abandonado até a próxima aquisição. O resultado informa
-a perda da dona anterior; não repara os dados que ela protegia.
+The next acquirer receives `STATUS_ABANDONED_WAIT_0` (`0x80`) and becomes the owner. The abandonment status is consumed in this acquisition; a next recursive acquisition returns normal success. If there is no waiter, the object remains free and marked as abandoned until the next acquisition. The result informs the loss of the previous owner; it does not repair the data it protected.
 
-Uma espera mantém referência ao objeto mesmo se seu handle for fechado por
-outra thread. Mutexes possuídos também mantêm referência de propriedade depois
-do fechamento do último handle, até liberação ou término da dona. Essa lista
-tem limite próprio de 4096 objetos para que criar, adquirir e fechar handles
-repetidamente não permita crescimento ilimitado. O término do processo limpa
-essas referências sem tentar executar waiters de um processo já encerrado.
+A wait keeps reference to the object even if its handle is closed by another thread. Owned mutexes also maintain property reference after closing the last handle, until release or termination of the owner. This list has its own limit of 4096 objects to create, acquire and close handles repeatedly does not allow unlimited growth. The termination of the process clears these references without trying to execute waiters of an already closed process.
 
-## Direitos e ABI
+## Rights and ABI
 
-Os novos tipos usam a mesma tabela de handles, duplicação com direitos reduzidos
-e flags de fechamento das etapas anteriores. Esperar exige `SYNCHRONIZE`;
-consultar exige o bit de consulta `0x1`; liberar semáforo exige `0x2`.
-Liberar mutex exige um handle do tipo correto e propriedade pela thread
-chamadora, inclusive através de um alias sem direitos adicionais.
+The new types use the same handles table, duplication with reduced rights and closing flags of the previous steps. Waiting requires `SYNCHRONIZE`; query requires the `0x1` query bit; releasing traffic lights requires `0x2`. Freeing mutex requires a handle of the correct type and property by the caller thread, including through an alias without additional rights.
 
-Contagens anteriores e comprimentos retornados ocupam exatamente quatro bytes.
-Buffers, parâmetros de pilha e timeouts passam pelas verificações de limites
-de RAM, permissões WHP e regiões virtuais. Saídas inválidas são recusadas antes
-de consumir ou liberar recursos. A consulta básica rejeita sobreposição entre
-o buffer de dados e seu comprimento retornado.
+Previous counts and returned lengths occupy exactly four bytes. Buffers, stack parameters, and timeouts go through RAM limit checks, WHP permissions, and virtual regions. Invalid outputs are refused before consuming or releasing resources. The basic query rejects overlap between the data buffer and its returned length.
 
-## Testes e compilação
+## Tests and compilation
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Release
@@ -96,67 +50,48 @@ o buffer de dados e seu comprimento retornado.
 .\Build-Kernel.ps1 -Configuration Release -FullBuild
 ```
 
-A suíte passa de oito para dez testes:
+The suite goes from eight to ten tests:
 
-- `microvm_synchronization` verifica limites, overflow, recursão, abandono,
-  transferência após expiração, suspensão e máscaras de direitos. O tempo é
-  fornecido à política; o limite de recursão é reduzido nesse teste para que
-  sua borda possa ser exercitada sem bilhões de aquisições.
-- `microvm_synchronization_guest` executa programas x64 gerados pelo teste em
-  ring 3. Verifica contagens e canários de saída, handles reduzidos, dois waiters,
-  reserva de unidades para thread suspensa, fechamento de handle durante espera,
-  timeout real, liberação recursiva, rejeição de outra dona, transferência e
-  abandono por término natural e forçado.
+- `microvm_synchronization` checks limits, overflow, recursion, abandonment,
+  transfer after expiration, suspension and rights masks. Time is provided to politics; the recursion limit is reduced in this test so that its edge can be exercised without billions of acquisitions.
+- `microvm_synchronization_guest` runs x64 programs generated by the test in
+  ring 3. Checks output counts and canaries, reduced handles, two waiters, reserve units for suspended thread, closing of handle during waiting, real timeout, recursive release, rejection of another owner, transfer and abandonment by natural and forced termination.
 
-Os cenários de VM executam sequencialmente, cada um com sua instância WHP.
-Os slots de resultados começam com sentinelas para detectar continuações que
-não executaram. Uma espera cuja thread é terminada antes da retomada deve
-preservar sua sentinela. Não são usadas amostras de malware.
+VM scenarios run sequentially, each with its WHP instance. The results slots start with sentries to detect non-executed continuations. A wait whose thread is completed before resuming should preserve your sentinel. No malware samples are used.
 
-## Limites restantes
+## Remaining limits
 
-Esperas múltiplas, alertas/APCs, timers de objetos, namespace de objetos com
-nome, ACLs e processos adicionais continuam pendentes. Uma espera indefinida
-em semáforo ainda sem escalonador ativo segue a recusa já documentada; quando
-o escalonador está ativo, deadlock sem prazo interrompe a VM com diagnóstico.
-Snapshots ainda não restauram o estado completo do MiniNt.
+Multiple waits, alerts/APCs, object timers, namespace of objects with name, ACLs and additional processes remain pending. An undefined wait in traffic light yet without active scheduler follows the already documented refusal; when the scheduler is active, deadlock without deadline interrupts the VM with diagnosis. Snapshots still do not restore the full state of MiniNt.
 
-Esta etapa não transforma o MiniNt em um kernel NT completo ou inicializável
-sem host. As limitações de contexto, loader e isolamento descritas em
-[KERNEL-THREADS.md](KERNEL-THREADS.md) continuam aplicáveis.
+This step does not transform MiniNt into a complete or bootable NT kernel without host. The context limitations, loader and isolation described in [KERNEL-THREADS.md](KERNEL-THREADS.md) remain applicable.
 
-## Resultados verificados
+## Verified results
 
-Validação concluída em 16/10/2026, com execução real dos testes WHP:
+Validation completed in 16/10/2026, with actual execution of the WHP tests:
 
-| Verificação | Release | Debug |
+| Scan | Release | Debug |
 |---|---:|---:|
-| Testes CTest aprovados | 10/10 | 10/10 |
-| Testes ignorados | 0 | 0 |
-| Exemplos existentes aprovados | 7/7 | 7/7 |
+| CTest tests approved | 10/10 | 10/10 |
+| Tests ignored | 0 | 0 |
+| Examples existing approved | 7/7 | 7/7 |
 
-A compilação completa em Release gerou os 41 executáveis previstos. Os builds
-finais em Release e Debug não emitiram avisos nem erros do compilador.
-Os exemplos verificados foram `vmntdll`, `vmntfile`, `vmntsect`, `vmntimage`,
-`vmntquery`, `vmntreg` e `vmwininit`.
+The complete Release compilation generated the 41 expected executables. The final Release and Debug builds did not issue notices or compiler errors. The verified examples were `vmntdll`, `vmntfile`, `vmntsect`, `vmntimage`, `vmntquery`, `vmntreg` and `vmwininit`.
 
-Os arquivos anteriores estão preservados em
-`snapshots/codex-before-sync-20261016-144033/`. As evidências ficam em
-`build-codex/`:
+Previous files are preserved in `snapshots/codex-before-sync-20261016-144033/`. Evidence remains in `build-codex/`:
 
-- `sync-full-release-script.log` e `sync-debug-script.log`: builds e dez testes
-  em cada configuração.
-- `sync-release-tests-details.log` e `sync-debug-tests-details.log`: saída
-  detalhada dos testes, incluindo os cenários novos.
-- `sync-regressions.json`: saída e código de retorno dos 14 exemplos.
-- `sync-whp-availability.json`: consulta de disponibilidade do hipervisor.
-- `sync-change-manifest.json`: hashes SHA-256 dos arquivos alterados e novos,
-  localização da cópia anterior e contagens de validação.
+- `sync-full-release-script.log` and `sync-debug-script.log`: builds and ten tests
+  in each configuration.
+- `sync-release-tests-details.log` and `sync-debug-tests-details.log`: output
+  detailed testing, including new scenarios.
+- `sync-regressions.json`: output and return code of the 14 examples.
+- `sync-whp-availability.json`: hypervisor availability consultation.
+- `sync-change-manifest.json`: hashes SHA-256 of the changed and new files,
+  location of the previous copy and validation counts.
 
-## Referências
+## References
 
-- [Declarações NT e estruturas no phnt](https://github.com/winsiderss/phnt/blob/master/ntexapi.h)
-- [Semáforos — Microsoft](https://learn.microsoft.com/en-us/windows/win32/sync/semaphore-objects)
-- [Mutexes, recursão e abandono — Microsoft](https://learn.microsoft.com/en-us/windows/win32/sync/mutex-objects)
-- [Direitos de objetos de sincronização — Microsoft](https://learn.microsoft.com/en-us/windows/win32/sync/synchronization-object-security-and-access-rights)
-- [Espera e limite do mutex — Microsoft](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-kewaitforsingleobject)
+- [ NT Declarations and structures in phnt](https://github.com/winsiderss/phnt/blob/master/ntexapi.h)
+- [Lights — Microsoft](https://learn.microsoft.com/en-us/windows/win32/sync/semaphore-objects)
+- [Mutexes, recursion and abandonment — Microsoft](https://learn.microsoft.com/en-us/windows/win32/sync/mutex-objects)
+- [Sync object rights — Microsoft](https://learn.microsoft.com/en-us/windows/win32/sync/synchronization-object-security-and-access-rights)
+- [Wait and limit of mutex — Microsoft](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-kewaitforsingleobject)

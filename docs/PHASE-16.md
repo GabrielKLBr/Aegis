@@ -1,164 +1,56 @@
-# Fase 16 — Serviço de proteção, IPC e tempo real
+# Phase 16 — Protection service, IPC, and real-time monitoring
 
-A proteção passa a trabalhar no serviço Windows, com fila e política persistentes,
-monitoramento após alterações de arquivos, agendamento, notificações e cofre
-protegido. O trabalho continua sem o aplicativo aberto. Esta entrega não altera a
-compatibilidade do MiniNT nem repete as campanhas 12F–14.x.
+Protection now runs in the Windows service, with persistent policy and queue, monitoring after file changes, scheduling, notifications, and a protected vault. Work continues when the application is closed. This delivery does not change MiniNT compatibility or repeat the 12F–14.x campaigns.
 
-## Uso no aplicativo
+## Using the application
 
-Abra **Proteção** para consultar o estado real, iniciar varredura rápida, completa
-ou de uma pasta, acompanhar a fila e cancelar uma varredura manual. **Proteger
-pasta** adiciona a pasta escolhida, ativa o monitoramento e o isolamento das
-**detecções confirmadas**. Pausar/retomar, proteger pastas, desligar o serviço do
-antivírus, restaurar conteúdo e excluir do cofre exigem um cliente com autorização
-administrativa. O aplicativo não inicia uma elevação automaticamente nessas ações;
-a recusa do serviço aparece na interface. O serviço MiniNT mantém seu controle
-separado. A configuração inicial não seleciona pastas nem habilita isolamento
-sobre arquivos pessoais sem uma escolha explícita.
+Open **Protection** to inspect the actual status, start a quick, full, or folder scan, track the queue, and cancel a manual scan. **Protect folder** adds the selected folder and enables monitoring and quarantine of **confirmed detections**. Pausing/resuming protection, protecting folders, stopping the antivirus service, restoring content, and deleting vault entries require an administrator-authorized client. The application does not automatically request elevation for these actions; service refusals appear in the interface. The MiniNT service retains its separate controls. Initial configuration does not select folders or enable quarantine of personal files without an explicit choice.
 
-A página mostra quando a proteção está pausada, incompleta, sem sessão do usuário
-ou com notificações de falha. A interface anterior de varredura continua disponível
-para sessões interativas; a fila persistente e o monitor são acessados pela página
-Proteção. A migração completa de interface, acessibilidade e idiomas permanece na
-fase 17.
+The page indicates paused or incomplete protection, a missing user session, and failure notifications. The previous scanning interface remains available for interactive sessions; the persistent queue and monitor are accessed through Protection. Full migration of the interface, accessibility, and languages remains in phase 17.
 
-## Supervisão e autorização
+## Supervision and authorization
 
-O supervisor roda como LocalSystem, com lista de privilégios necessários ao IPC,
-criação de processos e obtenção do token da sessão do proprietário da instalação.
-Não conserva SeDebug/SeBackup/SeRestore para inspecionar arquivos arbitrariamente.
-Os parsers executam com token restrito do usuário, integridade média, limites de
-memória/processos e job encerrado com o supervisor. Os objetos de processo/thread
-dos workers pertencem ao SYSTEM e não concedem escrita/terminação à conta comum.
+The supervisor runs as LocalSystem with the privileges required for IPC, process creation, and obtaining the installation owner's session token. It does not retain SeDebug/SeBackup/SeRestore to inspect arbitrary files. Parsers run with a restricted user token, medium integrity, memory/process limits, and a Job that closes with the supervisor. Worker process/thread objects belong to SYSTEM and do not grant modification/termination rights to the ordinary account.
 
-O endpoint rejeita clientes remotos, processos de baixa integridade e usuários que
-não sejam o proprietário instalado. O cliente verifica o PID publicado pelo SCM;
-o supervisor verifica o PID do worker e usa um pipe aleatório por execução.
-Operações internas 25/26 não podem ser invocadas no endpoint público. Há quatro
-conexões frontais limitadas. A capacidade de execução automática é separada da
-manual: uma varredura manual longa não ocupa o worker reservado ao monitor.
+The endpoint rejects remote clients, low-integrity processes, and users other than the installation owner. The client checks the PID published by SCM; the supervisor checks the worker PID and uses a random pipe for each execution. Internal operations 25/26 cannot be invoked through the public endpoint. There are four bounded front-end connections. Automatic execution capacity is separate from manual execution: a long manual scan does not occupy the worker reserved for monitoring.
 
-A autorização administrativa é conferida no token autenticado **antes** da sua
-redução. O conteúdo de um JSON não concede privilégios. Configurar/excluir/restaurar
-e cancelar tarefas automáticas exigem administrador; consultar estado, ler avisos,
-solicitar varreduras e cancelar as próprias tarefas manuais não exigem elevação.
-Arquivos de pedido são lidos com a identidade restrita do cliente, com limite de
-64 KiB. O supervisor abre origens e destinos usando os direitos dessa identidade,
-nunca aproveitando os direitos SYSTEM sobre caminhos enviados pelo cliente.
+Administrative authorization is checked in the authenticated token **before** reducing it. JSON content does not grant privileges. Configuration, deletion, restoration, and cancellation of automatic tasks require an administrator; status queries, notifications, scan requests, and cancellation of the caller's own manual tasks do not require elevation. Request files are read using the client's restricted identity, with a 64 KiB limit. The supervisor opens sources and destinations using that identity's permissions, never taking advantage of SYSTEM rights over client-supplied paths.
 
-A instalação protege proprietário e DACL dos binários/slots, inclusive contra
-mudança de DACL pela conta comum que instalou o programa. O antivírus recebe início
-automático atrasado e recuperação pelo SCM após falha. A conta sem elevação pode
-consultar/iniciar o antivírus, mas não pará-lo ou mudar sua configuração. Os slots
-anteriores são conservados para recuperação. A atualização não desativa o Defender
-nem instala um driver.
+Installation protects ownership and DACLs of binaries/slots, including against DACL changes by the ordinary account that installed the program. The antivirus uses delayed automatic startup and SCM recovery after failure. The unelevated account can query/start the antivirus, but cannot stop it or change its configuration. Previous slots are retained for recovery. The update neither disables Defender nor installs a driver.
 
-## Cofre protegido
+## Protected vault
 
-O estado do serviço reside no ProgramData conhecido pelo Windows, em
-`AegisProtection16`. Estado, política, fila e chaves não são gravados na pasta do
-aplicativo ou em um diretório controlado pelo cliente. Diretórios são protegidos e
-recebem proprietário SYSTEM. Diretórios/estado preexistentes pertencentes a uma
-conta comum, links/reparse points e hardlinks de estado são recusados.
+Service state resides in the Windows-known ProgramData directory, under `AegisProtection16`. State, policy, queue, and keys are not stored in the application folder or a client-controlled directory. Directories are protected and owned by SYSTEM. Existing directories/state owned by an ordinary account, links/reparse points, and state hardlinks are rejected.
 
-O cofre conserva AES-256-GCM, verificação dos bytes/SHA-256 antes de remover o
-original, exclusão pelo handle e restauração sem substituir arquivos. Sua chave
-agora usa a DPAPI do SYSTEM. Origem e temporário de restauração são abertos com o
-token restrito do usuário; o banco e a chave são acessados somente como SYSTEM.
-O proprietário original e suas ACEs continuam preservados. A cópia cifrada
-permanece até exclusão explícita autorizada. Uma restauração para um diretório
-administrativo não aproveita a elevação do cliente: os direitos restritos precisam
-permitir a escrita.
+The vault retains AES-256-GCM, byte/SHA-256 verification before removing the original, deletion through the handle, and restoration without replacing files. Its key now uses SYSTEM-context DPAPI. Source files and restoration temporary files are opened with the restricted user token; the database and key are accessed only as SYSTEM. Original ownership and ACEs remain preserved. The encrypted copy remains until explicitly authorized deletion. Restoration into an administrative directory does not use the client's elevation: restricted permissions must allow writing.
 
-A GUI e `av clean`/listagem usam esse broker. `guardian-quarantine.exe` permanece
-uma ferramenta de diagnóstico de cofre por usuário; não é um atalho de acesso à
-chave SYSTEM. Cofres anteriores da fase 15 não são removidos nem convertidos
-silenciosamente. Pode-se recuperá-los com a ferramenta da fase 15 e depois isolar
-explicitamente no cofre novo. Migração, exportação e recuperação de credenciais
-fazem parte do ciclo de atualização da fase 18.
+The GUI and `av clean`/listing use this broker. `guardian-quarantine.exe` remains a per-user vault diagnostic tool; it is not a shortcut to the SYSTEM key. Previous phase 15 vaults are neither removed nor silently converted. They can be recovered with the phase 15 tool, followed by explicit quarantine in the new vault. Migration, export, and credential recovery belong to the phase 18 update lifecycle.
 
-Isso protege o armazenamento e as operações administrativas contra um cliente
-comum da mesma conta. Não é PPL, proteção de kernel ou resistência a administrador,
-SYSTEM, credenciais/canais administrativos já autorizados ou controle do Windows.
-Não impede adulteração de arquivos de origem que o próprio usuário pode escrever.
+This protects storage and administrative operations against an ordinary client of the same account. It is not PPL, kernel protection, or resistance against administrators, SYSTEM, already-authorized administrative credentials/channels, or control of Windows. It does not prevent tampering with source files the user can write.
 
-## Monitor, fila, cobertura e agendamento
+## Monitor, queue, coverage, and scheduling
 
-O monitor usa ReadDirectoryChangesW assíncrono, observa criação, modificação,
-renomeação e diretórios e consolida alterações por aproximadamente um segundo.
-Os buffers têm 64 KiB. Notificações vazias, malformadas ou filas excedidas geram
-**coverage-gap** e uma varredura de recuperação; nunca são interpretadas como
-ambiente limpo. O monitor é armado antes da varredura inicial. Reiniciar o serviço
-arma o monitor de novo e solicita nova verificação do escopo configurado. A identidade da pasta é conferida periodicamente; mover ou substituir
-a raiz observada provoca reabertura e varredura de recuperação.
+The monitor uses asynchronous ReadDirectoryChangesW, observes creation, modification, renaming, and directories, and coalesces changes for approximately one second. Buffers are 64 KiB. Empty or malformed notifications and queue overflow produce a **coverage-gap** and a recovery scan; they are never interpreted as a clean environment. The monitor is armed before the initial scan. Restarting the service rearms it and requests another scan of the configured scope. Folder identity is checked periodically; moving or replacing a watched root triggers reopening and a recovery scan.
 
-SQLite mantém política, tarefas e eventos com journal DELETE e synchronous FULL.
-Tarefas interrompidas em execução voltam à fila com marca de recuperação, sem
-prometer continuidade de um snapshot de filesystem: a enumeração é refeita.
-Configuração e cancelamento de tarefas automáticas antigas mudam na mesma
-transação. Marcador/estado ausente ou vazio e configurações ausentes não provocam
-reinicialização silenciosa de um banco já estabelecido.
+SQLite retains policy, tasks, and events with DELETE journaling and synchronous FULL. Interrupted running tasks return to the queue with a recovery marker. This does not promise continuation of a filesystem snapshot: enumeration is repeated. Configuration and cancellation of old automatic tasks change in the same transaction. Missing/empty established state or markers and missing settings do not silently reinitialize an established database.
 
-A fila admite até 128 tarefas pendentes, das quais no máximo 16 manuais. O histórico
-mantém até cerca de 512 tarefas terminadas; o estado retorna as 64 mais recentes.
-Há consolidação de pedidos automáticos ainda na fila, sem tratar uma varredura já
-em andamento como cobertura de uma lacuna posterior. A fila de alterações
-consolidadas é limitada a 1024 caminhos. Limites/falhas ficam visíveis e geram
-recuperação de escopo. Excesso de carga pode atrasar a análise; não há garantia de
-latência contra um produtor ilimitado de alterações.
+The queue admits up to 128 pending tasks, at most 16 of them manual. History retains approximately 512 completed tasks; status returns the 64 most recent. Automatic requests still queued are coalesced, without treating an ongoing scan as coverage of a later gap. The coalesced change queue is limited to 1024 paths. Limits/failures are visible and trigger scope recovery. Excess load may delay analysis; there is no latency guarantee against an unlimited producer of changes.
 
-A varredura rápida usa quickRoots, com fallback para roots e pastas conhecidas do
-usuário. A completa planeja volumes locais fixos, usando somente arquivos legíveis
-pelo token do usuário. A personalizada usa até 16 caminhos. ACLs negadas, quota,
-reparse points e limites de tempo são diferenciados de uma análise concluída.
-Exclusões são caminhos/descendentes normalizados, comparados sem depender da
-localidade linguística; não são padrões glob ou extensões.
+Quick scans use quickRoots, falling back to roots and known user folders. Full scans plan fixed local volumes and use only files readable with the user token. Custom scans accept up to 16 paths. Denied ACLs, quotas, reparse points, and time limits are distinguished from completed analysis. Exclusions are normalized paths/descendants compared independently of linguistic locale; they are not glob patterns or extensions.
 
-Os parsers protegidos ignoram configuração/cache de regras controlados pelo
-usuário: usam regras incorporadas e assinaturas do slot instalado, offline e sem
-executar o arquivo analisado. O marcador sintético de teste é aceito como pequeno
-arquivo sentinela, não como uma assinatura de código-fonte que apenas cite o
-texto do marcador. A validação dessas regras não certifica eficácia antimalware;
-a campanha de eficácia/falsos positivos permanece na fase 19.
+Protected parsers ignore user-controlled rule configuration/cache: they use embedded rules and signatures from the installed slot, offline and without executing the analyzed file. The synthetic test marker is accepted as a small sentinel file, not as a source-code signature that merely quotes the marker. Validating these rules does not certify antimalware effectiveness; effectiveness/false-positive campaigns remain in phase 19.
 
-Agendamentos são periódicos, em segundos UTC, entre 60 segundos e sete dias, até
-16 entradas. O avanço de nextRun e a inclusão do trabalho são transacionais.
-Após indisponibilidade, executa-se uma ocorrência pendente, sem criar uma tempestade
-de ocorrências antigas. A sessão do proprietário é obtida pelo Windows, sem UI
-aberta; sem sessão utilizável, as tarefas aguardam e o estado informa isso.
+Schedules are periodic, use UTC seconds, range from 60 seconds to seven days, and allow up to 16 entries. Advancing nextRun and enqueueing work are transactional. After downtime, one pending occurrence runs without generating a storm of old occurrences. Windows supplies the owner's session without the UI being open; without a usable session, tasks wait and status reports it.
 
-Notificações persistem em até 4096 eventos, com cursor e indicação de lacuna por
-retenção. Detecções/lacunas/falhas também tentam publicar um evento Application do
-Windows, registrando o sucesso dessa publicação. O evento nativo usa o nome do
-arquivo; o caminho completo continua na consulta autenticada do proprietário.
-A aplicação consulta esses avisos e o estado real, sem estados positivos inventados.
+Notifications retain up to 4096 events, with a cursor and retention-gap indication. Detections/gaps/failures also attempt to publish a Windows Application event and record whether publication succeeded. Native events use the filename; the complete path remains available through the owner's authenticated query. The application queries these notifications and the actual status without inventing positive states.
 
-## Limites e escopo da validação
+## Limits and validation scope
 
-O monitor é **posterior à alteração**. Não há minifilter nem bloqueio preventivo de
-execução: um processo pode iniciar antes da análise. Um driver só deve ser adicionado
-quando houver necessidade e implantação/assinatura suportadas. O parser está limitado
-a 32 MiB por arquivo e ao orçamento de inspeção; o cofre conserva seu limite de
-64 MiB. A política admite até 100000 arquivos e 86400 segundos por varredura; o
-padrão é 10000 arquivos/1800 segundos. Atingir limite deixa resultado incompleto.
-A base de estado usa no máximo 32768 páginas SQLite; falta de armazenamento é erro,
-não autorização para descartar dados. Permanecem os limites de caminhos, DACL e
-formatos de origem documentados na fase 15.
+Monitoring happens **after a change**. There is no minifilter or preventive execution blocking: a process may start before analysis. A driver should be added only when needed and with supported deployment/signing. The parser is limited to 32 MiB per file and its inspection budget; the vault retains its 64 MiB limit. Policy permits up to 100000 files and 86400 seconds per scan; defaults are 10000 files/1800 seconds. Reaching a limit leaves an incomplete result. The state database uses at most 32768 SQLite pages; insufficient storage is an error, not permission to discard data. Phase 15 path, DACL, and source-format limits still apply.
 
-Os testes usam arquivos novos e inertes. Validam permissões administrativas reais,
-IPC, arquivo administrativo ilegível para o cliente, isolamento/restauração pelo
-broker, cópia retida, conflitos, exclusões, notificações, mudanças de nome, varreduras,
-concorrência, agenda e recuperação de trabalho após terminar o processo do serviço.
-A integração é executada com os serviços instalados em Release e Debug. As configurações Release e Debug passaram **58/58** casos de integração cada;
-há mais **25/25** casos nativos por configuração. [Resultados por caso](PHASE-16-RESULTS.json).
-Os casos nativos para decoder de notificações e separação do protocolo. Buffers
-malformados/overflow são vetores sintéticos; o encerramento do serviço e as mudanças
-NTFS são reais. Não se realizou reboot/logoff do PC, corte físico de energia,
-certificação de carga ilimitada, eficácia com malware ou bateria completa de cliques
-da GUI. A GUI é compilada e seus contratos de serviço são exercitados.
+Tests use new, inert files. They validate actual administrative permissions, IPC, an administrative file unreadable by the client, broker quarantine/restoration, retained copies, collisions, exclusions, notifications, renaming, scans, concurrency, schedules, and work recovery after terminating the service process. Integration runs against services installed in Release and Debug. Each configuration passed **58/58** integration cases and **25/25** native cases. [Per-case results](PHASE-16-RESULTS.json). Native cases cover notification decoding and protocol separation. Malformed/overflow buffers use synthetic vectors; service termination and NTFS changes are real. No PC reboot/logoff, physical power cut, unlimited-load certification, malware effectiveness evaluation, or full GUI click suite was performed. The GUI was compiled and its service contracts exercised.
 
-## Reprodução e ferramentas
+## Reproduction and tools
 
 ```text
 guardian-engine-service --protection-status
@@ -168,24 +60,8 @@ guardian-engine-service --protection-cancel cancel.json
 guardian-engine-service --protection-events cursor.json
 ```
 
-Use [o exemplo de política](../config/protection-policy.example.json) com schema 1.
-Pedidos de varredura usam mode quick/full/custom e paths quando personalizados;
-cancelamento usa id; notificações usam after. Agenda é uma lista de
-`{id, mode, paths, intervalSeconds, nextRun}`. Pedidos do cofre conservam schema 2.
+Use [the policy example](../config/protection-policy.example.json) with schema 1. Scan requests use mode quick/full/custom and paths for custom scans; cancellation uses id; notifications use after. Schedules are a list of `{id, mode, paths, intervalSeconds, nextRun}`. Vault requests retain schema 2.
 
-`tools/validate_protection.py` prepara fixtures e executa as etapas sem elevação;
-`tools/validate_protection_admin.py` executa explicitamente as etapas administrativas
-em terminal já autorizado. As ferramentas não tentam elevar sua própria execução.
-A ordem é prepare, basic, configure (admin), monitor, release (admin), schedule
-(admin), recovery-submit, crash (admin), recovery-check, restart (admin), cleanup
-(admin), final. Cada etapa usa a mesma pasta nova e --config Release/Debug.
-A política anterior é restaurada e apenas entradas da fixture são excluídas.
-`tools/package_protection.py` exige ambas as provas atuais, conserva fontes e
-binários próprios e exclui bancos, chaves, pedidos locais, referências Microsoft,
-estado de usuários e catálogos locais de execução. O pacote extraído recebe nova
-conferência de hashes e execução dos contratos desta fase.
+`tools/validate_protection.py` prepares fixtures and runs unelevated stages; `tools/validate_protection_admin.py` explicitly runs administrative stages in an already-authorized terminal. The tools do not attempt to elevate themselves. Stage order is prepare, basic, configure (admin), monitor, release (admin), schedule (admin), recovery-submit, crash (admin), recovery-check, restart (admin), cleanup (admin), final. Each stage uses the same fresh folder and --config Release/Debug. The previous policy is restored and only fixture entries are deleted. `tools/package_protection.py` requires both current proofs, retains owned source and binaries, and excludes databases, keys, local requests, Microsoft references, user state, and local runtime catalogs. The extracted package receives another hash check and execution of this phase's contracts.
 
-Referências oficiais: [notificações de diretório](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw),
-[token da sessão](https://learn.microsoft.com/en-us/windows/win32/api/wtsapi32/nf-wtsapi32-wtsqueryusertoken),
-[acesso com identidade do usuário](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-impersonateloggedonuser),
-[segurança dos serviços](https://learn.microsoft.com/en-us/windows/win32/services/service-security-and-access-rights).
+Official references: [directory notifications](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw), [session token](https://learn.microsoft.com/en-us/windows/win32/api/wtsapi32/nf-wtsapi32-wtsqueryusertoken), [access under the user's identity](https://learn.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-impersonateloggedonuser), [service security](https://learn.microsoft.com/en-us/windows/win32/services/service-security-and-access-rights).

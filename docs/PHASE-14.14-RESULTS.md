@@ -1,19 +1,19 @@
-# Resultados da campanha 14.14
+# Results of the 14.14 campaign
 
-Amostra de conveniência congelada antes dos testes; não representa todo o ecossistema Windows.
+Frozen convenience sample before testing; does not represent the entire Windows ecosystem.
 
-| Configuração | Perfil | Avaliados | Funcionais | Parciais | Incompatíveis | Não avaliados | Meta atingida |
+| Configuration | Profile | Evaluated | Functional | Partial | Incompatible | Not evaluated | Meta reached |
 |---|---|---:|---:|---:|---:|---:|---|
-| Release | win10 | 32/32 | 1 | 1 | 30 | 0 | Não |
-| Release | win11 | 0/32 | 0 | 0 | 0 | 32 | Não |
-| Release | win7 | 0/32 | 0 | 0 | 0 | 32 | Não |
-| Debug | win10 | 32/32 | 1 | 1 | 30 | 0 | Não |
-| Debug | win11 | 0/32 | 0 | 0 | 0 | 32 | Não |
-| Debug | win7 | 0/32 | 0 | 0 | 0 | 32 | Não |
+| Release | win10 | 32/32 | 1 | 1 | 30 | 0 | No |
+| Release | win11 | 0/32 | 0 | 0 | 0 | 32 | No |
+| Release | win7 | 0/32 | 0 | 0 | 0 | 32 | No |
+| Debug | win10 | 32/32 | 1 | 1 | 30 | 0 | No |
+| Debug | win11 | 0/32 | 0 | 0 | 0 | 32 | No |
+| Debug | win7 | 0/32 | 0 | 0 | 0 | 32 | No |
 
-Perfis sem execução têm taxa observada indisponível, não uma taxa de compatibilidade medida de 0%.
+Profiles without execution have an unavailable observed rate, not a 0% measured compatibility rate.
 
-| Aplicação | Arquitetura | Release / win10 | Debug / win10 |
+| Application | Architecture | Release / win10 | Debug / win10 |
 |---|---|---|---|
 | Independent C Hello World | x86 | functional | functional |
 | Windows Sort | x86 | incompatible | incompatible |

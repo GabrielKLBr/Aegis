@@ -1,79 +1,46 @@
-# Fase 14 — Scanner, regras e inteligência de ameaças
+# Phase 14 — Scanner, rules and threat intelligence
 
-Atualização da fila em 29/10/2026: a [14.13](PHASE-14.13.md) substitui o
-encaminhamento legado descrito nesta entrega histórica por pacotes inscritos
-no runtime próprio. A ausência de pacote fica inconclusiva, sem fallback.
+Update of the queue in 29/10/2026: a [14.13](PHASE-14.13.md) replaces the legacy forwarding described in this historical delivery by packages inscribed in the runtime itself. The lack of package is inconclusive, without fallback.
 
-Entrega de 23/10/2026. Implementação e aceitação Windows concluídas. A validação Linux desta revisão é parcial.
-Esta etapa evolui os scanners existentes. A fase 15 não foi iniciada.
+23/10/2026. Delivery Windows implementation and acceptance completed. Linux validation of this revision is partial. This step evolves existing scanners. Phase 15 has not been started.
 
-## Resultado e alcance
+## Result and scope
 
-`guardian-scan` usa o mesmo motor de `av scan`, `av clean`, do monitor e da tela
-de varredura Windows. No Linux, `guardianav scan` também encaminha ao motor
-compartilhado. A interface mostra suspeitas e análises inconclusivas; cancelar,
-falhar ao abrir uma pasta ou escolher um arquivo individual produz estado real.
+`guardian-scan` uses the same engine as `av scan`, `av clean`, the monitor and Windows scan screen. On Linux, `guardianav scan` also forwards to the shared engine. The interface shows suspicious and inconclusive analyses; cancel, fail to open a folder or choose an individual file produces real status.
 
-Os resultados têm quatro classificações:
+The results have four classifications:
 
-| Resultado | Significado |
+| Result | Meaning |
 | --- | --- |
-| `detected` | Assinatura local, marcador inofensivo de teste ou regra YARA explicitamente configurada como detecção. |
-| `suspicious` | Heurística ou relato de provedor externo; requer avaliação. Não inicia quarentena automática. |
-| `unknown` | Nenhuma correspondência dentro do alcance declarado. **Não significa arquivo seguro.** |
-| `inconclusive` | Não foi possível completar a análise. Erro, cancelamento, limite ou formato sem suporte fica visível. |
+| `detected` | Local signature, harmless test marker or YARA rule explicitly configured as detection. |
+| `suspicious` | Heuristics or external provider report; requires evaluation. Do not initiate automatic quarantine. |
+| `unknown` | No matches within declared range. ** Does not mean secure file.** |
+| `inconclusive` | Unable to complete analysis. Error, cancellation, limit or format without support is visible. |
 
-`complete` é independente da classificação. Um arquivo pode ter uma detecção
-conhecida e também conter partes não analisadas. SHA-256 identifica o conteúdo;
-SHA-1 e MD5 são auxiliares e não autorizam um arquivo por conta própria.
+`complete` is independent of classification. A file may have a known detection and also contain unanalyzed parts. SHA-256 identifies the content; SHA-1 and MD5 are auxiliary and do not authorize a file on their own.
 
-O motor lê uma cópia limitada e verifica estabilidade/tamanho. O worker recebe
-somente essa cópia e confere seu SHA-256. Regras, parsers e descompactação têm
-prazo e limite de memória em outro processo. No Windows, Job Object encerra a
-árvore de processos ao cancelar ou estourar o prazo. Esse worker de parsing tem
-a identidade do usuário: o isolamento de execução de programas é feito pela VM.
+The engine reads a limited copy and verifies stability/size. The worker receives only this copy and checks its SHA-256. Rules, parsers and decompressing have a time frame and memory limit in another process. In Windows, Job Object closes the process tree by canceling or breaking the deadline. This parsing worker has the user's identity: the program execution isolation is done by VM.
 
-## Formatos e regras
+## Formats and rules
 
-- Assinaturas locais `sha256`/`substr`, com validação estrita da base, mais o
-  fragmento EICAR de teste já existente. A busca percorre todo o conteúdo aceito,
-  inclusive depois do antigo prefixo de 4 MiB.
-- YARA real, compilado a partir de fontes fixadas. Pacotes JSON contêm fonte,
-  identificador de licença e aviso. São aceitos MIT, BSD-3-Clause, Apache-2.0 e
-  CC0-1.0; licença ausente/desconhecida, erro de compilação e `include` externo
-  produzem análise inconclusiva. Os módulos disponíveis são `pe`, `math`, `time` e
-  `string`; outros imports sem suporte falham de modo explícito. A declaração não substitui a revisão humana da
-  procedência/licença das regras importadas. Não há carregamento de regra binária.
-- PE: cabeçalhos e intervalos, arquitetura, seções, entropia, DLLs importadas e
-  alerta de seção gravável/executável. Não verifica assinatura Authenticode nem
-  determina legitimidade de um instalador. A compatibilidade PE da VM continua
-  sujeita aos limites documentados nas fases anteriores.
-- Scripts são inspecionados como texto, incluindo o caso UTF-16LE simples. A
-  combinação de execução dinâmica com codificação/download é uma heurística;
-  nenhum script é avaliado no host.
-- ZIP, TAR, GZIP/TGZ e CAB no subconjunto configurado; MSIX/APPX e seus bundles
-  são percorridos como contêineres ZIP. Cada membro é analisado em memória, sem
-  extrair caminhos no host. Links, caminhos de travessia/absolutos, duplicatas,
-  criptografia, corrupção e compressão não disponível são recusados.
-- MSI/MSP, RAR/7z/XZ/BZ2/ISO e payloads reconhecidos de NSIS/Inno permanecem
-  explicitamente inconclusivos. Não existe promessa de desempacotar qualquer
-  instalador nem de detectar todo empacotador.
+- Local `sha256`/`substr` subscriptions, with strict validation of the base, plus
+  The search runs through all the content accepted, including after the old prefix of 4 MiB.
+- Real YARA, compiled from fixed fonts. JSON packages contain source,
+  license and notice identifier. MIT, BSD-3-Claude, Apache-2.0 and CC0-1.0 are accepted; absent/unknown license, compilation error and external `include` produce inconclusive analysis. The available modules are `pe`, `math`, `time` and `string`; other unsupported imports fail explicitly. The declaration does not replace the human revision of origin/license of the imported rules. There is no binary rule loading.
+- PE: headers and ranges, architecture, sections, entropy, imported DLLs and
+  recordable/executable. section alert No Authenticode signature nor does it determine the legitimacy of an installer. VM PE compatibility remains subject to documented limits in previous phases.
+- Scripts are inspected as text, including the simple UTF-16LE case.
+  dynamic execution combination with encoding/download is a heuristic; no script is evaluated in the host.
+- ZIP, TAR, GZIP/TGZ and CAB in the configured subset; MSIX/APPX and its bundles
+  each member is analyzed in memory, without extracting paths in the host. Links, crossing/absolute paths, duplicates, encryption, corruption and unavailable compression are refused.
+- MSI/MSP, RAR/7z/XZ/BZ2/ISO and recognized NSIS/Inno payloads remain
+  There is no promise to unpack any installer or to detect every packer.
 
-Padrões: arquivo/membro de até 32 MiB, expansão total de 64 MiB, até 256 membros,
-profundidade 3 e análise estática de 5 segundos. Há 1 segundo adicional para
-iniciar/encerrar o worker. O processo tem 384 MiB; análise no MiniNT permite o
-auxiliar WHP próprio, com orçamento total de 512 MiB. A expansão é contada
-novamente em cada nível, evitando contornar o orçamento com arquivos aninhados.
-Limites maiores são validados, não são ilimitados. A CLI limita cada relatório a
-10.000 entradas ou 32 MiB de resultados e informa truncamento; a enumeração tem profundidade máxima 64.
+Standards: file/member of up to 32 MiB, total expansion of 64 MiB, up to 256 members, depth 3 and static analysis of 5 seconds. There is 1 additional second for start/close the worker. The process has 384 MiB; analysis in MiniNT allows the individual WHP auxiliary, with a total budget of 512 MiB. The expansion is counted again at each level, avoiding bypassing the budget with nested files. Larger limits are validated, not unlimited. The CLI limits each report to 10,000 entries or 32 MiB of results and informs truncation; the enumeration has maximum depth 64.
 
-## Configuração e uso
+## Settings and usage
 
-Exemplo offline: [scanner.example.json](../config/scanner.example.json).
-Pacote YARA próprio e inofensivo:
-[scanner-rules.example.json](../config/scanner-rules.example.json).
-Para usá-lo, acrescente `rulePackage` com seu caminho ao arquivo de configuração.
-Caminhos relativos são resolvidos a partir da pasta da configuração.
+Offline example: [scanner.example.json](../config/scanner.example.json). Own and harmless YARA package: [scanner-rules.example.json](../config/scanner-rules.example.json). To use it, add `rulePackage` with your path to the configuration file. Relative paths are resolved from the configuration folder.
 
 ```powershell
 .\guardian-scan.exe scan "C:\pasta de teste" --config scanner.json --json
@@ -81,101 +48,43 @@ Caminhos relativos são resolvidos a partir da pasta da configuração.
 .\guardian-scan.exe sandbox-next --config scanner.json
 ```
 
-O arquivo de configuração é opcional. A configuração pessoal, quando existe,
-fica em `%LOCALAPPDATA%\Aegis\scanner.json` no Windows ou em
-`$XDG_STATE_HOME/aegis/scanner.json` no Linux (fallback:
-`~/.local/state/aegis/scanner.json`). Os frontends Windows também a leem.
-`state` pode escolher uma pasta dedicada para cache/fila; por padrão fica ao lado
-da configuração pessoal do Aegis, em `scanner-v1`. Pasta não vazia sem marcador do scanner é
-recusada. Windows usa ACL para usuário/SYSTEM; Linux usa permissão 0700.
+The configuration file is optional. The personal configuration, when it exists, is in `%LOCALAPPDATA%\Aegis\scanner.json` on Windows or `$XDG_STATE_HOME/aegis/scanner.json` on Linux (fallback: `~/.local/state/aegis/scanner.json`). Windows frontends also read it. `state` can choose a dedicated folder for cache/queue; by default is next to the personal configuration of Aegis, in `scanner-v1`. Unempty folder without scanner marker is refused. Windows uses ACL for user/SYSTEM; Linux uses permission 0700.
 
-Saídas de `guardian-scan`: 0 sem correspondência/unknown; 1 detecção/suspeita;
-2 uso ou configuração inválida; 3 análise incompleta. O console Windows legado
-preserva 2 para ameaça/suspeita e usa 3 para erro/inconclusivo. Não interprete
-saída 0 como atestado de segurança.
+`guardian-scan` outputs: 0 without correspondence/unknown; 1 detection/suspect; 2 invalid usage or configuration; 3 incomplete analysis. The legacy Windows console preserves 2 for threat/suspect and uses 3 for error/inconclusivo. Do not interpret output 0 as a security certificate.
 
-## SQLite, cache e fila
+## SQLite, cache and queue
 
-SQLite persiste resultados, validade, cotas e backoff. O cache estático inclui
-SHA-256, nome/extensão, fontes do motor, plataforma/compilador/configuração,
-lock de dependências, regras, assinaturas
-e limites; arquivos alterados e mudanças de política não reutilizam o parecer.
-Somente análise estática completa é armazenada. Erros externos não viram cache
-negativo. Há TTL, até 4.096 registros e limite de páginas do banco.
+SQLite persists results, validity, quotas and backoff. Static cache includes SHA-256, name/extension, engine sources, platform/compiler/configuration, dependency lock, rules, signatures and limits; changed files and policy changes do not reuse the opinion. Only complete static analysis is stored. External errors have not seen negative cache. There are TTL, up to 4,096 records and bank page limit.
 
-`queueUnknown: true` guarda uma cópia imutável por SHA-256 e uma entrada deduplicada
-para o sandbox. `sandbox-next` reivindica uma tarefa em transação, verifica a cópia
-e chama o **MiniNT/WHP já existente**, em CPL3, sem executar o arquivo como
-processo Windows. O guest altera seu sistema de arquivos/registro virtuais.
-O relatório identifica `MiniNT-WHP-legacy`, imports ausentes, falhas e eventos.
-O PEB/linha de comando usa `C:\Samples\sample.exe`, sem expor o caminho privado
-do host. A cadeia é limitada ao buffer dos parâmetros do processo; um PE próprio
-compara todos os caracteres dentro da VM e falha se receber outro caminho.
-Execução sem alerta continua `unknown`, nunca “segura”. A fila é local e manual;
-ativá-la não inicia execução dinâmica automaticamente.
+`queueUnknown: true` keeps an immutable copy by SHA-256 and a deduplicated entry for the sandbox. `sandbox-next` claims a transaction task, scans the copy and calls the existing **MiniNT/WHP** in CPL3, without executing the file as Windows process. The guest changes its virtual files/log system. The report identifies `MiniNT-WHP-legacy`, missing imports, crashes and events. PEB/line command uses `C:\Samples\sample.exe`, without exposing the private host path. The string is limited to the buffer of the process parameters; a PE itself compares all characters within the VM and fails to receive another path. Unwarned execution continues `unknown`, never “safe”. The queue is local and manual; it does not initiates dynamic execution automatically.
 
-O carregador legado recebeu limites para tamanho de arquivo, cabeçalhos,
-seções, diretórios, blocos/alvos de relocação, nomes, thunks e escritas na IAT.
-Aritmética usa intervalos sem overflow; tabelas inválidas não chegam à execução.
-TLS, delay-imports e inicialização gerenciada são recusados explicitamente.
-Os testes incluem IAT/ILT e relocações fora da imagem, além de um programa que
-confere uma relocação DIR64 válida durante a execução no convidado.
+The legacy loader has received limits for file size, headers, sections, directories, blocks/targets relocation, names, thunks and written in IAT. Arithmetic uses unoverflowed intervals; invalid tables do not reach execution. TLS, delay-imports and managed startup are explicitly refused. Tests include IAT/ILT and off-image relocations, as well as a program that confers a valid DIR64 relocation during execution in the guest.
 
-O adaptador aceita PEs compatíveis com os imports limitados desse backend. Não
-equivale à execução de aplicativos Windows completos no kernel recente, nem
-substitui o pipeline de nove domínios da fase 13. No Linux, esse encaminhamento
-externo é explicitamente indisponível; não há fallback para execução no host.
+The adapter accepts PEs compatible with the limited imports of this backend. It does not equal running full Windows applications in the recent kernel, nor does it replace the nine-domain pipeline of phase 13. On Linux, this external forwarding is explicitly unavailable; there is no fallback for running on the host.
 
-A fila tem até 128 tarefas retidas e 512 MiB de cópias. Ao atingir o limite, a
-nova análise informa o erro. Tarefas interrompidas têm lease e passam a
-inconclusivas; não são marcadas como concluídas silenciosamente. Não há exclusão
-automática de histórico/cópias nesta etapa. Diretórios temporários têm limite e
-limpeza dos nomes fixos criados pelo próprio job.
+The queue has up to 128 retained tasks and 512 MiB of copies. When reaching the limit, the new analysis informs the error. Aborted tasks have ease and go to inconclusive; they are not marked as completed silently. There is no automatic exclusion of history/copies at this stage. Temporary directories have limit and cleaning of fixed names created by the job itself.
 
-## Inteligência externa
+## External intelligence
 
-Offline e todos os provedores desabilitados são os padrões. Para consultar,
-configure `offline: false`, habilite o provedor e reconheça suas condições em
-`termsAccepted`. Chaves vêm de `keyEnv`, nunca do relatório ou SQLite.
-O código usa somente endpoints fixos HTTPS, sem redirecionamento e com validação
-de certificado, resposta limitada e conferência do hash retornado.
-Não existe endpoint de upload, download de malware ou envio automático de amostra.
+Offline and all disabled providers are the defaults. To view, configure `offline: false`, enable the provider and recognize its conditions in `termsAccepted`. Keys come from `keyEnv`, never from the report or SQLite. The code uses only HTTPS fixed endpoints, without redirecting and with certificate validation, limited response and hash conference returned. There is no upload endpoint, malware download or auto-supply submission.
 
-| Provedor | Operação | Tratamento |
+| Provider | Operation | Treatment |
 | --- | --- | --- |
-| VirusTotal | GET `/api/v3/files/{sha256}`, `x-apikey` | Estatísticas relatadas indicam suspeita; ausência/zero não libera arquivo. Exige licença Premium adequada ao uso deste conector de produto/hash-only. |
-| MalwareBazaar | POST `query=get_info&hash=...`, `Auth-Key` | Hash reportado indica suspeita; `hash_not_found` é desconhecido. |
-| CIRCL hashlookup | GET `/lookup/sha256/{sha256}` | Presença em base de arquivos conhecidos é informação, não whitelist. |
+| VirusTotal | GET `/api/v3/files/{sha256}`, `x-apikey` | Reported statistics indicate suspicious; absence/zero does not release file. Requires Premium license suitable for using this product/hash-only. connector |
+| MalwareBazaar | POST `query=get_info&hash=...`, `Auth-Key` | Hash reported indicates suspect; `hash_not_found` is unknown. |
+| CIRCL hashlookup | GET `/lookup/sha256/{sha256}` | Presence on the basis of known files is information, not whitelist. |
 
-As cotas por minuto/dia são persistidas e transacionais. 429/503 ativam backoff;
-não há repetição automática de requisições. Cache possui TTL configurável.
-Falha de autenticação, JSON inválido, hash divergente e indisponibilidade são
-expostos no campo `intelligence`, sem substituir evidência local. Offline pode
-usar cache de reputação ainda válido, sem chamar a rede.
+minute/day quotas are persistent and transactional. 429/503 activate backoff; there is no automatic replay of requests. Cache has configurable TTL. Authentication failed, invalid JSON, divergent hash and unavailability are displayed in the `intelligence` field without replacing local evidence. Offline can use still valid reputation cache without calling the network.
 
-Windows usa WinHTTP. Linux usa libcurl nativo >=7.85 quando os arquivos de
-desenvolvimento e pkg-config estão disponíveis; sem eles, compila offline e
-informa indisponibilidade se for solicitada uma consulta. Não utiliza Wine.
+Windows uses WinHTTP. Linux uses native libcurl >=7.85 when development files and pkg-config are available; without them, compile offline and informs unavailability if a query is requested. It does not use Wine.
 
-Referências verificadas em 23/10/2026:
-[VirusTotal — arquivo](https://docs.virustotal.com/reference/file-info),
-[condições Public/Premium](https://docs.virustotal.com/reference/public-vs-premium-api),
-[MalwareBazaar](https://bazaar.abuse.ch/api/),
-[CIRCL](https://www.circl.lu/services/hashlookup/),
-[YARA C API](https://yara.readthedocs.io/en/latest/capi.html).
-As condições comerciais devem ser confirmadas pelo operador para o uso escolhido.
+References verified in 23/10/2026: [VirusTotal — archive](https://docs.virustotal.com/reference/file-info), [Public/Premium](https://docs.virustotal.com/reference/public-vs-premium-api), [MalwareBazaar](https://bazaar.abuse.ch/api/), [CIRCL](https://www.circl.lu/services/hashlookup/), [YARA C API](https://yara.readthedocs.io/en/latest/capi.html). Trade conditions must be confirmed by the operator for the chosen use.
 
-## Compilação e dependências
+## Compilation and dependencies
 
-O utilitário opcional `tools/validate_phase14.py` registra JUnit, códigos de saída,
-hashes de fontes/binários e recusa alterações durante o teste (Python >=3.11).
+The optional `tools/validate_phase14.py` utility records JUnit, output codes, source code/binary hashes and refuses changes during the test (Python >=3.11).
 
-O CMake obtém **fontes**, confere SHA-256 e compila YARA 4.5.8, libarchive 3.8.10,
-zlib 1.3.2, SQLite 3.53.4 e nlohmann/json 3.12.0. URLs, versões, licenças e hashes
-estão em [ScannerDependencies.json](../cmake/ScannerDependencies.json); avisos
-acompanham a instalação em `share/aegis/licenses`. Não são baixados executáveis
-nem amostras. Um cache de fontes previamente verificado pode ser informado em
-`GUARDIAN_SCANNER_DEPS`; esse override pressupõe uma árvore local confiável.
+CMake gets **sources**, confers SHA-256, and compiles YARA 4.5.8, libarchive 3.8.10, zlib 1.3.2, SQLite 3.53.4 and nlohmann/json 3.12.0. URLs, versions, licenses and hashes are in [ScannerDependencies.json](../cmake/ScannerDependencies.json); warnings follow the installation on `share/aegis/licenses`. No executables or samples are downloaded. A previously verified font cache can be reported in `GUARDIAN_SCANNER_DEPS`; this override presupposes a reliable local tree.
 
 ```powershell
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64
@@ -183,63 +92,32 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
-Mantenha `guardian-scan-worker` ao lado de `guardian-scan`, `av` e `avui`. No
-Windows o encaminhamento à VM também precisa de `guardian-whp-memory.exe`.
-`cmake --install` inclui os executáveis do scanner, o auxiliar, a base e avisos.
+Keep `guardian-scan-worker` next to `guardian-scan`, `av` and `avui`. In Windows the referral to VM also needs `guardian-whp-memory.exe`. `cmake --install` includes the scanner executables, the auxiliary, the base and warnings.
 
-## Aceitação
+## Acceptance
 
-Matriz da revisão final, com fontes conferidas antes/depois dos testes:
+Matrix of the final review, with sources assigned before/later of the tests:
 
-| Ambiente | Escopo | Resultado |
+| Environment | Scope | Result |
 | --- | --- | --- |
-| Windows 11 10.0.26300, MSVC 19.44, Debug | `scanner_core`, `scanner_pipeline`, `scanner_facade` | 3/3, sem ignorados |
-| Windows, Release | Suíte completa do projeto, incluindo os três testes novos | 83/83, sem ignorados (470,37 s) |
-| Ubuntu 24.04 / WSL2, GCC 13.3, Debug | Motor/worker, pipeline e CLI Linux | 2/2 + 1/1, sem ignorados |
+| Windows 11 10.0.26300, MSVC 19.44, Debug | `scanner_core`, `scanner_pipeline`, `scanner_facade` | 3/3, without ignored |
+| Windows, Release | Full suite of the project, including the three new tests | 83/83, without ignored (470,37 s) |
+| Ubuntu 24.04 / WSL2, GCC 13.3, Debug | Motor/worker, pipeline and CLI Linux | 2/2 + 1/1, without ignored |
 
-O teste Windows executa somente PEs próprios no MiniNT: saída normal, verificação
-do caminho virtual no PEB, relocação válida e recusa de tabelas malformadas.
-O convidado em loop é encerrado dentro do orçamento. O canário do host permanece
-inalterado. Os testes de arquivos cobrem assinaturas/hashes, YARA, conteúdo além
-de 4 MiB, scripts, arquivos aninhados, links, travessia, corrupção e limites.
-SQLite é exercitado com TTL, persistência, concorrência, cotas e backoff.
-A fachada Windows é testada com arquivo individual, leitura inválida, detecção
-e cancelamento. Testes de provedores usam transporte simulado; **consultas reais
-com credenciais não foram realizadas**.
+The Windows test only executes own PEs on MiniNT: normal output, virtual path verification on the PEB, valid relocation and refusal of malformed tables. The guest in loop is closed within the budget. The host canary remains unchanged. The file tests cover signatures/hashes, YARA, content beyond 4 MiB, scripts, nested files, links, crossing, corruption and limits. SQLite is exercised with TTL, persistence, competition, quotas and backoff. The Windows facade is tested with individual file, invalid reading, detection and cancellation. Tests of providers use simulated transport; **Real queries with credentials have not been performed**.
 
-A validação Linux é parcial: scanner/CLI nativos, sem Wine; não houve execução de
-PE externo no KVM nem revalidação de toda a suíte Linux/Release/sanitizers.
-O ambiente disponível não tinha libcurl de desenvolvimento; a entrega Linux
-exercitada foi offline. A aceitação de MiniNT externo é Windows/WHP.
+Linux validation is partial: scanner/CLI natives without Wine; there was no external PE execution in KVM nor revalidation of the entire Linux/Release/sanitizers. suite The available environment had no development libcurl; the exercised Linux delivery was offline. The acceptance of external MiniNT is Windows/WHP.
 
-Evidências locais: `build-phase14/acceptance-Debug-hardened/`,
-`build-phase14/acceptance-Release-hardened/`,
-`build-phase14/acceptance-Linux-hardened/` e
-`build-phase14/linux-scanner-hardened.xml`. Cada aceitação inclui códigos reais,
-JUnit, hashes de 441 entradas de fonte e dos executáveis relevantes.
-Os ajustes anteriores da revisão Windows 12B–13 foram preservados; há snapshot
-da base anterior em `build-phase14/baseline-verified-20261023.zip`.
+Local evidence: `build-phase14/acceptance-Debug-hardened/`, `build-phase14/acceptance-Release-hardened/`, `build-phase14/acceptance-Linux-hardened/` and `build-phase14/linux-scanner-hardened.xml`. Each acceptance includes real codes, JUnit, hashes of 441 relevant source entries and executables. Previous Windows 12B–13 revision settings have been preserved; there is snapshot of the previous base in `build-phase14/baseline-verified-20261023.zip`.
 
-O utilitário `tools/validate_phase14.py` permite repetir o escopo do scanner;
-com `--all`, executa a suíte completa do build. Exemplo:
+The `tools/validate_phase14.py` utility allows you to repeat the scope of the scanner; with `--all`, you run the full build suite. Example:
 
 ```powershell
 python tools/validate_phase14.py --build build --config Release --all --output build-phase14/nova-aceitacao
 ```
 
-Entrega local (fora do Git):
-`dist/aegis-phase14-windows-x64-20261023/`, com `avui.exe`, `av.exe`,
-`guardian-scan.exe`, worker, auxiliar WHP, configuração, avisos de licença,
-documentação e evidências. Há ZIP e SHA-256 ao lado da pasta. `manifest.json`
-registra os arquivos e as fontes aceitas. A entrega é verificada com uma
-varredura offline de um documento inofensivo usando os executáveis copiados.
+Local delivery (outside Git): `dist/aegis-phase14-windows-x64-20261023/`, with `avui.exe`, `av.exe`, `guardian-scan.exe`, worker, helper WHP, configuration, license notices, documentation and evidence. There is ZIP and SHA-256 next to the folder. `manifest.json` records the accepted files and sources. Delivery is checked with an offline scan of a harmless document using copied executables.
 
-Nesta entrega, abra `avui.exe` para a interface ou consulte `LEIA-ME.txt` para a
-CLI. A CLI moderna emite JSON; a configuração pessoal não é alterada pela cópia.
-A fase 15 permanece sem início.
+In this delivery, open `avui.exe` for the interface or refer to `LEIA-ME.txt` for CLI. Modern CLI issues JSON; personal configuration is not changed by copy. Phase 15 remains unstarted.
 
-Nenhum teste exige malware real, chave de API, alteração de BIOS/NX ou driver
-do host. A base distribuída é demonstrativa; esta fase não estabelece cobertura
-de ameaças de um produto comercial nem compatibilidade Windows completa.
-Continuam abertas as pendências de PE/SMP e referências NT específicas das
-fases anteriores, conforme a revisão Windows de 23/10/2026.
+No test requires real malware, API key, BIOS/NX change or host driver. The distributed base is demonstrative; this phase does not establish threat coverage of a commercial product or full Windows compatibility. The PE/SMP to-ed and NT references specific to the previous phases remain open, as the 23/10/2026. Windows review

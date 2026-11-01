@@ -35,41 +35,7 @@ def main():
     for name in ('DesktopIntegrationTests.py','DesktopFlappyTests.py','ComponentIntegrationTests.py'):copy(nt.ROOT/'test'/name,'test/'+name)
     copy(nt.ROOT/'docs/PHASE-14.7.md','PHASE-14.7.md')
     copy(nt.ROOT/'docs/PHASE-14.8.md','PHASE-14.8.md')
-    (out/'LEIA-ME.txt').write_text('''Aegis 14.8 - componentes e desktop do MiniNT x64
-
-Requer Windows x64, WHP e NX ativos e o Visual C++ runtime no host.
-Contem o kernel e as DLLs proprias, aplicativos de teste e evidencias.
-As janelas do programa permanecem no MiniNT, mostradas em um visualizador.
-O parametro --interactive habilita entrada somente nessa janela do host.
-A integracao de uma janela nativa por janela convidada pertence a fase 12F.
-
-Nao inclui DLLs Microsoft de entrada, Flappy, ISOs, discos pessoais ou GPVs.
-Forneca suas referencias locais exatas (config/crt-references.json), o schema
-Win10 aceito e o Flappy original acompanhado de settings.txt e icon.ico.
-
-Para o cliente COM, em uma pasta de saida nova no PowerShell:
-python -B tools/component_runtime.py bundle --build . --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --extra guest/components/Release/guardian-component-inproc.dll --extra guest/components/Release/guardian-component-server.exe --output componentes
-.\\Release\\guardian-desktop.exe guest/Release/guardian-kernel-components.gk componentes/runtime.gpv componentes/manifest.json componentes/binding.gnt sessao-componentes
-
-Todos os servidores e objetos desse exemplo executam no MiniNT.
-O CLI aceita --application e --extra para selecionar outros programas e DLLs.
-
-Para a demonstracao grafica anterior, em uma pasta de saida nova:
-python -B tools/desktop_runtime.py bundle --build . --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output app
-.\\Release\\guardian-desktop.exe guest/Release/guardian-kernel-desktop.gk app/runtime.gpv app/manifest.json app/binding.gnt sessao --interactive
-
-O bundle padrao abre o aplicativo proprio de demonstracao. Para o Flappy,
-adicione --application CAMINHO-FLAPPY --asset CAMINHO-SETTINGS --asset CAMINHO-ICON
-na criacao do bundle. O executavel externo nunca roda diretamente no host.
-
-Para verificar o pacote nas duas configuracoes:
-python -B tools/smoke_phase14_8.py --package . --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --application CAMINHO-FLAPPY --output EVIDENCIA-NOVA
-
-security-state.bin guarda 64 KiB do disco convidado e pode ser fornecido a uma
-nova sessao com --state ARQUIVO. Nao altere nem publique dados da sua sessao.
-Leia PHASE-14.8.md e PHASE-14.7.md para cotas, suporte e limitacoes.
-A 14.9 e a 12F nao fazem parte desta entrega.
-''',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis 14.8 - MiniNT x64 components and desktop\n\nRequires Windows x64, WHP and NX active and Visual C++ runtime on host.\nContains kernel and own DLLs, test applications and evidence.\nProgram windows remain in MiniNT, shown in a viewer.\nThe --interactive parameter enables entry only in this host window.\nThe integration of a native window by guest window belongs to phase 12F.\n\nIt does not include Microsoft input DLLs, Flappy, ISOs, personal disks or GPVs.\nProvides its exact local references (config/crt-references.json), schema\nWin10 accepted and the original Flappy accompanied by settings.txt and icon.\n\nFor the COM client, in a new output folder in PowerShell:\npython -B tools/component_runtime.py bundle --build . --config Release --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --extra guest/components/Release/guardian-component-inproc.dll --extra guest/components/Release/guardian-component-server.exe --output componentes\n.\\Release\\guardian-desktop.exe guest/Release/guardian-kernel-components.gk componentes/runtime.gpv componentes/manifest.json componentes/binding.gnt sessao-componentes\n\nAll servers and objects of this example run on MiniNT.\nCLI accepts --application and --extra to select other programs and DLLs.\n\nFor the previous graphic demo, in a new output folder:\npython -B tools/desktop_runtime.py bundle --build . --config Release --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --output app\n.\\Release\\guardian-desktop.exe guest/Release/guardian-kernel-desktop.gk app/runtime.gpv app/manifest.json app/binding.gnt sessao --interactive\n\nThe bundle pattern opens the demo application itself. For Flappy,\nadd --application FLAPPY-PATH --asset CAMINHO-SETTINGS --asset CAMINHO-ICON\nin the creation of the bundle. The external executable never runs directly in the host.\n\nTo check the package in both configurations:\npython -B tools/smoke_phase14_8.py --package . --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --application FLAPPY-PATH --output NEW-EVIDENCE\n\nsecurity-state.bin guard 64 KiB from the guest disk and can be provided to a\nnew session with --state ARQUIVO. Do not change or publish data from your session.\nRead PHASE-14.8.md and PHASE-14.7.md for quotas, support and limitations.\n14.9 and 12F are not part of this delivery.\n',encoding='utf-8')
     files={path.relative_to(out).as_posix():nt.sha(path.read_bytes()) for path in sorted(out.rglob('*')) if path.is_file()};(out/'manifest.json').write_bytes(nt.canonical({'schema':1,'phase':'14.8','files':files,'acceptance':{'Release':len(REQUIRED),'Debug':len(REQUIRED)},'regressionTests':TOTAL_TESTS,'microsoftInputBinariesIncluded':False,'externalApplicationIncluded':False,'completeWindowsGui':False,'phase12FStarted':False,'phase14_8Started':True,'phase14_9Started':False,'completeCOM':False,'completeNDR':False}))
     with zipfile.ZipFile(archive,'x',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
         for path in sorted(out.rglob('*')):

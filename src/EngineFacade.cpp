@@ -53,7 +53,7 @@ void Engine::StartScan(const std::wstring &root, std::function<void()> onUpdate,
         } catch (const std::exception& error) {
             ++state_.inconclusive;
             std::lock_guard lock(state_.mtx);
-            state_.error = state_.cancel ? L"Análise cancelada; resultados incompletos." : services::Wide(error.what());
+            state_.error = state_.cancel ? L"Canceled analysis; incomplete results." : services::Wide(error.what());
         }
         state_.running = false;
         if (onUpdate)

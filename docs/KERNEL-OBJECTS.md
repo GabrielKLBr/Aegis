@@ -1,111 +1,52 @@
-# Handles e objetos do MiniNt — 16/10/2026
+# Handles and articles of MiniNt — 16/10/2026
 
-Esta etapa continua a base em `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
-O núcleo continua atendendo syscalls NT no host e executando o convidado pelo
-WHP existente, sem QEMU. O foco foi tornar o estado dos objetos e seus direitos
-verificáveis antes de ampliar a compatibilidade.
+This step continues the basis on `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`. The core continues to serve NT syscalls in the host and running the guest by the existing WHP without QEMU. The focus was to make the state of the objects and their rights verifiable before expanding compatibility.
 
-**Etapa seguinte:** [KERNEL-THREADS.md](KERNEL-THREADS.md) acrescenta threads,
-escalonamento cooperativo e esperas bloqueantes em eventos/threads. Os resultados
-de seis testes abaixo registram esta etapa de objetos; o script atual executa
-oito testes. As limitações de espera simples foram ampliadas conforme a nova
-documentação, enquanto APCs, arquivos e espera múltipla continuam pendentes.
+**Next step:** [KERNEL-THREADS.md](KERNEL-THREADS.md) adds threads, cooperative scaling and blocking waits in events/threads. The results of six tests below record this step of objects; the current script performs eight tests. Simple wait limitations have been expanded according to the new documentation, while APCs, files and multiple waits remain pending.
 
-## Problemas corrigidos
+## Corrected Problems
 
-Arquivos, seções, eventos e chaves usavam contadores separados. Seus intervalos
-podiam se sobrepor, de modo que um mesmo número identificasse tipos diferentes.
-Além disso, seções guardavam somente o número do handle do arquivo: fechar o
-arquivo antes de mapear a seção podia fazer o mapeamento perder sua origem.
+Files, sections, events, and keys used separate counters. Their intervals could overlap, so that the same number could identify different types. In addition, sections kept only the file handle number: closing the file before mapping the section could cause the mapping to lose its origin.
 
-`GuestObjects.h` agora fornece uma tabela única por `MiniNt`, com tipo, direitos
-e atributos próprios de cada handle. Os objetos usam referências compartilhadas;
-fechar um handle retira aquela entrada, e o objeto continua vivo enquanto houver
-outra referência. Valores de handles do convidado nunca são usados como handles
-do Windows hospedeiro.
+`GuestObjects.h` now provides a unique table by `MiniNt`, with type, rights and attributes unique to each handle. Objects use shared references; close a handle removes that entry, and the object remains alive as long as there is another reference. Guest handle values are never used as host Windows handles.
 
-## Comportamento atual
+## Current behavior
 
-| Recurso | Implementação |
+| Resource | Implementation |
 |---|---|
-| Tipos | Arquivo, seção, evento e chave de registro em uma tabela comum. |
-| Identificadores | Múltiplos de quatro, sem colisões entre tipos. Fechamentos não reutilizam números nesta instância, evitando reviver handles antigos. |
-| Direitos | Direitos genéricos são convertidos para máscaras específicas do tipo; operações verificam os direitos necessários. Não há concessão silenciosa de `MAXIMUM_ALLOWED`. |
-| Duplicação | `NtDuplicateObject` compartilha o mesmo objeto, preserva ou reduz direitos e suporta `DUPLICATE_SAME_ACCESS` e `DUPLICATE_SAME_ATTRIBUTES`. |
-| Fechamento | `NtClose` recusa handles inválidos, fechamento duplicado e handles protegidos contra fechamento. |
-| Informações | `NtQueryObject` atende informações básicas de 56 bytes e flags do handle de 2 bytes; `NtSetInformationObject` altera herança e proteção contra fechamento. |
-| Limites | Até 4.096 handles abertos por instância; esgotamento retorna erro sem publicar um novo handle. |
+| Types | File, section, event and registration key in a common table. |
+| Identification | Multiples of four, no collisions between types. Closures do not reuse numbers in this instance, avoiding reviving old handles. |
+| Rights | Generic rights are converted to specific masks of the type; operations check the required rights. There is no silent concession of `MAXIMUM_ALLOWED`. |
+| Duplication | `NtDuplicateObject` shares the same object, preserves or reduces rights and supports `DUPLICATE_SAME_ACCESS` and `DUPLICATE_SAME_ATTRIBUTES`. |
+| Closure | `NtClose` refusal handles invalids, closing duplicate and handles protected against closing. |
+| Information | `NtQueryObject` meets basic information of 56 bytes and 2 bytes handle flags; `NtSetInformationObject` changes inheritance and closing protection. |
+| Limits | Up to 4,096 handles open per instance; exhaustion returns error without publishing a new handle. |
 
-A duplicação é restrita ao processo corrente, com `HANDLE(-1)` nos dois
-argumentos de processo. Elevar os direitos do handle de origem é recusado.
-`DUPLICATE_CLOSE_SOURCE` é recusado nesta etapa, sem efeitos no handle de origem;
-sua semântica especial em caminhos de erro ainda precisa ser implementada.
+The duplication is restricted to the current process, with `HANDLE(-1)` in both process arguments. Raise the rights of the home handle is refused. `DUPLICATE_CLOSE_SOURCE` is refused at this stage, without effects on the source handle; its special semantics on error paths still need to be implemented.
 
-As verificações de tipo distinguem handle inexistente de handle de outro tipo.
-As flags pertencem à entrada do handle: proteger um handle contra fechamento não
-altera seus aliases. Herança é armazenada e consultável; criar processos filhos
-e herdar a tabela ainda não foi implementado.
+Type checks distinguish non-existent handle from other type. Flags belong to the handle input: protecting a handle from closing does not change its aliases. Inheritance is stored and consulted; creating child processes and inheriting the table has not yet been implemented.
 
-## Arquivos, seções e views
+## Files, sections and views
 
-`MiniNtObjects.cpp` atende os syscalls de objetos. Arquivos do convidado
-continuam dentro do `VirtualFs` em memória. O objeto de arquivo possui um handle
-interno do `VirtualFs`, fechado automaticamente ao desaparecer sua última
-referência. Duplicados compartilham a posição do arquivo; aberturas independentes
-têm posições independentes.
+`MiniNtObjects.cpp` meets object syscalls. Guest files continue inside `VirtualFs` in memory. The file object has an internal `VirtualFs` handle, automatically closed when its last reference is gone. Duplicated share the file position; independent openings have independent positions.
 
-`NtReadFile` e `NtWriteFile` verificam direitos, tipo, buffers e o
-`IO_STATUS_BLOCK`. A leitura informa EOF; uma escrita recusada não altera os
-dados nem avança a posição. As operações implementadas são síncronas e usam a
-posição corrente: offsets explícitos, APCs, eventos de conclusão e operações
-assíncronas são recusados. Há limite de 16 MiB por chamada e de 64 MiB para o
-crescimento por escrita de um arquivo neste caminho.
+`NtReadFile` and `NtWriteFile` check rights, type, buffers and `IO_STATUS_BLOCK`. Reading informs EOF; a rejected writing does not change the data or advance the position. The implemented operations are synchronous and use the current position: explicit offsets, APCs, completion events and asynchronous operations are rejected. There is a limit of 16 MiB per call and 64 MiB for writing growth of a file in this path.
 
-A seção mantém uma referência ao objeto do arquivo; cada view mantém uma
-referência à seção. Portanto, é possível fechar todos os handles do arquivo,
-mapear a seção, fechar todos os handles da seção e continuar lendo a view.
-Desmapear a última view libera a última referência, quando não há outros
-usuários. O teste verifica também o fechamento efetivo do handle interno do
-`VirtualFs`, usando `OpenHandleCount()`.
+The section maintains a reference to the object of the file; each view maintains a reference to the section. Therefore, it is possible to close all the handles of the file, map the section, close all the handles of the section, and continue reading the view. Disampling the last view releases the last reference when there are no other users. The test also checks the effective closure of the internal handle of the `VirtualFs` using `OpenHandleCount()`.
 
-Mapeamentos de dados verificam os direitos do handle de seção. A proteção
-máxima da view considera tanto a seção quanto os direitos usados para mapeá-la;
-um handle limitado à leitura não pode ganhar escrita por uma chamada posterior
-a `NtProtectVirtualMemory`.
+Data mappings check the rights of the section handle. The maximum protection of the view considers both the section and the rights used to map it; a read-only handle cannot win writing by a call after `NtProtectVirtualMemory`.
 
-O modelo de dados continua copiando os bytes para cada view. Coerência entre
-views, persistência no arquivo e copy-on-write ainda estão pendentes. Imagens
-`SEC_IMAGE` mantêm a política anterior de imagem inteira RWX, sem permissões
-individuais por seção PE; o parser PE antigo também continua fora de uma
-auditoria integral.
+The data model continues to copy the bytes for each view. Consistency between views, file persistence and copy-on-write are still pending. `SEC_IMAGE` images maintain the previous RWX entire image policy without individual permissions per PE section; the old PE parser also remains out of a full audit.
 
-## Eventos e registro
+## Events and registration
 
-Aliases de um evento compartilham seu estado. Eventos de sincronização
-(`auto-reset`) consomem o sinal em uma espera satisfeita; eventos de notificação
-(`manual-reset`) permanecem sinalizados até o reset. Sinalizar e resetar exigem
-`EVENT_MODIFY_STATE`; esperar exige `SYNCHRONIZE`. A saída de estado anterior
-usa exatamente quatro bytes.
-`NtClearEvent` segue seu ABI de um argumento; o registrador do segundo argumento
-não é interpretado como ponteiro.
+An event aliases share its state. Synchronization events (`auto-reset`) consume the signal in a satisfied wait; notification events (`manual-reset`) remain signaled until reset. Signaling and reset require `EVENT_MODIFY_STATE`; waiting requires `SYNCHRONIZE`. The previous state output uses exactly four bytes. `NtClearEvent` follows its ABI from an argument; the second argument logger is not interpreted as pointer.
 
-Uma consulta com timeout zero sobre evento não sinalizado retorna
-`STATUS_TIMEOUT`. Esperas que exigiriam bloquear a thread retornam
-`STATUS_NOT_SUPPORTED`; não é mais fabricado sucesso. Entrega de APCs e o
-escalonador continuam pendentes.
-Esperar em arquivos ainda é uma operação não suportada neste modelo.
+A zero timeout query on unmarked event returns `STATUS_TIMEOUT`. Expects that would require blocking thread return `STATUS_NOT_SUPPORTED`; no longer manufactured success. APC delivery and scheduler remain pending. Waiting on files is still an unsupported operation in this template.
 
-Chaves também usam a tabela única. Consultar valores exige `KEY_QUERY_VALUE`,
-e alterá-los exige `KEY_SET_VALUE`. Handles duplicados preservam a identidade
-da chave. A leitura de nomes e os buffers desse caminho agora são verificados
-contra a RAM e as permissões do convidado. O namespace virtual anterior ainda
-é permissivo ao abrir chaves sem valores; não representa toda a semântica do
-registro do Windows.
-`NtCreateKey` distingue uma nova chave de uma chave existente na saída
-`Disposition` e exige `KEY_CREATE_SUB_KEY` para criar relativamente a um handle
-de chave pai.
+Keys also use the single table. Refer values requires `KEY_QUERY_VALUE`, and change them requires `KEY_SET_VALUE`. Duplicate Handles preserve key identity. Reading names and buffers of this path are now checked against RAM and guest permissions. Previous virtual namespace is still permissive when opening keys without values; it does not represent all the semantics of Windows registry. `NtCreateKey` distinguishes a new key from an existing key on the `Disposition` output and requires `KEY_CREATE_SUB_KEY` to create relative to a parent key handle.
 
-## Testes e compilação
+## Tests and compilation
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Release
@@ -113,78 +54,57 @@ de chave pai.
 .\Build-Kernel.ps1 -Configuration Release -FullBuild
 ```
 
-O script continua usando `build-codex` e agora executa seis testes. Os quatro
-testes de heap/memória virtual continuam incluídos. Os dois novos são:
+The script continues using `build-codex` and now runs six tests. The four virtual heap/memory tests remain included. The two new are:
 
-- `microvm_objects`: direitos, duplicação, flags por handle, falhas por limite,
-  fechamento e destruição na última referência; cria 1.000 handles de tipos
-  alternados para verificar colisões e a invalidação de handles antigos.
-- `microvm_objects_guest`: programas gerados pelo próprio teste executam em
-  ring 3 pelo dispatcher real de `MiniNt`. Verificam aliases, direitos, posição
-  de arquivo, eventos, proteção contra fechamento, vida útil de seções/views,
-  limites de proteção, registro e canários dos campos de saída.
+- `microvm_objects`: rights, duplication, flags per handle, faults per limit,
+  closing and destruction in the last reference; creates 1,000 handles of alternating types to check collisions and invalidation of old handles.
+- `microvm_objects_guest`: programs generated by the test itself run on
+  ring 3 by the actual dispatcher of `MiniNt`. Verify aliases, rights, file position, events, closing protection, sections/views useful life, protection limits, registration and canaries of the output fields.
 
-Os testes de convidado compartilham `MicroVmTestGuest.h`, extraído do teste de
-memória virtual existente. Usam watchdog, RAM virtual e pequenos programas
-gerados localmente. Retornam 77 se o WHP não estiver disponível, situação que o
-CTest registra como ignorada. Não usam amostras de malware.
+Guest tests share `MicroVmTestGuest.h`, extracted from the existing virtual memory test. They use watchdog, virtual RAM, and small locally generated programs. They return 77 if the WHP is not available, a situation that CTest records as ignored. They do not use malware samples.
 
-## Validação executada
+## Validation executed
 
-Windows x64 com WHP disponível, MSVC 19.44 e Windows SDK 10.0.26100.0:
+Windows x64 with available WHP, MSVC 19.44 and Windows SDK 10.0.26100.0:
 
-| Verificação | Debug | Release |
+| Scan | Debug | Release |
 |---|---|---|
-| Seis testes do CTest | 6 passaram, nenhum ignorado | 6 passaram, nenhum ignorado |
-| `vmntdll` | Passou | Passou |
-| `vmntfile` | Passou | Passou |
-| `vmntsect` | Passou | Passou |
-| `vmntimage`, incluindo execução e relocação da DLL de teste | Passou | Passou |
-| `vmntquery`, incluindo evento sinalizado | Passou | Passou |
-| `vmntreg` | Passou | Passou |
-| `vmwininit`, com o heap próprio | Passou | Passou |
-| Compilação de todos os alvos do projeto | Não executada | Passou, 37 executáveis |
+| Six CTest tests | 6 passed, no ignored | 6 passed, no ignored |
+| `vmntdll` | It's over. | It's over. |
+| `vmntfile` | It's over. | It's over. |
+| `vmntsect` | It's over. | It's over. |
+| `vmntimage` including running and relocating the test DLL | It's over. | It's over. |
+| `vmntquery`, including event sinalizado | It's over. | It's over. |
+| `vmntreg` | It's over. | It's over. |
+| `vmwininit`, with own heap | It's over. | It's over. |
+| Compilation of all project targets | Not executed | It's over., 37 executable |
 
-Os testes de convidado realmente executaram no WHP. A compilação dos alvos do
-script em Debug terminou sem avisos. O build completo Release mantém avisos
-de conversão em código anterior do modelo A e de outros módulos.
+The guest tests actually ran on the WHP. Compiling the targets of the Debug script ended without notice. The full Release build maintains notices of conversion into previous code from model A and other modules.
 
-Evidências em `build-codex`:
+Evidence ed `build-codex`:
 
-- `objects-release-tests.log`: os seis testes em Release.
-- `objects-debug-script.log`: compilação e seis testes em Debug.
-- `objects-regressions.json`: saída completa dos sete exemplos em cada configuração.
-- `objects-full-release-build.log`: compilação completa Release.
-- `objects-change-manifest.json`: arquivos alterados, hashes e localização dos backups.
+- `objects-release-tests.log`: the six tests in Release.
+- `objects-debug-script.log`: compilation and six tests in Debug.
+- `objects-regressions.json`: complete output of the seven examples in each configuration.
+- `objects-full-release-build.log`: compilation complete Release.
+- `objects-change-manifest.json`: changed files, hashes and backup location.
 
-Os nove arquivos existentes modificados nesta etapa foram preservados antes das
-alterações em `snapshots/codex-before-objects-20261016-000830/`. Os builds e
-snapshots anteriores permanecem disponíveis.
+The nine existing files modified in this step were preserved before `snapshots/codex-before-objects-20261016-000830/` changes. Previous builds and snapshots remain available.
 
-## Limites e continuação
+## Limits and continuation
 
-Os direitos desta etapa são controles de cada handle dentro do modelo. Tokens,
-ACLs, impersonação, privilégios, objetos nomeados de evento/seção e tabelas de
-outros processos ainda não foram implementados. Compartilhamento de arquivos
-entre aberturas (`ShareAccess` diferente de zero) é recusado neste caminho.
-Aberturas de diretórios, atributos adicionais e parte das opções nativas também
-continuam fora do subconjunto suportado.
+The rights of this step are controls of each handle within the model. Tokens, ACLs, impersonation, privileges, named event/section objects and tables of other processes have not yet been implemented. Sharing files between openings (`ShareAccess` other than zero) is refused in this path. Directory openings, additional attributes and part of the native options also remain outside the supported subset.
 
-`NtKernel` (modelo A) permanece separado. A integração de snapshots ainda deve
-incluir metadados de objetos, posição de arquivos, regiões e permissões WHP;
-restaurar apenas RAM e registradores não restaura o estado do `MiniNt`.
-Esta etapa não fornece um kernel inicializável independente nem compatibilidade
-integral com Windows ou isolamento de malware validado.
+`NtKernel` (model A) remains separate. Snapshot integration should still include object metadata, file position, regions, and WHP permissions; restoring only RAM and loggers does not restore the state of `MiniNt`. This step does not provide an independent bootable kernel or full Windows compatibility or validated malware isolation.
 
-O próximo bloco é o escalonamento de threads e esperas, substituindo respostas
-provisórias por transições de estado e eventos de conclusão reais.
+The next block is the staggering of threads and waits, replacing provisional responses with state transitions and actual completion events.
 
-## Referências de ABI e semântica
+## ABI and semantics references
 
-- [ZwClose e referências pendentes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-zwclose)
+- [ZwClose and outstanding references](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-zwclose)
 - [ZwDuplicateObject](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-zwduplicateobject)
 - [NtQueryObject](https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntqueryobject)
 - [ZwCreateSection](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-zwcreatesection)
 - [ZwCreateKey](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-zwcreatekey)
-- [Declarações de flags e estruturas do Object Manager no phnt](https://github.com/winsiderss/phnt/blob/master/ntobapi.h)
-- [Declarações de eventos no phnt](https://github.com/winsiderss/phnt/blob/master/ntexapi.h)
+- [Object Manager flags and structures statements in phnt](https://github.com/winsiderss/phnt/blob/master/ntobapi.h)
+- [Event statements in phnt](https://github.com/winsiderss/phnt/blob/master/ntexapi.h)

@@ -1,284 +1,125 @@
-# Fase 11 — Gráficos, entrada e janelas
+# Phase 11 — Graphics, input and windows
 
-Iniciada em 18/10/2026 por solicitação explícita do usuário. O produto continua
-Windows x64/MSVC/WHP; o desenvolvimento e os testes Linux usam ELF/KVM nativos,
-sem Wine ou QEMU. A fase 12 não está autorizada nem foi iniciada.
+Started on 18/10/2026 by explicit user request. The product continues Windows x64/MSVC/WHP; Linux development and testing use native ELF/KVM without Wine or QEMU. Phase 12 is not authorized or started.
 
-## Correções Windows aceitas em 19/10/2026
+## Windows fixes accepted on 19/10/2026
 
-As oito falhas de Windows foram corrigidas. A suíte completa aprovou **52/52
-em Debug e 52/52 em Release**, sem ignorados. O resultado oficial é `passed` /
-`awaiting_linux_acceptance`: a revisão corrigida ainda precisa de revalidação
-Linux com os mesmos hashes. A fase 12 não foi iniciada.
+The eight Windows failures have been corrected. The full suite approved **52/52 in Debug and 52/52 in Release** without ignoring. The official result is `passed` / `awaiting_linux_acceptance`: the corrected review still needs Linux revalidation with the same hashes. Phase 12 has not been started.
 
-Correções, novos testes, requisitos do auxiliar de memória e limites dos
-checkpoints: [relatório das correções](CORRECOES-WINDOWS-FASE11-20261019.md).
-O [diagnóstico anterior](VALIDACAO-WINDOWS-FASE11-20261019.md) foi preservado.
-As seções seguintes registram a revisão Linux aceita em 18/10; suas pendências
-Windows representam aquele momento.
+Corrections, new tests, memory assistant requirements and checkpoint limits: [correction report](WINDOWS-PHASE11-FIXES-20261019.md). [previous diagnosis](WINDOWS-PHASE11-VALIDATION-20261019.md) has been preserved. The following sections record the accepted Linux revision in 18/10; its Windows to-ed represent that moment.
 
-## Aceitação final no Linux
+## Final Linux Acceptance
 
-**Implementação da matriz própria concluída; Linux/KVM aprovado em Debug,
-Release e Sanitize. Aceitação nativa Windows/MSVC/WHP pendente. A fase 12 não
-foi iniciada.**
+**Implementation of own matrix completed; Linux/KVM approved in Debug, Release and Sanitize. Native acceptance Windows/MSVC/WHP pending. Phase 12 was not started.**
 
-Evidência: `build-phase11/validation-20261018-191149-4baab81b/validation.json`.
-Estado `passed` / `awaiting_native_windows_acceptance`. As fontes foram
-recompiladas em diretórios novos e seus hashes permaneceram iguais até o fim.
-Não houve Wine/QEMU, binários reaproveitados ou testes ignorados.
+Evidence: `build-phase11/validation-20261018-191149-4baab81b/validation.json`. `passed` / `awaiting_native_windows_acceptance` status. The fonts were recompiled in new directories and their hashes remained equal until the end. There was no Wine/QEMU, reused binaries or ignored tests.
 
-| Configuração | CTests | Boots/retomadas gráficos | Pausas gráficas | Suíte |
+| Configuration | CTests | Boots/resumes graphs | Pauses graphics | Suite |
 | --- | --- | --- | --- | --- |
-| Debug | 32 aprovados | 15 | 3 | 433,33 s |
-| Release | 32 aprovados | 15 | 3 | 305,55 s |
-| Sanitize (ASan/UBSan) | 32 aprovados | 15 | 3 | 534,43 s |
+| Debug | 32 approved | 15 | 3 | 433,33 s |
+| Release | 32 approved | 15 | 3 | 305,55 s |
+| Sanitize (ASan/UBSan) | 32 approved | 15 | 3 | 534,43 s |
 
-Totais: **96 execuções CTest, 132 boots antigos de regressão, quatro controles
-fatal/IST corretamente recusados como sucesso, 45 boots/retomadas gráficos e
-nove pausas gráficas**. Cada configuração inclui 9136 verificações do núcleo
-GUI e 20000 comandos hostis, oito pixels independentes e hash completo
-conferidos pelo oráculo Python, clonagem/retomada/roteiro vinculado ao snapshot
-e o visualizador nativo de software. Nenhum alerta de ASan/UBSan.
+Totals: **96 plays CTest, 132 old regression boots, four correctly rejected fatal/IST controls, 45 boots/resumes graphics and nine graphical pauses**. Each setting includes 9136 GUI core checks and 20,000 hostile commands, eight independent pixels and complete hash checked by Python oracle, cloning/resume/script linked to snapshot and native software viewer. No ASan/UBSan. alert
 
-A matriz antiga permaneceu aprovada: armazenamento e recuperação de 52
-prefixos de falha, catálogo e suas transações interrompidas, 81 boots/retomadas
-de snapshots do console e 27 pausas, 24 boots de seu gerenciador, 72 boots/retomadas
-de rede e suas capturas IPv4/IPv6. Esses valores estão identificados nos
-relatórios por configuração e não substituem a aceitação nativa Windows.
+The old matrix remained approved: storage and recovery of 52 fault prefixes, catalog and their aborted transactions, 81 boots/resumes console snapshots and 27 pauses, 24 bootes of its manager, 72 boots/resumes network and its captures IPv4/IPv6. These values are identified in the reports by configuration and do not replace native Windows acceptance.
 
-Foram preparados 19 módulos Windows com LLVM ELF produzindo COFF e fontes
-idênticas às aceitas. Não houve execução Windows. Para encerrar formalmente,
-rodar `python tools/validate_phase11.py` no Windows x64/MSVC/WHP: o gate exige
-52 CTests em Debug/Release, inclusive as comparações Microsoft de 153 handlers
-e 59 casos de unwind. A aceitação entre hosts só é combinada com hashes de
-fontes correspondentes.
+19 Windows modules were prepared with LLVM ELF producing COFF and sources identical to those accepted. There was no Windows execution. To formally close, run `python tools/validate_phase11.py` on Windows x64/MSVC/WHP: Gate requires 52 CTests on Debug/Release, including Microsoft comparisons of 153 handlers and 59 unwind cases. Host acceptance is only combined with hashes from corresponding sources.
 
-Os marcos intermediários abaixo são históricos; os resultados desta seção
-constituem a aceitação Linux final.
+The intermediate milestones below are historical; the results of this section constitute the final Linux acceptance.
 
-## Perfil implementado
+## Profile implemented
 
-A referência da fase 0 é uma aplicação gráfica própria. Esta implementação
-oferece uma aplicação própria em CPL3 com duas ferramentas/janelas: Paint
-desenha ao clicar, e Notes mostra
-o último caractere recebido pelo teclado. As duas ferramentas usam a API gráfica explícita do
-projeto; não importam USER32/GDI e não comprovam compatibilidade binária com
-aplicações gráficas arbitrárias do Windows. A matriz é deliberadamente pequena:
-bitmap BGRA opaco 320×240, rasterização por software, quatro janelas, texto ASCII
-com fonte 5×7 própria (letras/dígitos/espaço; minúsculas desenhadas como
-maiúsculas; demais imprimíveis usam o glifo de substituição `?`), retângulos,
-pequenos bitmaps, foco, ordem de sobreposição,
-cursores internos, diálogo modal e DPI lógico 96/144/192. Não há GPU anunciada.
+The reference of phase 0 is a graphical application of its own. This implementation offers a CPL3 application with two tools/windows: Paint draws when clicking, and Notes shows the last character received by the keyboard. The two tools use the explicit graphical API of the project; do not matter USER32/GDI and do not prove binary compatibility with arbitrary Windows graphical applications. The matrix is deliberately small: bitmap BGRA opaque 320×240, software rasterization, four windows, ASCII text with 5×7 font itself (letters/digits/space; lowercases drawn as capitals; too printable use the replacement glyph `?`), rectangles, small bitmaps, focus, overlay order, internal cursors, modal dialogue and logical DPI 96/144/192. there is no announced GPU.
 
-Gerenciador e rasterizador ficam no kernel convidado. Syscalls validam e copiam
-comandos de 160 bytes e retornam eventos de 32 bytes dentro da página de dados
-de usuário; ponteiros de kernel, overflow e dados fora do intervalo são recusados.
-O programa CPL3 cria as janelas, desenha e processa eventos reais do canal.
-Não são imagens desenhadas antecipadamente pelo host.
+Manager and rasterizer stay in the guest kernel. Syscalls validate and copy 160 byte commands and return 32 byte events within the user data page; kernel pointers, overflow and out-of-range data are rejected. The CPL3 program creates windows, draws and processes actual channel events. They are not images drawn in advance by the host.
 
-O dispositivo versão 1 usa a porta 0xF3 e páginas privadas do kernel:
-pacote 0x135000, enumeração somente leitura 0x136000, relatório 0x137000 e pixels
-0x140000–0x18AFFF (307200 bytes). O host valida sessão, sequência, dimensões,
-stride, tamanho, opacidade, títulos ASCII limitados, IDs, geometria, foco e
-parentesco modal antes de apresentar uma cópia. Não recebe HWND, callbacks,
-ponteiros ou solicitações para operar janelas externas.
+The release 1 device uses the 0xF3 port and private kernel pages: 0x135000 package, read-only enumeration 0x136000, 0x137000 report and 0x140000–0x18AFFF (307200 bytes). The host validates session, sequence, dimensions, stride, size, opacity, limited ASCII titles, IDs, geometry, focus, and modal kinship before presenting a copy. It does not receive HWND, callbacks, pointers, or requests to operate external windows.
 
-Cada janela mantém no máximo 32 operações de desenho. Um preenchimento de todo
-o cliente inicia uma nova lista; demais excessos retornam Full. Existem 16
-eventos, 256 criações de janela por sessão, 8192 trocas de dispositivo e
-30 segundos no visualizador interativo. Esses limites são explícitos; não são
-promessas de executar programas ou sessões longas.
+Each window holds a maximum of 32 drawing operations. A fill of the entire client starts a new list; other excesses return Full. There are 16 events, 256 window creations per session, 8192 device changes and 30 seconds in the interactive viewer. These limits are explicit; they are not promises to run programs or long sessions.
 
-## Canal interativo
+## Interactive channel
 
-`guardian-gui` abre uma única janela nativa controlada. Windows usa uma janela
-Win32 e StretchDIBits; Linux usa SDL2 com renderizador de software. O compositor
-convidado desenha suas janelas dentro dessa superfície. Entrada só é aceita
-para o identificador dessa janela e enquanto ela detém foco; coordenadas são
-convertidas para o desktop virtual. Perda de foco limpa entrada pendente no
-convidado. Não há hook global, captura global, movimento artificial do cursor,
-injeção de teclas no host nem encaminhamento de títulos para novas janelas reais.
+`guardian-gui` opens a single controlled native window. Windows uses a Win32 and StretchDIBits window; Linux uses SDL2 with software renderer. The guest composer draws its windows inside that surface. Entry is only accepted for the identifier of this window and while it has focus; coordinates are converted to the virtual desktop. Loss of focus clears pending entry in the guest. There is no global hook, global capture, artificial cursor movement, key injection in the host or forwarding titles to new real windows.
 
-Clipboard, arrastar arquivos, impressora, USB, unidades compartilhadas e acesso
-a janelas do host possuem operações separadas e retornam Denied. A máscara de
-permissões é zero; ativação desses recursos ainda não está implementada.
-Teclado suporta ASCII e Backspace/Tab/Enter/Escape; não há IME, Unicode geral,
-leiautes internacionais, atalhos globais, captura do mouse ou arraste de bordas.
-Cursores são desenhados na própria superfície. DPI da API é lógico; não anuncia
-paridade completa com DPI awareness ou USER32 do Windows.
+Clipboard, drag files, printer, USB, shared drives and access to host windows have separate operations and return Denied. The permission mask is zero; activation of these features is not yet implemented. Keyboard supports ASCII and Backspace/Tab/Enter/Escape; there is no IME, General Unicode, international layouts, global shortcuts, mouse capture or border drag. Cursors are drawn on the surface itself. API DPI is logical; it does not announce complete parity with Windows DPI awareness or USER32.
 
-## Execução
+## Implementation
 
-Linux, após compilar imagens e ferramentas:
+Linux, after compiling images and tools:
 
 ```sh
 ./guardian-gui guardian-kernel-graphics.gk evidencias
 ./guardian-gui guardian-kernel-graphics.gk evidencias --interactive
 ```
 
-O primeiro comando executa a sequência de referência com entrada explícita e
-salva `boot.json`, `desktop.ppm` e `graphics.json`. O segundo aceita interação
-somente na janela criada. Enter ou um clique dispensa o diálogo; clique no Paint
-para desenhar e no Notes para dar foco antes de digitar. Escape ou fechar a
-janela termina. A sessão que excede 30 segundos é diagnosticada como timeout.
+The first command executes the reference sequence with explicit input and saves `boot.json`, `desktop.ppm` and `graphics.json`. The second accepts interaction only in the created window. Enter or one click does not require dialog; click Paint to draw and Notes to focus before typing. Escape or close the window ends. The session that exceeds 30 seconds is diagnosed as timeout.
 
-No Windows, o mesmo executável é construído pelo CMake/MSVC; precisa da
-validação nativa desta revisão. No Linux, SDL2 em tempo de execução e seus
-headers de desenvolvimento habilitam o visualizador. Sem os headers, a execução
-gráfica sem janela continua disponível, mas o gate completo da fase 11 recusa
-uma suíte sem o teste do visualizador. O cache de desenvolvimento usado nesta
-máquina fica fora do projeto, em `~/.cache/guardian-native-deps/sdl2`.
+On Windows, the same executable is built by CMake/MSVC; it needs native validation of this revision. On Linux, SDL2 in runtime and its development headers enable the viewer. Without headers, the graphical execution without window remains available, but the full phase 11 gate refuses a suite without the viewer test. The development cache used on this machine is out of the project, in `~/.cache/guardian-native-deps/sdl2`.
 
-## Gerenciador e snapshots
+## Manager and snapshots
 
-`guardian-vm create ID IMAGE graphics` admite o novo perfil sem rede.
-O worker executa a sequência de referência sem janela, com histórico separado
-em `graphics-history/<token>` e cota de 64 sessões. Snapshots guardam RAM do
-compositor, pixels, sequência e posição da entrada determinística. Restauração
-exige exatamente o mesmo roteiro; clone e retomada produzem o mesmo bitmap.
-O formato dos perfis antigos permanece compatível.
+`guardian-vm create ID IMAGE graphics` admits the new profile without network. The worker performs the reference sequence without window, with separate history in `graphics-history/<token>` and 64 session quota. Snapshots store RAM from the composer, pixels, sequence and position of the deterministic input. Restoration requires exactly the same script; clone and resume produce the same bitmap. The format of the old profiles remains compatible.
 
-Snapshots interativos são recusados explicitamente: eventos externos ao
-checkpoint não têm uma semântica de replay implementada. A janela interativa
-é iniciada diretamente por `guardian-gui`; não se promete uma janela conectada
-a um worker em segundo plano. Novos perfis combinando GUI, PE, rede e disco
-exigem integração adicional; o contrato `graphics` atual é distinto.
+Interactive snapshots are explicitly rejected: external checkpoint events do not have an implemented replay semantics. The interactive window is started directly by `guardian-gui`; a window connected to a background worker is not promised. New profiles combining GUI, PE, network and disk require additional integration; the current `graphics` contract is distinct.
 
-## Validação
+## Validation
 
-O gate exige builds novos Debug/Release e host com ASan/UBSan,
-32 CTests por configuração Linux (52 no Windows), as 132 inicializações antigas,
-os controles fatal/IST e a preservação dos testes de rede, processos, disco,
-catálogo e snapshots. Testes gráficos incluem entrada inválida, clipping, quotas,
-vida útil, modal/foco, ponteiros, 20000 comandos hostis, pixels e hash verificados
-por código Python independente, onze boots/retomadas e três pausas por
-configuração (incluindo dois fechamentos antecipados), mais três boots gerenciados e uma execução do programa de referência.
+Gate requires new Debug/Release and host builds with ASan/UBSan, 32 CTests per Linux configuration (52 on Windows), 132 old bootings, fatal/IST controls, and preservation of network tests, processes, disk, catalog, and snapshots. Graphic tests include invalid entry, clipping, quotas, useful life, modal/focus, pointers, 20,000 hostile commands, pixels and hash verified by independent Python code, eleven boots/resumes and three set-up pauses (including two pre-set closures), plus three managed boots, and one run of the reference program.
 
-A pré-compilação de ramos Windows no Linux é preparação, não aceitação MSVC/WHP.
-Os resultados Linux finais estão no início deste documento; o gate Windows permanece pendente.
+The pre-compilation of Windows branches on Linux is preparation, non-acceptance MSVC/WHP. The final Linux results are at the beginning of this document; Windows gate remains pending.
 
-## Recuperação e verificações de desenvolvimento
+## Recovery and development checks
 
-As 350 fontes/documentos originais foram copiados antes de qualquer alteração
-para `snapshots/codex-before-phase11-20261018`, com manifesto SHA-256.
-Os pacotes e evidências das fases anteriores foram preservados. Logs de
-compilação e testes preliminares ficam em `build-phase11/development-logs`;
-eles não substituem a aceitação reconstruída.
+The original 350 source code/documents were copied before any change to `snapshots/codex-before-phase11-20261018`, with SHA-256 manifest. Packages and evidence from the previous phases were preserved. Compilation logs and preliminary tests remain in `build-phase11/development-logs`; they do not replace reconstructed acceptance.
 
-Os prechecks demonstraram as duas ferramentas CPL3, nove boots/retomadas e três
-pausas com pixels iguais, três execuções gerenciadas e recusa de roteiro de
-entrada diferente. Os testes foram ampliados para fechar durante o diálogo,
-inclusive depois de perda de foco. Houve correções de expectativas de teste
-(coordenada sobre um glifo e contador de sequência de uma instância distinta)
-e de uso da CLI (contrato posicional e retomada de clone com checkpoint).
-O ramo Windows foi preparado com identificador de cursor wide e compilação
-COFF; não foi executado pelo Linux.
+The prechecks demonstrated the two CPL3, nine boots/resumes tools and three pauses with equal pixels, three managed executions and refusal of a different input script. The tests were expanded to close during the dialogue, including after loss of focus. There were corrections of test expectations (coordinated over a glyph and sequence counter of a distinct instance) and use of CLI (positional contract and clone resume with checkpoint). The Windows branch was prepared with wide cursor identifier and COFF compilation; it was not executed by Linux.
 
-O teste do visualizador passou também no servidor de vídeo nativo disponível,
-abrindo/fechando somente sua própria janela. A suíte automatizada usa o driver
-SDL dummy para repetir desenho e filtro de identificador sem depender de um
-desktop. A entrada dos testes de aplicações é roteirizada pelo canal do
-dispositivo; não é uma certificação de teclado físico, IME ou todos os
-gerenciadores de janelas do Linux.
+The viewer test has also passed on the available native video server, opening/closing only your own window. The automated suite uses the SDL dummy driver to repeat drawing and filter identifier without depending on a desktop. The input of application tests is routed via the device channel; it is not a physical keyboard certification, IME or all Linux window managers.
 
-O prazo do teste completo de snapshots das fases anteriores passou de 240 para
-360 segundos: a evidência aceita da fase 10 já consumia 232,45 segundos em
-Sanitize. Os limites de execução dos convidados e critérios de sucesso foram
-preservados. As fontes ficam congeladas durante a matriz final.
+The time limit for the complete snapshots of the previous phases has gone from 240 to 360 seconds: the accepted evidence of phase 10 already consumed 232.45 seconds in Sanitize. The execution limits of the guests and success criteria have been preserved. The sources are frozen during the final matrix.
 
-Referência da API SDL usada pelo visualizador: [fila de eventos](https://wiki.libsdl.org/SDL2/SDL_PollEvent)
-e [identificação de janela](https://wiki.libsdl.org/SDL2/SDL_GetWindowID).
+Reference of the SDL API used by the viewer: [event file](https://wiki.libsdl.org/SDL2/SDL_PollEvent) and [ Window identification](https://wiki.libsdl.org/SDL2/SDL_GetWindowID).
 
-## Limites de plataforma preservados
+## Preserved platform limits
 
-A proteção de execução física de segundo estágio continua diferente entre os
-hosts: WHP controla R/W/X, enquanto o backend KVM declara
-`secondStageExecuteProtection:false` e usa NX nas tabelas do convidado. Esta
-fase não altera essa limitação. Não há SMP, aceleração 3D, DirectX/OpenGL,
-importação de driver de GPU, API binária USER32/GDI nem perfil de Windows
-completo. O fonte Win32 do visualizador não torna esses recursos disponíveis
-para a aplicação convidada.
+The second-stage physical execution protection remains different between hosts: WHP controls R/W/X, while the KVM backend declares `secondStageExecuteProtection:false` and uses NX in the guest tables. This phase does not change this limitation. There is no SMP, 3D acceleration, DirectX/OpenGL, import of GPU driver, binary API USER32/GDI or full Windows profile. The Win32 font of the viewer does not make these features available for the invited application.
 
-| Referência gráfica | Contrato implementado | Evidência exigida |
+| Reference graphics | Contract implemented | Evidence required |
 | --- | --- | --- |
-| Paint próprio x64/CPL3 | Retângulos, texto, bitmap e clique | Pixel desenhado e hash completo |
-| Notes próprio x64/CPL3 | Texto ASCII, foco e DPI 144 | Caractere K; teclas sem foco descartadas |
-| Diálogo próprio modal | Bloqueia pai, aceita dispensa/fechamento | Foco recusado; fechar após blur funciona |
-| Visualizador Linux | SDL2/software, uma janela controlada | Apresentação e filtro de ID no processo |
-| Visualizador Windows | Janela Win32/software | Compila no precheck; execução nativa pendente |
-| Programas GUI PE Windows genéricos | Fora da matriz atual | Não anunciados como compatíveis |
+| Paint own x64/CPL3 | Rectangles, text, bitmap and click | Pixel designed and complete hash |
+| x64/CPL3 own notes | Text ASCII, focus and DPI 144 | K character; focusless keys discarded |
+| Modal own dialogue | Block Dad., accepted waiver/closing | Focus refused; closing after blur works |
+| Visualizador Linux | SDL2/software, a controlled window | Presentation and process ID filter |
+| Visualizador Windows | Win32/software Window | Compile in precheck; native execution pending |
+| Generic Windows GUI PE Programs | Out of the current matrix | Not advertised as compatible |
 
-## Primeiro resultado da matriz reconstruída
+## First result of the reconstructed matrix
 
-Debug aprovou os 32 CTests e 66 boots de regressão das fases anteriores.
-O núcleo gráfico aprovou 9136 verificações e 20000 comandos hostis; os gráficos
-executaram onze boots/retomadas e três pausas, três boots gerenciados e uma
-execução com oráculo Python independente. Release e Sanitize permanecem em
-execução; este marco isolado não encerra a aceitação.
+Debug approved the 32 CTests and 66 regression bootes of the previous phases. The graphical core approved 9136 checks and 20000 hostile commands; the graphics executed eleven boots/resumes and three pauses, three managed boots and an execution with independent Python oracle. Release and Sanitize remain running; this isolated milestone does not end acceptance.
 
-## Unidade de execução da referência
+## Unit of implementation of the reference
 
-Paint e Notes são duas ferramentas no mesmo programa de referência, executado
-por uma entrada CPL3 no perfil CPU. Compartilham o espaço de endereços; não são
-dois processos PE nem dois executáveis USER32 independentes. O campo
-`applications=2` do relatório conta esses dois workloads de janela, não
-processos do sistema. A matriz inicial da fase 0 exige uma aplicação GUI própria.
-Os nomes “two applications” presentes nas saídas dos testes identificam as
-duas ferramentas dessa referência; não comprovam isolamento entre processos
-gráficos. O isolamento entre processos da fase 5 continua testado em seu
-contrato separado.
+Paint and Notes are two tools in the same reference program, executed by a CPL3 entry in the CPU profile. They share the address space; they are neither two PE processes nor two independent USER32 executables. The `applications=2` field of the report counts these two window workloads, not system processes. The initial matrix of phase 0 requires a specific GUI application. The “two applications” names present in the test outputs identify the two tools of this reference; they do not prove isolation between graphical processes. The isolation between phase 5 processes remains tested in their separate contract.
 
-## Segundo resultado da matriz reconstruída
+## Second result of the reconstructed matrix
 
-Release também aprovou 32 CTests e 66 boots de regressão. A matriz já soma
-64 CTests e os 132 boots antigos previstos, com pixels iguais nas retomadas
-gráficas e três execuções gerenciadas por configuração. O host com
-ASan/UBSan está em execução; a aceitação final ainda depende dessa rodada.
-A prévia `preview.png` na pasta de evidências foi gerada dos pixels produzidos
-pelo convidado Release e conferidos pelo oráculo independente.
+Release also approved 32 CTests and 66 regression boots. The matrix already sums up 64 CTests and the 132 predicted old boots, with equal pixels in the graphics resumes and three executions managed by configuration. The host with ASan/UBSan is running; the final acceptance still depends on this round. The previous `preview.png` in the evidence folder was generated from the pixels produced by the guest Release and conferred by the independent oracle.
 
-O bitmap da referência coincide byte a byte entre Debug e Release (PPM SHA-256
-`4d26b5738133e4946a3d86aa6b7f246c25561d0a77df9f0c4c14ad4ded3c5c9b`). Isso inclui o descarte de teclas sem foco e
-a retomada; não constitui compatibilidade gráfica com outros aplicativos.
+The reference bitmap coincides byte to byte between Debug and Release (PPM SHA-256 `4d26b5738133e4946a3d86aa6b7f246c25561d0a77df9f0c4c14ad4ded3c5c9b`). This includes focusless key disposal and resumption; it does not constitute graphical compatibility with other applications.
 
-## Entrega e recuperação
+## Delivery and Recovery
 
-As mudanças revisáveis ficam em `changes.patch` e `changes.json` na pasta de
-evidências. Há manifesto de documentação, precheck Windows e arquivo
-`accepted-sources.tar.gz` com cópia exata das fontes e hashes por arquivo.
-A cópia anterior de 350 arquivos permanece disponível no diretório de snapshots.
+The revisionable changes are in `changes.patch` and `changes.json` in the evidence folder. There is documentation manifest, Windows precheck and `accepted-sources.tar.gz` file with exact copy of the fonts and hashes per file. The previous copy of 350 files remains available in the snapshot directory.
 
-O empacotador é `python3 tools/package_phase11.py EVIDENCE`. Ele exige a
-aceitação aprovada e os mesmos hashes, recusa sobrescrever pacotes existentes
-e inclui quatro executáveis ELF, 15 imagens (13 de produção e dois controles
-fatais), capturas da referência, documentação e manifesto SHA-256. O pacote
-é construído nesta máquina Linux Mint 22.3/GCC 13; portabilidade para outras
-versões de libc/distribuições ainda não foi certificada.
+The packer is `python3 tools/package_phase11.py EVIDENCE`. It requires approved acceptance and the same hashes, refuses to overwrite existing packages and includes four ELF executables, 15 images (13 of production and two fatal controls), reference captures, documentation and SHA-256 manifest. The package is built on this Linux Mint 22.3/GCC 13 machine; portability for other versions of libc/distributions has not yet been certified.
 
-## Pacote Linux verificado
+## Verified Linux Package
 
-Arquivo: `dist/guardianav-phase11-linux-x86_64-20261018.tar.gz` (aproximadamente
-1,8 MiB), com SHA-256
-`18e53606193f319d828573f8d92f46ea780638cf86b3b566194cd40f4f78f749`.
-O arquivo `.sha256` fica ao lado.
+File: `dist/guardianav-phase11-linux-x86_64-20261018.tar.gz` (approximately 1.8 MiB), with SHA-256 `18e53606193f319d828573f8d92f46ea780638cf86b3b566194cd40f4f78f749`. The `.sha256` file is next door.
 
-O pacote foi extraído em pasta temporária fora do projeto. Foram conferidos
-97 arquivos pelo manifesto e os quatro executáveis ELF, com 15 imagens do
-convidado. Passaram o scanner nativo, o oráculo de pixels da aplicação, três
-boots gerenciados com clone/restauração, o visualizador nativo e dois boots
-do console completo com persistência (sequência recuperada e base intacta).
-Os sentinelas de Wine/QEMU não foram acionados. Evidências:
-`package-validation.json`, `package-commands.json`, `package-graphics/`,
-`package-graphics-manager.json` e `package-complete-0/1.json`.
+Package was extracted in temporary folder outside the project. Checked 97 files by manifest and the four ELF executables, with 15 guest images. Passed the native scanner, the oracle of pixels of the application, three boots managed with clone/restoration, the native viewer and two console boots complete with persistence (sequence recovered and base intact). Wine/QEMU Evidence: `package-validation.json`, `package-commands.json`, `package-graphics/`, `package-graphics-manager.json` and `package-complete-0/1.json`.
 
-A entrega inclui 37 alterações textuais revisáveis, os 350 arquivos anteriores
-intactos no snapshot e um arquivo de fontes exatas com 369 arquivos. A cópia
-de fontes e a documentação interna do pacote representam o momento do
-empacotamento; este registro externo acrescenta o hash do pacote e seu teste
-de extração para evitar referência circular de hashes. Os hashes de todas as
-fontes aceitas permanecem iguais.
+Delivery includes 37 revisionable textual changes, the 350 previous files intact in snapshot and an exact font file with 369 files. The source copy and internal package documentation represent the time of packaging; this external record adds the hash of the package and its extraction test to avoid circular hashe reference. Hashes from all accepted sources remain the same.
 
-**Parada:** a fase 11 está implementada e aprovada para a matriz própria no
-Linux. A conclusão formal depende dos 52 CTests por configuração no Windows
-nativo. A fase 12 não foi iniciada.
+**Stop:** Phase 11 is implemented and approved for the own matrix on Linux. Formal completion depends on 52 CTests per configuration on native Windows. Phase 12 has not been started.

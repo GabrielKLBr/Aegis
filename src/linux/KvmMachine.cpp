@@ -183,7 +183,7 @@ bool MicroVm::CompleteIo(){
     if(!ioPending_)return true;
     __atomic_store_n(&run_->immediate_exit,1,__ATOMIC_RELAXED);
     const int result=ioctl(cpu_,KVM_RUN,0);
-    if(result>=0 || errno!=EINTR)return Fail("complete pending KVM I/O");
+    if(result>=0 || errno!=EINTR)return Fail("complete hanging KVM I/O");
     ioPending_=false;return true;
 }
 bool MicroVm::Run(uint64_t budget){

@@ -1,252 +1,173 @@
-# Fase 0 — Arquitetura e fronteira de compilação
+# Phase 0 — Architecture and build border
 
 Base: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
 Data: 16/10/2026.
 
-## Escopo desta entrega
+## Scope of this delivery
 
-Consolidar a arquitetura sobre os módulos existentes, migrar a compilação para
-C++20 e estabelecer contratos verificáveis para o futuro kernel no convidado.
-O alvo freestanding desta fase contém validadores de contrato e não tem ponto
-de entrada, imagem inicializável, implementação de dispositivo ou carregador
-de kernel. A fase 1 permanece uma entrega posterior, sujeita à solicitação do
-usuário. Ao terminar a fase 0, parar.
+Consolidate the architecture over existing modules, migrate the compilation to C++20 and establish verifiable contracts for the future kernel in the guest. The freestanding target of this phase contains contract validators and has no entry point, bootable image, device implementation or kernel loader. Phase 1 remains a later delivery, subject to user request. At the end of phase 0, stop.
 
-## Decisões de arquitetura
+## Architecture decisions
 
-1. WHP continua no host Windows como mecanismo de virtualização. O VMM próprio
-   controla partição, RAM, vCPU e dispositivos, sem QEMU.
-2. O kernel de destino executará em ring 0 no convidado. APIs Windows, alocadores
-   do processo host, arquivos físicos e ponteiros host não fazem parte de sua ABI.
-3. MiniNt (modelo B) permanece referência funcional para semântica e regressão.
-   NtKernel (modelo A) permanece separado. Nenhum desses modelos já constitui
-   o kernel convidado pretendido.
-4. Preservar a organização atual e adicionar fronteiras de build; não mover
-   módulos ou eliminar exemplos para aparentar uma arquitetura concluída.
-5. A plataforma inicial é x64, little-endian, uma vCPU, RAM de 16 MiB a 1 GiB.
-   Esse limite inicial acompanha o mapeamento de boot do VMM, não define o limite
-   final do produto. SMP, cotas avançadas e perfis de hardware ficam nas fases
-   previstas no roadmap.
-6. Contratos compartilhados usam inteiros de largura fixa, GPAs e tamanhos;
-   não contêm ponteiros, handles Windows, strings STL, bools ou objetos virtuais.
-   Reservados precisam ser zero. Versões desconhecidas são recusadas.
-7. A migração para kernel preservará algoritmos e testes quando possível. Os
-   gerenciadores atuais que usam `std::map`, `shared_ptr`, exceções ou serviços
-   Windows exigirão adaptação ao runtime próprio; copiar headers não basta.
+1. WHP continues on Windows host as a virtualization engine. VMM itself
+   controls partition, RAM, vCPU and devices without QEMU.
+2. The target kernel will run in ring 0 in the guest. Windows APIs, allocators
+   host process, physical files and host pointers are not part of your ABI.
+3. MiniNt (model B) remains functional reference for semantics and regression.
+   NtKernel (model A) remains separate. None of these models already constitute the desired guest kernel.
+4. Preserve current organization and add build borders; do not move
+   modules or delete examples to look like a completed architecture.
+5. The initial platform is x64, little-endian, a vCPU, RAM from 16 MiB to 1 GiB.
+   This initial limit follows the boot mapping of the VMM, does not define the final limit of the product. SMP, advanced quotas and hardware profiles stay in the stages foreseen in the roadmap.
+6. Shared contracts use fixed width integers, GPas and sizes;
+   do not contain hands, Windows handles, STL strings, bools or virtual objects. Reserved need to be zero. Unknown versions are refused.
+7. Kernel migration will preserve algorithms and tests when possible.
+   Current managers who use `std::map`, `shared_ptr`, Windows exceptions or services will require adaptation to their own runtime; copying headers is not enough.
 
-## Inventário de módulos e dependências
+## Inventory of modules and dependencies
 
-| Componente existente | Estado verificável e dependências | Destino / trabalho posterior |
+| Component existing | Status verifiable and dependencies | Destination / work posterior |
 |---|---|---|
-| `Scanner`, `SignatureDatabase`, `Sha256` | Scanner de hashes/conteúdo; arquivos Windows e CNG. | Host; ampliar detecção, formatos e conectores na fase 14. |
-| `Quarantine` | Armazenamento XOR e metadados em arquivos. | Host; integridade, transações e recuperação na fase 15. |
-| `RealTimeMonitor` | Monitor de diretório por API Windows. | Host; serviço, filas, perdas de eventos e IPC na fase 16. |
-| `EngineFacade`, `UiApp` | Scanner em background e UI Direct2D/DirectWrite. | Host; integração WinUI 3 e idiomas na fase 17. |
-| `Sandbox` | Execução restrita no host e encaminhamento ao Windows Sandbox. | Caminhos legados separados do kernel próprio; não equivalem ao novo convidado. |
-| `WscIntegration` | Integração/consulta Windows Security Center. | Host; validar estado e requisitos de implantação do produto. |
-| `Common`, `Util`, `ComPtr` | Helpers de tipos, console e COM/Win32. | Host; não incluir no kernel freestanding. |
-| `Preflight` | Diagnóstico de disponibilidade de virtualização. | Host; preservar leitura, sem alterar segurança/boot do Windows. |
-| `MicroVmMonitor` | WHP, RAM, uma vCPU, I/O, registradores e permissões. | VMM host; reutilizar e ampliar nas fases 1–12. |
-| `PvConsole`, `PvDisk` | Console por porta e modelo de escrita em arquivo diferencial. | VMM; protocolos legados, sem alegar barramento/armazenamento completos. |
-| `MiniNt`, `MiniNtObjects` | Syscalls e objetos atendidos no host. | Referência; adaptar partes e completar semântica no convidado. |
-| `GuestHeap`, `GuestVirtualMemory`, `GuestMemory` | Alocação e validação testadas, com metadados/backends host. | Referência para gerência de memória da fase 3. |
-| `GuestObjects`, `GuestScheduler`, threads e sincronização | Direitos, referências e escalonamento cooperativo testados. | Referência para fases 4–5; ainda sem preempção/SMP. |
-| `NtKernel` | Modelo A sintético; gerência distinta de MiniNt. | Legado de regressão; não misturar seus handles/estado com modelo B. |
-| `PeLoader`, `WinLoader`, `ProcessEnv` | Carregamento parcial; dependências de RAM host e patches de runtime. | Referência da fase 8; validar parsers e retirar respostas provisórias. |
-| `VirtualFs`, `VirtualRegistry`, registro de MiniNt | Estado em memória, interfaces diferentes entre modelos. | Persistência, segurança e unificação semântica nas fases 7–8. |
-| `SnapshotManager` | Cópia de RAM e subconjunto de registradores. | Fase 9; não restaura sozinho kernel, objetos, dispositivos e permissões. |
-| `ReportBuilder`, `MicroSandbox` | Relatórios e fachada do modelo A. | Host; integrar telemetria e políticas da fase 13. |
-| Exemplos `vm*` e dez testes existentes | Casos específicos de regressão, não aplicações Windows gerais. | Preservados; matriz inicial abaixo. |
-| Serviço/IPC, SQLite, conectores, YARA, WinUI 3 | Implementação integrada ainda pendente nesta base. | Fases 14–18. |
-| Kernel no convidado, drivers, rede e GUI convidados | Ainda não implementados como sistema operacional próprio. | Fases 1–12. |
+| `Scanner`, `SignatureDatabase`, `Sha256` | hashes/content Scanner; Windows and CNG files. | Host; Enlarge detection, formats and connectors in phase 14. |
+| `Quarantine` | XOR storage and metadata in files. | Host; integrity, transactions and recovery in phase 15. |
+| `RealTimeMonitor` | Directory monitor by Windows API. | Host; service, queues, event losses and IPC in phase 16. |
+| `EngineFacade`, `UiApp` | Scanner ed background and UI Direct2D/DirectWrite. | Host; integration WinUI 3 and languages in phase 17. |
+| `Sandbox` | Restricted running on the host and forwarding to Windows Sandbox. | Legacy paths separated from the kernel itself; do not equal the new guest. |
+| `WscIntegration` | Integration/consultation Windows Security Center. | Host; validate status and product deployment requirements. |
+| `Common`, `Util`, `ComPtr` | Helpers of types, console and COM/Win32. | Host; do not include in the freestanding kernel. |
+| `Preflight` | Diagnosis of virtualization availability. | Host; preserve reading without changing safety/boot from Windows. |
+| `MicroVmMonitor` | WHP, RAM, a vCPU, I/O, registers and permissions. | VMM host; reuse and amplify in phases 1–12. |
+| `PvConsole`, `PvDisk` | Port console and write template in differential file. | VMM; legacy protocols without claiming full bus/storage. |
+| `MiniNt`, `MiniNtObjects` | Syscalls and objects attended no host. | Reference; adapt parts and complete semantics no guest. |
+| `GuestHeap`, `GuestVirtualMemory`, `GuestMemory` | Allocation and validation tested, with metadata/backends host. | Reference for phase 3 memory management. |
+| `GuestObjects`, `GuestScheduler`, threads and sync | Rights, references and scaling cooperative tested. | Phase 4–5 reference; still no preemption/SMP. |
+| `NtKernel` | Model A synthetic; distinct management of MiniNt. | Legacy of regression; do not mix your handles/status with model B. |
+| `PeLoader`, `WinLoader`, `ProcessEnv` | Partial loading; RAM host dependencies and runtime patches. | Phase 8 reference; validate parsers and withdraw provisional responses. |
+| `VirtualFs`, `VirtualRegistry`, MiniNt registry | Memory state, different interfaces between models. | Persistence, security and semantic unification in phases 7–8. |
+| `SnapshotManager` | Copy of RAM and subconjunto of registers. | Phase 9; does not restore kernel, objects, devices and permissions alone. |
+| `ReportBuilder`, `MicroSandbox` | Reports and facade of model A. | Host; integrate telemetry and phase 13 policies. |
+| Examples `vm*` and ten existing tests | Specific regression cases, not general Windows applications. | Preserved; matrix start below. |
+| Service/IPC, SQLite, connectors, YARA, WinUI 3 | Integrated implementation still pending on this basis. | Phases 14–18. |
+| Kernel no guest, drivers, network and GUI guests | Not yet implemented as their own operating system. | Phases 1–12. |
 
-Os caminhos `VmSpoof*` e personalidades existentes são exemplos legados; esta
-fase não amplia alterações de identidade nem usa seus resultados como medida
-de realismo ou de isolamento.
+The `VmSpoof*` paths and existing personalities are legacy examples; this phase does not expand identity changes or use their results as a measure of realism or isolation.
 
-## Fronteiras e alvos de compilação
+## Borders and compilation targets
 
-| Alvo | Conteúdo |
+| Target | Content |
 |---|---|
-| `guardian_host` | CLI `av` e UI `avui`, ligados às bibliotecas Windows. |
-| `guardian_vmm` | Ferramentas WHP `vm*` e `microsandbox`; continuam no host. |
-| `guardian_reference` | Sete exemplos de referência e testes, incluindo contratos quando habilitados. |
-| `guardian_abi` | Headers de layout e validação sem dependência de APIs Windows. |
-| `guardian_guest_contract` | Objeto x64 com os validadores compilados no subconjunto de kernel. |
-| `guardian_guest_audit` / `guardian_guest` | Auditoria COFF desse objeto e agrupamento do convidado. |
+| `guardian_host` | CLI `av` and UI `avui`, connected at libraries Windows. |
+| `guardian_vmm` | Tools WHP `vm*` and `microsandbox`; Keep going no host. |
+| `guardian_reference` | Seven reference examples and tests, including contracts when enabled. |
+| `guardian_abi` | Layout and validation heads without dependency on Windows APIs. |
+| `guardian_guest_contract` | Object x64 with built-in validators in kernel subset. |
+| `guardian_guest_audit` / `guardian_guest` | COFF audit of this object and guest grouping. |
 
-Os grupos não criam novos processos ou serviços em execução. O objeto convidado
-é ligado ao teste host para verificar os mesmos validadores compilados com suas
-restrições; esse teste não constitui execução do kernel em uma VM.
+Groups do not create new running processes or services. The guest object is connected to the host test to verify the same validators compiled with their restrictions; this test does not constitute kernel execution on a VM.
 
-Requisitos atuais: CMake 4.0+, Visual Studio 2022 C++ x64, Windows SDK e Python
-3.9+ para a auditoria. Não há dependências baixadas pelo configure. C++20 foi
-habilitado nos alvos nativos; módulos nomeados C++ não são usados. O alvo
-convidado requer MSVC x64; builds host alternativos podem desligá-lo por
-`GUARDIAN_BUILD_GUEST_CONTRACT=OFF`, deixando de validar esta fronteira.
+Current requirements: CMake 4.0+, Visual Studio 2022 C++ x64, Windows SDK and Python 3.9+ for auditing. There are no dependencies downloaded by configure. C++20 has been enabled on native targets; C++ named modules are not used. The guest target requires MSVC x64; alternative hosts builds can shut it down by `GUARDIAN_BUILD_GUEST_CONTRACT=OFF`, failing to validate this border.
 
-Para o convidado: sem RTTI, unwinding C++, bibliotecas padrão automáticas,
-instrumentação de runtime ou Just My Code. As opções restritivas se aplicam ao
-alvo convidado; host mantém runtime, verificações Debug e proteção de pilha.
-O build verifica o COFF real: máquina x64, ausência de símbolos externos não
-resolvidos e de diretivas que solicitem bibliotecas ou símbolos externos.
-Isso demonstra independência desse objeto; não prova ausência de bugs, segurança
-de um futuro kernel ou compatibilidade com drivers Windows.
+For the guest: no RTTI, unwinding C++, default automatic libraries, runtime instrumentation or Just My Code. Restrictive options apply to the guest target; host keeps runtime, Debug checks and stack protection. Build checks the actual COFF: x64 machine, absence of unsolved external symbols and directives that request external libraries or symbols. This demonstrates independence from that object; does not prove no bugs, security of a future kernel or compatibility with Windows drivers.
 
-## Contrato de boot v1.0
+## Boot contract v1.0
 
-Definições executáveis: `shared/guardian/Abi.h` e `Validate.h`.
+Executable definitions: `shared/guardian/Abi.h` and `Validate.h`.
 
-- Formato inicial da futura imagem: PE32+ x64 freestanding, base preferida
-  `0x200000`, sem imports Windows, inicializadores dinâmicos ou runtime externo.
-  A fase 1 construirá a imagem e validará seções, entrada e endereços antes de
-  carregá-la; essa implementação não faz parte da fase 0.
-- Entrada em long mode/ring 0, paginação identity-mapped, interrupções e direction
-  flag desabilitadas. A referência atual do VMM mantém OSXSAVE e SCE desabilitados;
-  o kernel só mudará esses estados quando implementar seus caminhos de exceção
-  e syscall. O contrato inicial não anuncia AVX/XSAVE.
-- Convenção x64: RCX aponta para `BootInfo`; pilha de 16 bytes com shadow space e
-  alinhamento de entrada correspondente à ABI. A entrada não deve retornar;
-  a fase 1 tratará retorno inesperado como falha observável.
-- `BootInfo`: 160 bytes, alinhamento 8. Contém versão, máquina, tamanho real da
-  RAM, imagem/entrada, pilha, tabelas, canal, uma vCPU e ID de sessão não secreto.
-- Todas as áreas declaradas devem caber na RAM, sem overflow ou sobreposição.
-  A primeira MiB fica reservada ao bootstrap, incluindo as tabelas existentes
-  em `0x70000..0x73FFF`. Dados de boot e demais buffers começam após essa região.
-- Mapa de memória: até 128 entradas de 32 bytes, ordenadas e contíguas, cobrindo
-  toda a RAM. Classifica reservado, disponível, dados de boot, imagem e pilha.
-  A validação confere a propriedade das áreas; não substitui a proteção MMU/WHP.
-- Layout de referência dos testes: boot `0x100000`, mapa `0x101000`, dispositivos
-  `0x102000`, canal `0x103000`, imagem `0x200000`, pilha `0x400000`.
-  Esses endereços são uma configuração de referência, não ponteiros host.
+- Early image format: PE32+ x64 freestanding, preferred base
+  `0x200000`, without Windows import, dynamic booters or external runtime. Phase 1 will build the image and validate sections, input and addresses before loading it; this implementation is not part of phase 0.
+- Long entry mode/ring 0, identity-mapped pagination, interruptions and direction
+  flag disabled. The current VMM reference keeps OSXSAVE and SCE disabled; the kernel will only change these states when implementing its exception paths and syscall. The initial contract does not announce AVX/XSAVE.
+- Convention x64: RCX points to `BootInfo`; stack 16 bytes with shadow space and
+  input alignment corresponding to ABI. The input should not return; phase 1 will treat unexpected return as observable failure.
+- `BootInfo`: 160 bytes, alignment 8. Contains version, machine, real size of
+  RAM, image/entry, stack, tables, channel, a vCPU and non-secret session ID.
+- All declared areas should fit in RAM, without overflow or overlap.
+  The first MiB is reserved for bootstrap, including the existing tables in `0x70000..0x73FFF`. Boot data and other buffers start after that region.
+- Memory map: up to 128 entries of 32 bytes, sorted and contiguous, covering
+  all RAM. Sorts reserved, available, boot, image and stack data. Validation confers ownership of areas; does not replace MMU/WHP. protection
+- Test Reference Layout: `0x100000` boot, `0x101000` map, devices
+  `0x102000`, `0x103000` channel, `0x200000` image, `0x400000` stack. These addresses are a reference configuration, not host pointers.
 
-O transporte deve ler/copiar o header e as tabelas somente após validar seus
-intervalos na RAM real. Os validadores recebem estruturas já acessíveis ao
-chamador; não tornam um ponteiro C++ arbitrário seguro para dereferenciar.
+The transporter must read/copy the header and the tables only after validating their intervals in the real RAM. Validators receive structures already accessible to the caller; they do not make an arbitrary C++ pointer safe to dereference.
 
-## Dispositivos e mensagens v1.0
+## Devices and messages v1.0
 
-Tabela de dispositivos: até oito descritores de 32 bytes. O contrato inicial
-exige console de diagnóstico por porta `0xE9` e canal de controle por `0xEA`,
-sem interrupção de dispositivo. Seus tipos e versões são explícitos e não
-reutilizam implicitamente o protocolo do disco legado `0x70/0x71`.
+Table of devices: up to eight 32 bytes descriptors. The initial contract requires `0xE9` port diagnostic console and `0xEA` control channel without device interruption. Its types and versions are explicit and do not implicitly reuse the protocol of the legacy `0x70/0x71` disk.
 
-A implementação futura do canal usa um buffer GPA fixado no boot, de 4096 bytes.
-Uma notificação não poderá fazer o host seguir endereço arbitrário fornecido
-pelo convidado. O host deverá copiar a mensagem enquanto a vCPU está parada,
-validar o envelope e depois interpretar o payload em armazenamento próprio.
-O doorbell é uma escrita de oito bits em `0xEA`; o valor do byte não é comando
-nem endereço e é ignorado. O tipo da operação vem do envelope no buffer fixo.
+The future implementation of the channel uses a GPA buffer fixed on the boot, of 4096 bytes. A notification cannot cause the host to follow arbitrary address provided by the guest. The host should copy the message while vCPU is stopped, validate the envelope and then interpret payload in its own storage. Doorbell is an eight-bit script in `0xEA`; the value of the byte is neither command nor address and is ignored. The operation type comes from the envelope in the fixed buffer.
 
-Header de mensagem: 40 bytes, magic/versão, operação, tamanhos, sequência e ID de
-boot. Flags e campos reservados precisam ser zero. O pacote deve ter tamanho
-exato; outra sessão, repetição, versão desconhecida ou payload excessivo são
-recusados. O ID de boot e a sequência evitam confusão de sessão; não constituem
-autenticação criptográfica de um convidado não confiável.
+Message Header: 40 bytes, magic/version, operation, sizes, sequence and boot ID. Flags and reserved fields need to be zero. The package must be exact size; another session, repetition, unknown version or excessive payload are denied. Boot ID and sequence avoid session confusion; they do not constitute cryptographic authentication of an unreliable guest.
 
-Operações iniciais somente convidado → host:
+Initial guest only operations → host:
 
-| Operação | Payload e uso previsto |
+| Operation | Payload and use planned |
 |---|---|
-| `Hello` | 16 bytes: arquitetura, vCPUs e capacidades implementadas. |
-| `Diagnostic` | 1–1024 bytes de diagnóstico; não executar como comandos ou formato. |
-| `StopResult` | 8 bytes: resultado do autoteste e campo reservado zero. |
+| `Hello` | 16 bytes: architecture, vCPUs and capabilities implemented. |
+| `Diagnostic` | 1–1024 diagnostic bytes; do not execute as commands or format. |
+| `StopResult` | 8 bytes: result of autotest and field reserved zero. |
 
-O estado do transporte da fase 1 deverá exigir Hello inicial, sequência
-monotônica e parada terminal, validar os campos de payload e limitar volume de
-diagnóstico, tempo e número de saídas. Os validadores desta fase conferem
-envelope/layout; não implementam o transporte ou toda essa máquina de estados.
-Nenhuma mensagem concede acesso geral a APIs privilegiadas do host.
+Phase 1 transport status must require initial Hello, monotonic sequence and terminal stop, validate payload fields and limit diagnostic volume, time and number of outputs. Validators of this phase confer envelope/layout; do not implement the transport or all that state machine. No message grants general access to privileged host APIs.
 
-## Matriz inicial e medidas de aceitação
+## Initial matrix and acceptance measures
 
-Configuração versionada: `config/phase0-acceptance.json`. Ambiente de referência
-observado: Windows 11 Pro x64 `10.0.26300`, MSVC 19.44, SDK 10.0.26100.0.
-Outras builds e Windows 10 ainda precisam de execução na respectiva máquina.
-O uso do ntdll local valida um subconjunto dessa referência; não valida perfis
-XP–11. ISO Windows não é necessária para construir o kernel próprio.
+Versioned Settings: `config/phase0-acceptance.json`. Observed reference environment: Windows 11 Pro x64 `10.0.26300`, MSVC 19.44, SDK 10.0.26100.0. Other builds and Windows 10 still need to run on the respective machine. The use of local ntdll validates a subset of this reference; does not validate XP profiles–11. ISO Windows is not required to build the kernel itself.
 
-Referências já existentes: `vmntdll`, `vmntfile`, `vmntsect`, `vmntimage`,
-`vmntquery`, `vmntreg`, `vmwininit`; saída esperada zero, timeout de 20 segundos
-por execução. Os testes WHP usam programas pequenos gerados no projeto e
-watchdog. Uma execução ignorada por falta de WHP não conta como validação real.
+Existing references: `vmntdll`, `vmntfile`, `vmntsect`, `vmntimage`, `vmntquery`, `vmntreg`, `vmwininit`; expected output zero, timeout 20 seconds per run. The WHP tests use small programs generated in the project and watchdog. An execution ignored by lack of WHP does not count as real validation.
 
-Novas referências planejadas: kernel com autoteste (fase 1), cenários de
-preempção (4), aplicação console própria (8), consistência de snapshots (9) e
-aplicação GUI própria (11). O JSON marca explicitamente que ainda não existem.
-Não usar sucesso dos exemplos de syscall como prova de que essas aplicações
-futuras já funcionam.
+New planned references: kernel with autotest (phase 1), preemption scenarios (4), own console application (8), snapshot consistency (9) and own GUI application (11). JSON explicitly marks that they do not yet exist. Do not use success of syscall examples as proof that these future applications already work.
 
-Primeiro gate da fase 1: 20 boots sequenciais por tamanho de RAM de teste
-(16/64 MiB), timeout de 3 segundos, Hello e parada explícita, além de entradas
-inválidas recusadas. Registrar tempo de parede, saídas de vCPU, RAM, memória
-privada do host e resultado. Timeout é limite funcional, não promessa de
-desempenho. Os outros workloads têm medidas definidas no JSON; limites finais
-de desempenho serão fixados a partir de baselines medidos quando existirem.
+First phase 1 gate: 20 sequential bootes per test RAM size (16/64 MiB), 3-second timeout, Hello and explicit stop, as well as invalid denied entries. Register wall time, vCPU outputs, RAM, private host memory and result. Timeout is functional limit, no promise of performance. Other workloads have measures defined in JSON; final performance limits will be set from measured baselines when they exist.
 
-Perfis de identidade, recursos, relógio e uso terão configuração centralizada
-e versões. Identificadores do host não entram no contrato de boot. O orçamento
-de recursos e o anúncio de capacidades precisam refletir implementação real;
-essas políticas de admissão serão implementadas nas subfases correspondentes.
+Identity profiles, features, clock and usage will have centralized configuration and versions. Host identifiers do not enter the boot contract. Resource budget and capabilities announcement need to reflect real implementation; these admission policies will be implemented in the corresponding subphases.
 
-## Reproduzir a validação
+## Play validation
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Release -FullBuild
 .\Build-Kernel.ps1 -Configuration Debug -FullBuild
-# Somente fronteira freestanding e testes novos:
+#  Only border freestanding and new tests:
 cmake --build build-codex --config Debug --target guardian_guest guest_contract_tests
 ctest --test-dir build-codex -C Debug -R '^guest_' --output-on-failure
 ```
 
-Os três testes novos verificam o contrato usando o objeto freestanding, auditam
-seu COFF e exercitam recusas do auditor com objetos truncados ou dependentes de
-runtime. Os dez testes anteriores continuam na suíte.
+The three new tests check the contract using the freestanding object, audit your COFF and exercise auditor refusals with truncated or runtime dependent objects. The previous ten tests remain in the suite.
 
-## Resultado e encerramento da fase
+## Outcome and closure of the phase
 
-**Fase 0 concluída em 16/10/2026. Fase 1 não iniciada.**
+**Phase 0 completed in 16/10/2026. Phase 1 not initiated.**
 
-| Verificação | Debug | Release |
+| Scan | Debug | Release |
 |---|---:|---:|
-| Compilação completa em C++20 | 42 executáveis | 42 executáveis |
-| Testes CTest | 13/13 | 13/13 |
-| Testes ignorados | 0 | 0 |
-| Exemplos de referência | 7/7 | 7/7 |
-| CLI sem argumentos: ajuda e saída zero | Passou | Passou |
-| Objeto freestanding: símbolos externos não resolvidos | 0 | 0 |
-| Objeto freestanding: bibliotecas padrão solicitadas | 0 | 0 |
-| Build e auditoria do contrato em diretório novo | Passou | Passou |
+| Build complete ed C++20 | 42 executable | 42 executable |
+| CTest Tests | 13/13 | 13/13 |
+| Tests ignored | 0 | 0 |
+| Examples of reference | 7/7 | 7/7 |
+| CLI without arguments: help and zero output | It's over. | It's over. |
+| Freestanding Object: Unsolved external symbols | 0 | 0 |
+| Freestanding Object: requested default libraries | 0 | 0 |
+| Build and audit the contract in new directory | It's over. | It's over. |
 
-A suíte CTest levou aproximadamente 2,85 segundos em Debug e 2,41 em Release
-nesta execução. São observações desta máquina, não limites de desempenho do
-produto. Os testes WHP executaram de fato.
+The CTest suite took approximately 2.85 seconds in Debug and 2.41 in Release in this execution. They are observations of this machine, not product performance limits. The WHP tests actually performed.
 
-Os novos alvos de contrato foram compilados com avisos tratados como erros.
-O build completo registra avisos C4244 nos alvos legados que usam o modelo A:
-conversões de enum para inteiro e de `wchar_t` para `char`. Esses caminhos não
-foram reescritos nesta fase; a limitação de conversão de texto permanece
-registrada para a evolução da implementação. Não há erros nos builds finais.
+The new contract targets have been compiled with warnings treated as errors. The complete build records C4244 warnings on legacy targets using model A: Enum conversions to integer and `wchar_t` to `char`. These paths have not been rewritten at this stage; the text conversion limitation remains registered for implementation evolution. There are no errors in the final builds.
 
-Evidências em `build-codex/`:
+Evidence ed `build-codex/`:
 
-- `phase0-full-release-script.log` e `phase0-full-debug-script.log`.
-- `phase0-release-tests-details.log` e `phase0-debug-tests-details.log`.
-- `phase0-regressions.json` e `phase0-host-smoke.json`.
-- `phase0-clean-configure.log`, `phase0-clean-debug-build.log` e
+- `phase0-full-release-script.log` and `phase0-full-debug-script.log`.
+- `phase0-release-tests-details.log` and `phase0-debug-tests-details.log`.
+- `phase0-regressions.json` and `phase0-host-smoke.json`.
+- `phase0-clean-configure.log`, `phase0-clean-debug-build.log` and
   `phase0-clean-release-build.log`.
-- `phase0-build-boundaries.json`: opções geradas para host e convidado.
-- `phase0-change-manifest.json`: hashes, backup, ambiente e validação.
+- `phase0-build-boundaries.json`: options generated for host and guest.
+- `phase0-change-manifest.json`: hashes, backup, environment and validation.
 
-O diretório independente `build-codex-phase0-clean` foi mantido para inspeção.
-Arquivos anteriores desta fase: `snapshots/codex-before-phase0-20261016-153611/`.
+The independent directory `build-codex-phase0-clean` was maintained for inspection. Previous files of this phase: `snapshots/codex-before-phase0-20261016-153611/`.
 
-Conforme a regra de execução, o trabalho para aqui. A próxima implementação é a
-imagem do kernel e seu boot na fase 1, somente após nova solicitação do usuário.
+According to the execution rule, the work for here. The next implementation is the kernel image and its boot in phase 1, only after new user request.
 
-## Referências técnicas
+## Technical references
 
 - [ABI x64 — Microsoft](https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention)
-- [Omissão de bibliotecas padrão com /Zl](https://learn.microsoft.com/en-us/cpp/build/reference/zl-omit-default-library-name)
-- [Subconjunto de compilação /kernel](https://learn.microsoft.com/en-us/cpp/build/reference/kernel-create-kernel-mode-binary)
-- [Propriedade MSVC_RUNTIME_CHECKS — CMake](https://cmake.org/cmake/help/latest/prop_tgt/MSVC_RUNTIME_CHECKS.html)
+- [Standard library omission with /Zl](https://learn.microsoft.com/en-us/cpp/build/reference/zl-omit-default-library-name)
+- [Copy /kernel subset](https://learn.microsoft.com/en-us/cpp/build/reference/kernel-create-kernel-mode-binary)
+- [Property MSVC_RUNTIME_CHECKS — CMake](https://cmake.org/cmake/help/latest/prop_tgt/MSVC_RUNTIME_CHECKS.html)

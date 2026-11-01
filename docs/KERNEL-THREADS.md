@@ -1,124 +1,59 @@
-# Threads e esperas do MiniNt — 16/10/2026
+# MiniNt Threads and Waits — 16/10/2026
 
-Esta etapa continua a implementação existente em
-`D:\Desktop Folders (DO NOT ERASE)\AntiVirus`, com WHP direto, sem QEMU.
-O núcleo ainda é implementado no host: não inicializa sozinho em hardware.
+This step continues the existing implementation in `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`, with direct WHP, without QEMU. The core is still implemented in the host: it does not boot itself into hardware.
 
-A etapa seguinte, [sincronização](KERNEL-SYNCHRONIZATION.md), acrescenta mutexes
-e semáforos às esperas simples. Os resultados abaixo preservam a validação
-original desta etapa; a suíte atual contém dez testes.
+The next step, [](KERNEL-SYNCHRONIZATION.md) synchronization, adds mutexes and traffic lights to the simple waits. The results below preserve the original validation of this step; the current suite contains ten tests.
 
-## Escalonamento implementado
+## Schedule implemented
 
-O monitor existente mantém uma única vCPU. `GuestScheduler.h` implementa uma
-fila cooperativa: uma thread executa até esperar, ceder a execução, suspender-se
-ou terminar. Outra thread pronta assume a vCPU e, quando a anterior volta a
-executar, retoma a instrução seguinte ao syscall que a suspendeu.
+The existing monitor maintains a single vCPU. `GuestScheduler.h` implements a cooperative queue: a thread executes until waiting, yielding execution, suspending or finishing. Another ready thread takes over vCPU and, when the previous one reruns, resumes the instruction following the syscall that suspended it.
 
-Os estados são pronto, executando, esperando e terminado. A contagem de
-suspensão é independente do estado de espera. A fila usa a ordem de entrada,
-não a ordem numérica dos IDs. A política recebe o tempo como argumento, o que
-permite testar corridas entre sinalização e timeout sem usar pausas nos testes
-de unidade. O limite é de 64 registros de threads por instância, incluindo a
-thread inicial; registros terminados sem handles ou referências são recolhidos
-antes de uma nova criação.
+The states are ready, running, waiting, and finishing. The suspension count is independent of the standby state. The queue uses the input order, not the numerical order of the IDs. The policy receives time as an argument, which allows testing races between signaling and timeout without using pauses in the drive tests. The limit is 64 threads records per instance, including the initial thread; completed records without handles or references are collected before a new creation.
 
-`MicroVmMonitor` salva e restaura registradores gerais, segmentos, registradores
-de controle e debug, XMM, dados x87/MMX e controles x87/MXCSR. O caminho de syscall
-reconhece quando o escalonador restaurou outro RIP e evita avançá-lo novamente.
-A entrada de uma nova thread começa com registradores gerais e ponto flutuante
-limpos, argumento em RCX e pilha conforme o ABI x64.
+`MicroVmMonitor` saves and restores general registers, segments, control loggers and debug, XMM, x87/MMX data and x87/MXCSR. controls The syscall path recognizes when the scheduler has restored another RIP and avoids advancing it again. The entry of a new thread starts with general registers and clean floating point, RCX argument and stack as the ABI x64.
 
-Esta versão exige o modo de usuário existente, com interrupções desabilitadas
-e OSXSAVE desabilitado. Estado AVX/XSAVE não é silenciosamente descartado: uma
-configuração que o exigiria é recusada na ativação. Há uma única vCPU; não existe
-execução simultânea de duas threads nem preempção por temporizador.
+This version requires existing user mode, with disabled interruptions and OSXSAVE disabled. AVX/XSAVE state is not silently discarded: a configuration that would require it is refused in activation. There is a single vCPU; there is no simultaneous execution of two threads or timer preemption.
 
-## Syscalls e esperas
+## Syscalls and waits
 
-| Operação | Comportamento |
+| Operation | Behavior |
 |---|---|
-| `NtCreateThreadEx` | Cria uma thread do processo corrente, pronta ou inicialmente suspensa, com handle tipado e direitos específicos. |
-| `NtSuspendThread` / `NtResumeThread` | Mantêm uma contagem de suspensão, validam direitos e escrevem a contagem anterior em exatamente quatro bytes. |
-| `NtYieldExecution` | Cede a vCPU a outra thread pronta; informa `STATUS_NO_YIELD_PERFORMED` se não houver outra. |
-| `NtWaitForSingleObject` sobre evento | Bloqueia a thread ativa até sinalização ou timeout, sem impedir outra thread de executar. |
-| `NtWaitForSingleObject` sobre thread | Retoma quando a thread alvo termina; uma thread já terminada satisfaz a espera imediatamente. |
-| `NtDelayExecution` | Suspende até o prazo, sem fabricar sucesso antecipado; intervalo zero pode ceder a execução. |
-| `NtTerminateThread` | Termina a thread corrente ou outra thread autorizada, libera seus recursos próprios e acorda quem espera por ela. |
-| `NtQueryInformationThread` | Atende `ThreadBasicInformation` x64 de 48 bytes: status de saída, TEB, IDs, afinidade e prioridades básicas do modelo. |
+| `NtCreateThreadEx` | Creates a thread of the current process, ready or initially suspended, with typed handle and specific rights. |
+| `NtSuspendThread` / `NtResumeThread` | They hold a suspension count, validate rights and write the previous count in exactly four bytes. |
+| `NtYieldExecution` | Give vCPU another thread ready; inform `STATUS_NO_YIELD_PERFORMED` if there is no other thread. |
+| `NtWaitForSingleObject` on event | Blocks the thread active until signaling or timeout, without preventing another thread from running. |
+| `NtWaitForSingleObject` on thread | Retakes when the target thread ends; a thread already completed satisfies the wait immediately. |
+| `NtDelayExecution` | Suspends until the deadline, without manufacturing early success; zero interval can yield execution. |
+| `NtTerminateThread` | Ends the current thread or other authorized thread, releases its own resources and wakes up those waiting for it. |
+| `NtQueryInformationThread` | Meets `ThreadBasicInformation` x64 of 48 bytes: output status, TEB, IDs, affinity and basic model priorities. |
 
-Eventos auto-reset acordam um único waiter na ordem de espera; eventos
-manual-reset acordam todos. A verificação de prazos ocorre antes de sinalizar,
-para que um sinal posterior não transforme uma espera já expirada em sucesso.
-A suspensão não perde a conclusão: uma espera pode ser satisfeita enquanto a
-thread continua impedida de executar por sua contagem de suspensão.
+Auto-reset events wake up a single waiter in the waiting order; manual-reset events all wake up. Timeout check occurs before signaling, so that a later signal does not transform an already expired wait into success. The suspension does not miss the conclusion: a wait can be satisfied while the thread remains prevented from running by its suspension count.
 
-Timeouts relativos negativos e absolutos positivos seguem a representação NT
-em unidades de 100 ns. Prazos internos usam relógio monotônico; valores absolutos
-são convertidos a partir do FILETIME UTC do host no momento da chamada. Quando
-ninguém está pronto, o host aguarda em intervalos de aproximadamente 1 ms e
-verifica prazos e cancelamento. Ainda não há um relógio único sincronizando
-esses valores com todos os campos sintéticos de `KUSER_SHARED_DATA`.
+Negative relative timeouts and positive absolutes follow the NT representation in units of 100 ns. Internal timestamps use monotonic clock; absolute values are converted from the host's FILETIME UTC at the time of call. When no one is ready, the host waits at intervals of approximately 1 ms and checks deadlines and cancellation. There is still no single clock synchronizing these values with all synthetic fields of `KUSER_SHARED_DATA`.
 
-Se todas as threads estão impedidas de executar e não há nenhum prazo pendente,
-o monitor encerra a execução com diagnóstico de deadlock. Não devolve sucesso
-ao waiter nem entra em espera infinita no host. Cancelar durante uma espera sem
-vCPU em execução também é reconhecido. Depois de uma falha desse tipo, a VM
-deve ser recriada; retomar contextos com estado incerto é recusado.
+If all threads are prevented from running and there is no pending deadline, the monitor closes execution with deadlock diagnosis. It does not return success to the waiter nor goes into endless wait in the host. Canceling during a wait without running vCPU is also recognized. After such a failure, the VM must be recreated; resuming contexts with uncertain status is refused.
 
-## Pilhas, TEBs e vida útil
+## Batteries, TEBs and service life
 
-A primeira criação ativa o escalonador e registra a thread que já executava.
-Uma espera com prazo ou um delay também pode ativá-lo. Uma espera indefinida
-sem escalonador ativo continua retornando `STATUS_NOT_SUPPORTED`, pois ainda
-não existe outra thread ou fonte externa de conclusão nesse caminho.
+The first creation activates the scheduler and records the thread that already executed. A wait with time or a delay can also activate it. An indefinite wait without active scheduler continues to return `STATUS_NOT_SUPPORTED`, as there is no other thread or external source of completion in that path.
 
-Cada thread nova recebe uma reserva de pilha de 64 KiB, com a página inferior
-inacessível, e um TEB mínimo de 8 KiB. O TEB contém self, limites de pilha,
-client ID, referência ao PEB existente e base de desalocação. Os IDs ficam nos
-metadados do host; a escrita do convidado em seu TEB não altera a identidade
-mantida pelo escalonador.
+Each new thread receives a 64 KiB stack reserve, with the bottom page inaccessible, and a minimum TEB of 8 KiB. The TEB contains self, stack limits, client ID, reference to the existing PEB and dislocation base. IDs stay in the host metadata; guest writing on your TEB does not change the identity maintained by the scheduler.
 
-Um stub RX do processo recebe o retorno da rotina e chama
-`NtTerminateThread(NtCurrentThread(), status)`. O término libera a pilha e o TEB
-próprios mesmo enquanto um handle da thread continua aberto para consulta.
-O TEB/pilha iniciais, emprestados do ambiente já existente, não são liberados
-como se pertencessem ao novo alocador. O stub RX permanece durante a vida da VM.
+A process stub RX receives the return of the routine and calls `NtTerminateThread(NtCurrentThread(), status)`. The end releases the stack and the TEB itself even while a thread handle remains open for query. The initial TEB/stack, borrowed from the existing environment, are not released as if they belonged to the new allocater. The stub RX remains during the life of the VM.
 
-Os syscalls comuns de memória recusam liberar ou alterar as regiões que o núcleo
-mantém para pilhas, TEBs e o stub de retorno. A limpeza usa o caminho interno do
-gerenciador de memória. Isso evita liberar posteriormente um endereço já
-reutilizado por outra alocação. O convidado continua podendo ler e escrever as
-partes RW da própria memória, conforme as permissões WHP.
+Common memory syscalls refuse to release or change the regions that the core holds for batteries, TEBs and the return stub. Cleaning uses the internal path of the memory manager. This avoids later releasing an address already reused by another allocation. The guest continues to be able to read and write the RW parts of the memory itself, as per the WHP permissions.
 
-Threads integram a tabela de handles da etapa anterior. Consultar exige
-`THREAD_QUERY_INFORMATION`, suspender/retomar exige `THREAD_SUSPEND_RESUME`,
-terminar exige `THREAD_TERMINATE`, e esperar exige `SYNCHRONIZE`. O pseudo-handle
-`NtCurrentThread()` é aceito nos syscalls específicos de thread; a duplicação
-desse pseudo-handle ainda não foi implementada.
+Threads integrate the handles table of the previous step. Consulting requires `THREAD_QUERY_INFORMATION`, suspension/resume requires `THREAD_SUSPEND_RESUME`, finishing requires `THREAD_TERMINATE`, and waiting requires `SYNCHRONIZE`. pseudo-handle `NtCurrentThread()` is accepted in thread-specific syscalls; duplication of this pseudo-handle has not yet been implemented.
 
-## Subconjunto e limites
+## Sub-assembly and limits
 
-`NtCreateThreadEx` aceita o processo corrente e os flags zero ou
-`CREATE_SUSPENDED`. `ZeroBits`, tamanhos personalizados de pilha, lista de
-atributos e outros flags são recusados. A rotina de entrada é chamada diretamente
-pelo ambiente próprio: não executa `RtlUserThreadStart`, inicialização TLS do
-loader nem callbacks de DLL. O TEB mínimo não constitui toda a inicialização de
-uma thread Windows.
+`NtCreateThreadEx` accepts the current process and flags zero or `CREATE_SUSPENDED`. `ZeroBits`, custom stack sizes, attribute list and other flags are refused. The input routine is called directly by the own environment: does not run `RtlUserThreadStart`, loader TLS startups or DLL callbacks. Minimal TEB does not constitute the entire startup of a Windows thread.
 
-Só há espera simples em eventos e threads. Alertas/APCs, espera múltipla,
-mutexes, semáforos, timers de objetos, esperas em arquivos e conclusão assíncrona
-de I/O continuam pendentes. Os caminhos antigos de thread-alert e alguns locks
-do loader ainda têm respostas provisórias. Não há prioridades dinâmicas nem
-preempção: um loop que não faz syscalls continua sujeito ao watchdog existente.
+There is only simple waiting in events and threads. Alerts/APCs, multiple wait, mutexes, traffic lights, object timings, waits in files and asynchronous completion of I/O remain pending. Old thread-alert paths and some loader locks still have temporary answers. There are no dynamic priorities or preemption: a loop that does not syscalls remains subject to the existing watchdog.
 
-Não há processo adicional nem SMP. `SnapshotManager` ainda precisa capturar os
-contextos, filas, referências e prazos junto de RAM e permissões; restaurar só
-RAM/registradores não restaura o `MiniNt`. O modelo A (`NtKernel`) continua
-separado. Compatibilidade integral com Windows e isolamento de malware validado
-permanecem fora do que os testes desta etapa demonstram.
+There is no additional process nor SMP. `SnapshotManager` still needs to capture the contexts, queues, references and deadlines with RAM and permissions; restoring only RAM/registers does not restore `MiniNt`. Model A (`NtKernel`) remains separate. Full Windows compatibility and validated malware isolation remain out of what the tests of this step demonstrate.
 
-## Compilação e testes
+## Compilation and testing
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Release
@@ -126,53 +61,42 @@ permanecem fora do que os testes desta etapa demonstram.
 .\Build-Kernel.ps1 -Configuration Release -FullBuild
 ```
 
-Os builds ficam em `build-codex`. O script agora executa oito testes: os seis
-anteriores e os seguintes:
+Builds are in `build-codex`. The script now runs eight tests: the previous six and the following:
 
-- `microvm_scheduler`: fila, suspensão, auto/manual-reset, prazos, corridas entre
-  timeout e sinal, delays, término e capacidade, com tempo simulado.
-- `microvm_threads_guest`: execução real em ring 3. Verifica handoff por evento,
-  join, criação suspensa, contagens, direitos, retorno da rotina, consultas de
-  thread, proteção e limpeza das regiões internas. Marcadores de pilha, GPR,
-  XMM, valor e controle x87, MXCSR e GS/TEB são conferidos após trocas reais.
-  Cenários adicionais verificam timeout relativo, prazo absoluto expirado,
-  delay, término de outra thread, deadlock e cancelamento durante idle.
+- `microvm_scheduler`: queue, suspension, auto/manual-reset, deadlines, races between
+  timeout and signal, delays, termination and capacity, with simulated time.
+- `microvm_threads_guest`: actual execution in ring 3. Check handoff per event,
+  join, standby creation, counts, rights, return of routine, thread queries, protection and cleaning of internal regions. Stack markers, GPR, XMM, value and control x87, MXCSR and GS/TEB are checked after real exchanges. Additional scenarios check relative timeout, absolute timeout, delay, end of other thread, deadlock and cancellation during idle.
 
-Os programas são gerados no próprio teste; não são carregadas amostras externas.
-Os testes WHP retornam 77 quando o hipervisor não está disponível, caso em que o
-CTest registra a execução como ignorada.
+The programs are generated in the test itself; external samples are not loaded. The WHP tests return 77 when the hypervisor is not available, in which case CTest records the execution as ignored.
 
-Os dez arquivos anteriores modificados nesta etapa estão preservados em
-`snapshots/codex-before-threads-20261016-003531/`.
+The ten previous files modified in this step are preserved in `snapshots/codex-before-threads-20261016-003531/`.
 
-## Resultados verificados
+## Verified results
 
-Validação concluída em 16/10/2026, com o hipervisor WHP presente:
+Validation completed in 16/10/2026, with the hypervisor WHP present:
 
-| Verificação | Release | Debug |
+| Scan | Release | Debug |
 |---|---:|---:|
-| Testes CTest aprovados | 8/8 | 8/8 |
-| Testes ignorados | 0 | 0 |
-| Exemplos existentes aprovados | 7/7 | 7/7 |
+| CTest tests approved | 8/8 | 8/8 |
+| Tests ignored | 0 | 0 |
+| Examples existing approved | 7/7 | 7/7 |
 
-Os exemplos verificados foram `vmntdll`, `vmntfile`, `vmntsect`, `vmntimage`,
-`vmntquery`, `vmntreg` e `vmwininit`. O build completo em Release também
-terminou com sucesso, com 39 executáveis. A compilação Debug desta etapa não
-emitiu avisos nem erros do compilador.
+The verified examples were `vmntdll`, `vmntfile`, `vmntsect`, `vmntimage`, `vmntquery`, `vmntreg` and `vmwininit`. The complete Build in Release also ended successfully, with 39 executables. Debug compilation of this step did not issue notices or compiler errors.
 
-Evidências mantidas em `build-codex/`:
+Evidence maintained in `build-codex/`:
 
-- `threads-release-tests.log`: resultado dos oito testes em Release.
-- `threads-debug-script.log` e `threads-debug-tests-details.log`: compilação,
-  resultado e saída detalhada dos testes em Debug.
-- `threads-regressions.json`: códigos de saída e saída capturada dos 14 exemplos.
-- `threads-full-release-build.log`: compilação completa em Release.
-- `threads-whp-availability.json`: consulta de disponibilidade do hipervisor.
-- `threads-change-manifest.json`: arquivos alterados/criados, hashes SHA-256,
-  localização da cópia anterior e contagens de validação.
+- `threads-release-tests.log`: result of the eight tests in Release.
+- `threads-debug-script.log` and `threads-debug-tests-details.log`: compilation,
+  result and detailed output of the tests in Debug.
+- `threads-regressions.json`: captured output and output codes of the 14 examples.
+- `threads-full-release-build.log`: Full Release compilation.
+- `threads-whp-availability.json`: hypervisor availability consultation.
+- `threads-change-manifest.json`: changes/created files, hashes SHA-256,
+  location of the previous copy and validation counts.
 
-## Referências de ABI
+## ABI References
 
-- [Declarações de criação, término e informação de threads no phnt](https://github.com/winsiderss/phnt/blob/master/ntpsapi.h)
+- [Declarations of creation, termination and thread information in phnt](https://github.com/winsiderss/phnt/blob/master/ntpsapi.h)
 - [NtWaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntwaitforsingleobject)
 - [WHvGetVirtualProcessorRegisters](https://learn.microsoft.com/en-us/virtualization/api/hypervisor-platform/funcs/whvgetvirtualprocessorregisters)

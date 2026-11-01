@@ -42,23 +42,7 @@ def main():
     for name in ('native_nt.py','pe_volume.py','nt_compatibility.py','inspect_gui_compatibility.py','smoke_phase14_3.py'):
         copy(nt.ROOT/'tools'/name,'tools/'+name)
     copy(nt.ROOT/'docs/PHASE-14.3.md','PHASE-14.3.md')
-    (out/'LEIA-ME.txt').write_text('''Aegis fase 14.3 - servicos nativos MiniNT x64
-
-Build de desenvolvimento Windows x64. Requer WHP, NX e runtime C++ VS 2022.
-Compatibilidade limitada a matriz de referencia descrita em PHASE-14.3.md.
-A NTDLL neste pacote foi escrita pelo projeto. Nao inclui DLLs da Microsoft.
-
-No PowerShell, nesta pasta, use uma pasta de sessao que ainda nao existe:
-python tools/pe_volume.py verify Release/profiles/win10
-.\\Release\\guardian-pe.exe guest/Release/guardian-kernel-native-nt.gk Release/profiles/win10/runtime.gpv Release/profiles/win10/manifest.json Release/profiles/win10/binding.gnt sessao-nova
-
-Troque win10 por win7 ou win11 em todos os argumentos para outro perfil proprio.
-Troque Release por Debug para a compilacao de depuracao.
-boot.json e analysis.json registram execucao, chamadas e resultados.
-O ensaio com NTDLL original requer uma copia legal local adicional, conforme o documento.
-Arquivos/registro criados pela matriz ficam em RAM no convidado e nao persistem.
-Esta entrega nao inicia a 14.4 nem declara que o Flappy ja funciona.
-''',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis phase 14.3 - native services MiniNT x64\n\nWindows x64 development build. Requires WHP, NX and runtime C++ VS 2022.\nCompatibility limited to reference matrix described in PHASE-14.3.md.\nThe NTDLL in this package was written by the project. It does not include Microsoft DLLs.\n\nIn PowerShell, in this folder, use a session folder that does not yet exist:\npython tools/pe_volume.py verify Release/profiles/win10\n.\\Release\\guardian-pe.exe guest/Release/guardian-kernel-native-nt.gk Release/profiles/win10/runtime.gpv Release/profiles/win10/manifest.json Release/profiles/win10/binding.gnt sessao-nova\n\nSwap win10 for win7 or win11 in all arguments for another profile itself.\nSwitch Release to Debug for debugging compilation.\nboot.json and analysis.json record execution, calls and results.\nThe original NTDLL test requires an additional local legal copy as per the document.\nArquivos/registro created by the matrix are in RAM in the guest and do not persist.\nThis delivery does not start the 14.4 nor declare that Flappy already works.\n',encoding='utf-8')
     files={p.relative_to(out).as_posix():nt.sha(p.read_bytes()) for p in sorted(out.rglob('*')) if p.is_file()}
     (out/'manifest.json').write_bytes(nt.canonical({'schema':1,'phase':'14.3','files':files,
         'acceptance':{c:p['tests'] for c,p in proofs.items()},'windowsBinaryCompatibility':False,'phase14_4Started':False}))

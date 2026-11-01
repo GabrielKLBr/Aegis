@@ -28,31 +28,7 @@ def main():
     copy(a.build/'security-generated/coverage.json','validation/security-export-coverage.json');copy(nt.ROOT/'config/crt-references.json','config/crt-references.json')
     for name in ('security_runtime.py','crt_runtime.py','win32_runtime.py','native_nt.py','api_set.py','nt_compatibility.py','inspect_gui_compatibility.py','pe_volume.py','smoke_phase14_6.py'):copy(nt.ROOT/'tools'/name,'tools/'+name)
     copy(nt.ROOT/'test/SecurityIntegrationTests.py','test/SecurityIntegrationTests.py');copy(nt.ROOT/'docs/PHASE-14.6.md','PHASE-14.6.md')
-    (out/'LEIA-ME.txt').write_text('''Aegis 14.6 - registro, contas e servicos do MiniNT x64
-
-Requer Windows x64, WHP/NX e o Visual C++ runtime instalado no host.
-Contem componentes proprios, programas de teste MSVC /MD e evidencias.
-Nao contem DLLs de entrada Microsoft, ISOs, discos pessoais ou volumes GPV.
-Os servicos criados pelos testes pertencem somente ao convidado.
-
-Forneca suas referencias legais locais exatas de ucrtbase.dll e vcruntime140.dll
-(config/crt-references.json) e o apisetschema.dll Win10 da fase 14.4.
-No PowerShell, nesta pasta e usando saidas novas:
-
-python tools/security_runtime.py bundle --build . --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output execucao
-.\\Release\\guardian-pe.exe guest/Release/guardian-kernel-security.gk execucao/runtime.gpv execucao/manifest.json execucao/binding.gnt sessao
-
-Uma sessao bem-sucedida exporta security-state.bin (64 KiB). Para recupera-lo,
-gere um volume com --application guardian-security-read.exe e passe o arquivo
-como ultimo argumento do guardian-pe, depois da pasta de sessao nova.
-Mantenha os volumes gerados e seus dados localmente.
-
-Para verificar as duas configuracoes do pacote:
-python tools/smoke_phase14_6.py --package . --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output EVIDENCIA-NOVA
-
-Leia PHASE-14.6.md para limites de armazenamento, tokens, ACLs e servicos.
-Nao equivale a ADVAPI32/Windows completos. A 14.7 nao foi iniciada.
-''',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis 14.6 - registration, accounts and services of MiniNT x64\n\nRequires Windows x64, WHP/NX and Visual C++ runtime installed on the host.\nIt contains own components, MSVC /MD and evidence testing programs.\nDo not contain Microsoft input DLLs, ISOs, personal disks or GPV volumes.\nThe services created by the tests belong only to the guest.\n\nProvides your exact local legal references of ucrtbase.dll and vcruntime140.dll\n(config/crt-references.json) and the apisetschema.dll Win10 phase 14.4.\nIn PowerShell, in this folder and using new outputs:\n\npython tools/security_runtime.py bundle --build . --config Release --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --output execucao\n.\\Release\\guardian-pe.exe guest/Release/guardian-kernel-security.gk execucao/runtime.gpv execucao/manifest.json execucao/binding.gnt sessao\n\nA good session.-sucedida export security-state.bin64 KiB). To recover-lo,\nmanages a volume with --application guardian-security-read.exe and passes the file\nas the last argument of the Guardian-pe, after the new session folder.\nKeep generated volumes and your data locally.\n\nTo check both package configurations:\npython tools/smoke_phase14_6.py --package . --reference CRT-DIRECTORY --schema-reference LEGAL-SCHEMA --output NEW-EVIDENCE\n\nRead PHASE-14.6.md for storage limits, tokens, ACLs and services.\nIt does not equal complete ADVAPI32/Windows. 14.7 has not been started.\n',encoding='utf-8')
     files={p.relative_to(out).as_posix():nt.sha(p.read_bytes()) for p in sorted(out.rglob('*')) if p.is_file()};(out/'manifest.json').write_bytes(nt.canonical({'schema':1,'phase':'14.6','files':files,'acceptance':{'Release':len(REQUIRED),'Debug':len(REQUIRED)},'regressionTests':TOTAL_TESTS,'microsoftInputBinariesIncluded':False,'completeAdvapi32':False,'phase14_7Started':False}))
     with zipfile.ZipFile(archive,'x',zipfile.ZIP_DEFLATED,compresslevel=6) as z:
         for path in sorted(out.rglob('*')):

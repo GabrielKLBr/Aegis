@@ -670,7 +670,7 @@ struct Protection::Impl {
                             quarantine::Store store(vault, token);
                             auto q = store.Isolate(path, result.at("sha256").get<std::string>(),
                                                    result.value("threat", std::string("Detected")),
-                                                   "Proteção em tempo real/varredura do serviço");
+                                                   "Time protection real/varredura service");
                             detected["quarantine"] = q;
                             if (q.value("complete", false))
                                 j["quarantined"] = j.at("quarantined").get<uint64_t>() + 1;

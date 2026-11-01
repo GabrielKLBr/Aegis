@@ -1,26 +1,13 @@
-# Painel de APIs mediadas no host
+# Host-mediated API Panel
 
-Gere a página e os dados sem instalar dependências:
+Generate the page and data without installing dependencies:
 
     python -B tools/progress.py --output build-progress
 
-Abra build-progress/progress.html ou index.html. A busca e os filtros funcionam
-localmente, sem conexão. Os arquivos HTML e progress.json são gerados; não
-precisam ser versionados.
+Open build-progress/progress.html or index.html. Search and filters work locally without connection. HTML and progress.json files are generated; they do not need to be versioned.
 
-O painel usa config/gdi-api-matrix.json e
-config/software-graphics-api-matrix.json e config/audio-api-matrix.json. Funções restritas e métodos COM
-com estado local são identificados separadamente das pendências e recusas.
-O percentual se refere ao inventário listado, não ao SDK completo do Windows,
-nem à porcentagem de programas compatíveis. Métodos herdados podem aparecer
-em mais de uma interface.
+The dashboard uses config/gdi-api-matrix.json and config/software-graphics-api-matrix.json and config/audio-api-matrix.json. Restricted functions and COM methods with local status are identified separately from pending and refusals. The percentage refers to the listed inventory, not to the full Windows SDK, nor to the percentage of compatible programs. Inherited methods may appear in more than one interface.
 
-Áudio tem um recorte PCM/WAV, WinMM e WASAPI compartilhado da 14.10G, com
-estado local, operações nativas e limites indicados por entrada. Media Foundation
-e mídia comprimida permanecem pendentes. O painel apenas informa o inventário;
-não habilita a ponte de áudio nem captura de dispositivos.
+Audio has a PCM/WAV, WinMM and WASAPI clipping shared from 14.10G, with local status, native operations and limits indicated by input. Media Foundation and compressed media remain pending. The dashboard only informs the inventory; it does not enable the audio bridge or device capture.
 
-O workflow .github/workflows/progress-pages.yml regenera e publica somente
-o diretório build-progress pelo GitHub Pages ao mudar os inventários, o
-gerador ou o próprio workflow na branch main. Builds, evidências de testes,
-DLLs e arquivos locais não fazem parte desse diretório publicado.
+The workflow .github/workflows/progress-pages.yml regenerates and publishes only the build-progress directory by GitHub Pages when changing inventories, generator or workflow itself in branch main. Builds, evidence of tests, DLLs and local files are not part of this published directory.

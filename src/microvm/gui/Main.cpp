@@ -74,5 +74,5 @@ int main(int argc, char **argv) {
         state::AtomicText(options.output/"session.json",audit.str());
         std::cout << result.console << result.diagnostic << "\n" << result.error << "\n";
         return result.success || result.paused ? 0 : 3;
-    } catch(const std::exception& e) { std::cerr << "Falha: " << e.what() << '\n'; return 2; }
+    } catch(const std::exception& e) { std::cerr << "Failed: " << e.what() << '\n'; return 2; }
 }

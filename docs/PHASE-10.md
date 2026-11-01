@@ -1,128 +1,72 @@
-# Fase 10 — Rede virtual e contenção
+# Phase 10 — Virtual network and containment
 
-Iniciada em 18/10/2026 por solicitação explícita do usuário. Implementação e aceitação Linux aprovadas; gate nativo Windows pendente.
-Windows/MSVC/WHP continua sendo o produto; Linux/KVM é compilado e executado
-nativamente, sem Wine ou QEMU. Aceitação nativa Windows permanece separada.
+Started in 18/10/2026 by explicit user request. Valid Linux implementation and acceptance; native Windows gate pending. Windows/MSVC/WHP remains the product; Linux/KVM is compiled and executed natively without Wine or QEMU. Native Windows acceptance remains separate.
 
-## Aceitação final no Linux
+## Final Linux Acceptance
 
-**Implementação concluída para o perfil descrito; matriz Linux aprovada.
-Aceitação nativa Windows/MSVC/WHP pendente. A fase 11 não foi iniciada.**
+**Implement completed for the profile described; approved Linux matrix. Pending native Windows/MSVC/WHP acceptance. Phase 11 was not started.**
 
-Evidência final: `build-phase10/validation-20261018-180022-c09af2d0/validation.json`.
-Estado: `passed` / `awaiting_native_windows_acceptance`. Todas as fontes foram
-reconstruídas e seus hashes permaneceram iguais do início ao fim. Sem Wine,
-QEMU, testes ignorados ou reaproveitamento de binários de rodadas anteriores.
+Final evidence: `build-phase10/validation-20261018-180022-c09af2d0/validation.json`. Status: `passed` / `awaiting_native_windows_acceptance`. All sources were reconstructed and their hashes remained equal from start to finish. No Wine, QEMU, ignored tests or reuse of binaries from previous rounds.
 
-| Configuração | CTests | Convidados de rede reais | Capturas conferidas |
+| Configuration | CTests | Guests of network real | Captures conferidas |
 | --- | --- | --- | --- |
-| Debug | 27 aprovados | 16 boots/retomadas + 8 pelo gerenciador | 18 capturas |
-| Release | 27 aprovados | 16 boots/retomadas + 8 pelo gerenciador | 18 capturas |
-| Sanitize | 27 aprovados | 16 boots/retomadas + 8 pelo gerenciador | 18 capturas |
+| Debug | 27 approved | 16 boots/resumes + 8 for manager | 18 catches |
+| Release | 27 approved | 16 boots/resumes + 8 for manager | 18 catches |
+| Sanitize | 27 approved | 16 boots/resumes + 8 for manager | 18 catches |
 
-Totais desta aceitação:
+Total acceptance:
 
-- 81 execuções CTest, 132 boots de regressão das 11 imagens das fases anteriores
-  e quatro controles fatal/IST corretamente recusados como sucesso.
-- 72 boots/retomadas de rede, com IPv4/IPv6, CPL3, DNS, laboratório de quatro
-  convidados, isolamento, clonagem, política de snapshots e histórico durável.
-  Há também nove pausas verificadas nos checkpoints de rede.
-- 345 verificações do dispositivo/política e 20.000 entradas malformadas por
-  configuração; 39 verificações independentes de serialização/relay por configuração.
-- Preservada a matriz da fase 9: 81 boots/retomadas do console completo,
-  27 pausas, 24 boots do gerenciador e 221 verificações de snapshot por configuração.
-  Inclui 589 verificações da inicialização do volume/52 prefixos de falha e
-  64 transações interrompidas de criação/clonagem por configuração.
-- Preparação Windows: 12 módulos compilados para objetos COFF por LLVM ELF;
-  não houve execução Windows. O gate nativo exige 47 CTests em Debug/Release,
-  inclusive 153 comparações de handlers e 59 de unwind com APIs Microsoft.
+- 81 plays CTest, 132 Regression Boots of the 11 Images of Previous Steps
+  and four fatal controls/IST correctly rejected as success.
+- 72 boots/resumes network, with IPv4/IPv6, CPL3, DNS, laboratory of four
+  guests, isolation, cloning, snapshots policy and durable history. There are also nine pauses checked in network checkpoints.
+- 345 device/policy checks and 20,000 entries malformed by
+  configuration; 39 independent serialization/relay checks per configuration.
+- Preserved phase 9: 81 boots/resumes matrix of the full console,
+  27 pauses, 24 manager bootes and 221 snapshot checks per configuration. Includes 589 volume/52 startup checks failed prefixes and 64 interrupted creation/cloning transactions per configuration.
+- Windows Preparation: 12 modules compiled for COFF objects by LLVM ELF;
+  there was no Windows execution. The native gate requires 47 CTests in Debug/Release, including 153 handler comparisons and 59 unwind with Microsoft APIs.
 
-Os limites funcionais continuam explícitos: UDP no dispositivo próprio e
-APIs próprias em CPL3, sem ABI Winsock/TCP; relay externo real não exercitado;
-snapshots não revertem o mundo externo; proteção física de execução KVM
-continua distinta da fornecida por WHP.
+The functional limits remain explicit: UDP on the own device and APIs itself in CPL3, without ABI Winsock/TCP; real external relay not exercised; snapshots do not reverse the external world; physical execution protection KVM remains distinct from that provided by WHP.
 
-Pacote Linux entregue: `dist/guardianav-phase10-linux-x86_64-20261018.tar.gz`.
-A extração e a execução fora da pasta do projeto foram aprovadas; resultado
-registrado na seção do pacote abaixo.
+Linux package delivered: `dist/guardianav-phase10-linux-x86_64-20261018.tar.gz`. Extraction and execution outside the project folder were approved; result registered in the package section below.
 
-## Perfil implementado
+## Profile implemented
 
-Dispositivo ponto a ponto de camada IP, MTU 1280, UDP IPv4/IPv6 com checksums,
-DNS e eco simulados, laboratório isolado entre VMs do mesmo catálogo e saída
-UDP por relay explícito. Sem rede é o padrão. TCP, Ethernet, roteamento,
-fragmentação, extensões IPv6, multicast, broadcast e descoberta automática não
-serão anunciados como suportados. Pedidos sem suporte serão recusados.
+Point to point IP layer device, MTU 1280, UDP IPv4/IPv6 with simulated checksums, DNS and echo, isolated laboratory between VMs of the same catalog and UDP output by explicit relay. No network is standard. TCP, Ethernet, routing, fragmentation, IPv6, multicast extensions, broadcast and automatic discovery will not be announced as supported. Unsupported requests will be refused.
 
-Política por VM limita endereços, portas, pares, filas, bytes e operações.
-Nenhum tráfego de laboratório usa a interface física do host. Proxy exige
-endereço público fixo do relay e lista explícita de destinos públicos/portas;
-nomes DNS vêm da política, sem consultar o resolvedor do host. Captura PCAP e
-registro de decisões incluem recusas. Snapshots vinculam política e estado do
-dispositivo; efeitos em pares/relay já realizados não podem ser desfeitos.
+VM policy limits addresses, ports, pairs, queues, bytes and operations. No lab traffic uses the physical interface of the host. Proxy requires fixed public address of the relay and explicit list of public/ports destinations; DNS names come from the policy, without consulting the host solver. PCAP capture and registration of decisions include refusals. Snapshots link policy and device status; effects on pairs/relay already performed cannot be undone.
 
-Fontes anteriores em `snapshots/codex-before-phase10-20261018`.
-Resultados finais no início deste documento; histórico de desenvolvimento preservado abaixo.
+Previous sources in `snapshots/codex-before-phase10-20261018`. Final results at the beginning of this document; development history preserved below.
 
-## Progresso antes da aceitação completa
+## Progress before full acceptance
 
-Pré-testes Linux: 238 verificações iniciais de política/parser, 20.000 entradas
-malformadas, 16 boots/retomadas KVM e oito boots pelo gerenciador aprovados.
-Foram acrescentados vetores binários independentes e 39 verificações do relay.
-A matriz completa Debug/Release/Sanitize e a regressão das fases anteriores
-serão executadas depois da revisão das fontes.
+Linux pretests: 238 initial policy/parser checks, 20,000 malformed entries, 16 boots/resumes KVM and eight bootes by approved manager. Independent binary vectors and 39 relay checks have been added. The full matrix Debug/Release/Sanitize and the regression of previous phases will be executed after the font revision.
 
-Falhas encontradas e corrigidas durante desenvolvimento: montagem de pacote
-com entrada/saída no mesmo buffer; necessidade de stack probe no convidado;
-qualificação do namespace no executor de linha de comando; reutilização do
-mesmo diretório de captura nos testes. Logs de desenvolvimento permanecem em
-`build-phase10/development-logs`. Aprovação parcial não é a aceitação final.
+Failures encountered and corrected during development: package assembly with entry/exit in the same buffer; need for stack probe in the guest; qualification of namespace in the command line executable; reuse of the same capture directory in the tests. Development logs remain in `build-phase10/development-logs`. Partial approval is not final acceptance.
 
-## Uso do dispositivo e da pilha
+## Device and battery usage
 
-A nova imagem é `guardian-kernel-network.gk`, contrato `network`. Inclui os
-probes de CPU/CPL3 anteriores e um driver de rede do kernel. O programa em
-CPL3 usa syscalls 0x90/0x91, com cópia limitada à sua página de dados; endereços
-de kernel, overflow e buffers acima da MTU são recusados antes do dispositivo.
-São APIs próprias do perfil de teste, sem ABI Winsock. Os consoles PE da fase
-8 conservam seu contrato atual e não anunciam sockets não implementados.
+The new image is `guardian-kernel-network.gk`, `network` contract. Includes previous CPU/CPL3 probes and a kernel network driver. The CPL3 program uses syscalls 0x90/0x91, with a copy limited to its data page; kernel addresses, overflow and buffers above MTU are rejected before the device. They are test profile-specific APIs without ABI Winsock. Phase 8 PE consoles retain their current contract and do not advertise unimplemented sockets.
 
-A ligação carrega pacotes IP diretamente, com MTU 1280 e fila de oito quadros.
-O parser exige tamanhos exatos, checksum IPv4 e checksum UDP não nulo nas duas
-famílias. Não aceita opções IPv4, fragmentação, extensões IPv6, ICMP, TCP,
-Ethernet, multicast, broadcast, IP-in-IP, GRE, Teredo ou descoberta automática.
-IPv4 UDP sem checksum também não pertence ao perfil. Não há TAP/TUN, bridge,
-NAT do host nem serviço DNS do sistema. Nenhum programa Windows é executado
-pelo host Linux para compilar ou testar o convidado.
+The connection loads IP packages directly with MTU 1280 and queue of eight frames. Parser requires exact sizes, IPv4 checksum and non-zero UDP checksum in both families. It does not accept IPv4 options, fragmentation, IPv6, ICMP extensions, TCP, Ethernet, multicast, broadcast, IP-in-IP, GRE, Teredo or automatic discovery. IPv4 UDP without checksum does not belong to the profile either. There is no TAP/TUN, bridge, NAT from the host or DNS service from the system. No Windows program runs by the Linux host to compile or test the guest.
 
-Referências da serialização: [UDP/RFC 768](https://www.rfc-editor.org/rfc/rfc768),
-[IPv6/RFC 8200](https://www.rfc-editor.org/rfc/rfc8200) e
-[DNS/RFC 1035](https://www.rfc-editor.org/rfc/rfc1035). O perfil implementado é
-mais restrito que os protocolos completos.
+Serialization references: [UDP/RFC 768](https://www.rfc-editor.org/rfc/rfc768), [IPv6/RFC 8200](https://www.rfc-editor.org/rfc/rfc8200) and [DNS/RFC 1035](https://www.rfc-editor.org/rfc/rfc1035). The profile implemented is more restricted than the complete protocols.
 
-## Perfis por VM
+## Profiles by VM
 
-| Perfil | Tráfego permitido |
+| Profile | Traffic permitted |
 | --- | --- |
-| `offline` (padrão) | Nenhum envio ou recebimento; recusa observável |
-| `simulated` | DNS local em nó 253/UDP 53 e eco no nó 254/UDP 7; ambas as famílias |
-| `lab` | DNS dos pares declarados e UDP somente aos nós/portas permitidos, com autorização recíproca |
-| `proxy` | DNS estático da política e datagramas a endereços públicos/portas explícitos, exclusivamente pelo relay público configurado |
+| `offline` (default) | No shipment or receipt; observable refusal |
+| `simulated` | Local DNS at 253/UDP 53 node and echo at 254/UDP 7 node; both families |
+| `lab` | DNS of declared pairs and UDP only to knots/ports permitted, with reciprocal authorization |
+| `proxy` | Static policy DNS and datagrams to explicit public/ports addresses, exclusively by the configured public relay |
 
-Nó N recebe IPv4 `198.18.0.N` e IPv6 `fd42:6761::N`, com 1 ≤ N ≤ 254.
-A origem é conferida no host. DNS simulado publica `echo.guardian.test`;
-laboratório usa `node-N.guardian.test`. Perguntas A/AAAA limitadas a uma questão,
-sem compressão na consulta; nomes fora da política recebem NXDOMAIN. Não há
-consulta ao DNS da LAN nem fallback externo.
+Node N receives IPv4 `198.18.0.N` and IPv6 `fd42:6761::N`, with 1 ≤ N ≤ 254. The origin is checked in the host. Simulated DNS publishes `echo.guardian.test`; laboratory uses `node-N.guardian.test`. Questions A/AAAA limited to a question, without compression in the query; names outside the policy receive NXDOMAIN. There is no query to the DNS of the LAN or external fallback.
 
-No laboratório, as VMs trocam quadros por filas limitadas no catálogo, com
-locks, arquivos comuns validados e publicação atômica. Catálogos e nomes de
-laboratório distintos formam redes distintas. Só membros ativos recebem
-envios; nó duplicado é recusado. A nova sessão limpa a fila da encarnação
-anterior. Não há conexão de rede física nesse caminho. UDP não promete entrega
-ou ordem; fila cheia, membro ausente e falha de armazenamento retornam erro.
+In the laboratory, VMs exchange frames for limited queues in the catalog, with locks, validated common files and atomic publication. Different lab catalogs and names form distinct networks. Only active members receive shipments; duplicate node is refused. The new session clears the queue of the previous incarnation. There is no physical network connection in this path. UDP does not promise delivery or order; full queue, missing member and storage failure return error.
 
-Exemplo Linux, depois de compilar host e imagens:
+Example Linux, after compiling host and images:
 
 ```bash
 ./build-linux/Release/guardian-vm --root "$PWD/laboratorio" create demo \
@@ -131,7 +75,7 @@ Exemplo Linux, depois de compilar host e imagens:
 ./build-linux/Release/guardian-vm --root "$PWD/laboratorio" start demo
 ```
 
-Para dois pares, criar `alpha` e `beta` com o mesmo contrato e configurar:
+For two pairs, create `alpha` and `beta` with the same contract and configure:
 
 ```bash
 guardian-vm --root laboratorio network alpha lab --lab teste --node 1 --peer 2 --port 40000
@@ -142,168 +86,63 @@ guardian-vm --root laboratorio resume alpha
 guardian-vm --root laboratorio resume beta
 ```
 
-O exemplo de convidado troca bytes nas duas famílias, consulta DNS e termina;
-não é um servidor permanente. Os comandos `guardian-vm` são iguais no Windows,
-usando `guardian-vm.exe`. Configuração de rede exige VM parada. Clones mantêm
-a política; dois clones com o mesmo nó no mesmo laboratório não podem iniciar
-simultaneamente. Alterar o nó de um clone exige boot novo; um snapshot antigo
-não é aceito sob outra política.
+The guest example swaps bytes in both families, DNS query and ends; it is not a permanent server. `guardian-vm` commands are the same in Windows, using `guardian-vm.exe`. Network setup requires VM stop. Clones maintain policy; two clones with the same node in the same laboratory cannot start simultaneously. Changing the node of a clone requires new boot; an old snapshot is not accepted under another policy.
 
-## Relay externo opcional
+## Optional external relay
 
-A saída suportada é UDP por um relay próprio, não um proxy HTTP/SOCKS. Nada é
-iniciado automaticamente. `--relay` exige IPv4 público numérico, `--relay-port`
-exige porta explícita e cada `--allow` declara `nome,família,endereço,porta`.
-IPv6 usa oito grupos hexadecimais explícitos na configuração, sem nomes ou
-zones. Exemplos de forma da configuração:
+The supported output is UDP by a proper relay, not a HTTP/SOCKS. proxy Nothing is started automatically. `--relay` requires IPv4 numerical audience, `--relay-port` requires explicit port and each `--allow` declares `nome,família,endereço,porta`. IPv6 uses eight explicit hexadecimal groups in the configuration, without names or zones. Configuration form examples:
 
 ```text
 guardian-vm --root laboratorio network demo proxy --relay IP_PUBLICO_DO_RELAY --relay-port 9000 --allow exemplo.test,4,IP_PUBLICO_DO_DESTINO,7
 ```
 
-Os marcadores acima devem ser substituídos por endereços do laboratório.
-O operador pode usar `tools/guardian_udp_relay.py` numa máquina externa, com
-`--bind`, `--port`, `--client` e `--allow` explícitos. O relay também confere
-checksum, família e destino; usa socket UDP conectado ao destino permitido.
-Não o execute no host analisador para simular saída externa.
+The above markers must be replaced by lab addresses. The operator can use `tools/guardian_udp_relay.py` on an external machine, with `--bind`, `--port`, `--client` and `--allow` explicit. Relay also checksum, family and destination; uses UDP socket connected to the allowed destination. Do not run it in the analyzer host to simulate external output.
 
-O host só abre um socket UDP para o relay fixo. Confere novamente endereços e
-sub-redes das interfaces locais antes de cada envio. Loopback, endereços
-privados, link-local, metadados, CGNAT, documentação, multicast, broadcast,
-IPv4-mapped IPv6, NAT64 e prefixos de transição ficam fora da política pública.
-O filtro é conservador: também recusa todo `169/8`, `192/8`, `2001::/23`,
-`2002::/16`, `3ffe::/16` e `3fff::/16`. Não aceita resolvedores ou URLs que
-possam trocar o endereço após a validação.
+The host only opens a UDP socket for fixed relay. Re-check addresses and subnets of local interfaces before each shipment. Loopback, private addresses, link-local, metadata, CGNAT, documentation, multicast, broadcast, IPv4-mapped IPv6, NAT64 and transition prefixes are out of public policy. The filter is conservative: it also refuses all `169/8`, `192/8`, `2001::/23`, `2002::/16`, `3ffe::/16` and `3fff::/16`. It does not accept resolvers or URLs that can change the address after validation.
 
-O envelope do relay contém magic/version, nonce aleatório de 128 bits,
-tamanho e pacote IP. A resposta deve vir do socket conectado, repetir o nonce
-e corresponder exatamente à família, endereços e portas invertidos. Limites:
-timeout de recepção de 100 ms no host e 75 ms para a consulta upstream do relay de
-referência. O protocolo não oferece TLS, autenticação criptográfica do relay
-ou confidencialidade; destina-se ao laboratório explicitamente autorizado.
-A validação usa um relay controlado e sockets nativos locais para conferir o
-protocolo, sem tráfego de teste enviado à internet. Um relay público real
-operado pelo usuário não foi exercitado nesta máquina.
+The relay envelope contains magic/version, 128-bit random nonce, IP size and package. The response must come from the connected socket, repeat the nonce and match exactly the family, addresses and inverted ports. Limits: 100 ms reception timeout on the host and 75 ms for the upstream reference relay query. The protocol does not offer TLS, cryptographic authentication of the relay or confidentiality; it is intended for the explicitly authorized laboratory. Validation uses a controlled relay and local native sockets to check the protocol without test traffic sent to the internet. A real user operated public relay has not been exercised on this machine.
 
-## Snapshots, captura e limites
+## Snapshots, capture and limits
 
-Estado salvo: política canônica, sequência, contadores, fila de recepção,
-relatório do convidado, decisões e captura. A restauração exige a mesma
-política; callbacks e sockets do host não são serializados. Efeitos já
-realizados em pares ou no relay não podem ser desfeitos por restaurar a VM.
-Um novo worker de laboratório usa nova identidade de participação; candidatos restaurados no mesmo worker compartilham o endpoint existente.
+Status saved: canonical policy, sequence, counters, reception queue, guest report, decisions and capture. Restoration requires the same policy; callbacks and host sockets are not serialized. Effects already performed in pairs or in relay cannot be undone by restoring VM. A new laboratory worker uses new identity of participation; restored candidates in the same worker share the existing endpoint.
 
-Cada sessão/candidato do gerenciador guarda seus arquivos em
-`<catálogo>/<VM>/network-history/<geração>/`: `policy.gnp`, `network.pcap` e
-`network.json`. Restaurar cria outro registro e preserva os anteriores.
-Excluir a VM remove seus arquivos, incluindo esse histórico. O PCAP usa
-LINKTYPE_RAW (101), relógio lógico em microssegundos e MTU 1280; não representa
-um horário real. O JSON contém hash FNV do PCAP/política para detectar pares
-incompletos após falha de publicação, além de contagens e decisões. Publicação
-dos dois arquivos é individualmente atômica; não constitui uma transação entre
-arquivos. A captura registra a tentativa antes de permitir efeito externo.
+Each meeting/candidate of the manager saves its files in `<catálogo>/<VM>/network-history/<geração>/`: `policy.gnp`, `network.pcap` and `network.json`. Restore creates another record and preserves the previous ones. Delete VM removes its files, including this history. PCAP uses LINKTYPE_RAW (101), logic clock in microseconds and MTU 1280; does not represent a real time. JSON contains hash FNV of PCAP/policy to detect incomplete pairs after publishing failure, in addition to counts and decisions. Publication of the two files is individually atomic; does not constitute a transaction between files. Capture records the attempt before allowing external effect.
 
-Códigos de resultado: 0 aceito, 1 fila vazia, 2 negado, 3 malformado,
-4 protocolo sem suporte, 5 fila cheia, 6 quota, 7 indisponível. Eventos indicam
-direção (0 saída/1 entrada), tamanho, família e porta; recusas também aparecem.
-`acceptedTx` conta tentativas aceitas na política, inclusive se o transporte
-falhar depois; o erro posterior é outro evento. Espera sem pacote não gera
-um falso evento de tráfego. Falha de captura interrompe a execução.
+Result codes: 0 accepted, 1 empty queue, 2 denied, 3 malformed, 4 unsupported protocol, 5 full queue, 6 quota, 7 unavailable. Events indicate direction (0 exit/1 input), size, family and port; refusals also appear. `acceptedTx` counts accepted attempts in the policy, including if the transport fails later; the later error is another event. Wait without package does not generate a false traffic event. Capture failure interrupts execution.
 
-Padrões: 128 pacotes e 128 KiB por sessão; máximos configuráveis 256 pacotes e
-256 KiB, somando envio e recepção. Até oito regras/pares/portas, oito quadros
-na fila, 1024 operações/eventos, 512 KiB de PCAP, 16 redes por catálogo e 64
-registros de sessão por VM. Quota esgotada retorna erro e não amplia a política.
-As quotas de quatro VMs residentes/256 MiB do gerenciador continuam valendo.
+Standards: 128 packages and 128 KiB per session; configurable maximums 256 packages and 256 KiB, adding upload and reception. Up to eight rules/pairs/ports, eight frames in queue, 1024 operations/events, 512 KiB of PCAP, 16 networks per catalog and 64 session records by VM. Exhausted quota returns error and does not extend policy. The manager's four VMs quotas residents/256 MiB continue to be valid.
 
-## Retomar a aceitação
+## Resume acceptance
 
-`python3 tools/validate_phase10.py` no Linux reconstrói todos os artefatos e
-executa Debug, Release, ASan/UBSan, convidados reais e regressões. No Windows,
-`python tools/validate_phase10.py` usa CMake/MSVC/WHP e exige os oráculos reais
-Microsoft. Compilação cruzada é apenas preparação e não substitui esse gate.
+`python3 tools/validate_phase10.py` on Linux rebuilds all artifacts and performs Debug, Release, ASan/UBSan, real guests and regressions. On Windows, `python tools/validate_phase10.py` uses CMake/MSVC/WHP and requires real Microsoft oracles. Cross compilation is just preparation and does not replace this gate.
 
-A captura de uma nova sessão restaurada/clonada pode conter o prefixo guardado
-no snapshot. Esse prefixo é histórico; restaurar não retransmite esses pacotes.
-Os diretórios de geração e relatórios do host identificam cada execução.
+Capture of a new restored/clonada session can contain the prefix saved in snapshot. This prefix is historical; restore does not relay these packages. Host generation directories and reports identify each execution.
 
-Marco da aceitação completa: Debug passou nos 27 CTests reconstruídos, sem
-falhas/skip, incluindo CPL3, snapshots, recuperação, quatro convidados de
-laboratório e os perfis do gerenciador (355,28 s nesta máquina). Evidência em
-`build-phase10/validation-20261018-172452-d770ed5f`. A regressão de boots e as
-configurações Release/Sanitize ainda estavam em execução ao salvar este marco.
+Full acceptance mark: Debug passed the 27 reconstructed CTests without faults/skip, including CPL3, snapshots, recovery, four laboratory guests and manager profiles (355.28 s on this machine). Evidence in `build-phase10/validation-20261018-172452-d770ed5f`. Boot regression and Release/Sanitize settings were still running while saving this milestone.
 
-A primeira aceitação completa parou na regressão `Debug-complete-16-0`, com
-status de autoteste `0xC7F4` (verificação 244 do exemplo de DLLs dinâmicas),
-sem timeout. Os 27 CTests e 60 boots anteriores dessa execução passaram.
-O erro reapareceu em um de 12 boots isolados com a mesma imagem. A evidência
-original foi preservada como falha; não é contada como aceitação aprovada.
-Diagnóstico em andamento para separar TLS/referências e retorno de yield.
+The first complete acceptance stopped in the `Debug-complete-16-0` regression, with `0xC7F4` autotest status (check 244 of the example of dynamic DLLs), without timeout. The 27 CTests and 60 previous bootes of that execution passed. The error reappeared in one of 12 bootes isolated with the same image. The original evidence was preserved as failure; it is not counted as approved acceptance. Ongoing diagnosis to separate TLS/references and return from Yield.
 
-Diagnóstico confirmado: ao reduzir o probe para um único worker, o retorno
-zero de `SwitchToThread` produziu `0xC7FE`, distinguindo-o dos erros de TLS e
-`FreeLibrary`. O teste antigo exigia indevidamente retorno não zero; a
-[documentação Microsoft](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-switchtothread)
-permite zero quando não há outro thread pronto. A correção conserva os dois
-workers concorrentes, os oito ciclos por worker e todas as verificações de
-TLS/referências/descarregamento. Foi acrescentado `LoneYieldProof`, que exige
-observar esse retorno legítimo enquanto o pai espera. A aceitação será refeita
-com a fonte corrigida; os probes de diagnóstico ficam separados do pacote.
+Confirmed diagnosis: by reducing the probe to a single worker, `SwitchToThread` zero return produced `0xC7FE`, distinguishing it from TLS and `FreeLibrary` errors. The old test unduly required non-zero return; the [Microsoft](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-switchtothread) document allows zero when there is no other thread ready. The correction keeps the two competing workers, the eight cycles per worker, and all TLS/references/download. checks were added `LoneYieldProof`, which requires observing this legitimate return while the father waits. Acceptance will be remade with the corrected source; diagnostic probes will be separated from the package.
 
-Com a correção, a nova execução
-`build-phase10/validation-20261018-174152-6a21f7f6` aprovou os 27 CTests Debug
-(363,69 s), os 66 boots de regressão Debug e os dois controles fatal/IST.
-Release e Sanitize continuaram em execução. A fase 11 permanece sem início.
+With the correction, the new `build-phase10/validation-20261018-174152-6a21f7f6` execution approved the 27 Debug CTests (363.69 s), the 66 Debug regression boots and the two fatal/IST. Release and Sanitize controls continued to run. Phase 11 remains unstarted.
 
 
-A revisão do relay reproduziu uma falha de recepção sob sinal assíncrono
-(`build-phase10/eintr-before-fix`, verificação 337). O temporizador KVM usa
-sinais para acordar o executor; a recepção UDP agora usa socket não bloqueante
-e um prazo absoluto de 100 ms, retomando a espera após interrupções. O teste
-positivo recebe a resposta atrasada após um sinal; o teste negativo injeta
-sinais por 200 ms e exige erro próximo do prazo de 100 ms, sem reiniciá-lo.
-A preparação passou com 345 verificações de rede e 20.000 entradas malformadas.
-Windows: os 12 módulos atualizados compilaram em objetos COFF, sem execução.
+The relay review reproduced a failure of reception under asynchronous signal (`build-phase10/eintr-before-fix`, check 337). The KVM timer uses signals to wake the executable; UDP reception now uses non-blocking socket and an absolute 100 ms time frame, resuming the wait after interruptions. The positive test receives delayed response after a signal; the negative test injects signals for 200 ms and requires error close to the 100 ms deadline, without restarting it. The preparation passed with 345 network checks and 20,000 malformed entries. Windows: the 12 updated modules compiled into COFF objects without execution.
 
-A rodada `validation-20261018-174152-6a21f7f6` passou os 27 CTests de Debug e
-Release e os 66 boots Debug; foi interrompida numa fronteira sem workers
-residentes para acrescentar essa correção. É evidência intermediária, não a
-aceitação final. A rodada final de aceitação é
-`build-phase10/validation-20261018-180022-c09af2d0` e seus resultados aprovados estão no início deste documento.
+The `validation-20261018-174152-6a21f7f6` round passed the 27 CTests of Debug and Release and the 66 boots Debug; it was interrupted at a border without resident workers to add that correction. It is intermediate evidence, not final acceptance. The final round of acceptance is `build-phase10/validation-20261018-180022-c09af2d0` and its approved results are at the beginning of this document.
 
-## Pacote Linux entregue e verificado
+## Linux package delivered and verified
 
-Arquivo: `dist/guardianav-phase10-linux-x86_64-20261018.tar.gz` (cerca de 1,5 MiB, 252 arquivos).
-SHA-256: `c78332e6eb46c76ac794ddf21a7ce6dc790b6750642549b51dee276273531d6c`.
-O arquivo `.tar.gz.sha256` ao lado contém a mesma soma para conferência.
+File: `dist/guardianav-phase10-linux-x86_64-20261018.tar.gz` (about 1.5 MiB, 252 files). SHA-256: `c78332e6eb46c76ac794ddf21a7ce6dc790b6750642549b51dee276273531d6c`. The `.tar.gz.sha256` file next door contains the same sum for conference.
 
-`build-phase10/validation-20261018-180022-c09af2d0/package-validation.json` registrou `passed`.
-O pacote foi extraído numa pasta temporária e executado com outro diretório de
-trabalho. Todos os hashes e os três executáveis ELF foram conferidos. O scanner
-executou nativamente; os testes do gerenciador completaram oito boots de rede e
-dois boots adicionais do console completo com persistência. A sequência do
-volume sobreviveu ao reboot e a base permaneceu intacta. Sentinelas não
-registraram uso de Wine/QEMU. Logs e relatórios do pacote ficam junto à aceitação.
+`build-phase10/validation-20261018-180022-c09af2d0/package-validation.json` registered `passed`. The package was extracted in a temporary folder and executed with another work directory. All hashes and three ELF executables were checked. The scanner ran natively; the manager's tests completed eight network bootes and two additional console bootes with persistence. The volume sequence survived the reboot and the base remained intact. Sentinels did not record Wine/QEMU. Logs and package reports are next to acceptance.
 
-O arquivo distribuído guarda a documentação capturada antes da verificação
-final do próprio pacote; o hash final e o resultado dessa verificação estão
-neste registro externo. As fontes permanecem idênticas às fontes aceitas.
+The distributed file stores the documentation captured before the final verification of the package itself; the final hash and the result of this verification are in this external record. The sources remain identical to the accepted sources.
 
-Revisão recuperável: `changes.patch`, `changes.json`,
-`documentation-sha256.json` e `windows-cross-precheck.json` na pasta da aceitação.
-Os 329 arquivos anteriores continuam íntegros em
-`snapshots/codex-before-phase10-20261018`; há 41 arquivos de texto adicionados ou
-modificados com diferenças revisáveis. As rodadas/probes anteriores continuam
-preservados e identificados como desenvolvimento, falha ou interrupção.
+Recoverable revision: `changes.patch`, `changes.json`, `documentation-sha256.json` and `windows-cross-precheck.json` in the acceptance folder. The previous 329 files remain intact in `snapshots/codex-before-phase10-20261018`; there are 41 text files added or modified with reversable differences. Previous rounds/probes remain preserved and identified as development, failure or interruption.
 
-**Parada nesta fase:** implementação e aceitação Linux concluídas para o perfil
-UDP documentado. Aceitação nativa Windows permanece pendente; executar
-`python tools/validate_phase10.py` no Windows/MSVC/WHP para esse gate. A fase 11
-não foi iniciada.
+**Stop at this stage:** Linux implementation and acceptance completed for the documented UDP profile. Native Windows acceptance remains pending; run `python tools/validate_phase10.py` on Windows/MSVC/WHP for that gate. Phase 11 has not been started.
 
-## Continuação autorizada após esta entrega
+## Continuation authorized after this delivery
 
-Em nova solicitação de 18/10/2026, o usuário autorizou iniciar a fase 11.
-O estado e as evidências dessa etapa ficam em [PHASE-11.md](PHASE-11.md);
-as menções anteriores a “não iniciada” descrevem o encerramento histórico
-da fase 10. O gate Windows da fase 10 permanece pendente.
+In a new request from 18/10/2026, the user authorized to start phase 11. The state and evidence of this step are in [PHASE-11.md](PHASE-11.md); the previous mentions to “not started” describe the historical closure of phase 10. The Windows gate of phase 10 remains pending.

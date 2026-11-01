@@ -1,105 +1,62 @@
-# Fase 14.12 — x86 e perfis NT adicionais
+# Phase 14.12 — x86 and additional NT profiles
 
-## Estado: primeiro lote 14.12A, núcleo x86 para Windows 10
+## Status: first batch 14.12A, x86 core for Windows 10
 
-O kernel x64 do MiniNT inicia executáveis PE32 e DLLs próprias de 32 bits em
-modo de compatibilidade x86 da CPU, CPL3, sobre WHP. A entrada do executável e
-seus callbacks continuam dentro da VM.
+The MiniNT x64 kernel starts PE32 executables and 32-bit own DLLs in CPU x86 compatibility mode, CPL3, over WHP. The executable input and its callbacks remain within the VM.
 
-Este lote estabelece o núcleo da 14.12. A fase ampla permanece aberta: não
-implementa WOW64 completo, DLLs Microsoft arbitrárias ou suporte geral a x86.
-O único perfil aceito é **NT 10.0.19045 / Windows 10 x86**. Outros perfis são
-recusados neste pacote, sem promover o inventário de versões a suporte binário.
+This batch establishes the core of 14.12. The wide phase remains open: it does not implement complete WOW64, arbitrary Microsoft DLLs or general x86 support. The only accepted profile is **NT 10.0.19045 / Windows 10 x86**. Other profiles are refused in this package without promoting the inventory of versions to binary support.
 
-## Implementação
+## Implementation
 
-- Carregador PE32 separado por configuração de kernel: I386/0x14c, cabeçalho
-  0x10b, IAT de quatro bytes e relocations HIGHLOW. Misturar PE32 e AMD64 no
-  mesmo grafo é recusado. Permanecem limites, rollback e proteção W^X.
-- Entrada em CS 0x1b, pilha de 32 bits, stdcall/cdecl e retorno por interrupt
-  gate DPL3 dedicado. FS:[18h] identifica o TEB32, FS:[30h] aponta ao PEB32 e
-  PEB:[8] contém a base da imagem.
-- `kernel32.dll`, `user32.dll`, `win32u.dll` e `msvcrt.dll` próprias geradas
-  pelo cross compiler x86, sem vincular a CRT do host. DllMain e a entrada do
-  aplicativo executam no convidado.
-- Busca de DLLs em `C:\Windows\SysWOW64`; consulta de módulo a
-  `C:\Windows\System32\kernel32.dll` redirecionada ao módulo x86. Isso ainda
-  não é redirecionamento geral de arquivos/registro.
-- Thunks com ponteiros de 32 bits, sondagem de memória no kernel e pedidos com
-  tamanho/versão e origem validados. O protocolo gráfico mantém IDs opacos de
-  64 bits, representados por IDs de 32 bits no convidado. IDs antigos não
-  identificam janelas novas; HWNDs reais não atravessam a VM.
-- USER32 usa o auxiliar restrito existente: janela, BUTTON, EDIT e STATIC reais
-  no Windows; eventos e WndProc stdcall x86 no MiniNT. O relatório
-  `native-user32.json` conserva o identificador do backend **14.10B/protocolo 2**;
-  manifesto e prova desta entrega identificam 14.12.
-- Telemetria das operações observadas. Saída diferente de zero e acesso
-  inválido geram sessão malsucedida e análise **inconclusiva**, com limpeza de
-  janelas e auxiliar também em caso de exceção.
+- PE32 charger separated by kernel configuration: I386/0x14c, header
+  0x10b, four-byte IAT and HYGHLOW relocations. Mixing PE32 and AMD64 in the same graph is refused. Limits, rollback and W^X protection remain.
+- Input in CS 0x1b, 32-bit stack, stdcall/cdecl and interrupt return
+  dedicated gate DPL3. FS:[18h] identifies the TEB32, FS:[30h] points to PEB32 and PEB:[8] contains the base of the image.
+- `kernel32.dll`, `user32.dll`, `win32u.dll` and `msvcrt.dll` themselves generated
+  by cross compiler x86, without linking the host CRT. DllMain and the application entry run on the guest.
+- Search for DLLs in `C:\Windows\SysWOW64`; module consultation
+  `C:\Windows\System32\kernel32.dll` redirected to x86 module. This is not yet general redirection of files/log.
+- Thunks with 32-bit pointers, kernel memory scan and requests with
+  size/version and validated origin. The graphical protocol maintains 64-bit opaque IDs, represented by 32-bit IDs in the guest. Old IDs do not identify new windows; real HWNDs do not cross the VM.
+- USER32 uses the existing restricted auxiliary: window, BUTTON, EDIT and actual STATIC
+  on Windows; events and WndProc stdcall x86 in MiniNT. The `native-user32.json` report keeps the identifier of the backend **14.10B/protocol 2**; manifest and proof of this delivery identify 14.12.
+- Telemetry of observed operations. Output different from zero and access
+  invalid generate unsuccessful session and analysis **inclusive**, with window cleaning and also assist in case of exception.
 
-## Contratos e limites atuais
+## Current contracts and limits
 
-`kernel32` cobre identificação, pseudo-handles, LastError, consulta WOW64 do
-processo atual, console por WriteFile, heap/alocação RW, relógio, módulos já
-carregados, export por nome, ExitProcess e conversões UTF-8/CP1252 próprias.
-O inventário gerado permite conferir exports; o nome não implica contrato
-Windows completo.
+`kernel32` covers identification, pseudo-handles, LastError, WOW64 consultation of the current process, console by WriteFile, heap/allocation RW, clock, modules already loaded, export by name, ExitProcess and UTF-8/CP1252 conversions itself. The inventory generated allows you to check exports; the name does not imply full Windows contract.
 
-Há um processo e uma thread de aplicação. LastError e a tabela gráfica
-dependem desse limite. A alocação aceita endereço escolhido pelo kernel,
-reserva+commit RW, até 1 MiB por região e 64 regiões simultâneas. VirtualFree
-libera apenas regiões desse alocador; módulos/TEB/pilhas ficam protegidos.
-São recusadas páginas RWX. O heap usa uma região por alocação. A tabela conserva
-até 128 IDs gráficos durante a sessão, além do limite de objetos vivos do
-backend. Sleep consulta o relógio em laço; não é sincronização Win32 completa.
+There is a process and an application thread. LastError and the graphical table depend on this limit. The allocation accepts address chosen by the kernel, reserve+commit RW, up to 1 MiB per region and 64 simultaneous regions. VirtualFree releases only regions from this allocater; modules/TEB/batteries are protected. RWX pages are refused. The heat uses a region by allocation. The table saves up to 128 graphical IDs during the session, in addition to the limit of live objects from the backend. Sleep query the loop clock; it is not full Win32 synchronization.
 
-`msvcrt` atende `puts` e `printf` de texto literal, sem conversões `%`. Não é
-CRT geral. Imports dinâmicos por ordinal, API sets, LoadLibrary, processos filhos,
-threads e os contratos NT/Win32 restantes exigem continuação.
+`msvcrt` meets `puts` and `printf` of literal text without `%` conversions. It is not general CRT. Dynamic imports by ordinal, API sets, LoadLibrary, child processes, threads and the remaining NT/Win32 contracts require continuation.
 
-TLS PE32, SEH x86, exceções C++, load config/CFG, delay imports e CLR são
-**recusados**. Acesso inválido encerra o processo com status de exceção, sem
-despacho de handlers SEH. Não há GDI/DirectX/áudio x86, registro/VFS x86 geral,
-programas de 16 bits ou ARM neste lote.
+TLS PE32, SEH x86, C++ exceptions, load config/CFG, delay imports and CLR are**refused**. Invalid access terminates the process with exception status, without dispatch of SEH handlers. There is no GDI/DirectX/audio x86, log/VFS x86 general, 16-bit programs or ARM in this batch.
 
-## Validação delimitada
+## Delimited validation
 
-**Resultados Windows/WHP em 29/10/2026:** Release **18/18**, Debug **18/18**,
-com fontes e binários estáveis. O parser ASan aprovou 10.240 verificações e
-4.608 truncagens em Release; 13.312 verificações e 6.144 truncagens em Debug,
-além das 1.000 mutações por configuração. Esses números são verificações
-internas, não contagens de programas independentes.
+**Windows/WHP results in 29/10/2026:**Release **18/18**, Debug **18/18**, with stable sources and binaries. Parser ASan approved 10,240 checks and 4,608 truncations in Release; 13,312 checks and 6,144 truncations in Debug, in addition to 1,000 mutations per configuration. These numbers are internal checks, not independent program counts.
 
-`tools/validate_compat32.py` reúne **18 casos por configuração**, somente para
-este lote e suas dependências usadas; não repete baterias antigas.
+`tools/validate_compat32.py` brings together **18 cases per configuration**, only for this batch and its used dependencies; does not repeat old batteries.
 
-- Parser/carregador sob AddressSanitizer: grafo PE32, fixups, IAT, W^X, rollback,
-  arquitetura/TLS/overflow recusados, todas as truncagens do EXE gráfico e
-  1.000 mutações determinísticas. Entradas analisadas, nunca executadas no host.
-- Console/GUI próprios: ABI/FS/PEB, busca SysWOW64, heap, cota, dupla liberação,
-  ponteiro inválido, páginas executáveis recusadas e IDs antigos sem alias.
-- Entrada dirigida só ao auxiliar do teste: texto `abc` em EDIT e clique no
-  BUTTON, conferidos pelo callback convidado; sem usar mouse/teclado globais.
-- Console C independente do projeto `leachim6/hello-world`, fonte não alterado
-  fixado por blob/SHA-256 em `config/compat32-corpus.json`. Compila com entrada
-  e DLLs próprias e imprime `Hello World` no MiniNT. Não demonstra CRT amplo;
-  a GUI própria não conta como corpus gráfico independente.
-- Falha de memória com/sem janelas e ExitProcess(17): análise inconclusiva,
-  nenhum processo/objeto/handle/referência vivo, auxiliar encerrado e zero janelas.
-- Perfil, arquitetura, CLR, RWX, truncagem, DLL x64 e modo de lançamento
-  incompatíveis recusados; manifesto adulterado para x64 recusado antes da VM.
+- Parser/charger under AddressSanitizer: grafo PE32, fixups, IAT, W^X, rollback,
+  architecture/TLS/overflow refused, all the graph EXE truncages and 1,000 deterministic mutations. Analyzed entries, never executed in the host.
+- Console/GUI own: ABI/FS/PEB, search SysWOW64, heat, quota, double release,
+  invalid pointer, executable pages refused and old IDs without aliases.
+- Input directed only to the test assistant: `abc` text in EDIT and click on
+  BUTTON, checked by guest callback; without using global mouse/keyboard.
+- Project independent `leachim6/hello-world` Console C, unaltered source
+  fixed by blob/SHA-256 in `config/compat32-corpus.json`. Compiles with input and own DLLs and prints `Hello World` in MiniNT. It does not demonstrate broad CRT; the GUI itself does not count as an independent graphic corpus.
+- Memory failure with/without windows and ExitProcess(17): inconclusive analysis,
+  No Case/object/handle/reference alive, auxiliary closed and zero windows.
+- Profile, architecture, CLR, RWX, truncation, DLL x64 and launch mode
+  incompatible refused; tampered manifest to x64 refused before MV.
 
-As provas exigem estabilidade dos hashes de fontes/binários. O empacotador só
-aceita provas atuais aprovadas em Release e Debug. O pacote extraído é testado
-no mesmo escopo; os hashes são conferidos antes e depois. Builds ficam no
-repositório privado. Runtimes Microsoft, fonte e binário externos não são
-redistribuídos; a reprodução exige ferramentas/referências locais.
+The evidence requires stability of source code/binary. hashes The packer only accepts current proofs approved in Release and Debug. The extracted package is tested in the same scope; hashes are checked before and after. Builds are in the private repository. Microsoft Runtimes, external source and binary are not redistributed; playback requires local tools/references.
 
-## Reprodução no Windows
+## Play on Windows
 
-Requisitos: Windows x64 com NX/WHP, Python, Visual Studio 2022 C++ x86/x64 e SDK
-Windows. Forneça o runtime ASan da instalação local. Use configuração CMake
-que já habilite o kernel USER32 nativo.
+Requirements: Windows x64 with NX/WHP, Python, Visual Studio 2022 C++ x86/x64 and Windows SDK. Provide local installation runtime ASan. Use CMake configuration that already enables the native USER32 kernel.
 
 ```powershell
 cmake --build PASTA_BUILD --config Release --target guardian_compat32_runtime guardian-compat32-tests
@@ -109,24 +66,15 @@ python -B tools/validate_compat32.py --build PASTA_BUILD --config Debug --output
 python -B tools/package_phase14_12.py --build PASTA_BUILD --release PROVA_RELEASE_NOVA --debug PROVA_DEBUG_NOVA --output PACOTE_NOVO
 ```
 
-Os EXEs/DLLs x86 são entradas **somente para o convidado**. O construtor abaixo
-inspeciona os arquivos, valida imports e cria volume, manifesto, inventário e
-binding sem executar o programa. `compat32_runtime.verify` verifica seus hashes
-e vínculos. O comando seguinte executa a entrada dentro do MiniNT:
+The EXEs/DLLs x86 are entries **only for the guest**. The builder below inspects the files, validates imports and creates volume, manifest, inventory and binding without running the program. `compat32_runtime.verify` checks its hashes and links. The following command executes the entry inside MiniNT:
 
 ```powershell
 python -B tools/compat32_runtime.py --build PASTA_BUILD --config Release --application APP_X86.exe --output BUNDLE_NOVO
 PASTA_BUILD/Release/guardian-desktop.exe PASTA_BUILD/guest/Release/guardian-kernel-compat32.gk BUNDLE_NOVO/runtime.gpv BUNDLE_NOVO/manifest.json BUNDLE_NOVO/binding.gnt SESSAO_NOVA --compat32 --seconds 15
 ```
 
-## Continuação da 14.12
+## Continuation of 14.12
 
-Antes da conclusão ampla: corpus GUI independente; thunks de arquivos/registro
-com visões separadas; TLS/SEH e serviços nativos necessários aos programas
-escolhidos; expansão das DLLs gráficas e demais famílias por demanda. Cada
-perfil NT novo exige referências legais e aceitação por build. A 14.13 não é
-iniciada nesta entrega.
+Before the broad conclusion: corpus GUI independent; thunks of files/log with separate visions; TLS/SEH and native services required for the chosen programs; expansion of graphic DLLs and other families on demand. Each new NT profile requires legal references and acceptance by build. 14.13 It's not started on this delivery.
 
-Referências: [aplicativos de 32 bits](https://learn.microsoft.com/en-us/windows/win32/winprog64/running-32-bit-applications)
-e [detalhes do WOW64](https://learn.microsoft.com/en-us/windows/win32/winprog64/wow64-implementation-details).
-O MiniNT usa implementação própria, sem redistribuir o WOW64 do Windows.
+References: [32-bit applications](https://learn.microsoft.com/en-us/windows/win32/winprog64/running-32-bit-applications) and [WOW64](https://learn.microsoft.com/en-us/windows/win32/winprog64/wow64-implementation-details) details. MiniNT uses its own implementation without redistributing Windows WOW64.

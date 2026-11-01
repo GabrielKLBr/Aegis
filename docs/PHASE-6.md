@@ -1,195 +1,104 @@
-# Fase 6 — I/O, dispositivos e drivers próprios
+# Phase 6 — I/O, own devices and drivers
 
-Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
-Imagem: `guardian-kernel-io.gk`, versão 0.6.0, x64, uma vCPU, WHP.
-Estado: concluída em 16/10/2026. A fase 7 não foi iniciada.
+Active base: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`. Image: `guardian-kernel-io.gk`, version 0.6.0, x64, a vCPU, WHP. Status: completed in 16/10/2026. Phase 7 was not initiated.
 
-## Implementação
+## Implementation
 
-O kernel agora registra, inicia, atende requisições e descarrega três drivers
-internos: console, canal de mensagens e disco em blocos. O gerenciador de I/O,
-os callbacks dos drivers, a fila, o cancelamento e a conclusão executam em
-CPL0 no convidado. O host implementa os dispositivos virtuais em memória e
-valida o protocolo. Nenhum driver é instalado no Windows host.
+The kernel now registers, starts, meets requests, and downloads three internal drivers: console, message channel, and block disk. The I/O manager, drivers callbacks, queue, cancellation, and completion run on CPL0 in the guest. The host implements virtual devices in memory and validates the protocol. No driver is installed in Windows host.
 
-`guest/IoManager.cpp` contém o núcleo freestanding. `IoKernel.cpp` liga esse
-núcleo aos processos, handles e direitos da fase 5, ao timer e às esperas do
-escalonador. A imagem de I/O reutiliza a execução de processos da fase 5 e
-adiciona operações reais de I/O por syscall ao programa de usuário do pai.
-As outras imagens continuam usando seus contratos anteriores.
+`guest/IoManager.cpp` contains the freestanding core. `IoKernel.cpp` links this core to the processes, handles and rights of phase 5, to the scheduler timer and waits. The I/O image reuses the execution of phase 5 processes and adds real operations of I/O by syscall to the parent's user program. The other images continue using their previous contracts.
 
-### Barramento e fronteira host/convidado
+### Bus and border host/guest
 
-`shared/guardian/Io.h` define um barramento versionado com três descritores:
-identificador, classe, versão, tamanho máximo, capacidade, operações e
-reservados. O kernel valida todos os campos e a cobertura do mapa de memória.
-A enumeração é somente leitura no WHP e permanece supervisora nas tabelas do
-convidado. Trata-se de uma extensão própria, separada da tabela inicial de
-console/controle do contrato de boot.
+`shared/guardian/Io.h` defines a bus versioned with three descriptors: identifier, class, version, maximum size, capacity, operations and reserved. The kernel validates all fields and memory map coverage. The enumeration is read-only in the WHP and remains supervisor in the guest tables. It is a separate extension from the initial console/control table of the boot contract.
 
-| Área fixa | Endereço físico | Uso |
+| Area fixed | Address physical | Usage |
 |---|---|---|
-| Pacote | `0x10C000` | pedido e resposta de até 584 bytes |
-| Relatório | `0x10D000` | resultado da execução |
-| Barramento | `0x10E000` | enumeração imutável de 152 bytes |
-| Porta | `0xF0` | OUT de um byte: transação ou publicação do relatório |
+| Package | `0x10C000` | request and reply of up to 584 bytes |
+| Report | `0x10D000` | result of execution |
+| Bus | `0x10E000` | enumeration immutable of 152 bytes |
+| Port | `0xF0` | OUT of a byte: transaction or report publication |
 
-Pedidos carregam versão, tamanho, sessão de boot, sequência estritamente
-crescente, ID da requisição, dispositivo, operação, offset e comprimento.
-São copiados do endereço fixo antes de validar e executar. O backend não
-recebe ponteiros do host nem caminhos escolhidos pelo usuário. Respostas
-repetem a identidade do pedido, informam status e quantidade transferida;
-o driver verifica esses campos antes de aceitar dados ou concluir a operação.
+Requests load version, size, boot session, strictly increasing sequence, request ID, device, operation, offset and length. They are copied from fixed address before validating and executing. The backend does not receive host pointers or user chosen paths. Replies repeat the order identity, inform status and quantity transferred; the driver checks these fields before accepting data or completing the operation.
 
-IN, OUT largo, comandos desconhecidos, transação fora do estado de execução,
-sessão errada, replay e campos reservados produzem diagnóstico. A enumeração,
-pacotes e relatório usam áreas distintas. O relatório só é aceito uma vez,
-depois do relatório de processos e antes do relatório final de CPU, com o
-timer desarmado. Pedidos malformados não avançam a sequência nem alteram os
-dispositivos. Falhas operacionais válidas retornam status limitado.
+IN, OUT wide, unknown commands, out-of-run transaction, wrong session, replay and reserved fields produce diagnostics. Enumeration, packages and report use distinct areas. The report is only accepted once, after the process report and before the final CPU report, with the timer unarmed. Malformed requests do not advance the sequence or change the devices. Valid operating failures return limited status.
 
-### Carregamento e descarregamento
+### Loading and unloading
 
-Cada driver possui contrato interno com versão, tamanho, arquitetura, rota
-e callbacks de início, parada e despacho. Versão/arquitetura/tamanho/flags
-incompatíveis ou callbacks ausentes são recusados com `Incompatible`.
-Início malsucedido não publica uma instância ativa. IDs de instância têm
-geração para recusar referências antigas após recarregamento.
+Each driver has internal contract with version, size, architecture, route and callbacks of start, stop and dispatch. Incompatible Version/architecture/size/flags or missing callbacks are refused with `Incompatible`. Failed start does not publish an active instance. instance IDs have generation to refuse old references after reload.
 
-O início valida o barramento e ativa a rota do driver. A parada verifica a
-instância ativa e desativa a rota. Descarregar é recusado enquanto há handles,
-referências externas ou pedidos ainda não recolhidos. Falha de dispositivo
-ou resposta inválida coloca a instância em falha; pedidos posteriores não
-continuam enviando operações por essa rota. Descarregar e recarregar cria
-uma instância nova, depois da recuperação dos recursos pendentes.
+The start validates the bus and activates the driver path. The stop checks the active instance and disables the route. Downloading is refused while there are handles, external references or requests not yet collected. Invalid device or response failure causes the instance to fail; subsequent orders do not continue sending operations along this route. Downloading and reloading creates a new instance after recovery of pending resources.
 
-Nesta fase, carregar significa registrar e iniciar drivers compilados dentro
-da própria imagem. Não existe ainda um carregador de arquivos `.sys`, ABI WDM,
-PnP completo, DMA, passagem de hardware ou drivers Windows de terceiros.
-O loader geral pertence à fase 8; a compatibilidade ampliada, à fase 12.
+At this stage, loading means registering and starting compiled drivers within the image itself. There is not yet a `.sys`, ABI WDM, PnP complete file loader, DMA, third-party Windows driver or hardware passer. The general loader belongs to phase 8; the expanded compatibility to phase 12.
 
-### Requisições assíncronas e cancelamento
+### Asynchronous requests and cancellation
 
-Enviar uma requisição valida o contrato, aplica quotas e reserva um objeto
-de conclusão antes de publicar o pedido na fila. A chamada retorna `Pending`;
-o backend ainda não foi acionado. Escritas fazem cópia dos dados de entrada.
-Alterar o buffer do usuário após o envio não muda os bytes já submetidos.
+Send a request validates the contract, applies quotas and reserves a completion object before posting the order in the queue. The call returns `Pending`; the backend has not yet been triggered. Writings copy the input data. Changing the user buffer after upload does not change the already submitted bytes.
 
-O timer existente chama o serviço de I/O em CPL0. Os pedidos são retirados em
-ordem FIFO, despachados pelos drivers e concluídos exatamente uma vez. Cada
-requisição tem um evento manual próprio. Uma thread pode aguardar esse evento
-sem ocupar a CPU; a conclusão a torna pronta novamente. Recolher o resultado
-antes de concluir retorna `Pending`.
+The existing timer calls the I/O service in CPL0. Orders are withdrawn in order FIFO, dispatched by drivers and completed exactly once. Each request has its own manual event. A thread can wait for this event without occupying the CPU; the completion makes it ready again. Collect the result before completing returns `Pending`.
 
-Cancelar um pedido ainda na fila conclui com `Cancelled` e não executa sua
-operação no dispositivo. Um cancelamento tardio retorna `TooLate`, preservando
-o resultado existente. O teste real aceita a corrida legítima com conclusão e
-repete o cancelamento de forma limitada até exercitar o caminho cancelado.
-Ao sair um processo, seus pedidos são cancelados/recolhidos e suas referências
-são liberadas. IDs de pedido com geração e a identidade do processo impedem
-consultar, cancelar ou recolher pedidos de outro processo ou de uma geração
-anterior.
+Cancel an order still in the queue concludes with `Cancelled` and does not perform its operation on the device. A late cancellation returns `TooLate`, preserving the existing result. The actual test accepts the legitimate race with completion and repeats the cancellation limitedly until you exercise the cancelled path. Upon leaving a process, your orders are cancelled/collected and your references are released. Order IDs with generation and process identity prevent you from consulting, canceling or collecting requests from another process or from a previous generation.
 
-Fila e drivers operam na única vCPU, com interrupções mascaradas dentro do
-kernel. Despacho e conclusão do backend são serializados; não há cancelamento
-concorrente dentro do callback, SMP, DPC preemptível ou interrupção dedicada de
-dispositivo nesta etapa. Um pedido em despacho não pode ser reutilizado.
+Queue and drivers operate in the single vCPU, with masked interruptions within the kernel. Backend dispatch and completion are serialized; there is no concurrent cancellation within callback, SMP, preemptible DPC or dedicated device interruption at this stage. An order cannot be reused.
 
-### Permissões e vida útil dos buffers
+### Buffer Permissions and Lifetime
 
-Os dispositivos são objetos da tabela de handles da fase 5. Abrir passa pela
-DACL e integridade. Leitura exige `ReadMemory`, escrita/flush exige
-`WriteMemory` e controle de descarregamento exige `Modify`. Um handle de
-leitura não autoriza escrita. As identidades continuam sendo internas ao
-convidado; não são credenciais do host.
+The devices are objects of the 5. Open handles table passes through DACL and integrity. Reading requires `ReadMemory`, writing/flush requires `WriteMemory` and download control requires `Modify`. A read handlet does not authorize writing. The identities remain internal to the guest; they are not host credentials.
 
-Cada requisição mantém uma referência ao objeto do dispositivo até ser
-recolhida ou removida na saída do processo. Fechar o handle não invalida o
-pedido já submetido. Isso é uma regra explícita da ABI própria, sem promessa
-de reproduzir a semântica de arquivos/IRPs do Windows. Eventos de conclusão,
-slots e referências são liberados na recuperação.
+Each request maintains a reference to the device object until it is collected or removed at the process output. Closing the handle does not invalidate the already submitted request. This is an explicit rule of the ABI itself, without promise to play the files/IRPs semantics of Windows. Completion events, slots and references are released in recovery.
 
-Leituras permanecem no buffer interno até a aplicação recolher o resultado.
-O destino inteiro é validado para escrita nesse momento, respeitando o
-espaço de memória atual. Um destino inválido é recusado sem copiar parcialmente
-nem consumir o resultado; a aplicação pode tentar novamente com destino válido.
-Buffers do kernel e páginas supervisoras não são aceitos como buffers CPL3.
+Readings remain in the internal buffer until the application collects the result. The entire destination is validated for writing at this time, respecting the current memory space. An invalid destination is refused without partially copying or consuming the result; the application may try again with valid destination. Kernel buffers and supervisor pages are not accepted as CPL3 buffers.
 
-### Dispositivos implementados
+### Devices implemented
 
-- Console: escritas ASCII, com validação integral e orçamento total de 4 KiB.
-  Uma escrita com byte inválido não produz saída parcial. A saída é capturada
-  pelo dispositivo e incluída no relatório de boot.
-- Canal: FIFO de até oito mensagens, cada uma com até 512 bytes. Escrita
-  enfileira; leitura retorna a próxima mensagem. Buffer pequeno preserva a
-  mensagem; canal vazio/cheio retorna `Busy`. Não há encaminhamento para rede,
-  shell, arquivos ou serviços do Windows.
-- Blocos: dispositivo de RAM com 64 KiB e setores de 512 bytes. Leitura e
-  escrita transferem setores reais do array isolado; limites e alinhamento
-  são validados dos dois lados. Flush é um ponto de ordenação da fila em
-  memória. Não representa persistência em arquivo ou gravação no disco físico.
+- Console: ASCII writings, with full validation and total budget of 4 KiB.
+  Invalid byte writing does not produce partial output. Output is captured by the device and included in boot report.
+- Channel: FIFO up to eight messages, each with up to 512 bytes. Writing
+  queue; read returns the next message. Small Buffer preserves the message; empty/full channel returns `Busy`. No forwarding to network, shell, files or Windows services.
+- Blocks: RAM device with 64 KiB and sectors of 512 bytes. Reading and
+  writing transfers real sectors of the array isolated; limits and alignment are validated on both sides. Flush is a sorting point of the queue in memory. It does not represent file persistence or writing on the physical disk.
 
-## Aceitação e regressões
+## Acceptance and regressions
 
-`IoChecks.cpp` executa o mesmo núcleo de 630 verificações nativamente e em
-CPL0 em cada boot de I/O. Cobre contratos incompatíveis, falha no início,
-descarregamento ocupado, cópia de entrada, espera/conclusão, cancelamento,
-quota por dono/global, FIFO, ID antigo, dono incorreto, resposta inválida,
-quarentena da instância, esgotamento de eventos e 128 ciclos com recuperação.
-`GuestIoTransportTests.cpp` acrescenta 95 verificações da fronteira do host:
-framing, sequência, limites, replay, atomicidade de console, capacidade e
-preservação de mensagens, dados de bloco e falha de dispositivo.
+`IoChecks.cpp` performs the same core of 630 verifications natively and in CPL0 in each boot of I/O. Covers incompatible contracts, failure at first, busy download, copying of input, Wait./conclusion, cancellation, quota by owner/global, FIFO, old ID, invalid owner, invalid response, instance quarantine, event exhaustion and 128 cycles with recovery. `GuestIoTransportTests.cpp` adds 95 border checks of the host: framing, sequence, limits, replay, console atomity, ability and preservation of messages, block data and device failure.
 
-Em cada boot real, o programa CPL3:
+In each real boot, the CPL3 program:
 
-1. Abre o disco, confirma que descarregamento com handle aberto é recusado,
-   envia uma escrita e fecha o handle antes da conclusão.
-2. Altera o buffer original; depois de aguardar a conclusão, lê o setor por
-   outro handle e confere que os dados submetidos foram preservados.
-3. Confirma que escrita por handle de leitura, offset fora do disco e destino
-   supervisor são recusados. Recolhe a leitura usando um destino válido.
-4. Envia e recebe uma mensagem de oito bytes, escreve `IO OK\n` no console e
-   cancela uma escrita de bloco ainda na fila.
-5. Continua o cenário da fase 5: criação do filho restrito, herança controlada,
-   cópias autorizadas e fault contido no processo adversário.
+1. Opens the disk, confirms that unloading with open handle is refused,
+   Sends a script and closes the handle before completion.
+2. Sets the original buffer; after waiting for completion, reads the sector by
+   another handle and check that the submitted data were preserved.
+3. Confirms that written by read handle, offset off disk and destination
+   supervisor are refused. Collect reading using a valid destination.
+4. Sends and receives an eight-byte message, writes `IO OK\n` on the console and
+   cancels a block writing still in line.
+5. The scenario of phase 5: rearing the restricted child, controlled inheritance,
+   authorized copies and default contained in the opposing process.
 
-Ao final, os três drivers foram parados e descarregados; não restam pedidos,
-pins, handles ou objetos de processo. Restam apenas os 21 frames do espaço de
-kernel/ociosidade. Bytes contados pelos drivers devem coincidir com o backend.
+At the end, the three drivers were stopped and downloaded; there are no orders, pins, handles or process objects left. Only the 21 frames of the kernel/ociosidade. Bytes space counted by the drivers must match the backend.
 
-A matriz de I/O exige 20 boots com 16 MiB e 20 com 64 MiB por configuração,
-mais 22 casos externos negativos: 12 envelopes inválidos, cinco relatórios
-inválidos, ordem incorreta, IN/OUT largo, dispositivo removido e timer ausente
-com watchdog. A falha injetada no disco produz encerramento diagnosticado,
-sem escrita de bloco, fault de kernel ou corrupção do host.
-Critérios: `config/phase6-acceptance.json`.
+The I/O matrix requires 20 bootes with 16 MiB and 20 with 64 MiB per configuration, plus 22 negative external cases: 12 invalid envelopes, five invalid reports, wrong order, wide IN/OUT, removed device and timer missing with watchdog. The disk injected failure produces diagnosed closure without block writing, kernel default or host corruption. Criteria: `config/phase6-acceptance.json`.
 
-## Resultado verificado
+## Check result
 
-| Verificação | Resultado |
+| Scan | Result |
 |---|---|
-| Build completo Debug / Release | aprovado / aprovado |
-| CTest por configuração | 28 aprovados, zero falhas e zero ignorados |
-| Núcleo de I/O | 630 verificações nativas e em cada boot |
-| Fronteira do host | 95 verificações por configuração |
-| Boots positivos de I/O | 80 |
-| Boots positivos de regressão das fases 1–5 | 400 |
-| Casos externos negativos | 204 (44 de I/O, 160 de regressão) |
-| Exemplos confiáveis do projeto | sete por configuração, 14 execuções aprovadas |
-| Build Debug limpo independente | aprovado, seis imagens auditadas |
-| Artefatos do build completo | 57 executáveis e oito imagens por configuração |
-| Fronteiras freestanding verificadas | 28 combinações de alvo/configuração |
-| Evidências históricas preservadas | 237 arquivos com SHA-256 inalterado |
+| Build complete Debug / Release | approved / approved |
+| CTest by configuration | 28 approved, zero failures and zero ignored |
+| Core of I/O | 630 native checks and on each boot |
+| Border do host | 95 verifications by configuration |
+| I/O Positive Boots | 80 |
+| Phase 1–5 positive regression boots | 400 |
+| Cases external negative | 204 (44 I/O, 160 regression) |
+| Examples reliable do project | seven per configuration, 14 approved executions |
+| Build Debug clean independent | approved, six pictures auditadas |
+| Full build artifacts | 57 executables and eight images per configuration |
+| Borders freestanding verified | 28 combinations of target/configuration |
+| Evidence historical preserved | 237 files with unchanged SHA-256 |
 
-Os boots de I/O da matriz levaram 164,976–185,445 ms em Debug e
-133,972–155,998 ms em Release nesta máquina; esses números não são garantia de
-prazo. A imagem ocupa 552.960 bytes de espaço virtual em Debug e 528.384 em
-Release, dentro do limite de 1 MiB do carregador. As seis imagens de produção
-de cada configuração passaram as auditorias de imports/TLS/relocations/W+X.
-Os dois boots adicionais da CLI por configuração não estão somados aos 480
-boots da matriz.
+The matrix I/O boots took 164,976–185.445 ms in Debug and 133,972–155,998 ms in Release on this machine; these numbers are not guarantee of time. The image occupies 552,960 bytes of virtual space in Debug and 528,384 in Release, within the limit of 1 MiB of the loader. The six production images of each configuration passed the audits of imports/TLS/relocations/W+X. The two additional CLI bootes by configuration are not added to the 480 bootes of the matrix.
 
-## Compilar e executar
+## Build and execute
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Debug -FullBuild
@@ -198,57 +107,29 @@ boots da matriz.
 .\build-codex\Release\guardian_boot.exe .\build-codex\guest\Release\guardian-kernel-io.gk --io --ram-mib 64 --repeat 2 --report .\build-codex\phase6-cli-Release.json
 ```
 
-`--io` seleciona a extensão de processos com os dispositivos da fase 6.
-Contratos incompatíveis são recusados antes de criar a VM. O WHP é usado
-diretamente, sem QEMU e sem mudanças nas configurações de boot ou segurança
-do Windows. Somente programas próprios e os sete exemplos confiáveis do
-projeto são executados na validação.
+`--io` selects the extension of processes with phase 6 devices. Incompatible contracts are refused before creating VM. The WHP is used directly, without QEMU and without changes in Windows boot or security settings. Only own programs and the seven reliable examples of the project are executed in validation.
 
-## Evidências e recuperação
+## Evidence and recovery
 
-Resultados novos usam o prefixo `phase6-`, inclusive as regressões. O inventário
-de 237 arquivos históricos das fases anteriores fica no backup
-`snapshots/codex-before-phase6-20261016-204825/`, junto dos doze arquivos
-anteriores alterados. Há 14 arquivos novos de implementação, testes,
-configuração e documentação.
+New results use prefix `phase6-`, including the regressions. 237 historical files from previous phases is in backup `snapshots/codex-before-phase6-20261016-204825/`, along with the twelve previous files changed. 14 new implementation files, tests, configuration and documentation.
 
-Em `build-codex/`, os logs `phase6-full-*-script.log` e
-`phase6-*-tests-details.log` registram compilação e CTest. `phase6-boots-*` e
-`phase6-regression-phase1-*` até `phase6-regression-phase5-*` guardam a matriz e
-seus negativos. `phase6-reference-programs.json`, `phase6-smoke.json` e
-`phase6-cli-*` registram exemplos e CLI. `phase6-image-audit.json` e
-`phase6-build-boundaries.json` verificam imagens e ausência de runtime host no
-convidado. O build limpo fica em `build-codex-phase6-clean/` e seus logs têm
-o prefixo `phase6-clean-`.
+In `build-codex/`, the `phase6-full-*-script.log` and `phase6-*-tests-details.log` logs record compilation and CTest. `phase6-boots-*` and `phase6-regression-phase1-*` up to `phase6-regression-phase5-*` save the matrix and its negatives. `phase6-reference-programs.json`, `phase6-smoke.json` and `phase6-cli-*` record examples and CLI. `phase6-image-audit.json` and `phase6-build-boundaries.json` check images and absence of runtime host in the guest. The clean build is in `build-codex-phase6-clean/` and its logs have the prefix `phase6-clean-`.
 
-`phase6-change-manifest.json` registra SHA-256 de fontes, backups, executáveis,
-imagens e evidências. Revalidar sem executar programas:
-`python tools/validate_phase6.py --snapshot snapshots/codex-before-phase6-20261016-204825`.
-Tentativas intermediárias foram preservadas, incluindo a correção inicial da
-leitura do comando de OUT: apenas o byte transferido é usado, seguindo o
-contrato da porta. LNK4281 continua sendo o aviso esperado da base fixa de
-2 MiB exigida pelo carregador.
+`phase6-change-manifest.json` records SHA-256 from sources, backups, executables, images and evidence. Revalidate without running programs: `python tools/validate_phase6.py --snapshot snapshots/codex-before-phase6-20261016-204825`. Intermediate attempts have been preserved, including initial correction of reading the OUT command: only the byte transferred is used, following the port contract. LNK4281 remains the expected warning of fixed base of 2 MiB required by the loader.
 
-## Limites e parada
+## Limits and Stop
 
-Até três drivers internos, oito pedidos globais e quatro por processo,
-512 bytes por transferência e uma vCPU. IDs e contadores são limitados;
-gerações esgotadas não são recicladas silenciosamente. O armazenamento desta
-etapa é volátil e não há sistema de arquivos ou registro persistente novo.
+Up to three internal drivers, eight global orders and four per process, 512 bytes per transfer and one vCPU. IDs and counters are limited; exhausted generations are not recycled silently. Storage of this step is volatile and there is no new file system or persistent registry.
 
-As limitações da fase 5 continuam válidas. Esta entrega não declara
-compatibilidade geral com drivers ou aplicações Windows, nem conclusão do
-antivírus ou invisibilidade do sandbox. Persistência, overlays, arquivos e
-registro serão tratados na fase 7.
+Phase 5 limitations remain valid. This delivery does not declare general compatibility with Windows drivers or applications, nor completion of the antivirus or sandbox invisibility. Persistence, overlays, files and registration will be handled in phase 7.
 
-Ao concluir a fase 6, parar. A fase 7 só começa após nova solicitação.
+At the end of phase 6, stop. Phase 7 does not start until further request.
 
-## Referências de semântica
+## Semantic references
 
-- [Microsoft: filas de requisições](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/queuing-and-dequeuing-irps)
-- [Microsoft: conclusão de requisições](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/when-to-complete-an-irp)
-- [Microsoft: sincronização de cancelamento](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/synchronizing-irp-cancellation)
-- [Microsoft: condições de descarregamento](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/unload-routine-environment)
+- [Microsoft: Request queues](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/queuing-and-dequeuing-irps)
+- [Microsoft: completion of requests](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/when-to-complete-an-irp)
+- [Microsoft: cancellation sync](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/synchronizing-irp-cancellation)
+- [Microsoft: Downloading Conditions](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/unload-routine-environment)
 
-São referências para decisões de projeto; o contrato implementado é a ABI
-própria descrita neste documento, não uma implementação completa de WDM.
+They are references to project decisions; the contract implemented is the ABI itself described in this document, not a complete WDM implementation.

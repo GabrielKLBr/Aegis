@@ -1,41 +1,23 @@
-# Progresso público do MiniNT
+# Public progress of the MiniNT
 
-GitHub Pages publica três páginas a partir de `main`:
+GitHub Pages publishes three pages from `main`:
 
-- `index.html`: entrada com links para os dois relatórios;
-- `progress.html`: inventários existentes de vídeo, interface e áudio;
-- `windows-apis.html`: catálogo geral por DLL, incluindo objetivos do roadmap.
+- `index.html`: entry with links to both reports;
+- `progress.html`: existing video, interface and audio inventories;
+- `windows-apis.html`: General catalogue by DLL, including roadmap objectives.
 
-As badges `badges/geral.svg` e `badges/interface.svg` são geradas junto ao site
-e ligadas no início do README. O percentual soma entradas implementadas e com
-restrições, dividido por todas as entradas do respectivo catálogo. Declarações
-sem contrato validado, pendências e recusas não entram no numerador. A medida
-não representa compatibilidade com todo o Windows.
+The `badges/geral.svg` and `badges/interface.svg` badges are generated at the site and connected at the start of the README. The percentage sums entries implemented and with restrictions, divided by all entries in the respective catalog. Declarations without validated contract, pending and refusals do not enter the numerator. The measure does not represent compatibility with all Windows.
 
-Gere localmente com Python, sem dependências externas:
+Manage locally with Python, without external dependencies:
 
 ```text
 python -B tools/windows_api_progress.py --output build-progress
 ```
 
-O gerador executa também `tools/progress.py`, preservando `progress.html` e
-`progress.json`. O catálogo geral usa `.def`, declarações dos adaptadores,
-inventários literais dos geradores de exports e matrizes versionadas de
-contratos gráficos e de áudio. Inclui o recorte gerenciado da 14.11.
-Não importa nem executa os geradores de runtimes para extrair seus inventários.
+The generator also executes `tools/progress.py`, preserving `progress.html` and `progress.json`. The general catalogue uses `.def`, adapter statements, literal inventories of export generators, and versioned matrices of graphic and audio contracts. It includes the management cutout of 14.11. It does not matter or execute runtime generators to extract their inventories.
 
-Uma declaração de export recebe **Presente no código — validar contrato**.
-Ela não vira automaticamente uma API implementada ou validada. As matrizes
-explícitas têm prioridade sobre as declarações brutas. Variantes de fases
-anteriores são reunidas pela identidade DLL/símbolo, com links para os fontes;
-isso não garante disponibilidade simultânea em um único pacote/perfil NT.
+An export declaration receives **Present in the code — validate contract**. It does not automatically become an implemented or validated API. Explicit matrices have priority over gross declarations. Variants of previous phases are gathered by the DLL/symbol identity, with links to the sources; this does not guarantee simultaneous availability in a single package/profile NT.
 
-Os objetivos iniciais em `PLAN`, no gerador, são uma lista extensível de APIs
-necessárias aos cenários planejados. O site não é um inventário exaustivo do
-Windows SDK, não lista todos os métodos COM/WinRT e não afirma que terminar essa
-lista fará todos os programas Windows funcionarem. Assinaturas, semântica,
-dependências e diferenças por versão NT precisam de contratos e testes próprios.
+The initial goals in `PLAN` in the generator are an extensible list of APIs required for the planned scenarios. The site is not an exhaustive inventory of Windows SDK, it does not list all the COM/WinRT methods and does not claim that finishing this list will make all Windows programs work. Signatures, semantics, dependencies and differences per NT version need own contracts and tests.
 
-O fluxo `.github/workflows/progress-pages.yml` regenera e publica o site quando
-os inventários ou fontes relevantes mudam. Somente HTML e JSON gerados são
-publicados, junto às badges SVG; binários e referências Microsoft não fazem parte do site.
+The `.github/workflows/progress-pages.yml` stream regenerates and publishes the site when the relevant inventories or sources change. Only generated HTML and JSON are published, along with SVG badges; Microsoft binaries and references are not part of the site.

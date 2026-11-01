@@ -445,7 +445,7 @@ bool MicroVm::Run(uint64_t maxExits) {
                             return Fail("SetRax(IN)", E_FAIL);
                     }
                 }
-                // WHP does not auto-advance RIP on I/O; step past the instruction.
+                // WHP does not self-advance RIP on I/O; step past the instruction.
                 if (!SetReg(WHvX64RegisterRip,
                             exit.VpContext.Rip + exit.VpContext.InstructionLength))
                     return Fail("AdvanceRip", E_FAIL);

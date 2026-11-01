@@ -1,61 +1,61 @@
-# Fase 12A — Perfis de hardware e driver de referência
+# Phase 12A — Hardware profiles and reference driver
 
-**Concluída para a matriz de referência em 19/10/2026.** As verificações Windows/WHP e Linux/KVM foram aprovadas com os retestes registrados abaixo.
+**Completed for the reference matrix in 19/10/2026.** The Windows/WHP and Linux/KVM checks were approved with the retests registered below.
 
-A entrega encerra a 12A para a matriz descrita abaixo. A fase 12 continua aberta; 12B–12E e fase 13 não foram iniciadas. A entrega inicial e seus resultados permanecem em `build-phase12a/`; as evidências desta conclusão ficam em [validation.json](../build-phase12a-complete/validation.json).
+The delivery closes the 12A for the matrix described below. Phase 12 remains open; 12B-12E and phase 13 have not been initiated. Initial delivery and its results remain in `build-phase12a/`; the evidence of this conclusion remains in [validation.json](../build-phase12a-complete/validation.json).
 
-## Matriz implementada
+## Implemented matrix
 
-| Item | Comportamento validado | Limite |
+| Item | Behavior validated | Limit |
 | --- | --- | --- |
-| Perfil por VM | Modelos editáveis de CPU, GPU, disco, BIOS e placa-mãe; IDs sintéticos persistentes | Modelo solicitado e capacidade efetiva são campos distintos |
-| CPU | Nome de até 48 bytes no CPUID, topologia de uma vCPU e mesma identidade no firmware/registro | Preserva instruções e recursos reais; virtualização permanece visível |
-| Firmware | Tabela SMBIOS 3.2 sintética, consulta RSMB por `GetSystemFirmwareTable` e pelo adaptador MiniNt | Não implementa uma BIOS PC, ACPI ou inicialização de firmware completo |
-| Registro | Projeção de 15 valores, incluindo CPU, BIOS, placa-mãe e dispositivos efetivos | Valores do perfil são somente de leitura; enumeração Win32 geral continua limitada |
-| GPU e disco | Compositor BGRA próprio e dispositivo de blocos de 64 KiB nos respectivos contratos | Selecionar GT 1030 ou outro modelo não implementa esse hardware/driver |
-| Driver | Referência x64 do projeto, `ROOT\GUARDIAN_PROBE`, INF System, alvo declarado NT 10 ou 11 | ABI experimental de driver de software; sem WDM/PnP/KMDF/WDDM completos |
-| Recursos | Driver executado com 16, 32 e 64 MiB; uma vCPU | Ampliação de RAM, núcleos e disco pertence às próximas entregas |
+| Profile by VM | Editable models of CPU, GPU, disk, BIOS and motherboard; persistent synthetic IDs | Requested model and effective capacity are distinct fields |
+| CPU | Name up to 48 bytes in CPUID, topology of a vCPU and same identity in firmware/log | Preserve instructions and resources real; virtualization remains visible |
+| Firmware | Table SMBIOS 3.2 synthetic, RSMB consultation by `GetSystemFirmwareTable` and MiniNt adapter | Do not implement a full PC, PCI or firmware boot |
+| Registration | 15 value projection including CPU, BIOS, motherboard and effective devices | Profile values are read-only; general Win32 enumeration remains limited |
+| GPU and disk | BGRA own and 64 KiB block device in their contracts | Select GT 1030 or other model does not implement this hardware/driver |
+| Driver | Project reference x64, `ROOT\GUARDIAN_PROBE`, INF System, declared target NT 10 or 11 | ABI experimental software driver; without complete WDM/PnP/KMDF/WDDM |
+| Resources | Driver running with 16, 32 and 64 MiB; a vCPU | RAM, cores and disk expansion belongs to the next deliveries |
 
-O alvo NT é uma declaração de compatibilidade do perfil, não uma implementação integral daquela versão do Windows. O nome escolhido para CPU não emula uma arquitetura ou conjunto de instruções diferente.
+The NT target is a profile compatibility declaration, not an integral implementation of that Windows version. The name chosen for CPU does not emulate a different architecture or set of instructions.
 
-## Uma fonte de identidade
+## A source of identity
 
-O inventário v1 em GPA `0x138000` continua sendo a fonte comum. A página é somente de leitura nas permissões físicas da VM. O kernel confere tamanho, versão, campos, topologia e nome obtido por CPUID antes de publicar o hash do inventário lido.
+The v1 inventory in GPA `0x138000` remains the common source. The page is read-only in the physical permissions of the VM. The kernel gives size, version, fields, topology and CPUID name before publishing the hash of the read inventory.
 
-O mesmo conteúdo gera os valores de registro e as estruturas SMBIOS de BIOS, sistema, placa-mãe e processador. UUID e seriais vêm da identidade sintética do perfil. A referência do host lê campos de modelos, sem consultar campos de serial de disco, UUID de firmware, MAC, credenciais ou arquivos pessoais. Um campo indisponível mantém o modelo Guardian.
+The same content generates the registration values and SMBIOS structures of BIOS, system, motherboard and processor. UUID and serials come from the synthetic identity of the profile. Host reference reads template fields, without consulting disk serial fields, firmware UUID, MAC, credentials or personal files. An unavailable field keeps the Guardian model.
 
-O programa de teste em CPL3 chama a API de firmware, consulta o registro e compara a CPU com CPUID. Ele verifica consultas de tamanho, buffer pequeno, leitura em partes e recusa de escrita. No Windows, outro teste executa syscalls reais do adaptador MiniNt para consultar registro, firmware e os campos implementados de RAM/vCPU. `MiniNt::ConfigureHardware` recebe explicitamente o inventário; os utilitários históricos sem esse adaptador não viraram automaticamente gerenciadores de perfis do catálogo.
+The CPL3 test program calls the firmware API, consults the registry and compares the CPU with CPUID. It checks size queries, small buffer, part reading and write refusal. In Windows, another test performs real syscalls from the MiniNt adapter to query registration, firmware, and the fields implemented from RAM/vCPU. `MiniNt::ConfigureHardware` explicitly receive the inventory; the historical utilities without this adapter did not automatically become catalog profile managers.
 
-## Importação e execução do driver
+## Driver import and execution
 
-A importação `.sys` histórica permanece inerte. Pacotes INF v2 preservam INF, imagem e catálogo opcional, validam limites e derivam novamente os metadados ao abrir o pacote. A implementação verifica arquitetura, decoração NT, dependências, dispositivo, serviço e imports. Caminhos que escapam do pacote, arquivos ausentes, metadados divergentes e ações não suportadas são recusados ou recebem diagnóstico de incompatibilidade.
+Historical `.sys` import remains inert. INF v2 packages preserve optional INF, image and catalog, validate limits and re-drift metadata when opening the package. The implementation checks architecture, NT decoration, dependencies, device, service and imports. Paths that escape the package, missing files, divergent metadata and unsupported actions are refused or are diagnosed with incompatibility.
 
-CAT recebe apenas inspeção limitada de envelope DER SignedData e armazenamento inerte. **Assinatura, pertencimento ao catálogo e confiança de certificados não são autenticados. Pacotes com CAT são inelegíveis para execução nesta política de laboratório.** Checksum controla integridade; não autentica nem classifica segurança.
+CAT only receives limited inspection of DER SignedData envelope and inert storage. **Certificate signature, catalog membership and certificate trust are not authenticated. CAT packages are ineligible for execution in this laboratory policy.**Checksum controls integrity; does not authenticate or classify security.
 
-O pacote executável da matriz é `guardian-hardware-probe.inf` com `guardian-hardware-probe.sys`, compilado das fontes do projeto. Ele importa quatro operações da API de kernel própria: criação/exclusão de dispositivo e alocação/liberação de pool com tag. A API é um módulo separado carregado no convidado; não utiliza o `ntoskrnl.exe` do Windows host.
+The matrix executable package is `guardian-hardware-probe.inf` with `guardian-hardware-probe.sys`, compiled from the project sources. It imports four operations from the own kernel API: creation/exclusion device and allocation/release pool tag. The API is a separate module loaded into the guest; it does not use the `ntoskrnl.exe` from Windows host.
 
-O contrato `hardware` inicia `guardian-kernel-hardware.gk`. O loader do convidado mapeia e protege os dois PEs, resolve imports e chama o `DriverEntry` real do `.sys`. O driver cria recursos, realiza quatro escritas e quatro leituras DWORD no dispositivo virtual e executa sua rotina de descarregamento. O convidado verifica resultados e liberação dos recursos; o host testemunha as operações do dispositivo e recusa uma alegação funcional sem essas operações. Esse teste é prova de funcionamento da referência, não atestado de confiabilidade de um driver arbitrário.
+The `hardware` contract starts `guardian-kernel-hardware.gk`. The guest loader maps and protects the two PEs, resolves imports and calls the actual `DriverEntry` of `.sys`. The driver creates resources, performs four DWORD writings and four readings on the virtual device and performs its unloading routine. The guest checks results and release of resources; the host witnesses the operations of the device and refuses a functional claim without these operations. This test is proof of the operation of the reference, not attested to the reliability of an arbitrary driver.
 
-Os estados têm significados separados:
+States have separate meanings:
 
-- **Importado:** pacote copiado e auditado; nenhum código foi executado.
-- **Configurado:** pacote/API selecionados em `installed.gdi`; ainda sem prova de inicialização.
-- **Instalado:** imagem carregada e imports vinculados neste boot experimental em memória.
-- **Inicializado:** `DriverEntry` retornou sucesso.
-- **Funcional:** operações previstas pelo contrato concluíram com prova do dispositivo.
-- **Descarregado:** rotina de unload liberou os recursos e o loader removeu as imagens.
+- **Imported:** copied and audited package; no code was executed.
+- **Configured:**package/API selected in `installed.gdi`; still no boot proof.
+- **Installed:**loaded image and imports linked in this experimental boot in memory.
+- **Inicializado:** `DriverEntry` He's back. success.
+- **Functional:** operations provided for in the contract concluded with proof of the device.
+- **Unloaded:** Unload routine released the features and the loader removed the images.
 
-Não há instalador SCM/PnP completo ou registro persistente de serviços Windows nesse contrato. O relatório de `drivers` conserva a observação do boot indicado e mostra o descarregamento separadamente. A referência com `DriverEntry` falho comprova que importação/carregamento não viram sucesso de inicialização. Nenhum driver importado é instalado ou executado no host.
+There is no complete SCM/PnP installer or persistent registry of Windows services in this contract. The `drivers` report retains the specified boot observation and shows download separately. The reference with `DriverEntry` failed proves that import/loading did not see boot success. No imported driver is installed or executed in the host.
 
-## Snapshots e clones
+## Snapshots and clones
 
-Snapshots vinculam identidade, CPUID, inventário, opções, imagens de driver/API, proteções de memória e estado do dispositivo. O teste pausa depois de uma escrita, com resposta ainda pendente, restaura em candidatos novos e conclui as operações e o unload. Alterações das imagens, descritor, perfil e permissões são recusadas.
+Snapshots link identity, CPUID, inventory, options, driver/API images, memory protections and device status. The test pauses after a writing, with pending response, restores to new candidates and completes operations and unload. Image changes, descriptor, profile and permissions are refused.
 
-Clones preservam a identidade para manter coerência com seu checkpoint, copiam o pacote selecionado e precisam produzir sua própria observação de execução. Edição de hardware ou instalação de outro pacote exige VM parada, sem checkpoints ou snapshots nomeados. Snapshots dependem do backend, perfil, imagens e formato de CPU compatíveis; não há promessa de migração de checkpoints de revisões intermediárias. Os arquivos anteriores não são apagados automaticamente.
+Clones preserves the identity to maintain consistency with your checkpoint, copy the selected package and need to produce their own execution observation. Hardware editing or installing another package requires VM stop, no named checkspoints or snapshots. Snapshots depend on the supported, profile, images and CPU format compatible; there is no promise of migration of mid-review checkpoints. Previous files are not automatically deleted.
 
-## Uso da referência
+## Use of the reference
 
-Na pasta dos binários da configuração escolhida, mantendo `guardian-driver-api.gkd` ao lado do gerenciador:
+In the binary folder of the chosen configuration, keeping `guardian-driver-api.gkd` next to the manager:
 
 ```powershell
 guardian-vm --root D:\VMs create teste caminho\guardian-kernel-hardware.gk hardware
@@ -67,41 +67,41 @@ guardian-vm --root D:\VMs status teste
 guardian-vm --root D:\VMs drivers teste
 ```
 
-`driver-install` prepara o pacote para o próximo boot. Os estados de execução aparecem depois que o convidado efetivamente executa o teste. O mesmo fluxo existe no gerenciador ELF do Linux.
+`driver-install` prepares the package for the next boot. Execution states appear after the guest effectively executes the test. The same flow exists in the Linux ELF manager.
 
-## Validação
+## Validation
 
-| Plataforma/configuração | Resultado final distinto | Evidência |
+| Platform/configuration | Different end result | Evidence |
 | --- | --- | --- |
-| Windows Debug | 59 testes validados, incluindo retestes | Suíte completa e retestes preservados |
-| Windows Release | 59 testes validados, incluindo retestes | Suíte completa e retestes preservados |
-| Linux Debug | 39 testes validados, incluindo retestes | Convidados LLVM nativos e host GCC/KVM |
-| Linux Release | 39 testes validados, incluindo retestes | Convidados LLVM nativos e host GCC/KVM |
-| Linux AddressSanitizer/UndefinedBehaviorSanitizer | 27/27 aprovados | Núcleos, parsers, rede e os sete testes de hardware |
-| Artefatos do convidado | 16 imagens por configuração em cada toolchain | Manifestos e hashes no relatório |
-| Processos de validação restantes | Nenhum | `process-cleanup.json` |
+| Windows Debug | 59 validated tests, including retests | Suite complete and retestes preserved |
+| Windows Release | 59 validated tests, including retests | Suite complete and retestes preserved |
+| Linux Debug | 39 validated tests, including retests | Guests LLVM natives and host GCC/KVM |
+| Linux Release | 39 validated tests, including retests | Guests LLVM natives and host GCC/KVM |
+| Linux AddressSanitizer/UndefinedBehaviorSanitizer | 27/27 approved | Cores, parsers, network and the seven hardware tests |
+| Artifacts do guest | 16 images per configuration in each toolchain | Manifestos and hashes in the report |
+| Validation processes remaining | None | `process-cleanup.json` |
 
-As suítes completas e os retestes são preservados separadamente. Não se atribui uma suíte limpa de 59/59 ou 39/39 a tentativas que tiveram falhas: o relatório estruturado associa cada resultado final à sua execução. No Linux Debug, passaram 37/39 antes dos reparos de rede; os casos de rede foram repetidos. Na Release, passaram 37/39 antes da correção de carregamento da API no cenário negativo do driver; esses dois casos foram repetidos em Debug e Release. A passagem com sanitizers foi limpa, 27/27.
+The complete suites and retests are preserved separately. A clean suite of 59/59 or 39/39 is not assigned to attempts that have failed: the structured report associates each final result to its execution. On Linux Debug, they passed 37/39 before network repairs; network cases were repeated. In Release, they passed 37/39 before API loading correction in the driver's negative scenario; these two cases were repeated in Debug and Release. The sanitizers passed clean, 27/27.
 
-As suítes completas Windows e os retestes também permanecem separados. A primeira Debug passou 58/59: o adaptador MiniNt ainda permitia abrir uma chave vazia de dispositivo removido; o perfil configurado passou a recusar chaves ausentes. A primeira Release passou 58/59: catálogo excedeu 60 segundos durante execução concorrente com outras tarefas. O reteste isolado concluiu em 22 segundos; a passagem final também aprovou catálogo. Nenhuma asserção foi removida. Os limites globais do gerenciador permaneceram inalterados. O cenário de duas VMs de laboratório usa explicitamente o orçamento já disponível de 30 segundos, devido à captura durável concorrente; os testes de prazo curto da CPU permanecem ativos.
+The complete Windows suites and retests also remain separate. The first Debug passed 58/59: the MiniNt adapter still allowed to open an empty key removed device; the configured profile started to refuse missing keys. The first Release passed 58/59: catalog exceeded 60 seconds during concurrent execution with other tasks. The isolated retest completed in 22 seconds; the final pass also approved catalog. No assertions were removed. The overall manager limits remained unchanged. The scenario of two laboratory VMs explicitly uses the budget already available 30 seconds due to the concurrent durable capture; short-term CPU tests remain active.
 
-A comparação das 32 imagens MSVC confirmou seções executáveis idênticas após o ajuste exclusivo de leitura de endereço para LLVM. Posteriormente, as duas imagens do contrato hardware foram atualizadas e revalidadas para carregar a API explicitamente, incluindo drivers sem imports após otimização. Os retestes finais Windows cobrem os dez testes MiniNt, os sete de hardware, snapshots, rede e catálogo; testes adicionais executam o driver nos alvos NT 10/11 e nos limites de RAM.
+The comparison of the 32 MSVC images confirmed identical executable sections after the exclusive address read-out adjustment for LLVM. Subsequently, the two images of the hardware contract were updated and revalidated to explicitly load the API, including drivers without import after optimization. Windows final retests cover the ten MiniNt tests, the seven hardware, snapshots, network and catalog; additional tests run the driver on the NT 10/11 targets and RAM limits.
 
-No Linux, a validação inicial com imagens MSVC revelou dependência de HLT no teste de I/O, preparação não repetível de um diretório de teste e falhas de tempo sob concorrência. O teste passou a encerrar explicitamente após as três transferências, a preparação ganhou diretório por execução e a inicialização concorrente de rede ganhou barreira. O diagnóstico adicional identificou o bloqueio do switch de laboratório expirando durante publicações duráveis. A espera de aquisição passou de 100 tentativas curtas para uma janela monotônica de dois segundos, com diagnóstico por VM. Um teste segura a trava por 250 ms e comprova recuperação; outro mantém a trava e confere recusa limitada. A recompilação nativa encontrou também declaração de intrinsic do LLVM 18 que truncava CR2; a leitura agora tem ABI explicitamente de 64 bits. O teste real de CPU voltou a conferir falha em endereço de 4 GiB. A compilação otimizada do driver negativo removeu seus imports; a API de kernel agora é carregada explicitamente antes do driver, garantindo que o teste observe o retorno real de DriverEntry, em vez de uma falha anterior de resolução de módulo.
+On Linux, initial validation with MSVC images revealed HLT dependence on the MSVC test. I/O, non-repeatable preparation of a test directory and time failures under competition. The test started to explicitly close after the three transfers, the preparation gained directory by execution and concurrent network startup gained barrier. Additional diagnosis identified the lab switch blocking expiring during durable publications. The acquisition wait has gone from 100 short attempts for a two-second monotonic window with VM diagnosis. A safe test for locking by 250 ms and proves recovery; another keeps the lock and confers limited refusal. 18 which truncated CR2; reading now has ABI explicitly 64 bits. The actual CPU test has again checked address failure 4 GiB. Optimized compilation of the negative driver removed its imports; kernel API is now explicitly loaded before the driver, ensuring that the test observes the actual return of DriverEntry, instead of a previous module resolution failure.
 
-As imagens finais Linux são recompiladas no próprio Linux com LLVM; os executáveis do host são ELF compilados com GCC. Os formatos PE/COFF do convidado não dependem de Wine, QEMU, SDK Windows ou execução de programas Windows no host Linux. KVM mantém a limitação já documentada: NX depende das tabelas do convidado; não há proteção de execução independente de segundo estágio nessa API.
+The Linux final images are recompiled on Linux itself with LLVM; the host executables are ELF compiled with GCC. The guest's PE/COFF formats do not depend on Wine, QEMU, Windows SDK or running Windows programs on the Linux host. KVM maintains the limitation already documented: NX depends on the guest's tables; there is no second-stage independent execution protection in this API.
 
-Comandos Windows para uma árvore própria:
+Windows commands for a tree of its own:
 
 ```powershell
 cmake -S . -B build-12a -G "Visual Studio 17 2022" -A x64 -DBUILD_TESTING=ON -DGUARDIAN_BUILD_GUEST_CONTRACT=ON
 cmake --build build-12a --config Debug --parallel 4
 cmake --build build-12a --config Debug --target guardian_guest
 ctest --test-dir build-12a -C Debug --output-on-failure
-# Repetir build, auditoria e testes com Release, sem testes concorrentes.
+#  Repeat build, audit and release tests, no competing tests.
 ```
 
-Para recompilar convidado e host no Linux:
+To recompile guest and host on Linux:
 
 ```sh
 python3 tools/build_guest_linux.py --llvm /usr/lib/llvm-18 --config Debug --output /caminho/absoluto/guest-debug
@@ -110,10 +110,10 @@ cmake --build build-12a-debug --parallel 4
 ctest --test-dir build-12a-debug --output-on-failure
 ```
 
-Dependências usadas: CMake, Ninja, compilador C++20, Python 3, OpenSSL, SDL2 e LLVM com `clang`, `lld-link` e `llvm-ml`. O acesso a KVM/NX já deve estar disponível. Debug e Release usam diretórios próprios. O relatório estruturado contém hashes das fontes/binários e resultados por teste; [changes.patch](../build-phase12a-complete/changes.patch) permite revisar a entrega a partir do snapshot anterior à 12A.
+Dependencies used: CMake, Ninja, C++20 compiler, Python 3, OpenSSL, SDL2 and LLVM with `clang`, `lld-link` and `llvm-ml`. Access to KVM/NX should already be available. Debug and Release use their own directories. The structured report contains hashes of source code/binary and test results; [changes.patch](../build-phase12a-complete/changes.patch) allows you to review delivery from the snapshot prior to 12A.
 
-## Limites e parada
+## Limits and Stop
 
-Drivers comerciais, acesso direto a dispositivos físicos, GPU NVIDIA/AMD/Intel, WDDM, KMDF, PnP completo e autenticação CAT não são declarados suportados. As 167 importações ausentes do Flappy não foram implementadas neste lote, e o programa não recebeu declaração de compatibilidade.
+Commercial drivers, direct access to physical devices, GPU NVIDIA/AMD/Intel, WDDM, KMDF, full PnP and CAT authentication are not declared supported. The 167 missing imports from Flappy were not implemented in this batch, and the program received no compatibility statement.
 
-A 12A é uma matriz de referência testada para continuar o desenvolvimento. Compatibilidade Windows geral, recursos maiores e avaliação adicional de realismo continuam nas entregas futuras. A execução é encerrada nesta subfase, antes da 12B.
+The 12A is a tested reference matrix for further development. General Windows compatibility, larger features and additional realism assessment continue in future deliveries. The execution is terminated in this subphase before 12B.

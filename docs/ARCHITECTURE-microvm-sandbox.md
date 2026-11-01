@@ -1,27 +1,23 @@
-# GuardianAV — MicroVM Sandbox (codinome: **Carcará / MDE — Micro-Detonation Engine**)
+# GuardianAV — MicroVM Sandbox (code name: **Carcarcaria / MDE — Micro-Detonation Engine**)
 
-Projeto técnico de um sandbox de análise dinâmica para Windows que **não** é uma VM
-tradicional (sem QEMU/VirtualBox/VMware/Hyper-V Manager como produto), mas usa um
-**hypervisor mínimo (MicroVM)** apenas como *piso de isolamento de hardware*. O grosso
-da virtualização (arquivos, registro, processos, objetos, rede) é feito por uma
-camada de compatibilidade leve sobre um guest mínimo, com disco em VHD diferencial.
+Technical design of a dynamic analysis sandbox for Windows that **not** is a traditional VM (without QEMU/VirtualBox/VMware/Hyper-V Manager as a product), but uses a minimum hypervisor (MicroVM)** only as *hardware isolation step*. The bulk of virtualization (files, registration, processes, objects, network) is made by a layer of light compatibility over a minimum guest, with differential VHD disk.
 
-> **Decisão honesta nº 1 (leia antes de tudo):** na prática, o "hypervisor mínimo"
-> em Windows = **WHP (Windows Hypervisor Platform)**, a API pública sobre o
-> hypervisor do Windows (o mesmo que o Hyper-V usa por baixo). É assim que QEMU
-> (acelerador WHPX), o Android Emulator e o VMware 17 rodam no Windows. Você NÃO usa
-> o Hyper-V Manager nem o Windows Sandbox como produto — você escreve o seu próprio
-> VMM, seus device models e seu guest — mas o *primitivo de virtualização de CPU/EPT*
-> vem do hypervisor da plataforma. A única alternativa é escrever seu próprio driver
-> VT-x/AMD-V (enorme, exige assinatura WHQL, conflita com qualquer outro hypervisor).
-> Logo: **a feature "Windows Hypervisor Platform" / virtualização precisa estar ligada**
-> — é exatamente o que está desligado na sua máquina hoje (`HypervisorPresent=False`).
+> ** Honest decision number 1 (read first):** In practice, the "minimum hypervisor"
+> in Windows = **WHP (Windows Hypervisor Platform)**, the public API on the
+> Windows hypervisor (the same as Hyper-V uses underneath). This is how QEMU
+> (WHPX accelerator), Android Emulator and VMware 17 run on Windows. You DO NOT use
+> Hyper-V Manager nor Windows Sandbox as a product — you write your own
+> VMM, its device models and its guest — but the *primitive virtualization of CPU/EPT*
+> comes from the platform hypervisor. The only alternative is to write your own driver
+> VT-x/AMD-V (large, requires WHQL signature, conflict with any other hypervisor).
+> Logo: **the feature "Windows Hypervisor Platform" / virtualization needs to be connected**
+> — is exactly what is off on your machine today (`HypervisorPresent=False`).
 
 ---
 
-## 1. Componentes da arquitetura
+## 1. Components of architecture
 
-Camadas, de baixo para cima:
+Layers, from bottom to top:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -44,25 +40,25 @@ Camadas, de baixo para cima:
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-**Responsabilidades:**
+**Responsibilities:**
 
-| Componente | Camada | Responsabilidade |
+| Component | Layer | Liability |
 |---|---|---|
-| `HostController` | L3 user | Orquestra ciclo de vida, perfis, política, agrega relatório |
-| `ImageManager` | L3 user | Bases VHD por perfil; cria VHD diferencial (CoW); monta/descarta (API VirtDisk) |
-| `SnapshotManager` | L3 user | Snapshot diferencial de disco + snapshot de RAM/vCPU; restore rápido |
-| `VirtualNetwork` | L3 user | Switch virtual host-side; sinkhole DNS / INetSim / captura pcap; sem NIC real |
-| `IntrospectionEngine` (VMI) | L3 user | Lê memória do guest via WHP/EPT; observa sem hooks no guest (anti-evasão) |
-| `BehaviorRecorder` | L3 user | Funde eventos (VMI + agente + device layer) numa timeline |
-| `ReportBuilder` | L3 user | Gera ChangeSet (diff de FS/registro) + relatório JSON/HTML |
-| `MicroVmMonitor` (VMM) | L2 user | Cria partition WHP, mapeia memória (SLAT), roda vCPUs, despacha VM-exits |
-| `DeviceModel` + Pv* | L2 user | Disco/NIC/canal/console **paravirtuais**; nega hardware real |
-| `GuestAgent` | L0 guest user | Recebe a amostra pelo PvChannel, executa, simula usuário, envia telemetria |
-| `FsFilter/RegMon/NetMon/ProcMon` | L0 guest kernel | Telemetria semântica fina (opcional; substituível por VMI) |
+| `HostController` | L3 user | Orchestra life cycle, profiles, politics, aggregates report |
+| `ImageManager` | L3 user | Bases VHD by profile; creates VHD differential (CoW); monta/discards (API VirtDisk) |
+| `SnapshotManager` | L3 user | Differential disk snapshot + RAM/vCPU snapshot; fast restore |
+| `VirtualNetwork` | L3 user | Switch virtual host-side; sinkhole DNS / INetSim / catch pcap; without NIC real |
+| `IntrospectionEngine` (VMI) | L3 user | Reads guest memory via WHP/EPT; observes without hooks in guest (anti-evasion) |
+| `BehaviorRecorder` | L3 user | Funding events (VMI + agent + device layer) one timeline |
+| `ReportBuilder` | L3 user | Genera ChangeSet (FS/log diff) + JSON/HTML report |
+| `MicroVmMonitor` (VMM) | L2 user | Create partition WHP, map memory (SLAT), vCPUs wheel, dispatch VM-exits |
+| `DeviceModel` + Pv* | L2 user | Disco/NIC/canal/console **paravirtual**; denies real hardware |
+| `GuestAgent` | L0 guest user | Receives the sample by PvChannel, executes, simulates user, sends telemetry |
+| `FsFilter/RegMon/NetMon/ProcMon` | L0 guest kernel | Telemetry semantics fina (optional; replaceable by VMI) |
 
 ---
 
-## 2. Fluxo de execução
+## 2. Execution flow
 
 ```
 1.  UI: usuário escolhe amostra + perfil (ex.: Win10, rede=sinkhole, timeout=60s)
@@ -85,7 +81,7 @@ Camadas, de baixo para cima:
 
 ---
 
-## 3. Estruturas de dados (núcleo)
+## 3. Data structures (core)
 
 ```cpp
 enum class OsProfile { Win7, Win10, Win11 };
@@ -95,33 +91,33 @@ struct SandboxProfile {
     OsProfile     os            = OsProfile::Win10;
     std::wstring  baseVhdPath;                 // imagem RO do perfil
     uint32_t      vcpus         = 1;
-    uint64_t      ramBytes      = 1ull<<30;    // 1 GiB típico; mínimo possível
+    uint64_t      ramBytes      = 1ull<<30;    // 1 Typical GiB; minimum possible
     NetMode       net           = NetMode::Sinkhole;
     uint32_t      timeoutMs     = 60'000;
     uint8_t       evasionLevel  = 2;           // 0..3 (quanto de anti-fingerprint)
-    bool          useGuestDrivers = false;     // false = só VMI (mais furtivo)
+    bool          useGuestDrivers = false;     // false = VMI only (more stealthy)
 };
 
-// Cadeia de VHD diferencial (copy-on-write em nível de bloco).
+// Differential VHD chain (copy-on-write at block level).
 struct DiffDisk { std::wstring parent; std::wstring child; uint64_t virtualSize; };
 
-// Memória do guest exposta ao SLAT/EPT.
+// Memory of guest exposed to SLAT/EPT.
 struct GuestRam { uint64_t gpaBase; uint64_t size; void* hostVa; uint32_t flags; };
 
-// Resultado de WHvRunVirtualProcessor.
+// Result of WHvRunVirtualProcessor.
 struct VmExit {
     enum Reason { Mmio, PortIo, Cpuid, Msr, Hlt, InterruptWindow, Unrecoverable } reason;
     uint64_t   gpa;          // p/ Mmio
     uint16_t   port;         // p/ PortIo
     bool       isWrite;
     uint64_t   value;        // dado lido/escrito
-    WHV_VP_EXIT_CONTEXT raw; // contexto completo de CPU
+    WHV_VP_EXIT_CONTEXT raw; // full CPU context
 };
 
 // virtio-like queue p/ device models paravirtuais
 struct VirtQueue { uint64_t descGpa, availGpa, usedGpa; uint16_t size, lastSeenUsed; };
 
-// Eventos de comportamento (timeline única, ordenada por ts).
+// Behavior events (single timeline, ordered by ts).
 struct Actor { uint32_t pid; uint32_t tid; std::wstring image; };
 struct FileEvent     { uint64_t ts; Actor by; std::wstring action, path; uint64_t bytes; };
 struct RegistryEvent { uint64_t ts; Actor by; std::wstring action, key, value, data; };
@@ -131,7 +127,7 @@ struct DeviceEvent   { uint64_t ts; std::wstring device, op; uint64_t lba; uint3
 struct BehaviorTimeline { std::vector<std::variant<FileEvent,RegistryEvent,ProcessEvent,NetworkEvent,DeviceEvent>> events; };
 
 struct Snapshot { std::wstring vhdDiff; std::wstring ramImage; std::wstring vcpuState; };
-struct ChangeSet {                              // o "antes vs depois"
+struct ChangeSet {                              // the "before vs after"
     std::vector<std::wstring> filesCreated, filesModified, filesDeleted;
     std::vector<RegistryEvent> registryDelta;
     std::vector<NetworkEvent>  networkDelta;
@@ -141,10 +137,10 @@ struct ChangeSet {                              // o "antes vs depois"
 
 ---
 
-## 4. Classes e interfaces principais
+## 4. Main classes and interfaces
 
 ```cpp
-// ---- L2: o coração do MicroVM ----
+// ---- L2: the heart of MicroVM ----
 class IDeviceModel {                       // todos os dispositivos paravirtuais
 public:
     virtual ~IDeviceModel() = default;
@@ -176,26 +172,26 @@ private:
 class ImageManager {
 public:
     DiffDisk CreateEphemeralDisk(const SandboxProfile&);   // VirtDisk: CreateVirtualDisk c/ ParentPath
-    void     Discard(const DiffDisk&);                     // apaga o filho → descartável
+    void     Discard(const DiffDisk&);                     // deletes your child → disposable
 };
 
 class SnapshotManager {
 public:
-    Snapshot CaptureBooted(MicroVmMonitor&, const DiffDisk&);  // RAM+vCPU+disco no estado "pronto"
-    void     Restore(MicroVmMonitor&, const Snapshot&);        // boot rápido
+    Snapshot CaptureBooted(MicroVmMonitor&, const DiffDisk&);  // RAM+vCPU+disk in "ready" state
+    void     Restore(MicroVmMonitor&, const Snapshot&);        // Quick boot
 };
 
 class IntrospectionEngine {                // VMI — observa o guest "de fora"
 public:
-    void Bind(MicroVmMonitor&, OsProfile);                  // perfis de offsets do kernel por versão
-    std::vector<ProcessEvent> PollProcessList();           // anda na lista de EPROCESS via EPT
+    void Bind(MicroVmMonitor&, OsProfile);                  // kernel offset profiles by version
+    std::vector<ProcessEvent> PollProcessList();           // is on the list of EPROCESS via EPT
     std::vector<std::pair<uint64_t,std::wstring>> SuspiciousRegions(); // RWX, hollowing, etc.
 };
 
 class BehaviorRecorder { public: void Ingest(/*evento*/); BehaviorTimeline Build(); };
 class ReportBuilder    { public: ChangeSet Diff(const DiffDisk&, OsProfile); std::wstring ToJson(...); };
 
-class HostController {                      // fachada usada pela UI
+class HostController {                      // facade used by UI
 public:
     SandboxReportV2 Detonate(const std::wstring& sample, const SandboxProfile&);
 };
@@ -203,172 +199,147 @@ public:
 
 ---
 
-## 5. Estratégia — virtualização de **arquivos**
+## 5. Strategy — virtualization of archives**
 
-- **Mecanismo base (obrigatório, à prova de MEMZ):** o volume do guest É um **VHDX
-  diferencial**. `base.vhdx` (RO, compartilhada por todas as execuções) + `diff.vhdx`
-  (RW, copy-on-write em nível de bloco). Toda escrita cai no filho. Criar o filho é
-  quase instantâneo e ocupa só os blocos alterados → **baixo armazenamento**.
-- **Captura semântica:** dois caminhos, escolha por `evasionLevel`:
-  - *In-guest minifilter* (`FsFilter`, FltMgr): eventos `create/write/delete/rename`
-    com caminho + PID. Rico, porém detectável (driver presente no guest).
-  - *VMI + diff de disco*: sem driver no guest. Você reconstrói "o que mudou" lendo
-    os blocos do `diff.vhdx` e diffando contra a base (mais furtivo, menos "ao vivo").
-- **Política/redirecionamento (opcional):** o minifilter pode redirecionar/!bloquear
-  escritas a iscas (honeyfiles) e marcar tentativas de ransomware.
-- **Relatório:** montar `diff.vhdx` no host (somente leitura) e enumerar arquivos
-  novos/alterados/apagados → `ChangeSet.files*`.
-- **Descarte:** apagar `diff.vhdx`. Base intacta. Ambiente sumiu.
+- **Required MEMZ-proof basic mechanism**Guest volume is a **VHDX
+  differential**. `base.vhdx` (RO, shared by all executions) + `diff.vhdx` (RW, copy-on-write at block level). All writing falls on the child. Raising the child is almost instantaneous and occupies only the changed blocks → **low storage**.
+- ** Semantic capture:** two paths, choose by `evasionLevel`:
+  - *In-guest minifilter* (`FsFilter`, FltMgr): events `create/write/delete/rename`
+    with path + PID. Rico, but detectable (driver present in guest).
+  - *VMI + disk diff*: no driver in guest. You rebuild "what has changed" by reading
+    `diff.vhdx` blocks and diffusing against base (more stealth, less live).
+- ** Policy/redirection (optional):** the minifilter can redirect/!block
+  written to baits (honeyfiles) and mark ransomware attempts.
+- **Report:**mount `diff.vhdx` to host (read only) and enumerate files
+  new/altered/excluded → `ChangeSet.files*`.
+- **Delete:**Delete `diff.vhdx`. Base intact. Environment is gone.
 
-## 6. Estratégia — virtualização do **registro**
+## 6. Strategy — virtualisation of the **record*
 
-- **Naturalmente isolado:** as hives (`SYSTEM`, `SOFTWARE`, `NTUSER.DAT`) são arquivos
-  no volume do guest → já capturadas pelo `diff.vhdx`. Não precisa "redirecionar"
-  registro como o Sandboxie faz, porque o guest tem **seu próprio kernel e suas
-  próprias hives** (esse é o ganho de rodar num MicroVM em vez de container de host).
-- **Captura semântica (opcional):** `CmRegisterCallbackEx` no guest → eventos
-  `RegCreateKey/RegSetValue/RegDeleteKey/Value` com ator. Ou VMI lendo o cache de
-  configuração. Ou, mais simples e robusto: **diff das hives** (offline, comparando
-  base vs diff) para o relatório de alterações persistentes.
-- **Persistência detectada:** marcar chaves clássicas (`Run`, `RunOnce`, `Services`,
-  `Image File Execution Options`, `Winlogon`) → flags no relatório.
+- **Naturally isolated:** Hives (`SYSTEM`, `SOFTWARE`, `NTUSER.DAT`) are files
+  in the guest → volume already captured by `diff.vhdx`. You don't need to "redirect" record as Sandboxie does, because the guest has ** its own kernel and its own hive** (this is the gain to run on a MicroVM instead of a host container).
+- ** Semantic capture (optional):** `CmRegisterCallbackEx` in guest → events
+  `RegCreateKey/RegSetValue/RegDeleteKey/Value` with actor. Or VMI reading the configuration cache. Or, simpler and more robust: **diff of hives** (offline, comparing base vs diff) for the report of persistent changes.
+- ** Persistence detected:** mark classic keys (`Run`, `RunOnce`, `Services`,
+  `Image File Execution Options`, `Winlogon`) → flags in the report.
 
-## 7. Estratégia — virtualização de **processos / objetos do kernel**
+## 7. Strategy — virtualization of processes / kernel objects**
 
-- **Isolamento por construção:** kernel separado ⇒ lista de processos, namespace de
-  objetos (`\BaseNamedObjects`, mutexes, eventos), handle tables — tudo isolado do
-  host. Nada vaza pra árvore de processos real.
-- **Monitoramento (híbrido):**
-  - *In-guest:* `PsSetCreateProcessNotifyRoutineEx` (árvore de processos),
-    `PsSetLoadImageNotifyRoutine` (módulos/DLLs), `PsSetCreateThreadNotifyRoutine`,
-    `ObRegisterCallbacks` (aberturas de handle p/ detectar injeção), + ETW
+- **Construction insulation:**separate kernel
+  objects (`\BaseNamedObjects`, mutexes, events), handle tables — all isolated from the host. Nothing leaks to the real process tree.
+- **Monitoring (hybrid):**
+  - *In-guest:*`PsSetCreateProcessNotifyRoutineEx` (process tree),
+    `PsSetLoadImageNotifyRoutine` (modules/DLLs), `PsSetCreateThreadNotifyRoutine`,
+    `ObRegisterCallbacks` (handle openings for injection), + ETW
     `Microsoft-Windows-Kernel-Process`.
-  - *Host VMI (anti-tamper):* `IntrospectionEngine` anda na lista de `EPROCESS` via
-    EPT e compara com o que o agente reporta → detecta processos ocultos/rootkit e
-    é **impossível de o malware desabilitar** (está fora do guest).
-- **Detecção de técnicas:** process hollowing/injection via regiões RWX e
-  discrepâncias VMI-vs-agente.
+  - *Host VMI (anti-tamper):*`IntrospectionEngine` is on the list of `EPROCESS` via
+    EPT and compares with what the agent reports → detects hidden/rootkit processes and is **impossible for malware to disable** (it is outside the guest).
+- **Technology detection:** process hollowing/injection via RWX and
+  discrepancies VMI-vs-agent.
 
-## 8. Estratégia — virtualização de **dispositivos** (o núcleo de segurança)
+## 8. Strategy — virtualisation of devices** (the vaultty core)
 
-- O VMM expõe **apenas** um conjunto mínimo de dispositivos *paravirtuais*:
-  `PvDisk` (disco), `PvNet` (NIC), `PvChannel` (canal host↔agente), `PvConsole`
-  (framebuffer), e o mínimo de plataforma (timer/APIC que o WHP já provê).
-- **Não há** mapeamento para `PhysicalDrive`, **nem** PCI passthrough, **nem** I/O
-  de porta para hardware real, **nem** MMIO para memória de device real.
-- Qualquer acesso do guest a endereço físico não mapeado / porta de I/O não modelada
-  → **EPT violation** ou **I/O exit** → o VMM intercepta e responde *virtualmente* ou
-  nega + loga.
-- **DMA:** a "memória física" do guest é GPA, remapeada por SLAT/EPT para um conjunto
-  de páginas-sandbox do host. O guest **não consegue endereçar memória física do host**.
-  Como não há passthrough de device real, não há DMA real → o IOMMU é relevante só
-  para passthrough, que esta arquitetura **proíbe por construção**.
+- The VMM exposes **only** a minimum set of *paravirtuals* devices:
+  `PvDisk` (disk), `PvNet` (NIC), `PvChannel` (host↔agent channel), `PvConsole` (framebuffer), and the minimum platform (timer/APIC that the WHP already provides).
+- **There is no mapping for `PhysicalDrive`, **nor**PCI passthrough, **nor**I/O
+  port for real hardware, **n’t even**MMIO for real device memory.
+- Any guest access to unmapped physical address / unmodeled I/O port
+  → **EPT violation** or **I/O exit** → VMM intercepts and responds *virtually* or denies + loga.
+- **DMA:**The "physical memory" of the guest is GPA, remapped by SLAT/EPT for a set
+  The guest ** cannot address physical memory of the host**. As there is no real device passthrough, there is no real DMA → the IOMMU is relevant only to passthrough, that this architecture **prohibits by construction**.
 
-## 9. Estratégia — **monitoramento** (3 fontes + fusão)
+## 9. Strategy —**monitoring** (3 sources + fusion)
 
-1. **Device layer (VMM):** loga TODO I/O de disco/rede no nível do device model —
-   o guest não tem como esconder (está abaixo do kernel do guest). É aqui que a
-   tentativa de escrever a MBR aparece como `DeviceEvent{op:"write", lba:0}`.
-2. **VMI (host):** verdade-fundamental de processos/memória, sem hooks no guest.
-3. **In-guest (opcional):** callbacks de kernel + ETW + agente → contexto semântico
-   (nomes de API, argumentos, URLs).
-4. **Fusão:** `BehaviorRecorder` ordena por timestamp numa `BehaviorTimeline`;
-   cruzamento VMI×agente vira sinal de evasão/rootkit.
+1. **Device layer (VMM):**log ALL I/O of disco/network at device model level —
+   the guest has no way to hide (it is below the guest kernel). This is where the attempt to write the MBR appears as `DeviceEvent{op:"write", lba:0}`.
+2. **VMI (host):**cases/memory fundamental truth without hooks in guest.
+3. **In-guest (optional):** kernel calls + ETW + agent → semantic context
+   ( API names, arguments, URLs).
+4. ** Fusion:** `BehaviorRecorder` orders by timestamp in a `BehaviorTimeline`;
+   VMI×agent crossing turns evasion/rootkit. signal
 
-## 10. Estratégia **anti-fingerprinting** (gerência de expectativa: é corrida armamentista)
+## 10. Strategy**anti-fingerprinting**(expective management: is arms race)
 
-- **Prefira VMI a hooks no guest:** sem stubs hookados na ntdll para o malware achar.
-- **Device models plausíveis:** strings de fabricante reais-ish (sem "VBOX"/"VMware"/
-  "QEMU"), modelo de disco/firmware crível, OUI de MAC comum.
-- **CPUID/MSR masking:** controlar o bit de hypervisor e a leaf 0x4000000x (esconder
-  totalmente pode quebrar coisas; malware avançado usa *timing* de qualquer forma).
-- **TSC consistente:** usar TSC off: minimizar latência anômala de `RDTSC` (cada exit
-  é caro → escolha o que interceptar). 
-- **Ambiente "habitado":** usuário com histórico, documentos, navegador, uptime,
-  programas instalados, processos de fundo — derrota checagens "máquina virgem".
-- **Simulação de usuário:** mouse/teclado/janelas para disparar payloads que esperam
-  interação (e derrotar "nenhum humano presente").
-- **Sanear artefatos conhecidos:** hostname/username/MAC/serviços/registry típicos de
+- ** Prefer VMI to hooks in guest:** no hooked stubs in ntdll for malware to find.
+- **Device plausible models:**real-ish manufacturer strings (without "VBOX"/"VMware"/
+  "QEMU"), credible disco/firmware model, common MAC UI.
+- **CPUID/MSR masking:**control hypervisor bit and leaf 0x4000000x (hide
+  totally can break things; advanced malware uses *timing* anyway).
+- ** Consistent STC:** use TSC off: minimize anomalous latency of `RDTSC` (each exit
+  is expensive → choose what to intercept). 
+- **Inhabited environment:** user with history, documents, browser, uptime,
+  installed programs, background processes — defeat checks "virgin machine".
+- ** User simulation:** mouse/keyboard/windows to fire waiting payloads
+  interaction (and defeat "no human present").
+- **Sanear known artifacts:** hostname/username/MAC/services/registry typical of
   sandbox.
-- **Honesto:** nenhum sandbox vence isso de forma absoluta; o objetivo é elevar o
-  custo da evasão, não eliminá-la.
+- **Honest:** no sandbox wins this absolutely; the goal is to raise the
+  Cost of evasion, not eliminating it.
 
-## 11. Como a **MicroVM protege o hardware** sem virar VM tradicional completa
+## 11. How **MicroVM protects hardware** without turning traditional VM complete
 
-- **O que ela NÃO faz:** não emula um PC inteiro (sem chipset legado, sem BIOS/UEFI
-  completos emulando dezenas de devices, sem GPU emulada, sem barramento ISA/PCI
-  cheio). Não usa o stack de gerência do Hyper-V (sem `vmms`/VM "de verdade" no
-  Hyper-V Manager).
-- **O que ela faz (mínimo):** CPU via WHP (VT-x/AMD-V + EPT), RAM isolada por SLAT,
-  e **só** os device models paravirtuais. Guest mínimo (imagem enxuta/PE/library-OS).
-- **O isolamento de hardware** = EPT (memória) + interceptação de I/O/MMIO + ausência
-  de passthrough + GPA≠memória do host. Essa fronteira é justamente a parte que você
-  **não** corta para continuar "micro". O resto (device models ricos, monitor,
-  perfis) é seu código — daí "MicroVM", não "VM completa".
-- **Baixo custo:** boot por *snapshot restore* (sub-segundo); RAM baixa (serviços
-  mínimos + páginas imutáveis compartilhadas/dedup com a base); storage baixo (base
-  RO compartilhada + diff pequeno).
+- **What she doesn't do:** doesn't emulate an entire PC (no legacy chipset without BIOS/UEFI
+  complete emulating dozens of devices, no emulated GPU, no full ISA/PCI bus). Do not use Hyper-V management stack (without `vmms`/VM "real" in Hyper-V Manager).
+- **What it does (minimum):** CPU via WHP (VT-x/AMD-V + EPT), RAM isolated by SLAT,
+  and **only the paravirtual device models. Minimum Guest (dry image/PE/library-OS).
+- ** Hardware isolation** = EPT (memory) + I/O/MMIO intercept + absence
+  The rest (device models rich, monitor, profiles) is your code — hence "MicroVM", not "full VM."
+- ** Low cost:** boot per *snapshot restare* (sub-second); low RAM (services
+  minimum + immutable shared/dedup pages with base); low storage (shared RO base + small diff).
 
-## 12. Como um malware tipo **MEMZ** afeta só o ambiente virtual
+## 12. How a malware type **MEMZ** affects only the virtual environment
 
-MEMZ: dispara payloads (abre URLs, caos de mouse, processos) e, o golpe final,
-**sobrescreve a MBR** via handle de disco bruto (`\\.\PhysicalDrive0`) e força reboot
-para o payload de boot.
+MEMZ: shoots payloads (opens URLs, mouse chaos, processes) and, the final blow, ** overwrites MBR** via raw disk handle (`\\.\PhysicalDrive0`) and reboot force for boot payload.
 
-Nesta arquitetura:
-- O handle de "disco físico" do guest aponta para o **PvDisk** → escrita vai pro
-  **setor 0 do `diff.vhdx`**, **nunca** pro disco real do host.
-- O VMM registra `DeviceEvent{device:"PvDisk", op:"write", lba:0, ...}` → flag
-  vermelha "tentativa de sobrescrever MBR" no relatório.
-- O "reboot" reinicia o **guest** (ou apenas encerramos).
-- Disco/MBR/GPT reais do host são **inalcançáveis** (EPT + sem passthrough).
-- No teardown, `diff.vhdx` é descartado → MEMZ some. Relatório completo, **zero**
-  impacto no host.
+This one. architecture:
+- The guest's "physical disk" handle points to the **PvDisk** → writing goes pro
+  **`diff.vhdx` 0 sector**, **never** to the actual host disk.
+- O VMM log `DeviceEvent{device:"PvDisk", op:"write", lba:0, ...}` → flag
+  Red "Tent to overwrite MBR" in the report.
+- The reboot restarts the **guest** (or we just close).
+- The actual Disco/MBR/GPT of the host are unalignable** (EPT + without passthrough).
+- In teardown, `diff.vhdx` is discarded → MEMZ disappears. Full report, **zero**
+  impact no host.
 
-## 13. Limitações técnicas reais (sem vender ilusão)
+## 13. Real technical limitations (without selling illusion)
 
-1. **Dependência do hypervisor da plataforma:** sem WHP/virtualização ligada, não há
-   isolamento de hardware. Escrever seu próprio VMM VT-x = enorme, exige assinatura,
-   conflita com Hyper-V/VMware. (É o bloqueio atual da sua máquina.)
-2. **Guest mínimo é difícil:** um "NT/library-OS" enxuto de verdade foi um esforço de
-   pesquisa (Drawbridge). O caminho pragmático é uma **imagem Windows reduzida** (ou
-   Windows PE) por perfil — maior que o ideal, mas viável; mantida leve por base
-   diferencial + memória dinâmica + dedup.
-3. **VMI é frágil por versão:** offsets de estruturas do kernel mudam por build →
-   manutenção, e amarra aos perfis de versão.
-4. **Anti-evasão nunca é completa:** timing/side-channels ainda denunciam virtualização.
-5. **Rede:** dar "internet real" ao malware aumenta risco/abuso; o normal é
-   blackhole/sinkhole/captura — o que reduz fidelidade de amostras que dependem de C2.
-6. **Tensões de requisito:** "RAM mínima + boot instantâneo + snapshot de memória
-   completo" se contrapõem; é um trade-off a calibrar.
-7. **Custo de VM-exit:** quanto mais você intercepta (RDTSC, MSR, I/O) por furtividade,
-   mais lento. Equilíbrio furtividade × desempenho.
-8. **Perfis 7/10/11:** Win7 não recebe mais updates e tem peculiaridades de boot sob
-   hypervisor; manter 3 bases é custo de storage e curadoria.
+1. **Platform hypervisor dependent:** without WHP/virtualization on, there is no
+   Hardware isolation. Write your own VMM VT-x = huge, requires signature, conflict with Hyper-V/VMware. (It is the current lock on your machine.)
+2. ** MinimalGuest is difficult:** a really lean NT/library-OS was an effort of
+   The pragmatic path is a reduced Windows image** (or Windows PE) per profile — larger than ideal, but feasible; maintained light by differential base + dynamic memory + dedup.
+3. **VMI is fragile by version:** kernel structures offsets change by build →
+   maintenance, and tie to version profiles.
+4. ** Anti-evasion is never complete:** timing/side-channels still denounce virtualization.
+5. **Network:**give "real internet" to malware increases risk/abuse; normal is
+   blackhole/sinkhole/catch — which reduces the fidelity of samples that depend on C2.
+6. **Requirements:**"minimum RAM + Instant Boot + Memory Snapshot
+   "complete" are counterposed; it is a trade-off calibrating.
+7. **VM-exit cost:** the more you intercept (RDTSC, MSR, I/O) by stealth,
+   slower. Balance stealth × performance.
+8. **Profiles 7/10/11:**Win7 no longer receives updates and has boot peculiarities under
+   hypervisor; maintaining 3 bases is storage and curation cost.
 
-## 14. Quais partes **exigem drivers de kernel**
+## 14. Which parts ** require kernel drivers**
 
-| Parte | Kernel? | Observação |
+| Part | Kernel? | Remarks |
 |---|---|---|
-| Hypervisor / EPT / vCPU | **Não** (no SEU código) | WHP roda o VMM em **user-mode**; o ring-0 é do hypervisor da plataforma. Grande vantagem: **o host não precisa de driver próprio**. |
-| Device models (PvDisk/Net/Channel) | Não | User-mode, dentro do VMM. |
-| VMI / introspecção | Não | Lê memória do guest via API WHP (user-mode). |
-| ImageManager / VHD | Não | API `VirtDisk` (user-mode). |
-| Telemetria *dentro do guest* (FsFilter/RegMon/NetMon/ProcMon) | **Sim** | São drivers, mas **no guest** (descartável). Como o guest é seu, dá pra usar *test-signing* lá dentro — sem tocar na assinatura do host. Podem ser **omitidos** se você for 100% VMI (mais furtivo). |
-| Driver VT-x próprio (alternativa ao WHP) | **Sim, WHQL** | Só se recusar o WHP. Não recomendado. |
+| Hypervisor / EPT / vCPU | ** No** (in your code) | WHP runs the VMM in **user-mode**; the ring-0 is from the platform hypervisor. Great advantage: **host does not need its own driver**. |
+| Device models (PvDisk/Net/Channel) | No | User mode, inside the VMM. |
+| VMI / introspection | No | Reads guest memory via API WHP (user-mode). |
+| ImageManager / VHD | No | API `VirtDisk` (user-mode). |
+| Telemetry *inside do guest* (FsFilter/RegMon/NetMon/ProcMon) | **Yes.** | They are drivers, but **no guest** (disposable). As the guest is yours, you can use *test-signing* inside — without touching the host signature. They can be**omitted** if you are 100% VMI (sneakier). |
+| Own VT-x Driver (alternative to WHP) | **Yes., WHQL** | Only if you refuse the WHP, not recommended. |
 
-## 15. Quais partes funcionam **só em user-mode**
+## 15. Which parts only work in user mode**
 
-- **Todo o host:** VMM (WHP), device models, VirtualNetwork, IntrospectionEngine,
-  ImageManager (VirtDisk), SnapshotManager, BehaviorRecorder, ReportBuilder,
-  HostController, UI. → o lado do host é **inteiramente user-mode** graças ao WHP.
-- **No guest:** o `GuestAgent` (recebe/lança a amostra, simula usuário, faz a ponte
-  de telemetria) é user-mode. Só os monitores finos de kernel (opcionais) são ring-0,
-  e ainda assim **dentro** do guest.
+- **All o host:** VMM (WHP), device models, VirtualNetwork, IntrospectionEngine,
+  ImageManager (VirtDisk), SnapshotManager, BehaviorRecorder, ReportBuilder, HostController, UI. → the host side is **fully user-mode** thanks to the WHP.
+- **No guest:**`GuestAgent` (receives/spear sample, simulate user, bridge
+  telemetry) is user-mode. Only the thin kernel monitors (optional) are ring-0, and yet ** inside the guest.
 
 ---
 
-## Mapa de módulos (proposto, integra ao GuardianAV atual)
+## Module map (proposed, integrates with current GuardianAV)
 
 ```
 src/microvm/
@@ -380,320 +351,183 @@ src/microvm/
 profiles/ win7/ win10/ win11/  (base.vhdx + offsets VMI por build)
 ```
 
-Integração: a página **Sandbox** do `avui` ganha um seletor de engine
-(`In-OS triage` ↔ `MicroVM`) e de perfil (Win7/10/11). O `Detonate` chama
-`HostController::Detonate(...)` em vez do `LaunchWindowsSandbox` atual.
+Integration: the `avui`** Sandbox** page wins an engine (`In-OS triage` ↔ `MicroVM`) and profile (Win7/10/11). The `Detonate` calls `HostController::Detonate(...)` instead of the current `LaunchWindowsSandbox`.
 
 ---
 
-## Caminho escolhido: personalidade NT (Wine ao contrário), não bootar SO
+## Chosen Path: NT personality (Wine backwards), do not boot SO
 
-Decisão de projeto: em vez de bootar uma imagem Windows real dentro da MicroVM
-(firmware UEFI + AHCI/virtio + ACPI), construímos uma **personalidade NT /
-library-OS**. O código *user-mode* do PE roda **nativo** dentro da partition WHP
-(rápido, sem emular instrução), mas **toda syscall vira um VM-exit que o nosso
-"kernel" no host atende**. Vantagem: liberdade total sobre a versão de kernel
-reportada e sobre dispositivos fake (GPU, placa de som, etc.), porque o lado
-kernel é 100% nosso. Segurança: a partition isola tudo — até uma `syscall`
-direta de malware cai em nós, nunca no Windows real.
+Project decision: instead of booting a real Windows image inside the MicroVM (UEFI + Firmware) AHCI/virtio + ACPI), we built a ** NT/library-OS personality**. The *user-mode* code of the PE runs **native** within the WHP partition (fast, without emulate instruction), but **all syscall becomes a VM-exit that our "kernel" in the host meets**. Advantage: total freedom over the reported kernel version and about fake devices (GPU, sound card, etc.), because the kernel side is 100% nBone. Security: Partition isolates everything — even a `syscall` direct malware falls on us, never on real Windows.
 
-Custo honesto: é a **maior peça** do projeto — na prática um emulador de Windows
-(loader de PE + ntdll/kernel32 sintéticos + superfície de syscalls + PEB/TEB +
-gerência de memória). Cresce incrementalmente sobre o que já existe (piso WHP,
-camada de devices, snapshots).
+Honest cost: it is the **largest piece**of the project — in practice a Windows emulator (PE loader + ntdll/kernel32 synthetic + syscalls + PEB/TEB + memory management). It grows incrementally on what already exists (WHP pin, device layer, snapshots).
 
-Componentes desta camada:
-- **Long mode + paginação** no `MicroVm` (`SetupLongMode`) — ✅ feito.
-- **Doorbell de syscall** (`MicroVm::MapIoTrap`) — o guest sinaliza uma syscall e
-  o host lê registradores/memória e atende. ✅ feito (PoC `vmsyscall.exe`).
-- **Tabela de syscalls NT** (synthetic kernel) — crescer caso a caso: memória
-  (`NtAllocateVirtualMemory`...), arquivos (`NtCreateFile`→FS virtual no VHD),
-  registro (`NtOpenKey`→hive virtual), processos/threads, devices fake.
-- **Loader de PE** (host) — mapear seções na RAM do guest, resolver imports
-  contra nossas DLLs sintéticas, aplicar relocations, montar PEB/TEB e pilha.
-- **Trap real de `SYSCALL`** via LSTAR→página não mapeada + intercept de #PF
-  (substitui o doorbell por porta, pegando até syscalls diretas) + separação
-  CPL3 (user) / CPL0 (nosso kernel).
+Components of this layer:
+- **Long mode + pagination** no `MicroVm` (`SetupLongMode`) — ✅ done.
+- **Doorbell of syscall** (`MicroVm::MapIoTrap`) — the guest signals a syscall and
+  the host reads registers/memory and meets. . . done (PoC `vmsyscall.exe`).
+- **Table of NT syscalls** (synthetic kernel) — grow case by case: memory
+  (`NtAllocateVirtualMemory`...), files (`NtCreateFile`→FS virtual in VHD), registration (`NtOpenKey`→hive virtual), cases/threads, devices fake.
+- **Loader of PE** (host) — map sections in guest RAM, resolve imports
+  against our synthetic DLLs, apply relocations, mount PEB/TEB and stack.
+- ** Real `SYSCALL` trap** via LSTAR→unmapped page + #PF intercept
+  (replaces doorbell by port, taking up to direct syscalls) + CPL3 (user) / CPL0 separation (our kernel).
 
-Sub-roadmap da personalidade NT (a partir do PoC atual):
-1. ✅ Long mode + doorbell de syscall servido pelo host (`vmsyscall.exe`).
-2. ✅ Blindagem — `vmguard.exe`: guest em **CPL3 (ring-3)** com `EFER.SCE=0`, então
-   a instrução `SYSCALL` real (a nossa OU uma syscall direta de malware burlando
-   nossas DLLs) gera **#UD**, interceptado via `ExceptionExitBitmap` +
-   `ExtendedVmExits.ExceptionExit` e servido pelo kernel sintético. Instruções
-   privilegiadas em CPL3 geram **#GP** (vetor 13), também interceptado e
-   reportado como ação bloqueada. (Mais simples e robusto que LSTAR+#PF.)
-3. ✅ Loader de PE mínimo — `src/microvm/host/PeLoader.*` + `vmpe.exe`: gera um
-   PE32+ sem CRT, mapeia seções, aplica relocations DIR64, reescreve a IAT para
-   stubs e roda. **Unificado com a blindagem (passo 2):** os stubs usam a
-   instrução `SYSCALL` real e o `.exe` roda em ring-3, então o loader e o
-   caminho evasion-resistant são o mesmo. (Falta: PEB/TEB + CRT pra binários
-   comuns.)
-4. 🟡 PEB/TEB + Ldr + heap — fundação feita: `src/microvm/host/ProcessEnv.*`
-   (TEB/PEB/ProcessParameters + `BuildLoaderData` = `PEB_LDR_DATA` com lista
-   circular de módulos) + `MicroVm::SetGsBase` + heap bump no `NtKernel`
-   (`GetProcessHeap`/`HeapAlloc`/`VirtualAlloc`). Demos `vmpeb.exe` (GS→TEB→PEB
-   →ImageBase→CommandLine) e `vmheap.exe` (anda no `Ldr`, aloca/escreve heap).
-   ✅ **startup + TLS** — `vmstartup.exe` + `NtKernel`: `GetCurrentProcessId`/
-   `ThreadId` (lê `TEB->ClientId`), `GetCommandLineW` (lê `PEB->params`),
-   `GetModuleHandleW` (NULL=self, ou anda no `Ldr` comparando `BaseDllName`),
-   `GetSystemTimeAsFileTime`/`QueryPerformanceCounter`/`GetTickCount` (cookie),
-   `GetStartupInfoW`, e TLS (`TlsAlloc`/`TlsSetValue`/`TlsGetValue` nos slots do
-   TEB).
-   ✅ **ABI de pilha + binário real do gcc** — `NtKernel::StackArg` lê os args
-   5+ (`[RSP+0x28+...]`) no momento da syscall. **`test/nt_gcc.c` compilado com
-   `gcc -nostdlib` (importa de `KERNEL32.dll`) roda pelo `microsandbox`**: faz
-   `GetStdHandle`+`WriteFile` (console), `CreateFileA` com `dwCreationDisposition`
-   **na pilha** lido corretamente (`CREATE_ALWAYS`), `WriteFile`/`CloseHandle` no
-   FS virtual, `ExitProcess` — com relatório e disco real intocado. (Falta:
-   `NtAllocateVirtualMemory` real e a superfície completa de `ucrtbase`/
-   `vcruntime` pra um `.exe` com CRT padrão chegar no `main`.)
-5. ✅ FS virtual + relatório — `src/microvm/host/VirtualFs.*`, `NtKernel.*`,
-   `ReportBuilder.*` + `vmfs.exe`: um PE faz `CreateFileA`/`WriteFile`/
-   `CloseHandle`; o kernel sintético serve contra um FS em memória e registra um
-   **timeline de comportamento** (created/written/bytes). O "loot" fica só no FS
-   virtual — o disco real nunca é tocado. (Falta: ligar ao diff VHD do `PvDisk`,
-   `CreateFileW`/paths reais.)
+NT personality sub-roadmap (from the current PoC):
+1. . Long mode + syscall doorbell served by host (`vmsyscall.exe`).
+2. . Shielding — `vmguard.exe`: guest in **CPL3 (ring-3)** with `EFER.SCE=0` then
+   the actual `SYSCALL` instruction (our OR a direct syscall of malware bypassing our DLLs) generates **#UD**, intercepted via `ExceptionExitBitmap` + `ExtendedVmExits.ExceptionExit` and served by the synthetic kernel. Privileged instructions on CPL3 generate **#GP** (vector 13), also intercepted and reported as blocked action. (Simpler and robust than LSTAR+#PF.)
+3. . Minimum EP Loader — `src/microvm/host/PeLoader.*` + `vmpe.exe`: generates a
+   PE32+ without CRT, map sections, apply DIR64 relocations, rewrites IAT for stubs and wheel. **Unified with shielding (step 2):** stubs use the actual `SYSCALL` instruction and `.exe` runs in ring-3, so loader and evasion-resistant path are the same. (Fault: PEB/TEB + CRT for common binaries.)
+4. 🟡 PEB/TEB + Ldr + heap — foundation made: `src/microvm/host/ProcessEnv.*`
+   (TEB/PEB/ProcessParameters + `BuildLoaderData` = `PEB_LDR_DATA` with circular list of modules) + `MicroVm::SetGsBase` + heap bump no `NtKernel` (`GetProcessHeap`/`HeapAlloc`/`VirtualAlloc`). Demos `vmpeb.exe` (GSÆTEB→PEB →ImageBase→CommandLine) and `vmheap.exe` (schedules) `Ldr`, aloca/write ? **startup + TLS** — `vmstartup.exe` + `NtKernel`: `GetCurrentProcessId`/ `ThreadId` (read `TEB->ClientId`), `GetCommandLineW` (read `PEB->params`), `GetModuleHandleW` (NULL=self, or walks in the `Ldr` comparing `BaseDllName`), `GetSystemTimeAsFileTime`/`QueryPerformanceCounter`/`GetTickCount` (cookie) `GetStartupInfoW`, and TLS (`TlsAlloc`/`TlsSetValue`/`TlsGetValue` in the slots of the TEB). `NtKernel::StackArg` read the args 5+ (`[RSP+0x28+...]`) at the time of syscal. **`test/nt_gcc.c` compiled with `gcc -nostdlib` (importation of `KERNEL32.dll`) wheel by `microsandbox`**: does `GetStdHandle`+`WriteFile` (console), `CreateFileA` with `dwCreationDisposition` ** on stack** read correctly (`CREATE_ALWAYS`), `WriteFile`/`CloseHandle` in the virtual FS, `ExitProcess` — with a report and a real record untouched. (Film: `NtAllocateVirtualMemory` real and the full surface of `ucrtbase`/ `vcruntime` for a `.exe` with standard CRT reach in `main`.)
+5. . virtual FS + report — `src/microvm/host/VirtualFs.*`, `NtKernel.*`,
+   `ReportBuilder.*` + `vmfs.exe`: a PE makes `CreateFileA`/`WriteFile`/ `CloseHandle`; the synthetic kernel serves against a memory FS and records a behavioural timeline** (created/written/bytes). The "loot" is only on the virtual FS — the real disk is never played. (Falt: connect to the VHD diff of the `PvDisk`, `CreateFileW`/realpaths.)
 6. ✅ Registro virtual + perfil de sistema fake — `src/microvm/host/VirtualRegistry.*`
-   + `SystemProfile` (Win7/10/11) + `vmreg.exe`: `RtlGetVersion` e o registro
-   (`RegQueryValueA`/`RegSetValueA`) respondem com a **versão/ProductName/GPU que
-   inventamos**. O mesmo PE vê Win11 ou Win7 conforme o perfil; a escrita de
-   persistência (`HKCU\...\Run`) é capturada e o registro real nunca é tocado.
-   (Falta: som/rede como devices, ABI Win32 com args de pilha.)
-7. 🟡 Consolidação — `src/microvm/MicroSandbox.*` (fachada `Detonate()`) +
-   `microsandbox.exe`: uma chamada junta MicroVm (ring-3, exceções) + PeLoader +
-   `NtKernel` (FS/registro/perfil) + `ReportBuilder` num **relatório unificado**.
-   Exposto também como `av detonate-micro`. (Falta: crescer a superfície até
-   amostras reais — PEB/TEB+CRT, ABI com args de pilha, memória virtual.)
-8. 🟡 GUI por **proxy pro host** (modelo Wine), não reimplementar o `win32k`
-   (escala ReactOS/Wine, décadas). A execução fica isolada no sandbox; só o
-   *desenho* roda nativo. ✅ **Primeiro tijolo** — `test/nt_gui.c` (gcc, importa
-   `USER32.dll`) roda pelo `microsandbox`: `MessageBoxW` é encaminhado pelo
-   `NtKernel` pro `user32` real e um diálogo **nativo aparece** (auto-dismiss),
-   com o evento no relatório.
-   - **Próximos tijolos:** `RegisterClass`/`CreateWindow`/`ShowWindow` + bombeamento
-     de mensagens com o **`WndProc` chamado de volta DENTRO do guest** (re-entrada
-     no vCPU) + GDI (`BeginPaint`/`TextOut`/`BitBlt`) com mapeamento de
-     `HDC`/`HWND`/`HBITMAP` e marshaling de structs/pixels + threads no guest.
-   - **Segurança (crítico):** o proxy NÃO pode desenhar no desktop real (canal de
-     escape — o MEMZ pintaria sua tela). A versão segura renderiza numa
-     **superfície que nós controlamos** (janela-filha/off-screen/`CreateDesktop`)
-     exibida no viewer do sandbox — como o RemoteApp/Windows Sandbox fazem.
+   + `SystemProfile` (Win7/10/11) + `vmreg.exe`: `RtlGetVersion` and registration
+   (`RegQueryValueA`/`RegSetValueA`) respond with the **version/ProductName/GPU we invented**. The same PE sees Win11 or Win7 as per profile; persistence writing (`HKCU\...\Run`) is captured and the actual record is never played. (Fault: sound/network as devices, ABI Win32 with stack args.)
+7. 🟡 Consolidation — `src/microvm/MicroSandbox.*` (facade `Detonate()`) +
+   `microsandbox.exe`: a call joins MicroVm (ring-3, exceptions) + PeLoader + `NtKernel` (FS/log/profile) + `ReportBuilder` in a unified report**. Also exposed as `av detonate-micro`. (Falt: grow the surface up to real samples — PEB/TEB+CRT, ABI with stack args, virtual memory.)
+8. . GUI by **proxy pro host** (Wine model), do not reimplement `win32k`
+   (ReactOS/Wine scale, decades).The execution is isolated in the sandbox; only the *design* native wheel. . . **First brick** — `test/nt_gui.c` (gcc, import `USER32.dll`) runs by `microsandbox`: `MessageBoxW` is routed by the `NtKernel` pro `user32` real and a native dialogue appears** (self-dismiss) with the event in the report.
+   - **Next bricks:**`RegisterClass`/`CreateWindow`/`ShowWindow` + pumping
+     of messages with the **`WndProc` called back DENTRO of the guest**(re-entry into vCPU) + GDI (`BeginPaint`/`TextOut`/`BitBlt`) with mapping of `HDC`/`HWND`/`HBITMAP` and structs/pixels marshaling + threads in the guest.
+   - **Critical security:**Proxy CAN NOT draw on the real desktop (channel
+     escape — MEMZ would paint your screen).The safe version renders it into an area that we control** (window-daughter/off-screen/`CreateDesktop`) displayed in the sandbox viewer — as RemoteApp/Windows Sandbox does.
 
-### Modelo B: carregar as DLLs reais (mini‑NT pelos SSNs reais)
+### Model B: load real DLLs (mini-NT by real SSNs)
 
-Em vez de sintetizar cada função Win32, **carrega-se a `ntdll`/`kernel32` reais** e
-intercepta-se só as **~488 syscalls `Nt*`** (os `Rtl*`/`Ldr*` vêm de graça por
-serem código user-mode da própria `ntdll`). DLLs base: viável. `user32`/`gdi32`:
-não (precisam do `win32k`) — por isso GUI usa o proxy acima.
-- `tools/ntsyscalls.cpp` extrai a tabela real `nome→SSN` da `ntdll` viva (488
-  entradas neste build; `NtCreateFile=0x55`, `NtAllocateVirtualMemory=0x18`…).
-- ✅ **Provado** — `src/microvm/host/MiniNt.*` despacha pelos SSNs reais (lidos da
-  `ntdll` viva); `MicroVm::MapPage2MB` mapeia o `KUSER_SHARED_DATA` em
-  `0x7FFE0000`. `vmntdll.exe`: o `PeLoader` mapeia a **`ntdll.dll` real** (0x266000
-  bytes, relocada), o guest **CHAMA os stubs reais** `NtAllocateVirtualMemory`/
-  `NtTerminateProcess`, e o `MiniNt` atende — alocação real (`STATUS_SUCCESS`,
-  escrita e lida de volta).
-  ✅ **Subsistema de arquivos NT real** — `vmntfile.exe`: o guest chama os stubs
-  reais `NtCreateFile`/`NtWriteFile`/`NtClose` com `OBJECT_ATTRIBUTES`/
-  `UNICODE_STRING`/`IO_STATUS_BLOCK` reais (path `\??\C:\...`, `Buffer`/`Length`
-  do `NtWriteFile` lidos da pilha), e o `MiniNt` serve contra o `VirtualFs` —
-  arquivo capturado virtualmente, disco real intocado.
-  ✅ **Seções (o core do loader)** — `vmntsect.exe`: o guest chama os stubs reais
-  `NtCreateFile`→`NtCreateSection`→`NtMapViewOfSection`; o `MiniNt` cria uma seção
-  **backed por arquivo** (do `VirtualFs`) e mapeia o conteúdo numa view, que o
-  guest lê. É como o Windows mapeia dados.
-  ✅ **Seção de imagem (`SEC_IMAGE`) — o mapeamento de DLL de verdade** —
-  `vmntimage.exe`: o guest cria uma seção com `SEC_IMAGE` sobre uma **DLL real
-  relocável** (`test/imgtest.dll`) no `VirtualFs` e a mapeia. O `MiniNt` não copia
-  bytes crus: faz o **layout de PE completo** (`LayoutPeImage` em `MiniNt.cpp`) —
-  headers + cada seção no seu RVA por `SizeOfImage`, mais as **relocações DIR64**
-  para o delta de carga. O guest então **CHAMA o `Probe()` exportado** da imagem
-  mapeada, que retorna `*g_ptr` (um ponteiro absoluto que só resolve dentro da
-  view se a relocação foi aplicada): retornou `0xC0FFEE5` ✅ — prova de uma vez
-  headers/seções no RVA certo, código executável rodando da imagem, e fixups de
-  relocação.
-  ✅ **Consultas + sync do loader** — `vmntquery.exe`: o que o `LdrpInitialize`
-  pergunta antes de mapear qualquer DLL. O guest chama os stubs reais
-  `NtQueryInformationProcess(ProcessBasicInformation)` (o `MiniNt` lê o GS base →
+Instead of synthesizing each Win32 function, **loads the real `ntdll`/`kernel32`** and intercepts only **~488 syscalls `Nt*`** (`Rtl*`/`Ldr*` come for free because they are `ntdll`'s own user-mode code). DLLs base: viable. `user32`/`gdi32`: no (need `win32k`) — so GUI uses the proxy above.
+- `tools/ntsyscalls.cpp` extracts the real `nome→SSN` table from `ntdll` alive (488
+  entries in this build; `NtCreateFile=0x55`, `NtAllocateVirtualMemory=0x18`...).
+- .**Provided** — `src/microvm/host/MiniNt.*` dispatches by the actual SSNs (read from
+  `ntdll` alive); `MicroVm::MapPage2MB` maps `KUSER_SHARED_DATA` in
+  `0x7FFE0000`. `vmntdll.exe`: o `PeLoader` map a **`ntdll.dll` real** (0x266000
+  bytes, relocated), guest **CHAMA real stubs**`NtAllocateVirtualMemory`/
+  `NtTerminateProcess`, and `MiniNt` meets — real allocation (`STATUS_SUCCESS`,
+  written and read back).
+  . **Real NT file subsystem** — `vmntfile.exe`: guest calls stubs
+  real `NtCreateFile`/`NtWriteFile`/`NtClose` with `OBJECT_ATTRIBUTES`/
+  `UNICODE_STRING`/`IO_STATUS_BLOCK` real (path `\??\C:\...`, `Buffer`/`Length`
+  `NtWriteFile` read from the stack), and `MiniNt` serves against `VirtualFs` —
+  virtually captured file, real disk untouched.
+  ? ** Sections (the core of the loader)** — `vmntsect.exe`: the guest calls the real stubs
+  `NtCreateFile`→`NtCreateSection`→`NtMapViewOfSection`; o `MiniNt` cria uma section
+  **backed by file**(from `VirtualFs`) and maps the content in a view, which the
+  guest reads. It's how Windows maps data.
+  . ** Image section (`SEC_IMAGE`) — real DLL mapping** —
+  `vmntimage.exe`: the guest creates a section with `SEC_IMAGE` about a real **DLL
+  Relocable** (`test/imgtest.dll`) in `VirtualFs` and map. `MiniNt` does not copy
+  bytes crus: makes PE layout complete** (`LayoutPeImage` in `MiniNt.cpp`) —
+  headers + each section in your RVA by `SizeOfImage`, plus the DIR64 links**
+  for the cargo delta. The guest then ** CALLS the exported `Probe()`** from the image
+  mapped, which returns `*g_ptr` (an absolute pointer that only solves within the
+  view if relocation has been applied): returned `0xC0FFEE5`
+  headers/sections in the right RVA, executable code running from the image, and fixups from
+  relocation.
+  . **Loader + sync consultations** — `vmntquery.exe`: what `LdrpInitialize`
+  ask before mapping any DLL. The guest calls the real stubs
+  `NtQueryInformationProcess(ProcessBasicInformation)` (`MiniNt` reads GS base →
   `TEB+0x60` → devolve o `PebBaseAddress`), `NtQuerySystemInformation(SystemBasicInformation)`
-  (1 CPU, páginas de 4 KiB, granularidade 64 KiB) e o trio de eventos
-  `NtCreateEvent`/`NtSetEvent`/`NtWaitForSingleObject` (modelo single-thread: objeto
-  sinalizado satisfaz na hora). Guest leu o PEB que montou, o nº de CPUs e um wait
-  com `STATUS_SUCCESS` ✅.
-  ✅ **Registro NT** — `vmntreg.exe`: o guest chama os stubs reais
-  `NtOpenKey`/`NtQueryValueKey`/`NtSetValueKey` contra o namespace `\Registry`
-  em memória do `MiniNt` (chaves `\Registry\Machine\...`, case-insensitive). Lê
-  valores **seedados com o personality do sistema** com os tipos certos
+  (1 CPU, 4 KiB pages, 64 KiB granularity) and the event trio
+  `NtCreateEvent`/`NtSetEvent`/`NtWaitForSingleObject` (template single-thread: object
+  Signed satisfies on time). Guest read the PEB that mounted, the CPU number and a wait
+  with `STATUS_SUCCESS` ✅.
+  . ** NT record** — `vmntreg.exe`: the guest calls the real stubs
+  `NtOpenKey`/`NtQueryValueKey`/`NtSetValueKey` against o namespace `\Registry`
+  in memory of `MiniNt` (`\Registry\Machine\...`, case-insensitive keys).
+  **Seed with the system customity** with the right types
   (`SafeDllSearchMode` = `REG_DWORD 1`, `ProductName` = `REG_SZ "Windows 11 Pro"`,
-  via `KEY_VALUE_PARTIAL_INFORMATION`), e **captura uma escrita de persistência**
-  (`Run\Updater = "...evil.exe"`) com round-trip de leitura — HKLM/HKCU real
+  via `KEY_VALUE_PARTIAL_INFORMATION`), and **captures a persistence writing**
+  (`Run\Updater = "...evil.exe"`) with reading round-trip — Real HKLM/HKCU
   intocado.
-  🟡 **O CHEFÃO — bring-up real do `LdrInitializeThunk`** — `vmldr.exe`: em vez de
-  chamar `Nt*` à mão, aponta o vCPU pro **`LdrInitializeThunk` real da `ntdll`** (o
-  entry que o próprio kernel do Windows usa numa thread nova), com ambiente de
-  processo de verdade (TEB/PEB/ProcessParameters + `CONTEXT`, `RCX=&CONTEXT`,
-  `RDX=ntdll base`) e deixa o **loader real dirigir**. O `MiniNt` atende e **traça
-  cada syscall**; #UD/#GP/#PF interceptam pra reportar o ponto exato. Descobertas:
-  - **SSE precisa estar ligado**: a `ntdll` usa `xorps`/`movaps`; sem `CR4.OSFXSR`
-    dá #UD. Ligado `CR4 = PAE|OSFXSR|OSXMMEXCPT (0x620)` no `SetupLongMode`.
-  - **Alinhamento da ABI**: `RSP ≡ 8 (mod 16)` na entrada (como se um `CALL`
-    tivesse empilhado o retorno), senão os spills `movaps [rsp+k]` dão #GP.
-  - Com isso o loader real roda **60+ syscalls fundo** no `LdrpInitializeProcess`:
-    cookie de segurança, `NtProtectVirtualMemory`, heap via
-    **`NtAllocateVirtualMemoryEx`**, NLS codepage, o scan inteiro de **Image File
-    Execution Options / GlobalFlag** (~25 valores), Session Manager, ProductOptions,
-    `ProcessCookie`, system info. Tudo servido pelo `MiniNt`.
-  - 🔴 **O muro real**: depois de `NtWaitForAlertByThreadId`, o loader entra na sua
-    **fila de trabalho lock-free / sincronização de thread-alert** (`LdrpDrainWorkQueue`)
-    e gira num walk de lista (`ntdll!0xBBD0`) esperando progresso de threads worker
-    que não existem no nosso modelo single-thread. Um **watchdog** (`MicroVm::Cancel`
-    via `WHvCancelRunVirtualProcessor`) corta o spin sem-exit e revela o RIP.
-  Conclusão estratégica: rodar o `LdrpInitialize` da `ntdll` até o fim esbarra no
-  acoplamento dela com estado multi-thread interno — é exatamente por isso que
-  **Wine e ReactOS reimplementam o loader** em vez de rodar o da Microsoft. Nosso
-  probe provou que dá pra rodar o loader real fundo no bring-up e localizou com
-  precisão onde o acoplamento trava.
-  ✅ **O CAMINHO WINE — NOSSO loader sobe a `kernel32` real** —
-  `src/microvm/host/WinLoader.*`: em vez de rodar o `LdrpInitialize` da `ntdll`,
-  carregamos as DLLs nós mesmos — exatamente como Wine/ReactOS. O `WinLoader` é um
-  loader recursivo host-side que: mapeia cada DLL como `SEC_IMAGE` (headers +
-  seções no RVA + relocações DIR64), carrega as dependências recursivamente,
-  resolve imports entre módulos (incluindo **forwarders** e a heurística de **API
-  sets** `api-ms-win-*`/`ext-ms-win-*` → `kernelbase`/`ntdll`/`kernel32`) e faz
-  patch de cada IAT. Provas, em três etapas:
-  - **`vmwinload.exe`** (controlado): duas DLLs nossas — `libb.dll` importa `AddOne`
-    de `liba.dll`. O loader mapeia as duas, resolve o import cruzado, faz patch da
-    IAT, e o guest roda `libb!Compute(20)` (que chama `liba!AddOne` cruzando o
-    limite de DLL) → **50** ✅, e `liba!Magic()` → `0x7E57` ✅.
-  - **`vmwinsys.exe`** (real): aponta pra `C:\Windows\System32\kernel32.dll` e linka
-    o grafo inteiro — **kernel32 + kernelbase + ntdll**, **2024 imports resolvidos,
-    0 faltando** ✅. `GetProcAddress`/`LoadLibraryA` resolvem pra endereços reais no
+  == sync, corrected by elderman == `LdrInitializeThunk`** — `vmldr.exe`: instead of
+  call `Nt*` by hand, points the vCPU to **`LdrInitializeThunk` real `ntdll`** (the
+  entry that the Windows kernel itself uses in a new thread), with desktop environment
+  truth process (TEB/PEB/ProcessParameters + `CONTEXT`, `RCX=&CONTEXT`,
+  `RDX=ntdll base`) and lets the real loader drive**. `MiniNt` meets and **trace
+  Each syscall**; #UD/#GP/#PF intercept to report the exact point.
+  - **SSE needs to be connected**: `ntdll` uses `xorps`/`movaps`; without `CR4.OSFXSR`
+    Gives #UD. Connected `CR4 = PAE|OSFXSR|OSXMMEXCPT (0x620)` no `SetupLongMode`.
+  - **ABI alignment**: `RSP ≡ 8 (mod 16)` at the input (as if a `CALL`
+    had stacked the return), otherwise the `movaps [rsp+k]` stacks give #GP.
+  - With this the real loader runs **60+ syscalls background** on `LdrpInitializeProcess`:
+    Security cookie, `NtProtectVirtualMemory`, heat via **`NtAllocateVirtualMemoryEx`**, NLS codepage, the entire scan of **Image File Execution Options / GlobalFlag** (~25 values), Session Manager, ProductOptions, `ProcessCookie`, system info. All served by `MiniNt`.
+  - . **The real wall**: after `NtWaitForAlertByThreadId`, the loader enters its
+    **lock-free work queue /thread-alert synchronization**(`LdrpDrainWorkQueue`) and spins on a list walk (`ntdll!0xBBD0`) expecting progress from worker threads that do not exist in our single-thread model.`MicroVm::Cancel` via `WHvCancelRunVirtualProcessor`) cuts the spin without-exit and reveals the RIP. Strategic conclusion: run the `LdrpInitialize` ed `ntdll` to the end it bumps into its coupling with internal multi-thread state — that's exactly why **Wine and ReactOS reimplement the loader** instead of running the Microsoft. Our probe has proven that you can run the real loader bottom in the ring-up and precisely locate where the coupling locks. `kernel32` real** — `src/microvm/host/WinLoader.*`: instead of turning the `LdrpInitialize` ed `ntdll`, we carry the DLLs ourselves — just like Wine/ReactOS. O `WinLoader` is a recursive host-side loader that: maps each DLL as `SEC_IMAGE` (headers + sections in RVA + DIR64 relocations), load the dependencies recursively, resolve imports between modules (including **forwarders** and the heuristic of **API sets** `api-ms-win-*`/`ext-ms-win-*` → `kernelbase`/`ntdll`/`kernel32`) and patches each IAT. Tests, in three stages:
+  - **`vmwinload.exe`** (controlled): two of our DLLs — `libb.dll` imports `AddOne`
+    from `liba.dll`. The loader maps the two, solves the crossed import, patches the IAT, and the guest wheel `libb!Compute(20)` (which calls `liba!AddOne` crossing the DLL limit) → **50** ., and `liba!Magic()` → `0x7E57` .
+  - **`vmwinsys.exe`** (real): points to `C:\Windows\System32\kernel32.dll` and links
+    the whole graph — **kernel32 + kernelbase + ntdll**, **2024 imports solved,
+    0 missing**. `GetProcAddress`/`LoadLibraryA` resolve for real addresses in
     guest.
   - **`vmwincall.exe`** (capstone): o guest **CHAMA a export real `kernel32!lstrlenA`**
-    numa string e recebe o comprimento certo (`24`) ✅ — código real da Microsoft
-    executando no nosso sandbox de hardware, linkado 100% pelo nosso loader, **sem o
-    `LdrpInitialize` da `ntdll`**. O caminho Wine funciona ponta a ponta.
-  ✅ **Cobertura automática — chamar TODA export da `kernel32`** — `vmwinall.exe`:
-  depois de linkar o grafo, dirige **cada uma das 1693 exports** automaticamente —
-  reseta o vCPU, aponta o RIP pra função com args nulos e um trampolim `HLT` de
-  retorno na pilha, roda (com o `MiniNt` servindo syscalls + TEB/PEB/KUSER reais),
-  e um **watchdog por chamada** corta spins. Classifica cada resultado sem
-  conhecer assinatura nenhuma. Resultado: **1317 / 1693 (77,8%) executam e retornam
-  limpo** (`GetCurrentProcessId`→PID certo, `GetVersion`→versão real, etc.); ~17%
-  giram em locks/waits sem estado inicializado, ~5% faltam/#UD em funções que
-  precisam de heap/handles reais (CreateProcess, FindFirstFile, threadpool). É o
-  mapa empírico exato do que falta — gerado automaticamente.
-  ✅ **Heap + locks via hot-patch (técnica Wine) — `vmwininit.exe`** — descoberta
-  chave: o `HeapCreate` real gira em **ntdll+0xBBDB**, o *mesmo* loop do chefão. Ou
-  seja, `0xBBD0` não é do loader: é uma **primitiva central da `ntdll`** (lista de
-  heaps do processo sob lock, com thread-alert) que tanto o loader quanto o heap
-  usam, e que assume estado multi-thread inicializado — o muro comum. A solução é a
-  do Wine: **hot-patch do *código*** das funções (cobre forwarders E chamadas
-  internas). `ApplyWinePatches` (`WinLoader.cpp`) reescreve as `Rtl*Heap` da `ntdll`
-  para `mov eax,<op>; syscall; ret` — o `MiniNt::DispatchHeap` as serve com um
-  alocador bump simples — e os SRW/critical-section locks para no-ops (seguro
-  single-thread). Resultado: `HeapCreate`/`HeapAlloc`/`HeapSize`/`HeapFree` reais
-  fazem um round-trip completo (write+read verificado) ✅.
-  ✅ **Salto na cobertura** — re-rodando o `vmwinall.exe` com os patches: o
-  "returned" sobe de **1317 (77,8%) para 1589 (93,9%)** das 1693 exports, e os
-  spins despencam de **289 para 24** (os no-ops de lock). Os ~6% restantes são
-  funções que *devem* terminar (`ExitProcess`/`FatalAppExit`/`DebugBreak`) ou que
-  precisam de args válidos/threadpool (`CreateProcess`, `GetDriveType` com buffer
-  nulo). **93,9% da superfície real da `kernel32` executa e retorna limpo no nosso
+    in a string and gets the right length (`24`)
+    running on our hardware sandbox, linked 100% for our loader, **without the
+    `LdrpInitialize` from `ntdll`**. The Wine path works end to end.
+  . ** Automatic coverage — call ALL `kernel32` export** — `vmwinall.exe`:
+  After linking the graph, it drives each of the 1693 exports** automatically —
+  resets the vCPU, points the RIP to function with null args and a `HLT` trampoline
+  return on stack, wheel (with `MiniNt` serving real syscalls + TEB/PEB/KUSER),
+  and a watchdog by call** cuts spins. Sort each result without
+  know no signature. Result: **1317 / 1693 (77.8%) run and return
+  limpo** (`GetCurrentProcessId`→PID certo, `GetVersion`→actual version, etc.); ~17%
+  turn on locks/waits without initialized status, ~5% fhighm/#UD in functions that
+  need real heap/handles (CreateProcess, FindFirstFile, threadpool).
+  empirical map exact of what is missing — automatically generated.
+  ✅ **Heap + locks via hot-patch (technique Wine) — `vmwininit.exe`** — discovery
+  key: the real `HeapCreate` rotates in **ntdll+0xBBDB**, the boss's *same* loop. or
+  either, `0xBBD0` is not from the loader: it is a central primer of `ntdll`** (list of
+  process heaps under lock, with thread-alert) that both loader and heat
+  use, and that assumes initialized multi-thread state — the common wall. The solution is the
+  Wine: *code*hot-patch of functions (cover forwarders and calls)
+  internal). `ApplyWinePatches` (`WinLoader.cpp`) reescreve as `Rtl*Heap` ed `ntdll`
+  for `mov eax,<op>; syscall; ret` — `MiniNt::DispatchHeap` serves them with a
+  simple buffer — and SRW/critical-section locks for no-ops (safe
+  single-thread). Result: Real `HeapCreate`/`HeapAlloc`/`HeapSize`/`HeapFree`
+  make a complete round-trip (write+read verified) .
+  . **Head on cover** — re-turning `vmwinall.exe` with patches: o
+  "returned" rises from **1317 (77.8%) to 1589 (93.9%)** of the 1693 exports, and
+  Spins fall from **289 for 24** (the no-ops of lock).6% rbookcases are
+  functions that *must* terminate (`ExitProcess`/`FatalAppExit`/`DebugBreak`) or that
+  need valid args/threadpool (`CreateProcess`, `GetDriveType` with buffer
+  (nil). **93,9% dthe actual surface of `kernel32` executes and returns clean in our
   sandbox.**
-  (Próximo: detonar um `.exe` real ligando-o contra a `kernel32` que subimos — o
-  loop completo de análise; e modelar threadpool/fibers pros últimos %.)
-  ✅ **Anti-VM / personality "bare-metal" — `vmspoof.exe` + `vmspoofreg.exe`** — um
-  sample sandbox-aware não detona se cheirar VM. Cobrimos as duas vias que ele usa:
-  - **CPUID (`vmspoof.exe`):** `MicroVm::SpoofCpuid(vendor, brand, nCpus)` arma o
-    `WHvPartitionPropertyCodeCpuidExitList` **junto com o master enable
-    `X64CpuidExit`** (bit 0 do `ExtendedVmExits` — sem ele o `CpuidExitList` é
-    aceito mas *não* gera exits; achado validado nesta máquina). O `HandleCpuid`
-    então **limpa o bit de hypervisor** (leaf 1 ECX[31]), **zera a leaf
-    `0x40000000`** (vendor do hypervisor), e injeta vendor/brand/contagem de cores.
-    O host real é um **AMD Ryzen 5 5500**; o guest vê um **Intel i7-10700K, 8
-    cores, sem hypervisor** — bare metal.
-  - **Registro (`vmspoofreg.exe`):** `MiniNt::SeedPersonality` semeia uma
-    **identidade coerente de máquina-vítima** que malware vasculha: BIOS/placa
-    **ASUS** (não "VMware"/"innotek"), CPU Intel, **GPU NVIDIA RTX 3070 + driver
-    fake** (`nvlddmkm` registrado, sem módulo de kernel real), `MachineGuid`,
-    `ComputerName`, `InstallDate`, dono, e uma lista de **programas instalados**
-    (Chrome, Firefox, Office, Steam, Discord…). O guest lê tudo isso **pelos stubs
-    reais da `ntdll`** (`NtOpenKey`/`NtQueryValueKey`) e nenhuma das probes
-    devolve um *tell* de VM — a máquina lê como metal usado.
-  - **CPU/RAM (`NtQuerySystemInformation`):** o default "1 CPU, 1 GiB" é tell de
-    sandbox; agora `SystemBasicInformation` reporta **8 processadores e 16 GiB**
-    (afinidade `0xFF`), e adicionamos `SystemProcessorInformation` (AMD64, family
-    6 model 165) — coerente com o i7-10700K.
-  - **Disco (`MiniNt::SeedFilesystem` + `VirtualFs`):** o `VirtualFs` ganhou uma
-    **blocklist** de artefatos de VM (`vboxguest`, `vmci.sys`, `vmware`, `qemu`,
-    `viostor`, `xenpci`, `prl_`, `sbiedll`…) que abrem com
-    `STATUS_OBJECT_NAME_NOT_FOUND`, e um conjunto de **arquivos normais semeados**
-    (kernel32, explorer, chrome, arquivos do usuário) que existem. O `Open` agora
-    respeita a `CreateDisposition`: `FILE_OPEN` de um caminho ausente/bloqueado
-    falha de verdade (antes *tudo* era criado on-open, o que fazia drivers de VM
-    "existirem"). O `vmspoofreg.exe` prova as duas vias: `vmci.sys`/`VBoxGuest.sys`
-    → NOT_FOUND, `kernel32.dll`/`notas.txt` → presentes.
-  - **Rede (registro):** adaptador Intel real no class `{4d36e972-…}` (DriverDesc
-    "Intel(R) Ethernet Connection (7) I219-V", `ven_8086`), sem `NetworkAddress`
-    override — então nada de OUI de VM (00:05:69, 08:00:27…).
-  ✅ **Anti-VM timing/execução — `vmspoofsys.exe`** — mais duas checagens que sample
-  sandbox-aware faz, lidas do jeito que o malware lê:
-  - **Uptime (`MiniNt::SeedSharedData`):** `GetTickCount64` lê o `KUSER_SHARED_DATA`
-    direto; uma VM recém-bootada (segundos de uptime) é tell de sandbox. Semeamos o
-    `TickCountQuad`/`InterruptTime`/`TickCountMultiplier` (0x0FA00000) para **~3 dias
-    de uptime** (79h 21m). O guest lê `[0x7FFE0320]` e o host confirma o uptime alto.
-  - **Lista de processos (`NtQuerySystemInformation` classe 5):** sandbox roda poucos
-    processos e malware varre a lista por ferramentas de análise (`vmtoolsd`,
-    `vboxservice`, `wireshark`, `procmon`, `x64dbg`…). Emitimos uma cadeia
-    `SYSTEM_PROCESS_INFORMATION` crível de **46 processos** de desktop (svchost,
-    explorer, chrome, steam, Defender…) e **nenhuma** ferramenta. O host caminha a
-    lista (count ≥ 30, scan de nomes) — tudo limpo.
-  ✅ **Anti-VM rede / MAC ao vivo — `vmspoofnet.exe`** — fecha a última via. Qualquer
-  API que lê o MAC (`GetAdaptersInfo`/`GetAdaptersAddresses`/NDIS) bottom-outa, no
-  kernel, numa **query de OID NDIS**. Implementamos o `NtDeviceIoControlFile`: ao
-  receber `IOCTL_NDIS_QUERY_GLOBAL_STATS` (0x00170002) com `OID_802_3_PERMANENT_ADDRESS`
-  /`CURRENT_ADDRESS`, devolve um MAC com **OUI Intel genuíno** (`8C:16:45:…`) — nunca
-  um OUI de VM (VMware 00:05:69/00:0C:29/00:50:56, VirtualBox 08:00:27, Hyper-V
-  00:15:5D, Xen 00:16:3E, QEMU 52:54:00). O `\Device\Tcp`/`\Device\Nsi` são semeados
-  como presentes. O guest faz exatamente esse caminho (`NtCreateFile("\Device\Tcp")`
-  → IOCTL) e o host valida que o OUI não está em nenhuma lista de VM. **A via de rede
-  está 100% coberta** (identidade no registro + MAC ao vivo via o caminho real do NDIS).
+  (Next: detonate a real `.exe` by linking it against the `kernel32` we climbed — the
+  full analysis loop; and model threadpool/fibers for last %.)
+  ✅ **Anti-VM / personality "bare-metal" — `vmspoof.exe` + `vmspoofreg.exe`** — one
+  sample sandbox-aware doesn't detonate if you smell VM. We cover the two tracks it uses:
+  - **CPUID (`vmspoof.exe`):** `MicroVm::SpoofCpuid(vendor, brand, nCpus)` gun o
+    `WHvPartitionPropertyCodeCpuidExitList`**together with the master enable `X64CpuidExit`**(`ExtendedVmExits` bit 0 — without it the `CpuidExitList` is accepted but *no* generates exits; found validated on this machine). `HandleCpuid` then **cleans the hypervisor bit**(leaf 1 ECX[31]), **zero the leaf `0x40000000`**(hypervisor dispenser), and injects vendor/brand/count of colors. The real host is a **AMD Ryzen 5 5500**; the guest sees a **Intel i7-10700K, 8 colors, without hypervisor**—bare metal.
+  - **Register (`vmspoofreg.exe`):**`MiniNt::SeedPersonality` sows a
+    **Consistent machine-victimidentity**that malware scans: BIOS/plate **ASUS**(not "VMware"/"innotek"), Intel CPU, **NVIDIA RTX 3070 + Fake driver**(`nvlddmkm` registered, no real kernel module), `MachineGuid`, `ComputerName`, `InstallDate`, owner, and a list of **installed programs**(Chrome, Firefox, Office, Steam, Discord...).Guest reads all this **by the real `ntdll` stubs**(`NtOpenKey`/`NtQueryValueKey`) and none of the probes returns a VM *tell* — the machine reads as used metal.
+  - **CPU/RAM (`NtQuerySystemInformation`):**the default "1 CPU, 1 GiB" is a
+    sandbox; now `SystemBasicInformation` reports **8 processors and 16 GiB** (`0xFF` affinity), and we add `SystemProcessorInformation` (AMD64, family 6 model 165) — consistent with i7-10700K.
+  - **Disco (`MiniNt::SeedFilesystem` + `VirtualFs`):**`VirtualFs` won a
+    ** VM artifact blocklist** (`vboxguest`, `vmci.sys`, `vmware`, `qemu`, `viostor`, `xenpci`, `prl_`, `sbiedll`...) which open with `STATUS_OBJECT_NAME_NOT_FOUND`, and a set of ordinary sown files** (kernel32, explorer, chrome, user files) that exist. `Open` It now respects the `CreateDisposition`: `FILE_OPEN` of a path absent/blocked real failure (before *everything* was created on-open, which made VM drivers "exist"). `vmspoofreg.exe` proves the two ways: `vmci.sys`/`VBoxGuest.sys` → NOT_FOUND, `kernel32.dll`/`notas.txt` → Gifts.
+  - **Register:**Real Intel adapter in the `{4d36e972-…}` class (DriverDesc
+    "Intel(R) Ethernet Connection (7) I219-V", `ven_8086`), without `NetworkAddress` override — then no VM UI (00:05:69, 08:00:27...). . . . **Anti-VM timing/implementation — `vmspoofsys.exe`** — two more checks that sample sandbox-aware does, read the way malware reads:
+  - **Uptime (`MiniNt::SeedSharedData`):** `GetTickCount64` read o `KUSER_SHARED_DATA`
+    direct; a newly booted VM (uptime seconds) is sandbox tell. We sow `TickCountQuad`/`InterruptTime`/`TickCountMultiplier` (0x0FA00000) for **~3 days uptime** (79h 21m). The guest reads `[0x7FFE0320]` and the host confirms the high uptime.
+  - ** List of processes (`NtQuerySystemInformation` class 5):** few wheel sandbox
+    processes and malware scan the list by analysis tools (`vmtoolsd`, `vboxservice`, `wireshark`, `procmon`, `x64dbg`...). We've issued a chain `SYSTEM_PROCESS_INFORMATION` believable of **46 processes** desktop (svchost, explorer, chrome, steam, Defender...) and **none** tool. Host walks the list (count ≥ 30, scan of names) — all clear. `vmspoofnet.exe`** — closes the last path. Any API that reads MAC (`GetAdaptersInfo`/`GetAdaptersAddresses`/NDIS) Bottom-out, in the kernel, in an OID NDIS file**. `NtDeviceIoControlFile`: upon receiving `IOCTL_NDIS_QUERY_GLOBAL_STATS` (0x00170002) with `OID_802_3_PERMANENT_ADDRESS` /`CURRENT_ADDRESS`, returns a MAC with genuine Intel oui** (`8C:16:45:…`) — never a VM UI (VMware) 00:05:69/00:0C:29/00:50:56, VirtualBox 08:00:27, Hyper-V 00:15:5D, Xen 00:16:3E, QEMU 52:54:00). `\Device\Tcp`/`\Device\Nsi` The guest makes exactly that way (`NtCreateFile("\Device\Tcp")` → IOCTL) and the host validates that the UIU is not in any VM list. **The network path is 100% copen** (identity in record + live MAC via the real path of the NDIS).
 
-## Roadmap de implementação realista (ordem de menor→maior risco)
+## Roadmap of realistic implementation (lower order→higher risk)
 
-1. **PoC WHP:** subir uma partition, mapear RAM, rodar um "hello world" de 16-bit/UEFI,
-   ver VM-exits. (valida que WHP/virtualização está ligada na máquina.)
-   ✅ **IMPLEMENTADO** — `src/microvm/vmm/WhpPoc.cpp` (alvo `vmpoc.exe`): cria a
-   partition, mapeia 4 KiB em GPA 0x1000, roda guest real-mode de 13 bytes e
-   intercepta os `OUT 0xE9` como VM-exits. O gate de prontidão é
-   `src/microvm/host/Preflight.cpp` (comando `av vmcheck`), que detecta via
-   `WHvGetCapability` se o hypervisor está rodando e, se não, como ligá-lo.
-2. **PvDisk + VHD diferencial + boot de Windows PE** → boot mínimo no seu VMM.
-   🟡 **PARCIAL** — a *camada de devices* está implementada e demonstrada:
-   `src/microvm/vmm/MicroVmMonitor.*` (classe `MicroVm` + interface `IoDevice`),
-   `devices/Devices.h` (`PvConsole`) e `devices/PvDisk.cpp` (disco diferencial
-   copy-on-write). O alvo `vmdemo.exe` roda um guest que faz uma sobrescrita de
-   boot sector estilo-MEMZ (512×0xCC em LBA 0): cai no `sandbox-disk.diff`, com
-   `host disk opened: no`. **Falta** a parte grande: bootar um Windows PE real
-   (firmware UEFI + AHCI/virtio + ACPI) — esforço de semanas, é o muro real para
-   executar malware PE de verdade.
-3. **PvChannel + GuestAgent** → transferir e executar a amostra; capturar exit code.
-4. **Device-layer logging** (disco/rede) → já dá o relatório "MBR write" do MEMZ.
+1. **PoC WHP:**up a partition,map RAM,run a 16-bit/UEFI "hello world",
+   see VM-exits. (valid that WHP/virtualization is connected to the machine.) . **IMPLEMENTED** — `src/microvm/vmm/WhpPoc.cpp` (except `vmpoc.exe`): creates partition, maps 4 KiB in GPA 0x1000, real-mode guest wheel of 13 bytes and intercepts `OUT 0xE9` as VM-exits. The readiness gate is `src/microvm/host/Preflight.cpp` (command `av vmcheck`), which detects via `WHvGetCapability` if the hypervisor is running and, if not, how to turn it on.
+2. **PvDisk + differential VHD + Windows PE boot** →minimum boot on your VMM.
+   . **PARTIAL** — *layer of devices* is implemented and demonstrated: `src/microvm/vmm/MicroVmMonitor.*` (class `MicroVm` + interface `IoDevice`), `devices/Devices.h` (`PvConsole`) and `devices/PvDisk.cpp` (disco differential copy-on-write).The target `vmdemo.exe` runs a guest that makes a boot-style sector-MEMZ (512×0xCC in LBA 0): falls on `sandbox-disk.diff`, with `host disk opened: no`. **Missing** the big part: booting a real Windows PE (firmware UEFI + AHCI/virtio + ACPI) — effort of weeks, is the real wall to run real PE malware.
+3. **PvChannel + GuestAgent** → transfer and execute the sample; capture exit code.
+4. **Device-layer logging** (disco/network) → already gives the report "MBR write" of MEMZ.
 5. **VirtualNetwork** (blackhole→sinkhole→capture).
-6. **SnapshotManager** (boot snapshot → restore rápido) → descartável + rápido.
-   ✅ **IMPLEMENTADO** — `src/microvm/host/SnapshotManager.*` captura/restaura a
-   RAM do guest + 29 registradores do vCPU. Demo `vmsnap.exe`: detona um guest
-   que altera a memória, restaura o snapshot em ~100 µs (imagem de 1 MiB, sem
-   reboot) e re-roda a partir do estado restaurado. É o "descartável" de fato:
-   um `Restore` apaga toda mudança (RAM + CPU) em microssegundos.
-7. **VMI** (perfis de offsets) → monitoramento furtivo de processos/memória.
-8. **Telemetria in-guest opcional** (minifilter etc.) → contexto semântico rico.
-9. **Anti-fingerprinting** (incremental) + **perfis 7/10/11**.
-10. **ReportBuilder** completo (ChangeSet + timeline + screenshots).
+6. **SnapshotManager**(boot snapshot → restore fast) → disposable + fast.
+   **IMPLEMENTED** — `src/microvm/host/SnapshotManager.*` catch/restores the guest RAM + 29 vCPU registers. Demo `vmsnap.exe`: detonates a guest that changes memory, restores snapshot in ~100 μs (image of 1 MiB, without reboot) and re-wheels from the restored state. It is the "disposable" indeed: a `Restore` erases all change (RAM + CPU) in microseconds.
+7. **VMI** (offset profiles) → stealth monitoring of cases/memory.
+8. **Optional in-guest telemetry** (minifilter etc.) → rich semantic context.
+9. **Anti-fingerprinting** (incremental) + **profiles 7/10/11**.
+10. **ReportBuilder** complete (ChangeSet + timeline + screenshots).
 
-> Onde o GuardianAV já ajuda hoje: o `Sandbox` in-OS atual (job + token low-IL +
-> hidden desktop + monitor de FS/processos) é uma versão "L0 sem hypervisor" — bom
-> para triagem rápida, **não** para MEMZ. O MicroVM acima é o upgrade que fecha o
-> furo de hardware.
+> Where GuardianAV already helps today: the current `Sandbox` in-OS (job + low-IL token +
+> hidden desktop + FS/cases monitor) is a "L0 version without hypervisor" — good
+> for quick screening, not for MEMZ. The MicroVM above is the upgrade that closes the
+> borehole of hardware.

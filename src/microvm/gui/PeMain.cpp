@@ -4,7 +4,7 @@
 int main(int argc,char** argv){
     using namespace av::microvm;
     try{
-        if(argc<4){std::cerr<<"Uso: guardian-gui-pe KERNEL APP.exe PASTA_NOVA [--interactive | --script ARQUIVO]\n";return 2;}
+        if(argc<4){std::cerr<<"Usage: Guardian-gui-pe KERNEL APP.exe PASTA_NOVA [--interactive | --script ARCHIVE]\n";return 2;}
         gui::Options graphics;std::filesystem::path script,binding,manifest;
         for(int i=4;i<argc;++i){const std::string option=argv[i];if(option=="--interactive")graphics.interactive=true;
             else if(option=="--script"&&i+1<argc)script=argv[++i];

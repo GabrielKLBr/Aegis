@@ -34,7 +34,7 @@ void DriverBackend::Control(const MicroVm::IoAccess& a){
     std::memcpy(ram+gd::RequestGpa,&r,sizeof(r));
 }
 void DriverBackend::Exchange(const MicroVm::IoAccess& a){
-    if(a.bytes!=4||a.string||a.repeat||valid_){vm_.FailExecution(L"Driver device I/O shape rejected");return;}
+    if(a.bytes!=4||a.string||a.repeat||valid_){vm_.FailExecution(L"I/O shape rejected Driver device");return;}
     if(a.write){if(ready_||writes_>=4){vm_.FailExecution(L"Driver device sequence rejected");return;}pending_=guardian::driver::Exchange(a.value);++writes_;ready_=true;}
     else {if(!ready_||!vm_.SetPortInput(pending_,4)){vm_.FailExecution(L"Driver device read rejected");return;}++reads_;ready_=false;}
 }

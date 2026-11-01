@@ -25,11 +25,11 @@ def main():
     for name in ('README.md','SECURITY.md'):copy(validation.ROOT/name,name)
     for file in (validation.ROOT/'docs').iterdir():
         if file.is_file() and file.suffix in ('.md','.json'):copy(file,'docs/'+file.name)
-    (out/'LEIA-ME.txt').write_text('Aegis fase 15 - quarentena transacional por usuario.\nLeia docs/PHASE-15.md.\n'
-        'Chaves, bancos de quarentena e arquivos do usuario nao estao incluidos.\n'
-        'O driver de teste tem injecao de falhas; o guardian-quarantine.exe de producao nao.\n'
-        'A restauracao e explicita e nunca sobrescreve. Exclusao nao garante apagamento fisico em SSD/backups.\n'
-        'Referencias Microsoft e catalogos locais de sandbox nao incluidos.\n',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis phase 15 - transactional quarantine by usuario.\nLeia docs/PHASE-15.md.\n'
+        'Keys, quarantine banks and user files are not incluidos.\n'
+        'The test driver has failure injection; the guardian-quarantine.exe production nao.\n'
+        'Restoration is explicit and never overwrite. Exclusion does not guarantee physical deletion in SSD/backups.\n'
+        'Microsoft references and local sandbox catalogs not incluidos.\n',encoding='utf-8')
     manifest={'schema':1,'phase':'15','scope':'transactional-user-quarantine','tests':{c:r['tests'] for c,r in proofs.items()},'serviceTests':13,'quarantineKeysOrDataIncluded':False,'earlierPhasesRevalidated':False,'files':{f.relative_to(out).as_posix():frozen.sha(f) for f in sorted(out.rglob('*')) if f.is_file()}};(out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
         for f in sorted(out.rglob('*')):

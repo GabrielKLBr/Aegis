@@ -1,48 +1,17 @@
-# Segurança
+# Security
 
-Aegis é um projeto em desenvolvimento. Os limites de compatibilidade, cobertura
-e aceitação Windows estão documentados em `docs/PHASE-13.md` e no roadmap.
-Isolamento e telemetria não representam garantia de indetectabilidade ou de
-proteção completa contra qualquer arquivo malicioso.
+Aegis is a project under development. Compatibility, coverage, and Windows acceptance limits are documented in `docs/PHASE-13.md` and the roadmap. Isolation and telemetry do not guarantee undetectability or complete protection against every malicious file.
 
-Os modos opcionais da [14.10A](docs/PHASE-14.10A.md) , da
-[14.10B](docs/PHASE-14.10B.md), da [14.10C](docs/PHASE-14.10C.md) da [14.10D](docs/PHASE-14.10D.md) e da [14.10E](docs/PHASE-14.10E.md) executam conjuntos limitados
-de operações GUI por APIs do Windows em um auxiliar com token restrito,
-integridade baixa e Job supervisionado. O código da aplicação permanece no
-MiniNT. Esse auxiliar acrescenta superfície de ataque no host; seu perfil não
-é AppContainer nem bloqueia toda leitura de arquivos do usuário. A lista de
-operações, cotas, IPC e testes de falha estão no documento da fase. A execução
-de operações fora desse contrato continua sendo uma falha a reportar.
+The optional modes from [14.10A](docs/PHASE-14.10A.md), [14.10B](docs/PHASE-14.10B.md), [14.10C](docs/PHASE-14.10C.md), [14.10D](docs/PHASE-14.10D.md), and [14.10E](docs/PHASE-14.10E.md) execute limited sets of GUI operations through Windows APIs in a helper with a restricted token, low integrity, and a supervised Job. Application code remains in MiniNT. This helper adds attack surface on the host; its profile is not AppContainer and does not block all reads of user files. The phase document lists operations, quotas, IPC, and failure tests. Execution of operations outside that contract remains a reportable vulnerability.
 
-Para uma falha que permita escapar do convidado, acessar dados privados ou
-executar operações no host, use o [relato privado de vulnerabilidade no GitHub](https://github.com/GabrielKLBr/Aegis/security/advisories/new).
-Inclua revisão afetada, plataforma e um caso mínimo inofensivo. Não publique
-credenciais, dados pessoais ou amostras maliciosas em issues públicas.
+For a vulnerability that allows guest escape, access to private data, or unauthorized operations on the host, use [GitHub private vulnerability reporting](https://github.com/GabrielKLBr/Aegis/security/advisories/new). Include the affected revision, platform, and a minimal harmless reproduction. Do not publish credentials, personal data, or malicious samples in public issues.
 
-Testes de segurança devem preservar os erros e a cobertura incompleta. Respostas
-artificialmente vazias não devem ser usadas para fazer uma falha parecer sucesso.
-Mudanças no núcleo precisam de revisão e validação; o gerador de scripts produz
-regressões versionadas e não altera automaticamente essas fronteiras.
+Security tests must preserve errors and incomplete coverage. Artificially empty responses must not be used to make a failure appear successful. Changes to the core require review and validation; the script generator produces versioned regression tests and does not automatically change these boundaries.
 
-Na 14.10D, seletores de arquivo usam somente o namespace convidado; não há
-navegador Shell do host. Fontes/ícones e mensagens de controles usam contratos
-limitados, IDs próprios, retenção dos objetos selecionados e cotas. A política
-de geometria é virtualizada e não comprova equivalência completa de USER32.
+In 14.10D, file selectors use only the guest namespace; there is no host Shell browser. Fonts/icons and control messages use bounded contracts, private IDs, retention of selected objects, and quotas. Geometry policy is virtualized and does not establish complete USER32 equivalence.
 
-Na 14.10E, curvas, paths, regiões, transformações, glifos e descritores usam
-contratos limitados e autoria de objetos. Ponteiros/padding de descritores do
-host não são serializados. Cursores afetam somente os clientes da sessão.
-O conjunto maior de operações GDI exige as mesmas verificações de isolamento,
-cotas, falhas parciais e limpeza; não representa garantia de ausência de escape.
+In 14.10E, curves, paths, regions, transforms, glyphs, and descriptors use bounded contracts and object ownership. Host descriptor pointers/padding are not serialized. Cursors affect only session clients. The larger set of GDI operations requires the same isolation, quota, partial-failure, and cleanup checks; it does not guarantee the absence of escape vulnerabilities.
 
-Na [14.10F](docs/PHASE-14.10F.md), o auxiliar também executa Direct2D,
-DirectWrite, codecs internos WIC e D3D11 WARP por comandos limitados. Não
-recebe ponteiros, módulos de shader/driver, caminhos do host ou interfaces
-COM do convidado. Há cotas de imagens/texturas e erros separados de API e
-transporte. Esses componentes aumentam a superfície de ataque; os testes
-de compatibilidade não comprovam contenção para executar malware real.
+In [14.10F](docs/PHASE-14.10F.md), the helper also executes Direct2D, DirectWrite, built-in WIC codecs, and D3D11 WARP through bounded commands. It does not receive guest pointers, shader/driver modules, host paths, or COM interfaces. Images/textures have quotas, and API errors are distinguished from transport errors. These components increase attack surface; compatibility tests do not establish containment suitable for running real malware.
 
-A 14.10G acrescenta reprodução PCM/WAV e um recorte WinMM/WASAPI no modo
-`--audio`, com buffers copiados e saída padrão mediada por auxiliar restrito.
-Captura e mídia comprimida permanecem indisponíveis.
-[Contratos e limitações](docs/PHASE-14.10G.md).
+14.10G adds PCM/WAV playback and a limited WinMM/WASAPI subset in `--audio` mode, with copied buffers and default output mediated by a restricted helper. Capture and compressed media remain unavailable. [Contracts and limitations](docs/PHASE-14.10G.md).

@@ -49,7 +49,7 @@ class ToolsTests(unittest.TestCase):
 
     def test_disguised_executable_is_rejected(self):
         self.write("src/bad.cpp", b"MZ\0fake executable")
-        with self.assertRaisesRegex(ag.Error, "Binário"):
+        with self.assertRaisesRegex(ag.Error, "Binary"):
             ag.audit(self.root)
 
     def test_secret_is_rejected_without_disclosing_value(self):
@@ -82,7 +82,7 @@ class ToolsTests(unittest.TestCase):
         self.init()
         self.write("test/test.exe", b"MZpayload")
         self.commit()
-        with self.assertRaisesRegex(ag.Error, "rastreados"):
+        with self.assertRaisesRegex(ag.Error, "tracked"):
             ag.stage_sources(self.root)
 
     def test_history_rejects_deleted_build_artifact(self):
@@ -92,7 +92,7 @@ class ToolsTests(unittest.TestCase):
         self.commit()
         ag.git(self.root, "rm", "build/test.exe")
         ag.git(self.root, "commit", "-m", "remove")
-        with self.assertRaisesRegex(ag.Error, "Histórico"):
+        with self.assertRaisesRegex(ag.Error, "History"):
             ag.check_publish(self.root)
 
     def test_history_reads_identical_blob_once(self):
@@ -115,7 +115,7 @@ class ToolsTests(unittest.TestCase):
         self.write("docs/allowed.txt", "identical owned bytes")
         ag.git(self.root, "rm", "private.txt")
         self.commit()
-        with self.assertRaisesRegex(ag.Error, "Histórico contém arquivo excluído"):
+        with self.assertRaisesRegex(ag.Error, "History contains deleted file"):
             ag.check_publish(self.root)
 
     def test_history_cache_keeps_png_and_text_checks_separate(self):
@@ -129,7 +129,7 @@ class ToolsTests(unittest.TestCase):
         self.commit()
         ag.git(self.root, "rm", "docs/image.png")
         ag.git(self.root, "commit", "-m", "owned remove")
-        with self.assertRaisesRegex(ag.Error, "Histórico contém binário/possível segredo"):
+        with self.assertRaisesRegex(ag.Error, "History contains binary/possible secret"):
             ag.check_publish(self.root)
 
     def test_unsafe_remote_is_rejected(self):
@@ -211,7 +211,7 @@ class ToolsTests(unittest.TestCase):
     def test_subdirectory_cannot_commit_parent_repository(self):
         self.init()
         self.write("src/main.cpp", "owned")
-        with self.assertRaisesRegex(ag.Error, "raiz"):
+        with self.assertRaisesRegex(ag.Error, "root"):
             ag.stage_sources(self.root / "src")
 
     def test_publish_prepares_real_commit_before_creating_remote(self):

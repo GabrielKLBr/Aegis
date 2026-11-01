@@ -1,129 +1,61 @@
-# 14.10C — Desenho GDI nativo
+# 14.10C — native GDI design
 
-Entrega delimitada de Windows 10 x64 no MiniNT. O modo `--native-gdi` acrescenta
-`gdi32.dll`, `user32.dll` e `win32u.dll` próprios, protocolo v3 e kernel com
-capacidade `GuardianNativeGdi/3/guest`. O processo auxiliar usa GDI real do
-Windows para executar os comandos. As modalidades 12F, 14.10A e 14.10B continuam
-com seus contratos próprios.
+Delimited Windows 10 x64 delivery in MiniNT. `--native-gdi` mode adds `gdi32.dll`, `user32.dll` and `win32u.dll` itself, v3 protocol and kernel with `GuardianNativeGdi/3/guest` capability. The auxiliary process uses actual Windows GDI to execute commands. The 12F, 14.10A and 14.10B modalities continue with their own contracts.
 
-## Desenho e recursos
+## Design and resources
 
-O conjunto implementado está em `guest/fixtures/NativeGdi32.def` e
-`NativeGdiUser.def`. Inclui DC de janela e memória, BeginPaint/EndPaint,
-brushes sólidos, pens sólidos, fontes permitidas, DIBs, seleção/liberação,
-SaveDC/RestoreDC, regiões retangulares, clipping, FillRect, Rectangle,
-MoveToEx/LineTo, TextOutW, DrawTextW, cores/modo de fundo, métricas e extensão
-de texto, BitBlt, StretchDIBits, GetPixel, GdiFlush e capacidades declaradas.
+The set implemented is in `guest/fixtures/NativeGdi32.def` and `NativeGdiUser.def`. Includes window and memory DC, BeginPaint/EndPaint, solid brushes, solid pens, allowed fonts, DIBs, selection/release, SaveDC/RestoreDC, rectangular regions, clipping, FillRect, Rectangle, MoveToEx/LineTo, TextOutW, DrawTextW, cores/mode background, metrics and text extension, BitBlt, StretchDIBits, GetPixel, GdiFlush and declared capabilities.
 
-As chamadas operam sobre HDC/HGDIOBJ reais **dentro do auxiliar**. O convidado
-recebe IDs opacos ligados à sessão, processo e thread. Não recebe HWND, HDC,
-ponteiro de pixels, procedimento ou endereço real do host. O gateway não oferece
-uma operação genérica de chamar funções, carregar DLLs ou abrir dispositivos.
+The calls operate on real HDC/HGDIOBJ**within the helper**. The guest receives opaque IDs linked to the session, process and thread. He does not receive HWND, HDC, pixel pointer, procedure or actual host address. Gateway does not offer a generic operation of calling functions, loading DLLs or opening devices.
 
-Cada janela customizada possui uma superfície de memória desenhada por GDI no
-auxiliar. WM_PAINT e WM_PRINTCLIENT apresentam essa superfície por GDI; o
-redimensionamento preserva o conteúdo existente. A cópia para o HWND também
-ocorre no host. Texto, linhas e formas são produzidos pelo Windows, sem enviar
-uma janela previamente rasterizada pelo MiniNT.
+Each custom window has a memory surface designed by GDI in the auxiliary. WM_PAINT and WM_PRINTCLIENT feature this surface by GDI; resizing preserves the existing content. The copy for HWND also occurs in the host. Text, lines and shapes are produced by Windows, without sending a window previously rastered by MiniNT.
 
-Bitmaps de aplicação podem atravessar o canal em blocos limitados. O exemplo
-transfere apenas um bitmap de 16×16 para a operação StretchDIBits. O restante
-da cena é produzido pelas chamadas GDI. Não há conversão silenciosa para o
-apresentador de pixels da 12F.
+Application bitmaps can cross the channel in limited blocks. The example transfers only a 16×16 bitmap to the StretchDIBits operation. The rest of the scene is produced by the GDI calls. There is no silent conversion to the 12F pixel presenter.
 
-GetDC e BeginPaint aceitam apenas janelas customizadas da própria thread e
-sessão; DC de desktop, janela externa ou controle nativo não é fornecido. Há
-uma aquisição de DC de janela ativa por janela. DCs de memória são independentes.
-Uma aquisição BeginPaint possui o par EndPaint e uma aquisição GetDC usa
-ReleaseDC. O par incorreto retorna erro.
+GetDC and BeginPaint accept only custom window from the thread and session itself; desktop DC, external window or native control is not provided. There is a window DC acquisition active by window. Memory DCs are independent. A BeginPaint acquisition has the EndPaint pair and a GetDC acquisition uses ReleaseDC. The incorrect pair returns error.
 
-Objetos selecionados em DCs ou estados salvos não podem ser apagados. Bitmaps
-de aplicação não podem ser selecionados simultaneamente em dois DCs. A
-restauração devolve a seleção e o clipping, e a exclusão de DC restaura seus
-objetos iniciais. Objetos de stock são representados por IDs próprios.
+Objects selected in DCs or saved states cannot be deleted. Application Bitmaps cannot be selected simultaneously in two DCs. Restore returns selection and clipping, and DC deletion restores its initial objects. Stock objects are represented by own IDs.
 
-## DIBs, texto e DPI
+## DIBs, text and DPI
 
-O lote aceita DIB de 32 bits BI_RGB, top-down, sem seção de arquivo ou paleta.
-CreateDIBSection retorna um buffer alocado **no convidado**. Escritas nele são
-sincronizadas antes do uso pelo GDI; GdiFlush copia de volta as alterações de
-GDI para permitir leitura do buffer convidado. O programa precisa usar esse
-ponto de sincronização antes de ler pixels modificados pelo GDI e antes de
-intercalar acesso direto com desenho. Escritas concorrentes sem sincronização
-não têm garantia de coerência.
+The batch accepts 32-bit DIB BI_RGB, top-down, no file or palette section. CreateDIBSection returns a allocated buffer**in the guest**. Written on it are synchronized before use by GDI; GdiFlush copies back GDI changes to allow reading of the invited buffer. The program needs to use this synchronization point before reading pixels modified by GDI and before intermediate direct access with drawing. Compete writing without synchronization has no guarantee of consistency.
 
-Fontes criadas pelo aplicativo aceitam os nomes Consolas, Arial e Segoe UI,
-altura de −8 a −64, peso de 100 a 900 e qualidade sem antialiasing. Fontes de
-stock declaradas também estão disponíveis. Nenhum arquivo de fonte é carregado
-por caminho fornecido pelo convidado. A face efetivamente resolvida e as
-métricas são devolvidas pelas APIs. Os modos e limites são explícitos no
-validador do protocolo; flags de DrawText que modificam o buffer são recusadas.
+Sources created by the application accept the names Consoles, Arial and Segoe UI, height from −8 to −64, weight from 100 to 900 and quality without antialiasing. Declared stock sources are also available. No source file is loaded by the guest’s route. The face effectively resolved and metrics are returned by APIs. Modes and limits are explicit in the protocol validator; DrawText flags that modify the buffer are rejected.
 
-A visão GDI usa coordenadas e capacidades lógicas de 96 DPI. O auxiliar escala
-a apresentação para o HWND físico. O relatório registra a versão real do
-Windows host e o perfil NT alvo 10.0.19045. A comparação de pixels/métricas vale
-para a mesma máquina e a configuração registrada; ela não comprova equivalência
-entre versões Windows, instalações de fontes ou topologias de monitores.
+The GDI view uses coordinates and logical capabilities of 96 DPI. The helper scales the presentation to the physical HWND. The report records the actual Windows host version and the target NT profile 10.0.19045. The pixels/metrics comparison is valid for the same machine and the registered configuration; it does not prove equivalence between Windows versions, font installations or monitor topologies.
 
-Os contratos seguem, dentro desse recorte, a documentação de
-[contextos e estados GDI](https://learn.microsoft.com/en-us/windows/win32/gdi/device-context-functions),
-[DIB sections e sincronização](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createdibsection)
-e [pintura da área cliente](https://learn.microsoft.com/en-us/windows/win32/gdi/drawing-in-the-client-area).
+The contracts follow, within this section, the documentation of [contexts and GDI](https://learn.microsoft.com/en-us/windows/win32/gdi/device-context-functions) states, [DIB sections and synchronization](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createdibsection) and [client area painting](https://learn.microsoft.com/en-us/windows/win32/gdi/drawing-in-the-client-area).
 
-## Limites e supervisão
+## Limits and supervision
 
-- Até 128 entradas de objetos, incluindo stock, e 32 DCs.
-- Até oito superfícies de janela; cada cliente pode ter até 1280×720 pixels lógicos.
-- Bitmap de aplicação de até 512×512; 24 MiB para pixels das superfícies e bitmaps.
-- Transferência em blocos de 128 pixels e até 8 MiB enviados por sessão.
-- Até oito estados salvos por DC, textos de até 127 unidades UTF-16 e operações
-  SRCCOPY para cópia/escala do lote.
-- Herança de dois endpoints, token restrito, integridade baixa, Job de um
-  processo e 64 MiB privados, mantendo a supervisão da 14.10A/B.
+- Up to 128 entries of objects, including stock, and 32 DCs.
+- Up to eight window surfaces; each client can have up to 1280×720 logical pixels.
+- Bitmap application up to 512×512; 24 MiB for surface pixels and bitmaps.
+- Transfer in 128 pixel blocks and up to 8 MiB sent per session.
+- Up to eight states saved by DC, texts up to 127 UTF-16 units and operations
+  SRCCOPY for batch copy/scale.
+- Inheritance of two endpoints, restricted token, low integrity, Job of one
+  process and 64 private MiB, maintaining supervision of 14.10A/B.
 
-O perfil do auxiliar não é AppContainer nem impede toda leitura de arquivos
-pelo processo. A superfície de ataque acrescentada pelas APIs nativas continua
-documentada em [SECURITY.md](../SECURITY.md).
+The auxiliary profile is neither AppContainer nor prevents all file reading by process. The attack surface added by native APIs remains documented in [SECURITY.md](../SECURITY.md).
 
-O kernel informa o fim de threads e só ele conclui o canal da sessão. DCs,
-objetos e superfícies são liberados no encerramento. Quedas, prazo da VM ou
-auxiliar travado encerram o Job. O arquivo `native-gdi.json` registra autores,
-operações USER32/GDI, status, contadores, recursos restantes, bytes de bitmaps,
-versões NT e resultado do processo auxiliar.
+The kernel informs the end of threads and only it completes the session channel. DCs, objects and surfaces are released at the close. Falls, VM term or locked auxiliary close Job. The `native-gdi.json` file records authors, USER32/GDI operations, status, counters, remaining resources, bitmap bytes, NT versions and auxiliary process result.
 
-## Aceitação e uso
+## Acceptance and Use
 
-O critério da entrega exige **152 testes Release de regressão e 77 Debug de
-aceitação**, sem ignorados e com fontes/binários estáveis. Os cinco testes novos
-cobrem aplicação Windows de referência, protocolo, processo GDI real, integração
-no MiniNT e rejeições de execução/empacotamento.
+The delivery criterion requires **152 Regression Release tests and 77 Acceptance Debug**, without ignored and with stable source code/binary. The five new tests cover reference Windows application, protocol, real GDI process, integration into MiniNT and implementation/empacotamento. rejections
 
-A mesma fonte de aplicação SDK executa no MiniNT e no Windows nativo. A cena
-de 160×112 compara o hash de todos os pixels, métricas, extensão, face da fonte
-e retângulo calculado por DrawText. Também exercita BeginPaint/EndPaint,
-BitBlt para a janela, redimensionamento e liberação explícita dos recursos.
-Os testes incluem captura da própria janela do auxiliar, IDs inválidos e
-estrangeiros, autoria, objetos selecionados/salvos, cotas, falhas e contagem
-de handles GDI antes/depois de 32 ciclos de alocação. Falhas parciais de
-criação de DC e o limite total de bytes de bitmaps também são exercitados.
+The same application source SDK performs in MiniNT and native Windows. The 160×112 scene compares the hash of all pixels, metrics, extension, font face and rectangle calculated by DrawText. It also exercises BeginPaint/EndPaint, BitBlt for the window, resizing and explicit release of resources. The tests include capture of the auxiliary window itself, invalid and foreign IDs, authorship, selected/salvos objects, quotas, failures and counting of GDI before/later handles of 32 allocation cycles. Partial failure of CD creation and the total limit of bitmap bytes are also exercised.
 
-O pacote extraído repete os cenários gráficos anteriores e os novos em Release
-e Debug. As evidências, incluindo erros encontrados no desenvolvimento, acompanham
-a build privada. Não são distribuídos DLLs Microsoft de entrada, Flappy, ISOs,
-discos ou estados pessoais.
+The extracted package repeats the previous and new graphic scenarios in Release and Debug. The evidence, including errors found in development, follows the private build. Microsoft input DLLs, Flappy, ISOs, disks or personal states are not distributed.
 
 ```text
 python -B tools/native_gdi_runtime.py --build PASTA-BUILD --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output pacote-gdi
 PASTA-BUILD/Release/guardian-desktop.exe PASTA-BUILD/guest/Release/guardian-kernel-native-gdi.gk pacote-gdi/runtime.gpv pacote-gdi/manifest.json pacote-gdi/binding.gnt sessao-nova --native-gdi --seconds 25
 ```
 
-Usar diretório de saída novo. Alvo agregado CMake: `guardian_native_gdi_runtime`.
-O auxiliar deve ficar ao lado de guardian-desktop; o manifesto fixa seu SHA256.
+Use new output directory. CMake Aggregated Target: `guardian_native_gdi_runtime`. The auxiliary should be next to Guardian-desktop; the manifest fixes its SHA256.
 
-GDI e USER32 universais não são declarados. Paletas, impressão/dispositivos,
-DCs externos, formatos comprimidos, ROPs gerais, paths, transformações, fontes
-arbitrárias, diálogos completos, clipboard, DirectX e WinRT não pertencem ao
-recorte desta entrega. A aceitação do Flappy original por esta ponte nativa,
-controles adicionais e integração dos diálogos ficam na 14.10D.
+Universal GDI and USER32 are not declared. Palettes, printing/devices, external DCs, compressed formats, general ROPs, paths, transformations, arbitrary sources, full dialogues, clipboard, DirectX and WinRT do not belong to the cutout of this delivery. Acceptance of the original Flappy by this native bridge, additional controls and integration of dialogues are in the 14.10D.
 
-**Parar ao concluir a 14.10C. A 14.10D depende de nova solicitação.**
+**Stop at completion of 14.10C. 14.10D depends on new request.**

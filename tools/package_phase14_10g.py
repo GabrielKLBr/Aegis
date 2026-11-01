@@ -33,7 +33,7 @@ def main():
         if path.is_file():copy(path,'config/'+path.relative_to(ROOT/'config').as_posix())
     for name in ('AudioIntegrationTests.py','AudioRuntimeToolsTests.py'):copy(ROOT/'test'/name,'test/'+name)
     for name in ('PHASE-14.10G.md','PHASE-14.10F.md','HOST-API-PROGRESS.md'):copy(ROOT/'docs'/name,'docs/'+name)
-    (out/'LEIA-ME.txt').write_text('Aegis 14.10G: PCM/WAV WinMM e WASAPI compartilhado.\nLeia docs/PHASE-14.10G.md.\nSem captura, video ou Media Foundation. Referencias Microsoft e corpus externo nao incluidos.\nValidacao limitada a fase 14.10G e ao pacote, sem regressao completa das fases anteriores.\n',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis 14.10G: PCM/WAV WinMM and WASAPI shared.\nRead docs/PHASE-14.10G.md.\nNo capture, video or Media Foundation. Microsoft references and external corpus not included.\nValidation limited to the 14.10G phase and the package, without complete return from previous phases.\n',encoding='utf-8')
     manifest={'schema':1,'phase':'14.10G','configurations':['Release','Debug'],'validation':proofs,'microsoftInputsIncluded':False,'independentCorpusIncluded':False,'sourceDigests':current,'files':{p.relative_to(out).as_posix():sha(p) for p in sorted(out.rglob('*')) if p.is_file()}}
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:

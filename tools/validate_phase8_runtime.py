@@ -79,7 +79,7 @@ def matrices(build):
         require(match and int(match[1]) >= 600 and faults and int(faults[1]) > 100, "PE negative/fault sweep missing")
         require(chained and int(chained[1]) > 100, "Chained unwind fault sweep missing")
         for text in ("185 runtime service/heap checks PASS", "784 freestanding storage checks PASS", "32 persistent host/overlay checks PASS",
-                     "630 freestanding I/O checks PASS", "95 host I/O boundary checks PASS",
+                     "630 freestanding I/O PASS checks", "95 host I/O bondary checks PASS",
                      "693 freestanding process/security checks PASS", "983 freestanding scheduler checks PASS"):
             require(text in details, "Missing native regression: " + text)
         native.append({"configuration": config, "pe_checks": int(match[1]), "backend_fault_points": int(faults[1]), "chained_unwind_fault_points": int(chained[1]), "runtime_service_heap_checks": 185})

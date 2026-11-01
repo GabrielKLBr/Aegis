@@ -21,7 +21,7 @@ def main():
         file=a.redist/name
         if file.is_file():shutil.copy2(file,output/name)
     shutil.copytree(root/'docs/third-party',output/'licenses')
-    shutil.copy2(root/'docs/WINDOWS_ENGINE_SERVICES.md',output/'LEIA-ME.md')
+    shutil.copy2(root/'docs/WINDOWS_ENGINE_SERVICES.md',output/'README.md')
     manifest={str(f.relative_to(output)).replace('\\','/'):{'bytes':f.stat().st_size,'sha256':hashlib.sha256(f.read_bytes()).hexdigest()}
               for f in sorted(output.rglob('*')) if f.is_file()}
     proof={'schema':1,'feature':'windows-engine-services','configuration':'Release','files':manifest,'microsoftRuntimeSource':'Visual Studio licensed x64 redistributables'}

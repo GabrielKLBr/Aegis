@@ -21,11 +21,11 @@ def main():
     for name in ('README.md','SECURITY.md'):copy(root/name,name)
     for file in (root/'docs').iterdir():
         if file.is_file() and file.suffix in ('.md','.json'):copy(file,'docs/'+file.name)
-    (out/'LEIA-ME.txt').write_text('Aegis fase 16 - servico Windows, protecao apos alteracoes e cofre protegido.\n'
-        'Leia docs/PHASE-16.md. Politicas, bancos, chaves, arquivos pessoais e referencias Microsoft nao estao incluidos.\n'
-        'O servico deve ser instalado com autorizacao administrativa; a ferramenta nao burla a elevacao.\n'
-        'Ativar pastas, pausar/desligar a protecao e restaurar/excluir do cofre exigem administrador.\n'
-        'Nao ha minifilter nem bloqueio preventivo de execucao. A eficacia das regras nao foi certificada.\n',encoding='utf-8')
+    (out/'README.txt').write_text('Aegis phase 16 - Windows service, protection after changes and protegido.\n safe'
+        'Read docs/PHASE-16.md. Policies, banks, keys, personal files and references Microsoft are not incluidos.\n'
+        'The service must be installed with administrative authorization; the tool does not bypass the elevacao.\n'
+        'Activate safe folders, pausar/desligar protection and restaurar/excluir requires administrador.\n'
+        'There is no minifilter or preventive execution block. The effectiveness of the rules was not certificada.\n',encoding='utf-8')
     manifest={'schema':1,'phase':'16','tests':{c:p['tests'] for c,p in proofs.items()},'nativeTestsPerConfiguration':25,'earlierPhasesRevalidated':False,'runtimeReferencesIncluded':False,'machineStateOrKeysIncluded':False,'files':{p.relative_to(out).as_posix():frozen.sha(p) for p in sorted(out.rglob('*')) if p.is_file()}}
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:

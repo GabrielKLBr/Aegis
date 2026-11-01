@@ -40,7 +40,7 @@ int main() {
     if (!vm.Create(kRam, kExcBitmap)) { std::printf("  [FAIL] %ls (try 'av vmcheck')\n", vm.Error().c_str()); return 1; }
     auto* g = static_cast<uint8_t*>(vm.RamData());
 
-    // Map the real ntdll (it has no imports; resolver is never called).
+    // Map the real ntdll (it has no imports; resolve is never called).
     PeLoader loader; PeImage img;
     ImportResolver none = [](const std::string&, const std::string&) -> uint64_t { return 0; };
     if (!loader.Load(vm, L"C:\\Windows\\System32\\ntdll.dll", kNtdllBase, none, img)) {

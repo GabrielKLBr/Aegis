@@ -1,91 +1,44 @@
-# Fase 14.13 — integração, análise e recuperação
+# Phase 14.13 — integration, analysis and recovery
 
-## Escopo da entrega
+## Delivery Scope
 
-O scanner e a operação de análise de EXE do worker de serviço usam a entrada
-`microvm::runtime::Run`. A fila deixa de usar MicroSandbox/NT legado. O mesmo
-caminho atende `guardian-runtime.exe`, com manifesto, perfil, módulos, políticas,
-telemetria e encerramento vinculados ao pacote selecionado por SHA-256.
+The Service Worker's EXE Scan and Analysis Operation use the `microvm::runtime::Run` input. The queue ceases to use legacy MicroSandbox/NT. The same path meets `guardian-runtime.exe`, with manifest, profile, modules, policies, telemetry and closure linked to the package selected by SHA-256.
 
-O alvo desta entrega é **NT 10.0.19045**, com três famílias já existentes:
-USER32 x64 básico, núcleo PE32/x86 e runtime x64 de frameworks/áudio. A entrada
-é unificada; os kernels e protocolos apropriados a cada família continuam
-separados. Não há um kernel universal com todas as compatibilidades anunciadas.
-As pendências da 14.11 e da 14.12 não são promovidas a suporte completo.
+The target of this delivery is **NT 10.0.19045**, with three existing families: USER32 x64 basic, PE32/x86 core and frameworks/audio. runtime x64 The input is unified; the kernels and protocols appropriate to each family remain separate. There is no universal kernel with all the announced compatibility. 14.11 and 14.12. to-ed are not promoted to full support.
 
-Cada EXE precisa de um pacote de dependências previamente preparado e inscrito
-no registro local. Não existe busca automática de DLLs pelo disco do host.
-Arquivo sem pacote, import incompatível, arquitetura errada, falha e prazo
-excedido produzem resultado **inconclusivo**. Nunca há fallback para executar o
-EXE no Windows nem para o executor legado.
+Each EXE needs a package of dependencies previously prepared and registered in the local registry. There is no automatic search of DLLs for the host disk. File without package, incompatible import, wrong architecture, failed and exceeded deadline produce**inconclusive** result. There is never fallback to run EXE on Windows or for the legacy executable.
 
-## Pacotes e análise
+## Packages and analysis
 
-`tools/unified_runtime.py` prepara o bundle usando os construtores existentes e
-inscreve seu SHA-256 em `index.json`. O registro vincula manifesto, binding,
-volume, kernel e hash do auxiliar. A inscrição exige referências locais legais
-quando o construtor x64 precisa de CRT/schema Microsoft. O programa não é
-executado pelo construtor.
+`tools/unified_runtime.py` prepares the bundle using existing builders and enrolls its SHA-256 in `index.json`. The registration binds manifest, binding, volume, kernel and hash of the auxiliary. The registration requires legal local references when the x64 builder needs Microsoft CRT/schema. The program is not run by the builder.
 
-O worker verifica os bytes recebidos do scanner contra a raiz do volume e a
-identidade NT. Mantém arquivos do pacote abertos para leitura, impedindo sua
-substituição durante a sessão. O código do convidado permanece em CPL3 da VM.
-O pacote não escolhe um executável de host arbitrário: só o auxiliar conhecido
-ao lado do programa instalado pode ser iniciado, e seu hash precisa coincidir.
+The worker checks the bytes received from the scanner against the volume root and NT identity. It keeps archive files open for reading, preventing its replacement during the session. The guest code remains in VM CPL3. The package does not choose an arbitrary host executable: only the known wizard next to the installed program can be started, and its hash needs to match.
 
-O resultado registra perfil, arquitetura, identidade do pacote, módulos e
-política. Eventos mantêm PID/TID, autoria, intenção/resultado, status e efeitos
-em arquivos/registro virtuais. `virtualFiles` descreve alterações observadas,
-não enumera todo o sistema de arquivos. Funções que executam inteiramente dentro
-de DLLs não recebem cobertura automática; não se anuncia interceptação de toda
-API ou detecção universal de malware.
+The result registers profile, architecture, package identity, modules and policy. Events keep PID/TID, author, intention/result, status and effects on virtual files/log. `virtualFiles` describes observed changes, does not list the entire file system. Functions that perform entirely within DLLs do not receive automatic coverage; no interception of any API or universal malware detection is announced.
 
-`unknown` significa que nenhuma regra encontrou algo no alcance observado.
-Execução incompleta, perda de cobertura ou falha do auxiliar impedem esse
-resultado completo. Os relatórios completos ficam em uma pasta de sessão
-separada; a fila guarda o resultado. A retenção da fila é limitada a 64 pastas
-de sessão, exigindo arquivamento explícito antes de crescer além disso.
+`unknown` means that no rule has found anything in the observed range. Incomplete execution, loss of coverage or failure of the helper prevent this complete result. Full reports stay in a separate session folder; the queue saves the result. Retention of the queue is limited to 64 session folders, requiring explicit filing before growing further.
 
-## Checkpoints reais de USER32 básico
+## Basic USER32 Real Checkpoints
 
-O checkpoint conserva RAM, estado do processador, mapeamentos, processos,
-módulos externos, pilhas, cotas, VFS/registro em memória, relógio e telemetria.
-O volume imutável e a página de identidade NT são conferidos na restauração.
-A política e a identidade de todos os arquivos do pacote também precisam
-coincidir, incluindo o hash do executável controlador. O arquivo de checkpoint tem checksum interno e SHA-256 no recibo;
-esses hashes verificam integridade, não constituem assinatura de um emissor.
+Checkpoint saves RAM, processor status, mappings, processes, external modules, batteries, quotas, VFS/log in memory, clock and telemetry. The immutable volume and NT identity page are checked in restoration. The policy and identity of all package files also need to match, including the hash of the executable controller. The checkpoint file has internal checksum and SHA-256 on the receipt; these hashes check integrity, do not constitute the signature of an emitter.
 
-Para USER32 básico, um canal exclusivo do supervisor captura janelas/controles,
-texto, geometria, estilos, estado de botão/seleção, foco, IDs opacos, eventos e
-contadores. Essas operações não pertencem à lista de comandos aceitos da VM.
-O broker do host as bloqueia mesmo se um convidado tentar forjar o pedido.
+For basic USER32, an exclusive supervisor channel captures windows/controls, text, geometry, styles, button/selection status, focus, opaque IDs, events and counters. These operations do not belong to the accepted VM command list. The host broker blocks them even if a guest tries to forge the order.
 
-A retomada cria uma VM candidata e um novo auxiliar restrito. Reconstrói apenas
-as janelas pertencentes à sessão, preserva os IDs usados pelo convidado e
-restaura a memória; nenhum HWND ou ponteiro Windows é serializado para a VM.
-Ao gravar o checkpoint, as janelas originais são encerradas. Uma restauração
-recusada não altera a sessão original nem o checkpoint.
+Resumption creates a candidate VM and a new restricted helper. Rebuilds only the windows belonging to the session, preserves the IDs used by the guest and restores memory; no HWND or Windows pointer is serialized for VM. When recording the checkpoint, the original windows are closed. A refused restore does not change the original session or checkpoint.
 
-São aceitos checkpoints offline de USER32 básico, x86 e x64. **GDI, DirectX,
-áudio, apresentador por pixels, conexões abertas, timers USER32 ativos e sends
-pendentes não têm restauração neste lote** e são recusados. A família de
-frameworks continua executável sem checkpoint. A exportação normal de estado
-de segurança tem 64 KiB; ela não substitui o checkpoint de execução completo.
+Basic USER32 offline checkpoints, x86 and x64 are accepted. **GDI, DirectX, audio, pixel presenter, open connections, active USER32 timers and pending sents have no restore in this batch** and are refused. The family of frameworks remains executable without checkpoint. Normal security status export has 64 KiB; it does not replace the full execution checkpoint.
 
-## Uso
+## Usage
 
-Preparar/inscrever um programa x86:
+Ready/enroll an x86 program:
 
 ```powershell
 python -B tools/unified_runtime.py --build BUILD --config Release --application APP.exe --registry REGISTRO --work PREPARACAO_NOVA
 ```
 
-Para x64, fornecer `--reference CRT_LOCAL --schema-reference SCHEMA_LOCAL`;
-`--family user32` seleciona USER32 básico, e `auto` seleciona a família x64 de
-frameworks. Os imports precisam estar atendidos pelo pacote escolhido.
+For x64, providing `--reference CRT_LOCAL --schema-reference SCHEMA_LOCAL`; `--family user32` selects basic USER32, and `auto` selects the x64 family of frameworks. Imports need to be attended by the package chosen.
 
-Na configuração do scanner, acrescentar `"sandboxRuntime": "CAMINHO_REGISTRO"`.
-Os caminhos relativos são resolvidos em relação à configuração:
+In the scanner configuration, add `"sandboxRuntime": "CAMINHO_REGISTRO"`. Relative paths are resolved in relation to the configuration:
 
 ```powershell
 guardian-scan.exe scan APP.exe --config scanner.json --json
@@ -95,41 +48,21 @@ guardian-runtime.exe --input APP_GUI.exe --runtime-root REGISTRO --output PAUSA_
 guardian-runtime.exe --input APP_GUI.exe --runtime-root REGISTRO --output RETOMADA_NOVA --restore PAUSA_NOVA/recovery.json
 ```
 
-`--checkpoint-after` conta pedidos USER32 concluídos; o ponto depende do
-aplicativo. Saída zero com `checkpointCreated` significa checkpoint gravado,
-enquanto a análise pausada permanece inconclusiva. A execução retomada precisa
-concluir seu próprio cenário para produzir `complete: true`.
+`--checkpoint-after` counts completed USER32 orders; the point depends on the application. Zero output with `checkpointCreated` means recorded checkpoint, while paused analysis remains inconclusive. Resuming execution needs to complete its own scenario to produce `complete: true`.
 
-## Validação e reprodução
+## Validation and reproduction
 
-**Windows/WHP em 29/10/2026:** Release **23/23** e Debug **23/23**, com
-fontes/binários estáveis. O verificador ASan aprovou nove checagens dirigidas
-e 2.000 mutações por configuração. A matriz inclui o trajeto real da fila e
-retomadas com confirmação de texto, clique e estado de arquivo/registro.
+**Windows/WHP in 29/10/2026:**Release **23/23** and Debug **23/23** with stable source code/binary. The ASan verifier approved nine targeted checks and 2,000 mutations per configuration. The matrix includes the actual path of the queue and resumed with text confirmation, click and file/registry. status
 
-`tools/validate_unified.py` cobre somente esta fase e dependências utilizadas:
-entrada da fila, ausência de fallback, console independente, família WinRT,
-checkpoints/retomada x86 e x64 com entrada dirigida ao auxiliar, preservação de
-arquivo/registro e autoria, perfil/arquitetura/volume adulterados, auxiliar de
-host não autorizado, checkpoint de outra entrada/política, corrupção, prazo,
-política de módulos e checkpoint GDI recusado. O verificador de estado nativo
-usa ASan e 2.000 mutações que não são executadas como código.
+`tools/validate_unified.py` only covers this phase and dependencies used: queue entry, absence of fallback, independent console, WinRT family, checkpoints/resume x86 and x64 with input directed to the auxiliary, preservation of file/registry and authorship, profile/architecture/volume adulterated, unauthorized host assistant, checkpoint of another entry/policy, corruption, deadline, module policy and GDI checkpoint refused. The native state verifier uses ASan and 2,000 mutations that are not executed as code.
 
 ```powershell
 cmake --build BUILD --config Release --target guardian-runtime guardian_unified_probe guardian-scan guardian-engine-service guardian-checkpoint-tests
 python -B tools/validate_unified.py --build BUILD --config Release --reference CRT_LOCAL --schema-reference SCHEMA_LOCAL --corpus CACHE_LOCAL --asan-runtime ASAN_LOCAL --output PROVA_NOVA
 ```
 
-Repetir em Debug. A preparação dos binários próprios das famílias utilizadas
-continua necessária em um build novo. O empacotador exige provas estáveis
-atuais das duas configurações. O ZIP extraído é validado no mesmo escopo e
-conferido antes/depois; snapshots de RAM, referências Microsoft e fonte/binário
-do corpus externo não são redistribuídos. Os testes não atualizam os serviços
-instalados nem exigem prompts de administrador.
+Repeat in Debug. Preparing the proper binaries of the families used remains necessary in a new build. The packager requires current stable proofs of the two configurations. The extracted ZIP is validated within the same scope and checked before/later; RAM snapshots, Microsoft and source/binary references of the external corpus are not redistributed. The tests do not update the installed services or require administrator prompts.
 
-## Continuação
+## Continue
 
-Snapshots com recursos GDI/DirectX/áudio, transporte conectado e diálogos nativos
-complexos continuam pendentes. Compatibilidade ampla, proporção de aplicativos
-e eficácia de detecção exigem os respectivos corpus; esta entrega não declara
-essas metas atingidas. A fase 14.14 não é iniciada automaticamente.
+Snapshots with GDI/DirectX/audio features, connected transport and complex native dialogues remain pending. Wide compatibility, proportion of applications and detection effectiveness require the respective corpus; this delivery does not declare these goals achieved. Phase 14.14 is not automatically initiated.

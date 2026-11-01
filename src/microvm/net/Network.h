@@ -75,6 +75,6 @@ Transport LabTransport(const Options &);
 using RelayExchange =
     std::function<Status(const Address &, uint16_t, std::span<const uint8_t>, std::vector<uint8_t> &)>;
 Transport ProxyTransport(const Policy &, RelayExchange = {});
-// Bounded native UDP request/reply used by the relay transport, no resolver.
+// Boounded native UDP request/reply used by the relay transport, no resolve.
 Status UdpExchange(const Address &, uint16_t, std::span<const uint8_t>, std::vector<uint8_t> &);
 } // namespace av::microvm::net

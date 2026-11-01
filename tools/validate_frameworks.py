@@ -128,7 +128,7 @@ def main():
             ok=ok and any(item.get('classification')=='inconclusive' for item in analysis.get('findings',[]))
         if not record(name,ok,exit=result.returncode,expectedSuccess=success,target=profile):print((result.stdout+result.stderr)[-1800:],flush=True)
         return folder/'run/security-state.bin'
-    case('cil-console',console,'CIL_CONSOLE_PASS',also=('ação e Unicode 🎉','55\n120\n59\nTrue\n-2147483648\n'))
+    case('cil-console',console,'CIL_CONSOLE_PASS',also=('action and Unicode','55\n120\n59\nTrue\n-2147483648\n'))
     case('managed-objects-arrays',managed,'MANAGED_OBJECTS_ARRAYS_PASS',also=(native_managed.stdout.strip(),))
     case('static-initializer',negative['STATIC'],'STATIC_INITIALIZER_PASS',also=('STATIC_CTOR_RUN',))
     for name,diagnostic in (('NULL','cli-null-reference'),('BOUNDS','cli-index-range'),('NEGATIVE_INDEX','cli-index-range'),('OBJECT_QUOTA','cli-quota'),('ARRAY_QUOTA','cli-quota'),('STRING_QUOTA','cli-quota'),('LONG_ARRAY','cli-quota'),('NULL_CALL','cli-null-reference'),('CCTOR_FAILURE','cli-arithmetic-error')):

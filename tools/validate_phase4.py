@@ -94,7 +94,7 @@ def main():
     clean = (build / "phase4-clean-debug-build.log").read_text(encoding="utf-8", errors="replace")
     require(clean.count("Kernel PE32+ x64 valid") == 4 and "error " not in clean.lower(), "Clean build audit incomplete")
     modified = ["guest/CpuKernel.cpp", "guest/CpuKernel.h", "guest/Cpu.asm", "guest/CMakeLists.txt", "cmake/GuardianPlatform.cmake",
-                "src/microvm/boot/KernelBoot.h", "src/microvm/boot/KernelBoot.cpp", "src/microvm/boot/BootMain.cpp", "README.md", "docs/ROADMAP-COMPLETO.md"]
+                "src/microvm/boot/KernelBoot.h", "src/microvm/boot/KernelBoot.cpp", "src/microvm/boot/BootMain.cpp", "README.md", "docs/COMPLETE-ROADMAP.md"]
     created = ["shared/guardian/Threads.h", "guest/Scheduler.h", "guest/Scheduler.cpp", "guest/SchedulerChecks.cpp", "guest/ThreadKernel.h",
                "guest/ThreadKernel.cpp", "guest/ThreadUser.asm", "test/GuestSchedulerCoreTests.cpp", "test/GuestThreadBootTests.cpp",
                "config/phase4-acceptance.json", "docs/PHASE-4.md", "tools/validate_phase4.py"]

@@ -1,114 +1,74 @@
-# Fase 14.5 — runtimes C/C++ originais no MiniNT
+# Phase 14.5 — original C/C++ runtimes in MiniNT
 
-Implementação Windows x64 para um corpus delimitado de console, compilado pelo
-MSVC 19.44 com `/MD`, startup normal e handlers FH3 e FH4. O kernel e as camadas
-NTDLL/KERNELBASE/KERNEL32 continuam próprios. UCRT, VC runtime, MSVCP e MSVCRT
-selecionadas são entradas legais locais e executam exclusivamente no convidado.
-Esta fase não estabelece compatibilidade com a maioria dos aplicativos Windows.
+Windows x64 implementation for a delimited console corpus, compiled by MSVC 19.44 with `/MD`, normal startup and FH3 and FH4 handlers. The kernel and NTDLL/KERNELBASE/KERNEL32 layers remain unique. UCRT, VC runtime, MSVCP and MSVCRT selected are local legal entries and run exclusively on the guest. This phase does not establish compatibility with most Windows applications.
 
-## O que foi implementado
+## What has been implemented
 
-- Kernel `guardian-kernel-crt.gk` e variantes próprias das quatro DLLs de suporte;
-  as variantes anteriores permanecem disponíveis para a regressão.
-- Dependências Win32 de inicialização, ponteiros codificados por processo,
-  consulta de módulos por endereço, locale, console CRLF e sincronização.
-  Critical sections recursivas, SRW exclusivo, init-once e condition variables
-  funcionam no convidado, sem consumir um handle por lock da CRT.
-- API sets da CRT encaminham à UCRT selecionada, usando dados reencodificados
-  do schema Win10. Não existe fallback para funções ou endereços do host.
-- Exports C++ com nomes decorados de até 511 caracteres e imports de dados.
-  O corpus usa `std::cout` da MSVCP original, além de strings e vetores.
-- `RtlCaptureContext`, consulta de metadados de unwind e restauração virtual
-  limitada de um frame. Metadados vêm apenas de módulos do processo convidado;
-  syscalls privadas são limitadas às DLLs próprias autorizadas.
-- Consolidação de unwind para catches C++ por valor e referência; callbacks e
-  destrutores executam em CPL3. Record, ponteiro do frame, contexto e destino
-  são copiados/validados antes de qualquer retomada.
-- Correção de `EXCEPTION_TARGET_UNWIND` para `0x20`, conferida contra o SDK.
-  `0x40` é o bit de collided unwind; a constante anterior fazia a CRT original
-  destruir objetos fora do escopo do `try` que estavam vivos após o `catch`.
-- Limpeza FLS antes de destruir o heap que armazena os dados da CRT. Heaps com
-  máximo zero podem crescer dentro da cota de 1 MiB da implementação.
-  O PEB informa o mesmo heap retornado por GetProcessHeap.
-- Atributo de herança registrado para handles de arquivo da CRT, sem habilitar
-  herança de handles na criação de processos. Descritores de segurança externos
-  e flags sem implementação retornam erro.
+- Kernel `guardian-kernel-crt.gk` and variants of the four support DLLs;
+  previous variants remain available for regression.
+- Win32 start-up dependencies, process-coded pointers,
+  module query by address, location, CRLF console and synchronization. Critical sections recursive, exclusive SRW, init-once and condition variables work on the guest, without consuming a handle by CRT lock.
+- CRT API sets forward to the selected UCRT using reencoded data
+  schema Win10. No fallback for host functions or addresses.
+- C++ exports with decorated names of up to 511 characters and data imports.
+  The corpus uses original MSVCP `std::cout`, as well as strings and vectors.
+- `RtlCaptureContext`, unwind metadata query and virtual restore
+  limited from a frame. Metadata comes only from guest process modules; private syscalls are limited to authorized own DLLs.
+- Unwind consolidation for C++ catches by value and reference; callbacks and
+  Destructors perform in CPL3. Record, frame pointer, context and destination are copied/validados before any resumption.
+- Correction from `EXCEPTION_TARGET_UNWIND` to `0x20`, checked against SDK.
+  `0x40` is the bit of collided unwind; the previous constant caused the original CRT to destroy objects outside the scope of the `try` that were alive after the `catch`.
+- FLS cleaning before destroying the heat that stores CRT data.
+  maximum zero can grow within the 1 MiB quota of implementation. The PEB informs the same heat returned by GetProcessHeap.
+- Registered inheritance attribute for CRT file handles, without enabling
+  legacy of handles in the creation of processes. External security descriptors and flags without implementation return error.
 
-## Corpus de aceitação
+## Acceptance corpus
 
-| Cenário | Verificação |
+| Scene | Scan |
 | --- | --- |
-| Programa C/CRT com entrada própria de diagnóstico | UCRT original, malloc/free, matemática, puts/flush, captura e unwind de contexto. |
-| MSVC `/MD`, FH3 | Construtor global, main, ambiente, strings, vector, cout, exceções int/runtime_error, RAII e objetos vivos após o catch. |
-| MSVC `/MD`, FH4 | Mesmo programa usando `vcruntime140_1.dll` e os metadados FH4 do compilador atual. |
-| Threads | `std::thread`, mutex/condition variable, errno e TLS isolados, construtor/destrutor de thread_local. |
-| Arquivos e conversão | fopen/fwrite/fflush/fseek/fread/fclose/remove, arquivo ausente, realloc, erro matemático e locale UTF-8 com par substituto UTF-16. |
-| Processo filho | Startup normal da CRT com três argumentos, incluindo `hello world` entre aspas, espera e limpeza do filho. |
-| MSVCRT original | LoadLibrary, malloc/free, strlen e atoi; descarregamento. Otimização LFH recusada explicitamente. |
-| Limites | CopyFileW sem implementação encerra o programa com diagnóstico; rethrow C++ é recusado e a análise fica inconclusiva. |
-| Integridade | Arquivo adulterado e runtime fora da política de versão/digest não são aceitos. |
+| C/CRT program with own diagnostic input | UCRT original, malloc/free, math, puts/flush, catch and unwind of context. |
+| MSVC `/MD`, FH3 | Global builder, main, environment, strings, vector, Cout, int/runtime_error exceptions, RII and live objects after catch. |
+| MSVC `/MD`, FH4 | Same program using `vcruntime140_1.dll` and the current compiler's FH4 metadata. |
+| Threads | `std::thread`, mutex/condition variable, errno and TLS isolates, constructor/destrutor of thread_local. |
+| Files and conversion | fopen/fwrite/fflush/fseek/fread/fclose/remove, missing file, realloc, mathematical error and locale UTF-8 with UTF-16 replacement pair. |
+| Case son | CRT's normal startup with three arguments, including `hello world` in quotes, waiting and child cleaning. |
+| MSVCRT original | LoadLibrary, malloc/free, strlen and atoi; download. Optimisation LFH refused explicitly. |
+| Limits | CopyFileW without implementation ends the program with diagnosis; rethrow C++ is refused and the analysis is inconclusive. |
+| Integrity | File tampered with and runtime outside version/digest policy is not accepted. |
 
-`crt_windows_reference` executa somente nossos dois programas de teste copiados
-para uma pasta limpa, usando as DLLs instaladas do Windows. As DLLs fornecidas
-para o convidado não são executadas no host. Essa referência confirma os
-resultados do corpus, não equivalência ao kernel de uma revisão NT exata.
+`crt_windows_reference` only runs our two copied test programs for a clean folder using the installed Windows DLLs. The DLLs provided for the guest are not executed on the host. This reference confirms the corpus results, not kernel equivalence of an exact NT review.
 
-## Versões e requisitos
+## Versions and requirements
 
-`config/crt-references.json` fixa tamanho, versão e SHA-256 das nove referências
-inventariadas. As cinco entradas efetivamente exercitadas são MSVCRT
-7.0.19041.546, UCRT 10.0.19041.789, `vcruntime140.dll`, `vcruntime140_1.dll` e
-`msvcp140.dll` 14.44.35211.0. As quatro extensões MSVCP adicionais foram apenas
-inventariadas; não recebem aceitação de execução nesta fase.
+`config/crt-references.json` fixed size, version and SHA-256 of the nine inventoried references. The five effectively exercised inputs are MSVCRT 7.0.19041.546, UCRT 10.0.19041.789, `vcruntime140.dll`, `vcruntime140_1.dll` and `msvcp140.dll` 14.44.35211.0. The four additional MSVCP extensions were only inventoried; they do not receive execution acceptance at this stage.
 
-O pacote selecionado foi aceito apenas no perfil NT Win10. Win7 e outras
-combinações são recusadas pelo construtor de volumes, inclusive Win11 ainda
-sem matriz CRT própria. A versão do runtime não é inferida da versão do NT.
-Uma nova versão exige política explícita e nova validação, não apenas renomear
-a DLL. As referências provêm da ISO legal já fornecida e do VC Redist da
-instalação local do Visual Studio; não são coletadas automaticamente do host.
+The selected package was accepted only in the NT Win10 profile. Win7 and other combinations are rejected by the volume builder, including Win11 still without own CRT matrix. The runtime version is not inferred from the NT version. A new version requires explicit policy and new validation, not only rename DLL. The references come from the legal ISO already provided and from the VC Redist of the Visual Studio local installation; they are not automatically collected from the host.
 
-As regras de redistribuição continuam as dos fornecedores:
-[Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-160),
-[implantação UCRT](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=vs-2019).
-O pacote desta fase contém apenas componentes próprios, programas compilados e
-evidências. O usuário fornece novamente as DLLs legais fixadas para construir
-um volume local; ISOs, DLLs de entrada e volumes com código Microsoft não entram
-na publicação dos fontes ou da build.
+The redistribution rules continue those of suppliers: [Visual C++ Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-160), [UCRT](https://learn.microsoft.com/en-us/cpp/windows/universal-crt-deployment?view=vs-2019) deployment. The package of this phase contains only its own components, compiled programs and evidence. The user again provides the legal DLLs fixed to build a local volume; ISOs, inbound DLLs and volumes with Microsoft code do not enter into the publication of sources or build.
 
-## Limites que permanecem
+## Limits that remain
 
-- Rethrow, exceções aninhadas durante um catch/cleanup, collided unwind e
-  tradução de exceções não estão aceitos. A segunda exceção é contida e não
-  pode produzir um veredito de execução completa/segura.
-- `RtlVirtualUnwind` não implementa context pointers nem variantes além do
-  corpus x64 limitado. Dados de unwind incompatíveis falham de forma contida.
-- 1 MiB por heap, quatro heaps por processo, três processos e quatro threads
-  por processo. Não foram removidas cotas para acomodar a CRT.
-- Arquivos mutáveis continuam limitados a 512 bytes, com volume efêmero e
-  compartilhado dentro da sessão. Não há acesso a arquivos reais do host.
-- Locale: C, UTF-8 do corpus e metadados selecionados pt-BR/en-US; não é NLS
-  completo. Console aceita ASCII/tab/CR/LF, com orçamento de 4096 bytes; a
-  conversão Unicode da CRT não equivale a console Unicode completo.
-- `validation/crt-export-coverage.json` identifica imports que encerram o
-  programa caso chamados. Outros contratos não implementados retornam erro
-  explícito, como HeapSetInformation/LFH, pipes, enumeração e metadados de
-  arquivos, horários locais e formatação de datas. Eles não contam como APIs
-  funcionais só porque o símbolo pode ser resolvido.
-- Não foram validados executáveis de toolchains diferentes, `/MT`, CRTs de
-  depuração Microsoft, GUI, DirectX/WinRT ou o Flappy. A build Debug usa `/MD`
-  com runtimes redistribuíveis normais, sem incluir DLLs de depuração Microsoft.
-- A fase 14.6 não foi iniciada. As pendências anteriores de SMP/compatibilidade
-  e as demais fases continuam identificadas no roadmap.
+- Rethrow, exceptions nested during a catch/cleanup, collided unwind and
+  translation of exceptions are not accepted. The second exception is contained and cannot produce an execution verdict complete/safe.
+- `RtlVirtualUnwind` does not implement contextual pointers or variants other than
+  corpus x64 limited. Unwind data incompatible fail in contained form.
+- 1 MiB per heap, four heaps per process, three processes and four threads
+  by process. Quotas were not removed to accommodate CRT.
+- Mutable files remain limited to 512 bytes, with ephemeral volume and
+  shared within session. No access to actual host files.
+- Locale: C, UTF-8 of the corpus and selected metadata pt-BR/en-US; is not NLS
+  complete. Console accepts ASCII/tab/CR/LF, with a budget of 4096 bytes; the Unicode conversion of CRT does not equal the complete Unicode console.
+- `validation/crt-export-coverage.json` identifies imports that close the
+  program case called. Other unimplemented contracts return explicit error such as HeapSetInformation/LFH, pipe, enumeration and metadata of files, local times and date formatting. They do not count as functional APIs just because the symbol can be solved.
+- No executables of different toolchains, `/MT`, CRTs of
+  Microsoft debug, GUI, DirectX/WinRT or Flappy. Build Debug uses `/MD` with normal redistributable runtimes, without including Microsoft debug DLLs.
+- Phase 14.6 was not initiated. Previous SMP/compatibility to-ed
+  and the other phases remain identified in the roadmap.
 
-## Verificação e reprodução
+## Verification and reproduction
 
-Quatro novos testes CTest: `crt_contract`, `crt_windows_reference`,
-`crt_runtime_tools` e `crt_runtime_integration`. Critérios de entrega: suíte
-Release completa de 104 testes, aceitação de 29 testes sem ignorados em Release
-e Debug, fontes/binários/referências estáveis, e smoke test do pacote em ambas
-as configurações. Os números efetivamente obtidos ficam nos JSON/XML de
-validação; tentativas incompletas são preservadas separadamente.
+Four new CTest tests: `crt_contract`, `crt_windows_reference`, `crt_runtime_tools` and `crt_runtime_integration`. Delivery criteria: Full Release suite of 104 tests, acceptance of 29 tests without ignored in Release and Debug, stable source code/binary/references, and package smoke test in both settings. The numbers effectively obtained are in the validation JSON/XML; incomplete attempts are preserved separately.
 
 ```powershell
 cmake -S . -B BUILD -G "Visual Studio 17 2022" -A x64 -DGUARDIAN_GUI_COMPATIBILITY_ONLY=ON -DGUARDIAN_NATIVE_REFERENCE_DLL=NTDLL-LEGAL -DGUARDIAN_APISET_REFERENCE_DLL=SCHEMA-LEGAL -DGUARDIAN_CRT_REFERENCE_DIR=PASTA-CRT
@@ -121,5 +81,4 @@ python tools/package_phase14_5.py --build BUILD --release ACEITACAO-RELEASE --de
 python tools/smoke_phase14_5.py --package PACOTE-NOVO --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output SMOKE-NOVO
 ```
 
-Parar após a entrega desta fase; a publicação automática do commit não autoriza
-iniciar a 14.6.
+Stop after delivery of this phase; the automatic publication of the commit does not allow to start on 14.6.

@@ -1,4 +1,4 @@
-// One guest handle namespace. Guest values never become host OS handles.
+// One guest handle namespace. Guest values never become host OS handsles.
 #pragma once
 #include <cstdint>
 #include <map>

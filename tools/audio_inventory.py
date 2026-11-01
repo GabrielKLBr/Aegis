@@ -5,7 +5,7 @@ ROOT=Path(__file__).resolve().parents[1]
 def entries():
     rows=[]
     def add(dll,names,contract,status='implemented_with_restrictions',execution='Native operation through copied PCM and owned IDs'):
-        for name in names.split():rows.append(dict(dll=dll,name=name,status=status,contract=contract,execution=execution,phase='14.10G',category='Áudio e mídia',kind='Método COM' if '::' in name else 'Export'))
+        for name in names.split():rows.append(dict(dll=dll,name=name,status=status,contract=contract,execution=execution,phase='14.10G',category='Audio and Media',kind='COM method' if '::' in name else 'Export'))
     add('winmm.dll','waveOutOpen waveOutWrite waveOutReset waveOutPause waveOutRestart waveOutGetPosition waveOutClose','PCM 16-bit, mono/stereo, 22050/44100/48000 Hz; default output only; CALLBACK_NULL; max four streams, eight headers/stream, 256 KiB/header and 1 MiB/session. Position bytes/samples/ms. No capture, loop or driver messages.')
     add('winmm.dll','waveOutPrepareHeader waveOutUnprepareHeader waveOutGetDevCapsW timeGetTime','Guest header/state management and virtual output capabilities; guest clock for timeGetTime.',execution='Guest-local state; native completion is polled by a guest worker')
     add('winmm.dll','waveOutGetNumDevs','One virtual output backed by current host default render endpoint; zero on failure.')

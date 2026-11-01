@@ -5,7 +5,7 @@
 Translated all the way to [GuardianAV Project History](README.md#guardianav-project-history) using [DeepL Translator](https://www.deepl.com/translator) since I ran out of weekly limit.
 Please open a Pull Request reporting any English mistake if you find one.
 
-[![Windows API Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Fgeral.json)](https://gabrielklbr.github.io/Aegis/windows-apis.html)
+[![Windows API Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Foverall.json)](https://gabrielklbr.github.io/Aegis/windows-apis.html)
 [![Graphics and Audio Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Finterface.json)](https://gabrielklbr.github.io/Aegis/progress.html)
 
 Percentages of entries in the catalogs, including partial support; do not represent the entire Windows system.
@@ -83,15 +83,12 @@ To manage Git, repositories, branches, and PRs:
 python tools/aegis_git.py
 ```
 
-The menu also generates reviews of isolation and sandbox consistency tests.
-These preserve actual errors and reports; they do not guarantee undetectability.
-[Automation and usage](docs/GITHUB-AEGIS.md) · [Security](SECURITY.md) ·
-[Current status and limitations](docs/PHASE-13.md) · [Roadmap](docs/ROADMAP-COMPLETO.md)
+The menu also generates reviews of isolation and sandbox consistence tests. These preserve current errors and reports; they do not guarantee undetectability. [Automation and usage](docs/GITHUB-AEGIS.md) · [Security](SECURITY.md) · [Current status and limitations](docs/PHASE-13.md) · [Roadmap](docs/COMPLETE-ROADMAP.md)
 
 **Windows Review on 10/23/2026:** Phases 12B–13 received fixes and passed
 the MSVC/WHP test matrix: **80 distinct Debug tests**, with documented retests,
 and **80/80 Release** in a complete suite, with no tests skipped.
-[Fixes, evidence, and limitations](docs/REVISAO-WINDOWS-FASES12B-13-20261023.md).
+[Fixes, evidence, and limitations](docs/WINDOWS-PHASES12B-13-REVIEW-20261023.md).
 The PE/SMP integration and specific NT references remain open.
 
 **Phase 14 on 10/23/2026:** shared scanner with YARA, hashes, PE analysis,
@@ -115,7 +112,7 @@ of this source repository.
 > Phase 12C on October 21, 2026: Linux implementation and validation approved — 50 Debug, 50 Release, and 32 ASan/UBSan; 1,590 compliance observations. [Matrix, delivery, and open items](docs/PHASE-12C.md).
 > Phase 12B retains its open items; the approval of Phase 12C does not mark them as closed.
 >
-> Continuation of Phase 12B on October 20, 2026: [implemented features, validation, and open items](docs/PHASE-12B-FEATURES.md).
+> Continuation of Phase 12B on October 20, 2026: [implemented features, validation, and open items](docs/PHASE-12B-RESOURCES.md).
 > The phase remains open; Windows/MSVC/WHP acceptance of the new revision is required.
 
 ## GuardianAV Project History
@@ -127,7 +124,7 @@ of this source repository.
 **Windows fixes validated on October 19, 2026:** all eight vulnerabilities have been fixed.
 The complete suite passed Debug and Release: **52/52 in each configuration**,
 with no skips. The fixed revision is still awaiting Linux revalidation.
-[Results, fixes, and limitations](docs/CORRECOES-WINDOWS-FASE11-20261019.md).
+[Results, fixes, and limitations](docs/WINDOWS-PHASE11-FIXES-20261019.md).
 
 The Linux logs below describe the revisions accepted on October 18; the references
 to pending Windows acceptance in them are historical. The historical status is in the
@@ -177,19 +174,7 @@ per application, evidence, limits, and resumption command:
 [PHASE-8-COMPLETION.md](docs/PHASE-8-COMPLETION.md).
 Documents from previous milestones remain in `docs/`.
 
-**Phase 7 completed:** Files and the registry survive
-reboots on a dedicated, read-only volume with independent overlays.
-Permissions, sharing, renaming, deletion, file links,
-registry notifications, flushing, and recovery of aborted commits are supported.
-Validation passed 784 volume checks, 32 host persistence checks,
-80 Phase 7 boots, an additional 480 regression tests for Phases 1–6, 31 tests, and seven
-examples per configuration in Debug and Release, with no tests skipped.
-Code, commands, and limits: [PHASE-7.md](docs/PHASE-7.md).
-Previous steps: [PHASE-6.md](docs/PHASE-6.md), [PHASE-5.md](docs/PHASE-5.md), [PHASE-4.md](docs/PHASE-4.md), [PHASE-3.md](docs/PHASE-3.md), [PHASE-2.md](docs/PHASE-2.md),
-[PHASE-1.md](docs/PHASE-1.md), and [PHASE-0.md](docs/PHASE-0.md).
-MiniNt remains the reference on the host.
-**Windows acceptance of phase 8 pending; phase 9 approved on Linux, pending on Windows.** Order and stop rule:
-[ROADMAP-COMPLETO.md](docs/ROADMAP-COMPLETO.md).
+**Phase 7 completed:** Files and the registry survive reboots on a dedicated, read-only volume with independent overlays. Permissions, sharing, renaming, deletion, file links, registry notifications, flushing, and recovery of aborted commits are supported. 784 volume checks, 32 host persistence checks, 80 Phase 7 boots, an additional 480 regression tests for Phases 1–6, 31 tests, and seven examples per configuration in Debug and Release, with no tests skipped. Code, commands, and limits: [PHASE-7.md](docs/PHASE-7.md). Previous steps: [PHASE-6.md](docs/PHASE-6.md), [PHASE-5.md](docs/PHASE-5.md), [PHASE-4.md](docs/PHASE-4.md), [PHASE-3.md](docs/PHASE-3.md), [PHASE-2.md](docs/PHASE-2.md), [PHASE-1.md](docs/PHASE-1.md), and [PHASE-0.md](docs/PHASE-0.md). MiniNt remaining the reference on the host. **Windows acceptance of phase 8 hanging; phase 9 approved on Linux, hanging on Windows.** Order and stop rule: [COMPLETE-ROADMAP.md](docs/COMPLETE-ROADMAP.md).
 
 **Core Update (10/16/2026):** This implementation is the active foundation for
 development, using WHP directly, without QEMU. In addition to its own heap,
@@ -210,7 +195,7 @@ Instructions, tests, and limits: [KERNEL-SYNCHRONIZATION.md](docs/KERNEL-SYNCHRO
 the Windows SDK (no external dependencies). It includes both a **command-line
 scanner** (`av.exe`) and a **hardware-accelerated desktop UI** (`avui.exe`).
 
-[**Phase 17**](docs/ROADMAP-COMPLETO.md#fase-17--aplicação-winui-3-e-internacionalização) will bring **WinUI 3** interface using **Windows Fluent Design**.
+[**Phase 17**](docs/COMPLETE-ROADMAP.md#phase-17--application-winui-3-and-internationalisation) Will bring**WinUI 3** Interface using **Windows Fluent Design**.
 
 ![Dashboard](docs/dashboard.png)
 
@@ -487,7 +472,7 @@ would be an escape channel.
 Instead of synthesizing each Win32 function, the scalable path is to **load the
 real DLLs and service only the ~488 `Nt*` syscalls** (the `Rtl*`/`Ldr*` functions
 are user-mode code inside ntdll and come for free). `tools/ntsyscalls.cpp`
-extracts the live `name→SSN` table (e.g. `NtAllocateVirtualMemory = 0x18`), and
+extracts the live `name→SSN` table (and.g. `NtAllocateVirtualMemory = 0x18`), and
 **`vmntdll.exe`** proves it: `PeLoader` maps the **real `C:\Windows\System32\
 ntdll.dll`** (~2.5 MB, relocated) into the guest, a ring-3 guest **calls the real
 `NtAllocateVirtualMemory`/`NtTerminateProcess` stubs**, and `MiniNt` services them

@@ -1,123 +1,46 @@
-# 14.10F — Direct2D, DirectWrite, WIC e texturas WARP
+# 14.10F — Direct2D, DirectWrite, WIC and WARP textures
 
-Entrega delimitada para **Windows 10 x64, NT 10.0.19045**, no modo
-**--software-graphics**. A aplicação, suas DLLs e callbacks executam no MiniNT.
-O Windows host desenha com Direct2D por software e DirectWrite, decodifica
-imagens com WIC e processa texturas com D3D11 WARP em um auxiliar restrito.
-Não há promessa de DirectX completo ou compatibilidade universal.
+Delimited delivery for **Windows 10 x64, NT 10.0.19045**, in **--software-graphics** mode. The application, its DLLs and callbacks run on MiniNT. Windows host draws with Direct2D by software and DirectWrite, decodes images with WIC and processes textures with D3D11 WARP in a restricted helper. There is no promise of complete DirectX or universal compatibility.
 
-## Contrato e isolamento
+## Contract and isolation
 
-Kernel guardian-kernel-software-graphics.gk, capacidade
-GuardianSoftwareGraphics/6/guest, protocolo v6 e auxiliar
-guardian-software-graphics-host.exe. O manifesto vincula perfil, kernel,
-volume e SHA-256 do auxiliar. As variantes A–E preservam seus protocolos.
-Command/Reply/Packet conservam 972/896/3260 bytes. IDs de objetos incluem
-sessão e são verificados por processo, thread, tipo e parentesco. Ponteiros,
-interfaces COM, callbacks e handles nativos não cruzam a ponte.
-As interfaces COM do convidado seguem os tipos e a ABI do SDK.
+Kernel guardian-kernel-software-graphics.gk, capacity GuardianSoftwareGraphics/6/guest, protocol v6 and auxiliary guardian-software-graphics-host.exe. The manifest links profile, kernel, volume and SHA-256 The A–And variants preserve their protocols. Command/Reply/Packet Keep 972/896/3260 bytes. Object IDs include session and are verified by process, thread, type and kinship. Pointers, COM interfaces, native callbacks and handles do not cross the bridge. The guest COM interfaces follow the SDK types and ABI.
 
-O auxiliar mantém token restrito, integridade baixa, dois handles herdados,
-um processo e as restrições de interface das fases anteriores. O Job limita
-memória a 256 MiB e encerra o auxiliar se o supervisor sair. Comandos têm
-prazo de dez segundos; desligamento normal tem cinco segundos. O limite do
-Job inclui alocações internas, que não são totalmente representadas pela
-contabilidade de pixels.
+The helper keeps token restricted, low integrity, two inherited handles, one process and the interface constraints of the previous phases. Job limits memory to 256 MiB and closes the helper if the supervisor leaves. Commands have a ten-second deadline; normal shutdown has five seconds. The Job limit includes internal allocations, which are not fully represented by pixel accounting.
 
-A superfície de ataque inclui os componentes Direct2D, DirectWrite, WIC e
-WARP do Windows. O auxiliar não é AppContainer e esse token não impede toda
-leitura de arquivos pessoais. Os testes não provam impossibilidade de escape
-ou contenção suficiente para executar malware real com segurança.
+The attack surface includes Windows Direct2D, DirectWrite, WIC, and WARP components. The helper is not AppContainer and this token does not prevent all personal file reading. Tests do not prove sufficient escape or containment to perform real malware safely.
 
-## Recursos implementados
+## Resources implemented
 
-- **Direct2D:** fábrica de thread única, render target de HWND ou DC de
-  janela própria; limpeza, pincel sólido/cor/opacidade, linhas, retângulos,
-  elipses, transformação afim, recorte, texto e bitmaps WIC. Erros diferidos
-  aparecem em EndDraw. BindDC cobre a área inteira do DC autorizado, a 96 DPI.
-  Não aceita DC de desktop ou memória arbitrária. Resize segue o cliente
-  real limitado. Uma pintura mantém seu DC até EndPaint quando o host
-  redimensiona durante o callback.
-- **DirectWrite:** fábricas SHARED/ISOLATED com objetos próprios; formato,
-  família/peso/estilo/stretch, alinhamento e quebra de linha básicos.
-  O auxiliar usa fábrica isolada e fontes nativas do catálogo permitido.
-  Texto até 127 unidades UTF-16, família/locale até 31 e fonte de 1 a 96.
-  Layouts, fontes personalizadas e análise tipográfica permanecem pendentes.
-- **WIC:** ativação das fábricas conhecidas dentro do convidado, streams
-  copiados e leitura somente do volume convidado. PNG/BMP/JPEG de um quadro,
-  tamanho/formato/resolução, conversão BGRA/PBGRA e CopyPixels limitado
-  com retângulo, stride e padding. Origens do conversor: 24bpp BGR/RGB,
-  32bpp BGRA/PBGRA/RGBA e 8bpp indexed. Quadros sobrevivem à liberação do
-  decoder/stream. Sem scaler, encoders, GIF/TIFF ou múltiplos quadros.
-  O auxiliar carrega windowscodecs.dll do System32 e obtém diretamente as
-  fábricas internas enumeradas; não ativa extensões pelo registro.
-- **D3D11:** WARP com feature level real 9_1; texturas zeradas BGRA8/RGBA8,
-  um mip/array, sem MSAA, RTV, limpeza, cópia, staging de leitura/Map/Unmap,
-  Flush, query EVENT e consulta de conclusão. Binding de um RTV, viewport
-  e ClearState. Sem buffers de vértices, shaders, Draw, pipeline 3D ou
-  inicialização por D3D11_SUBRESOURCE_DATA. O nível 9_1 identifica o
-  dispositivo nativo escolhido; não declara todo o contrato D3D desse nível.
-- **DXGI:** fábrica/interface base, adaptador lógico de software, associação
-  a janela própria e swapchain lógico de um buffer, em janela. GetBuffer
-  fornece textura do convidado; Present copia os pixels limitados à janela
-  nativa. Sem flip, sincronização com monitor, fullscreen, compartilhamento,
-  outputs do host ou GPU passthrough. ResizeBuffers recusa referências
-  diretas/indiretas ao buffer. Prioridade de GPU admite apenas o padrão zero.
+- **Direct2D:** single thread factory, render HWND target or DC of
+  own window; cleaning, brush solid/colour/opacity, lines, rectangles, ellipses, transformation in order, clipping, text and bitmaps WIC. Deferred errors appear in EndDraw. BindDC covers the entire area of the authorized DC, 96 DPI. Do not accept desktop DC or arbitrary memory. Resize follows the limited actual client. A painting keeps your DC up to EndPaint when the host resizes during callback.
+- **DirectWrite:** SHARED/ISOLATED factories with their own objects; format,
+  family/weight/style/stretch, basic line-alignment and breakage. The helper uses isolated factory and native sources of the allowed catalog. Text up to 127 UTF-16, family/locale units up to 31 and source from 1 to 96. Layouts, custom fonts and typographical analysis remain pending.
+- **WIC:** Activation of known factories within the guest, streams
+  PNG/BMP/JPEG of a frame, size/format/resolution, conversion BGRA/PBGRA and CopyPixels limited with rectangle, stride and padding. Origins of the converter: 24bpp BGR/RGB, 32bpp BGRA/PBGRA/RGBA and 8bpp indexed. Frames survive the release of decoder/stream. No scaler, encoders, GIF/TIFF or multiple frames. The auxiliary loads System32 windowscodecs.dll and directly obtains the listed internal factories; it does not activate extensions by registration.
+- **D3D11:**WARP with real level feature 9_1; zeroed textures BGRA8/RGBA8,
+  a mip/array, without MSAA, RTV, cleaning, copying, staging of reading/Map/Unmap, Flush, kery EVENT and completion query. Binding of a RTV, viewport and ClearState. No vertices buffers, shaders, Draw, 3D pipeline or startup by D3D11_SUBRESOURCE_DATA. The 9_1 level identifies the chosen native device; it does not declare the entire D3D contract of this level.
+- **DXGI:**factory/interface base, software logical adapter, association
+  the own window and logical swapchain of a buffer in window. GetBuffer provides guest texture; Present copies the pixels limited to the native window. No flip, synchronization with monitor, fullscreen, sharing, host outputs or GPU passthrough. ResizeBuffers refuses direct/indirect references to buffer. GPU priority admits only zero pattern.
 
-D3D9 retorna null/D3DERR_NOTAVAILABLE. D3D12/OpenGL permanecem sem backend;
-imports ausentes são recusados antes do boot. CreateDXGIFactory1/2 só podem
-fornecer a interface base; IIDs novos são recusados. Métodos HRESULT ausentes
-retornam E_NOTIMPL; operações void ausentes registram diagnóstico e falham
-no EndDraw/estado do dispositivo. Retorno neutro de recusa escalar não conta
-como implementação.
+D3D9 returns null/D3DERR_NOTAVAILABLE. D3D12/OpenGL remain unreturned; missing imports are rejected before boot. CreateDXGIFactory1/2 can only provide the base interface; new IIDs are refused. Missing HRESULT methods return E_NOTIMPL; missing void operations register diagnosis and fail in the EndDraw/status of the device. Neutral refusal to scale does not count as implementation.
 
-## Cotas, cobertura e registros
+## Quotas, coverage and records
 
-Até 64 recursos de software por sessão, 128 wrappers COM no convidado,
-16 MiB de dados contabilizados, 1 MiB por imagem codificada, imagens/texturas
-até 512×512 e cliente até 1280×720 a 96 DPI. Mantêm-se as cotas GDI herdadas.
-Rejeitam-se campos reservados, formatos/flags desconhecidos, texto inválido,
-NaN/infinito e chunks não canônicos. Números são validados por ordenação
-inteira IEEE-754, sem depender do modo FP do convidado.
+Up to 64 software resources per session, 128 COM wrappers in guest, 16 MiB of accounted data, 1 MiB by coded image, pictures/textures up to 512×512 and client up to 1280×720 to 96 DPI. Inherited GDI quotas are maintained. Unknown fields are rejected, formats/flags, invalid text, NaN/infinite and non-canonical chunks. Numbers are validated by entire IEEE-754 sorting, without depending on the guest's FP mode.
 
-software-graphics.json separa status de transporte e apiHresult e registra
-recursos, bytes e uso efetivo: máscara 1 Direct2D, 2 DirectWrite, 4 WIC,
-8 WARP. Isso não significa cobertura integral. analysis.json mantém a
-telemetria herdada; não há classificador de malware novo nesta fase.
+software-graphics.json separates transport status and apiHresult and registers resources, bytes and effective use: mask 1 Direct2D, 2 DirectWrite, 4 WIC, 8 This doesn't mean full coverage. analysis.json keeps the telemetry inherited; there is no new malware classifier at this stage.
 
-A [matriz COM](../config/software-graphics-api-matrix.json) contém 465 slots
-de 21 interfaces, incluindo métodos herdados repetidos e recusas. Não é uma
-porcentagem de compatibilidade. Exports reais e execução são evidências
-separadas. HeapSetInformation permanece recusada no runtime anterior; a
-amostra independente ignora essa falha conforme seu código original.
+The [COM](../config/software-graphics-api-matrix.json) matrix contains 465 slots of 21 interfaces, including repeated inherited methods and refusals. It is not a percentage of compatibility. Actual exports and execution are separate evidence. HeapSetInformation remains refused in the previous runtime; the independent sample ignores this failure as its original code.
 
-## Validação e uso
+## Validation and use
 
-SoftwareGraphicsScene.cpp usa headers/imports normais do SDK. O mesmo EXE
-executa nativamente em pasta sem DLLs convidadas e no MiniNT. Comparam-se
-pixels completos do cliente antes/depois de resize, texto acentuado, hashes
-dos pixels PNG/BMP/JPEG e da textura WARP. Também se exercitam queries,
-identidade COM, referências do swapchain e liberação após fechar a janela.
+SoftwareGraphicsScene.cpp uses standard SDK headers/imports. The same EXE performs natively in invited DLL-free folder and MiniNT. Full pixels of resize before/later client, sharp text, hashes of PNG/BMP/JPEG pixels and WARP texture are compared. Queries, COM identity, swapchain references and release are also exercised after closing the window.
 
-A amostra Microsoft Direct2DHelloWorld é compilada sem alterar os fontes
-fixados no [corpus](../config/software-graphics-corpus.json); o mesmo EXE
-é comparado nativamente e no convidado. Fontes/EXEs externos não são
-redistribuídos. Esse resultado não é extrapolado a todos os programas.
+The Microsoft Direct2DHelloWorld sample is compiled without changing the sources fixed in [corpus](../config/software-graphics-corpus.json); the same EXE is natively compared and in the guest. External Fonts/EXEs are not redistributed. This result is not extrapolated to all programs.
 
-Testes negativos cobrem parâmetros, thread, recursos estrangeiros, cotas,
-imagem inválida, hardware, níveis ausentes, shaders/Draw/scaler, interfaces
-novas, D3D9, erros diferidos e limpeza. Ferramentas verificam imports
-estáticos/delay/forwarders/ordinais, API sets, ciclos, modos e identidade do
-auxiliar. Exigem-se a regressão herdada e testes do ZIP extraído nas duas
-configurações, com hashes conferidos após execução.
+Negative tests cover parameters, thread, foreign resources, quotas, invalid image, hardware, missing levels, shaders/Draw/scaler, new interfaces, D3D9, deferred errors, and cleaning. Tools check imports static/delay/forwarders/ordinais, API sets, cycles, modes and auxiliary identity. Inherited regression and ZIP tests are required in both settings, with hashes checked after execution.
 
-Crie o volume com tools/software_graphics_runtime.py usando --build,
---config Release, --reference CRT-LEGAL, --schema-reference SCHEMA-LEGAL,
---output BUNDLE-NOVO e três --asset apontando para image.png/image.bmp/image.jpg
-de BUILD/software-assets/Release. Execute BUILD/Release/guardian-desktop.exe
-com kernel BUILD/guest/Release/guardian-kernel-software-graphics.gk,
-BUNDLE-NOVO/runtime.gpv, manifest.json, binding.gnt, SESSAO-NOVA e
---software-graphics --seconds 30.
+Create volume with tools/software_graphics_runtime.py using --build, --config Release, --reference CRT-LEGAL, --schema-reference SCHEMA-LEGAL, --output BUNDLE-NEW and three --asset pointing to image.png/image.bmp/image.jpg of BUILD/software-assets/Release. Execute BUILD/Release/guardian-desktop.exe with kernel BUILD/guest/Release/guardian-kernel-software-graphics.gk, BUNDLE-NOVO/runtime.gpv, manifest.json, binding.gnt, SESSAO-NOVA and --software-graphics --seconds 30.
 
-Fontes vão ao Aegis e builds somente ao Aegis-builds privado. A **14.10G**
-permanece planejada; parar após a entrega F.
+Sources go to Aegis and builds only to the private Aegis-builds. **14.10G** remains planned; stop after delivery F.

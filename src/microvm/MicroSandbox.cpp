@@ -34,7 +34,7 @@ MicroSandboxResult MicroSandbox::Detonate(const std::wstring& pePath,
 
     NtKernel kernel(opt.profile);
 
-    // Resolver: a hardened SYSCALL stub per supported import.
+    // Solve: a hardened SYSCALL stub per supported import.
     uint64_t stubNext = kStubGpa;
     ImportResolver resolver = [&](const std::string&, const std::string& fn) -> uint64_t {
         int sys = kernel.SyscallFor(fn);

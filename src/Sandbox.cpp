@@ -491,7 +491,7 @@ static std::string DetonationScript() {
         "echo    Host disk  : not shared writable (sample is read-only)\r\n"
         "echo.\r\n"
         "echo    This VM is THROWAWAY. Whatever the sample does - including\r\n"
-        "echo    overwriting the MBR (e.g. MEMZ) - only destroys THIS VM.\r\n"
+        "echo overwriting the MBR (e.g. MEMZ) - only destroys THIS VM.\r\n"
         "echo    Close the Windows Sandbox window to discard everything.\r\n"
         "echo ============================================================\r\n"
         "echo.\r\n"

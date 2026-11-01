@@ -115,7 +115,7 @@ void KernelBootSession::Prepare(const KernelImage& image, uint64_t ramBytes, uin
     Require(!cpu.threads || (cpu.enabled && !cpu.memory), "Thread mode requires CPU and a distinct image contract");
     Require(!cpu.processes || (cpu.enabled && !cpu.memory && !cpu.threads), "Process mode requires CPU and a distinct contract");
     Require(!cpu.io || (cpu.enabled && cpu.processes && !cpu.memory && !cpu.threads), "I/O requires the process image contract");
-    Require(!cpu.storage || (cpu.io && cpu.processes && !storage.base.empty() && !storage.overlay.empty()), "Storage requires I/O and explicit base/overlay paths");
+    Require(!cpu.storage || (cpu.io && cpu.processes && !storage.base.empty() && !storage.overlay.empty()), "Storage requirements I/O and explicit base/overlay paths");
     Require(cpu.graphics || (graphics.output.empty() && graphics.input.empty() && graphics.script.empty() && !graphics.continuous && !graphics.interactive && !graphics.poll && !graphics.display), "Graphics options require a graphics image");
     Require(!cpu.graphics || (cpu.enabled && !cpu.memory && !cpu.threads && (!cpu.processes||externalGuiKernel_||externalPeKernel_) && !cpu.network), "Graphics requires a distinct CPU profile");
     Require(!cpu.network || (cpu.enabled && !cpu.memory && !cpu.threads && (!cpu.processes||analysisKernel_)), "Network image contract requires the CPU profile");

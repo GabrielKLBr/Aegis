@@ -288,7 +288,7 @@ void NtKernel::Dispatch(MicroVm& vm) {
             wr(8, profile_.minor);   // dwMinorVersion
             wr(12, profile_.build);  // dwBuildNumber
             wr(16, 2);               // dwPlatformId = VER_PLATFORM_WIN32_NT
-            report_.Add(ReportBuilder::Cat::Device, "query", "OS version",
+            report_.Add(ReportBuilder::Cat::Device, "query", "Os version",
                         profile_.name + " (build " + std::to_string(profile_.build) + ")");
             SetReg(vm, WHvX64RegisterRax, 0);          // STATUS_SUCCESS
             break;

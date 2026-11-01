@@ -147,7 +147,7 @@ def main():
         require(all(r["success"] for r in read(build / f"phase3-cli-{config}.json")["boots"]), "Memory CLI failed")
     require("Kernel PE32+ x64 valid" in (build / "phase3-clean-debug-build.log").read_text(encoding="utf-8", errors="replace"), "Clean build evidence absent")
     modified = ["guest/CpuKernel.cpp", "guest/CMakeLists.txt", "cmake/GuardianPlatform.cmake", "src/microvm/boot/KernelBoot.h",
-                "src/microvm/boot/KernelBoot.cpp", "src/microvm/boot/BootMain.cpp", "README.md", "docs/ROADMAP-COMPLETO.md"]
+                "src/microvm/boot/KernelBoot.cpp", "src/microvm/boot/BootMain.cpp", "README.md", "docs/COMPLETE-ROADMAP.md"]
     created = ["shared/guardian/Memory.h", "guest/MemoryManager.h", "guest/MemoryManager.cpp", "guest/MemoryKernel.h",
                "guest/MemoryKernel.cpp", "guest/MemoryUser.asm", "test/GuestMemoryTests.cpp", "test/GuestMemoryBootTests.cpp",
                "config/phase3-acceptance.json", "docs/PHASE-3.md", "tools/validate_phase3.py"]

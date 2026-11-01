@@ -60,7 +60,7 @@ def matrices(build):
         details = (build / f"phase7-{config.lower()}-tests-details.log").read_text(encoding="utf-8", errors="replace")
         require("693 freestanding process/security checks PASS" in details and "983 freestanding scheduler checks PASS" in details,
                 "Native core checks missing: " + config)
-        require("630 freestanding I/O checks PASS" in details and "95 host I/O boundary checks PASS" in details, "I/O unit evidence missing")
+        require("630 freestanding I/O PASS checks" in details and "95 host I/O bondary checks PASS" in details, "I/O unit evidence missing")
         require("784 freestanding storage checks PASS" in details and "32 persistent host/overlay checks PASS" in details, "Storage unit evidence missing")
         for name, filename, negatives in (("storage", f"phase7-boots-{config}", 18),
                                          ("io", f"phase7-regression-phase6-boots-{config}", 22),
@@ -183,7 +183,7 @@ def main():
             require(len(data) == 65536 and not any(data), "Owned blank base disk was modified: " + str(p))
     modified = ["guest/CpuKernel.cpp", "guest/ProcessKernel.cpp", "guest/ProcessUser.asm", "guest/IoKernel.h", "guest/IoKernel.cpp", "shared/guardian/Io.h",
                 "guest/CMakeLists.txt", "cmake/GuardianPlatform.cmake", "src/microvm/boot/IoBackend.h", "src/microvm/boot/IoBackend.cpp",
-                "src/microvm/boot/KernelBoot.h", "src/microvm/boot/KernelBoot.cpp", "src/microvm/boot/BootMain.cpp", "README.md", "docs/ROADMAP-COMPLETO.md"]
+                "src/microvm/boot/KernelBoot.h", "src/microvm/boot/KernelBoot.cpp", "src/microvm/boot/BootMain.cpp", "README.md", "docs/COMPLETE-ROADMAP.md"]
     created = ["shared/guardian/Storage.h", "guest/Volume.h", "guest/Volume.cpp", "guest/StorageChecks.cpp", "guest/StorageKernel.h", "guest/StorageKernel.cpp",
                "src/microvm/boot/PersistentBlockStore.h", "src/microvm/boot/PersistentBlockStore.cpp", "test/GuestStorageCoreTests.cpp", "test/GuestStorageHostTests.cpp", "test/GuestStorageBootTests.cpp",
                "config/phase7-acceptance.json", "docs/PHASE-7.md", "tools/validate_phase7.py"]

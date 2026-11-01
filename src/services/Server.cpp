@@ -155,7 +155,7 @@ struct Process {
         PROCESS_INFORMATION info{};
         PSECURITY_DESCRIPTOR descriptor = nullptr;
         Check(ConvertStringSecurityDescriptorToSecurityDescriptorW(
-                  L"O:SYD:P(A;;GA;;;SY)(A;;GA;;;BA)", SDDL_REVISION_1, &descriptor, nullptr) != FALSE,
+                  L"O:SYD:P(A;;GA;;;SY)(A;;GA;;BA)", SDDL_REVISION_1, &descriptor, nullptr) != FALSE,
               "Protect worker process/thread");
         SECURITY_ATTRIBUTES objectSecurity{sizeof(objectSecurity), descriptor, FALSE};
         const auto created =

@@ -1,131 +1,62 @@
-# 14.10D — Controles, diálogos e aceitação da GUI nativa
+# 14.10D — Controls, dialogues and acceptance of the native GUI
 
-Entrega delimitada para aplicativos x64 no perfil NT 10.0.19045. O modo
-**--native-controls** usa janelas, controles e GDI reais do Windows host.
-O aplicativo, suas DLLs e seus callbacks continuam no MiniNT; o EXE externo
-não é carregado no host. As variantes A/B/C e o apresentador 12F são preservados.
+Delimited delivery for x64 applications in the NT profile 10.0.19045. **--native-controls** mode uses actual Windows host windows, controls and GDI. The application, its DLLs and its callbacks remain in the MiniNT; the external EXE is not loaded into the host. The A/B/C variants and the 12F host are preserved.
 
-## Contrato e funções
+## Contract and functions
 
-A variante usa guardian-kernel-native-controls.gk, capacidade
-GuardianNativeControls/4/guest, protocolo v4 e guardian-native-controls-host.exe.
-O CLI verifica kernel, modo e SHA-256 do auxiliar. USER32/GDI32/WIN32U próprios
-e forwarders próprios COMDLG32, COMCTL32 e DWMAPI atendem os exports declarados
-nas tabelas NativeControlsUser.def, NativeControlsGdi32.def e NativeControls-*.def.
+The variant uses guardian-kernel-native-controls.gk, capacity GuardianNativeControls/4/guest, protocol v4 and guardian-native-controls-host.exeCLI checks kernel, mode and SHA-256 The aide. USER32/GDI32/WIN32U own forwarders and COMDLG32, COMCTL32 and DWMAPI meet the exports declared in the tables NativeControlsUser.def, NativeControlsGdi32.def and NativeControls-*.def.
 
-- LISTBOX e COMBOBOX nativos, com strings, seleção e mensagens mediadas.
-- Menus de texto, submenus de um nível e notificações nas janelas da sessão.
-- STATIC com ícone; ícones padrão e ICO limitado a DIB 32 bits até 64×64.
-  A decodificação ocorre no convidado; CreateIconIndirect recebe um bitmap
-  validado no auxiliar. Esses ícones são tratados como opacos neste lote;
-  PNG e todas as combinações de transparência do ICO não são declarados.
-- WM_SETFONT/WM_GETFONT nos controles e WM_SETICON/WM_GETICON nas janelas.
-  Objetos selecionados ficam retidos até a liberação da referência.
-- CreateFontA/CreateFontIndirectA e TextOutA com conversão CP1252. O catálogo
-  admite Arial, Consolas, Segoe UI, Sans Serif, MS Shell Dlg, MS Shell Dlg 2 e
-  seleção padrão. A face resolvida e as métricas são as do Windows host.
-- MessageBoxA/W e um recorte GetOpenFileNameA/W, com controles nativos e
-  modalidade/callbacks no MiniNT.
-- Desktop lógico de 1280×720, cores/pincéis de sistema, estilos estendidos
-  permitidos, foco da sessão e atributo de tema escuro.
+- LISTBOX and COMBOBOX natives, with strings, selection and mediated messages.
+- Text menus, one-level submenus and notifications in session windows.
+- STATIC with icon; standard icons and ICO limited to 32-bit DIB up to 64×64.
+  Decoding occurs in the guest; CreateIconIndirect receives a bitmap validated in the helper. These icons are treated as opaque in this batch; PNG and all ICO transparency combinations are not declared.
+- WM_SETFONT/WM_GETFONT in the controls and WM_SETICON/WM_GETICON in the windows.
+  Selected objects are retained until the reference is released.
+- CreateFontA/CreateFontIndirectA and TextOutA with conversion CP1252. The catalog
+  admits Arial, Consoles, Segoe UI, Sans Serif, MS Shell Dlg, MS Shell Dlg 2 and standard selection. The resolved face and metrics are Windows host.
+- MessageBoxA/W and a GetOpenFileNameA/W clipping, with native controls and
+  mode/callbacks no MiniNT.
+- logical 1280×720 desktop, system colors/pins, extended styles
+  allowed, session focus and dark theme attribute.
 
-Declarar um export não significa aceitar todas as suas opções. Mensagens
-arbitrárias, owner draw e ponteiros do convidado não são enviados a controles.
+Declaring an export does not mean accepting all your options. Arbitrary messages, owner draw and guest pointers are not sent to controls.
 
-## Arquivos, modalidade e apresentação
+## Archives, modality and presentation
 
-O seletor é um diálogo de entrada de caminho no namespace convidado. Usa
-CreateFile do MiniNT para abrir arquivos existentes; não utiliza o navegador
-Shell nem os discos pessoais do host. Cancelamento e erro são distintos,
-com CommDlgExtendedError e validação dos buffers. Hooks, templates, seleção
-múltipla, salvamento e navegação Shell completa ficam fora deste recorte.
+The selector is a path input dialog in the guest namespace. Use CreateFile ed MiniNT to open existing files; does not use Shell browser or personal host disks. Cancellation and error are different, with CommDlgExtendedError and validation of buffers. Hooks, templates, multiple selection, rescue and full Shell navigation stay out of this clipping.
 
-Os diálogos desabilitam o proprietário e restauram seu estado ao encerrar.
-Ponteiros de procedimentos e estado da aplicação permanecem no convidado.
-Clipboard, drag/drop e ativação arbitrária de COM/Shell não são liberados.
+The dialogs disable the owner and restore his state upon termination. Procedure pointers and application status remain in the guest. Clipboard, drag/drop and arbitrary activation of COM/Shell are not released.
 
-A visão lógica usa 96 DPI. O auxiliar cria, move, dimensiona e pinta os HWNDs
-reais. Sua política explícita guest-bounded-rectangles impede que mínimos
-automáticos do gerenciador do host ampliem um retângulo solicitado pelo
-convidado, inclusive antes de WM_NCCREATE e durante movimentação. Isso atende
-às pequenas janelas do Flappy. A referência SDK aplica a mesma política e
-confere criação e movimento. Não se declara equivalência universal com o
-gerenciamento de janelas de uma instalação Windows; callbacks gerais de
-WM_GETMINMAXINFO/WM_WINDOWPOSCHANGING não recebem ponteiros do host.
+The logical view uses 96 DPI. The helper creates, moves, measures and paints the real HWNDs. Its explicit policy guest-bound-rectangles prevents automatic minimums of the host manager from expanding a rectangle requested by the guest, including before WM_NCCREATE and during drive. This meets the small Flappy windows. The SDK reference applies the same policy and gives creation and movement. It does not declare universal equivalence with the window management of a Windows installation; general WM_GETMINMAXINFO/WM_WINDOWPOSCHANGING callbacks do not receive host pointers.
 
-Texto, fontes e formas são desenhados por GDI no host. Bitmaps/ícones da
-aplicação podem atravessar o contrato limitado; a janela não é rasterizada
-previamente no MiniNT. Fallback da 12F não conta como aceitação nativa.
-Versões do Windows host e do NT alvo são registradas separadamente. Fontes,
-substituições, temas e DPI podem variar; as comparações valem para a máquina
-registrada, sem equivalência automática entre todas as versões NT.
+Text, fonts and shapes are designed by GDI in the application host. Bitmaps/icons can cross the limited contract; the window is not rasterized previously in MiniNT. Fallback of 12F does not count as native acceptance. Versions of Windows host and target NT are recorded separately. Sources, substitutions, themes and DPI may vary; comparisons are valid for the registered machine, without automatic equivalence between all NT versions.
 
-## Limites e isolamento
+## Limits and isolation
 
-Até 32 janelas/superfícies, clientes de 1280×720, 128 entradas GDI, 32 DCs,
-24 MiB de pixels e 8 MiB enviados por sessão, mantendo os limites de bitmap e
-texto da 14.10C. Há oito menus, 32 itens por menu e 32 ícones; menus, ícones e
-timers compartilham um teto de 64 entradas. Textos USER32 têm até 255 unidades
-UTF-16; textos GDI, até 127.
+Up to 32 windows/surfaces, customers of 1280×720, 128 GDI entries, 32 DCs, 24 MiB of pixels and 8 MiB sent per session, maintaining the bitmap and text limits of 14.10C. There are eight menus, 32 items per menu and 32 icons; menus, icons and timers share a ceiling of 64 entries. USER32 texts have up to 255 UTF-16 units; GDI texts, up to 127.
 
-IDs são vinculados à sessão, processo e thread. HWND/HDC/HFONT/HICON reais,
-ponteiros e procedimentos do host não atravessam o canal. Recursos em DCs,
-controles ou estados salvos não podem ser apagados enquanto referenciados.
-O encerramento remove as janelas/controles antes dos objetos associados.
+IDs are linked to the session, process and thread. Real HWND/HDC/HFONT/HICON, hands and host procedures do not cross the channel. Resources in DCs, controls or saved states cannot be deleted as referenced. Closing removes windows/controls before associated objects.
 
-O auxiliar mantém token restrito, integridade baixa, Job de um processo,
-64 MiB privados e dois endpoints herdados. As esperas do protocolo D usam
-timers anônimos de alta resolução por thread, preservando tamanho, sequência,
-monitor de consumo, timeout e encerramento. A resolução global não é alterada.
-Essas medidas não garantem ausência de escape: o auxiliar não é AppContainer
-e seu perfil não impede toda leitura de arquivos. Ver [SECURITY.md](../SECURITY.md).
+The assistant keeps token restricted, low integrity, Job of a process, 64 private MiB and two inherited endpoints. The D protocol waits use anonymous high-resolution thread timers, preserving size, sequence, consumption monitor, timeout and closure. The global resolution is not changed. These measures do not guarantee absence of escape: the auxiliary is not AppContainer and its profile does not prevent all file reading. See [SECURITY.md](../SECURITY.md).
 
-## Aceitação e uso
+## Acceptance and Use
 
-Critério: **158 testes Release de regressão e 83 Debug de aceitação**, sem
-ignorados e com fontes/binários estáveis, mais teste do ZIP extraído. Os seis
-testes novos cobrem protocolo, auxiliar real, referência SDK, integração,
-Flappy e rejeições de execução/empacotamento.
+Criterion: **158 Regression Release and 83 Debug acceptance tests**, without ignored and with stable source code/binary, plus extracted ZIP test. The six new tests cover protocol, real auxiliary, SDK reference, integration, Flappy and implementation/empacotamento. rejections
 
-O corpus inclui uma aplicação de controles/menus/seletor, um editor ANSI,
-threads, a cena GDI da 14.10C e o Flappy original. As mesmas fontes SDK de
-controles/editor e a cena GDI também executam como referências nativas,
-comparando resultados, fontes, métricas, pixels e geometria.
+The corpus includes an application of controls/menus/selector, an ANSI editor, threads, the GDI scene of 14.10C and the original Flappy. The same SDK sources of controls/editor and the GDI scene also perform as native references, comparing results, sources, metrics, pixels and geometry.
 
-Os cenários incluem confirmação/cancelamento, entrada nos controles nativos,
-modalidade, arquivo convidado e recusa de um arquivo existente somente no
-host, redimensionamento, concorrência, encerramento, queda, prazo e morte
-do auxiliar. Autoria, tipos inválidos, seleção, cotas, falhas parciais e
-vazamentos são verificados.
+Scenarios include confirmation/cancellation, native controls entry, mode, guest file and refusal of an existing file only in the host, resizing, competition, closing, fall, deadline and death of the auxiliary. Authorship, invalid types, selection, quotas, partial failures and leaks are verified.
 
-Flappy permanece inalterado, com SHA-256
-f6f41a43ccaab59dc278d90127f76d96b75d6369dd5283a234cb5ec5765fefa6.
-São três sessões: configuração normal, alternativa e normal. Conferem-se
-janelas independentes, movimento, teclas, texto do placar capturado da
-própria janela e limpeza. EXE/assets originais não são redistribuídos.
-Diagnósticos CRT anteriores, como HeapSetInformation sem suporte, permanecem
-registrados e não equivalem a um runtime Windows completo.
+Flappy remains unchanged, with SHA-256 f6f41a43ccaab59dc278d90127f76d96b75d6369dd5283a234cb5ec5765fefa6. These are three sessions: normal, alternative and normal configuration. Independent windows, movement, keys, captured scoreboard text from the window itself and cleaning are provided. EXE/assets Originals are not redistributed. Previous CRT diagnostics such as HeapSetInformation without support, they remain registered and do not equal a complete Windows runtime.
 
-Relatórios native-controls.json, boot.json e analysis.json, referências e
-capturas próprias acompanham as evidências. Erros de desenvolvimento ficam
-separados da matriz final.
+Reports native-controls.json, boot.json and analysis.json, references and own captures follow the evidence. Development errors are separated from the final matrix.
 
-Na regressão Windows, o teste antigo de vínculo de pacotes passou a usar
-aplicação, DLL e kernel compilados do projeto: o container PE artificial que
-ele criava foi bloqueado pelo Defender (erro Win32 225). A proteção permanece
-ativa; os casos específicos do parser continuam sintéticos. Também foi
-acrescentada uma espera limitada pela primeira apresentação visível da 12F,
-para que o convidado não avance enquanto suas primeiras janelas são criadas;
-os quadros seguintes mantêm a coalescência assíncrona.
+In Windows regression, the old package bond test started using application, DLL and kernel compiled from the project: the artificial PE container he created was blocked by the Defender (Win32 225 error). The protection remains active; the parser specific cases remain synthetic. Also a limited wait for the first visible presentation of the 12F was added, so the guest does not advance while his first windows are created; the following frames maintain asynchronous coalescence.
 
-    python -B tools/native_controls_runtime.py --build PASTA-BUILD --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output pacote-controles
-    PASTA-BUILD/Release/guardian-desktop.exe PASTA-BUILD/guest/Release/guardian-kernel-native-controls.gk pacote-controles/runtime.gpv pacote-controles/manifest.json pacote-controles/binding.gnt sessao-nova --native-controls --seconds 30
+    Python -B tools/native_controls_runtime.py --build PASTA-BUILD --config Release --reference PASTA-CRT --schema-reference SCHEMA-LEGAL --output PASTA-BUILD/Release/guardian-desktop.exe PASTA-BUILD/guest/Release/guardian-kernel-native-controls.gk control package/runtime.gpv control package/manifest.json control package/binding.gnt session-new --native-controls --seconds 30
 
-Para Flappy, fornecer --application CAMINHO-FLAPPY e --asset para settings.txt
-e icon.ico. Usar saídas novas. Alvo CMake: guardian_native_controls_runtime.
+For Flappy, provide --application WAY-FLAPPY and --asset for settings.txt and icon.ico. Use new outputs. Target CMake: guardian_native_controls_runtime.
 
-USER32/GDI universais, todos os controles, diálogos Shell completos, fontes
-arbitrárias e todos os perfis NT não são declarados. A expansão GDI segue na
-14.10E; DirectX e mídia/áudio ficam na 14.10F/G.
+Universal USER32/GDI, all controls, full Shell dialogs, arbitrary sources and all NT profiles are not declared. GDI expansion follows on 14.10E; DirectX and media/audio stay on 14.10F/G.
 
-**Parar ao concluir a 14.10D. A 14.10E exige nova solicitação.**
+**Stop when completing 14.10D. The 14.10E requires a new request.**

@@ -1,166 +1,79 @@
-# Fase 5 — Processos, objetos e segurança no convidado
+# Phase 5 — Guest processes, objects and security
 
-Base ativa: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`.
-Imagem: `guardian-kernel-processes.gk`, versão 0.5.0, x64, uma vCPU, WHP.
-Estado: concluída em 16/10/2026. A fase 6 não foi iniciada.
+Active base: `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`. Image: `guardian-kernel-processes.gk`, version 0.5.0, x64, a vCPU, WHP. Status: completed in 16/10/2026. Phase 6 was not initiated.
 
-## Implementação
+## Implementation
 
-`guest/ProcessManager.cpp` implementa processos, tabelas de handles, objetos,
-tokens e decisões de acesso em estruturas limitadas, sem STL, CRT ou APIs do
-Windows host. `ProcessKernel.cpp` integra esse gerenciador à memória da fase 3,
-ao escalonador da fase 4 e às entradas de syscall/interrupção da fase 2. O WHP
-executa o código do convidado; o host transporta os relatórios, pedidos de
-permissão física e interrupções de timer existentes.
+`guest/ProcessManager.cpp` implements processes, handle tables, objects, tokens and access decisions in limited structures, without STL, CRT or Windows host APIs. `ProcessKernel.cpp` integrates this manager to phase 3 memory, to phase 4 scheduler and to phase 2 syscall/interruption entries. WHP executes guest code; the host transports reports, physical permission requests, and existing timer interruptions.
 
-### Processos e memória
+### Processes and memory
 
-Cada processo possui um espaço de endereços com CR3, dados, alocações privadas,
-pilhas e contexto de segurança próprios. A seleção de uma thread também
-seleciona o espaço de seu processo. O mesmo endereço virtual pode conter dados
-diferentes em cada processo. As páginas de kernel permanecem supervisoras.
+Each process has an address space with CR3, data, private allocations, batteries and own security context. The selection of a thread also selects the space of its process. The same virtual address may contain different data in each process. The kernel pages remain supervisors.
 
-A entrada no kernel salva o contexto e ativa um espaço separado de kernel e
-ociosidade. A recuperação de um processo encerrado acontece depois de sair
-de seu CR3. Terminar um processo encerra todas as suas threads, cancela suas
-esperas, abandona os locks possuídos e recupera memória e handles. Um fault em
-CPL3 encerra o processo responsável; os demais continuam sendo escalonados.
+The kernel entry saves the context and activates a separate kernel space and idleness. Recovery of a closed process happens after leaving your CR3. Finishing a process closes all your threads, cancels your waits, abandons the possessed locks and recovers memory and handles. One default in CPL3 closes the responsible process; the others continue to be staggered.
 
-Criar um filho deriva seu token do pai e recebe uma lista explícita de handles
-herdáveis. A criação é transacional: falhas no espaço de memória, objetos,
-handles ou herança parcial desfazem o que já foi criado. O programa de boot
-também desfaz pilhas e threads se falhar a preparação do filho.
+Raising a child derives its token from the father and receives an explicit list of inherited handles. Creation is transactional: memory space failures, objects, handles or partial inheritance undo what has already been created. Boot program also undoes stacks and threads if the child's preparation fails.
 
-`ExecutionContext.h` reúne o mesmo contexto de 720 bytes usado na fase 4:
-registradores gerais, RIP/RSP, RFLAGS filtradas, seletores, bases FS/GS e
-FXSAVE64. As imagens de threads e processos usam essas rotinas comuns. A
-regressão de threads continua verificando x87/MMX/SSE, XMM0–15, estado de
-arredondamento e o caso NT/IRETQ corrigido na fase 4. AVX/XSAVE continuam
-desabilitados. `StackProbe.asm` fornece um `__chkstk` real para frames de
-pilha maiores que uma página, tocando cada página intermediária e preservando
-os registradores exigidos pela ABI do compilador.
+`ExecutionContext.h` brings together the same context of 720 bytes used in phase 4: General Loggers, RIP/RSP, filtered RFLAGS, selectors, FS/GS and FXSAVE64 bases. Threads and processes images use these common routines. Thread regression continues to check x87/MMX/SSE, XMM0–15, rounding status and NT/IRETQ case corrected in phase 4. AVX/XSAVE remain disabled. `StackProbe.asm` provides a real `__chkstk` for stack frames larger than a page, touching each intermediate page and preserving the loggers required by the ABI of the compiler.
 
-### Handles, referências e namespace
+### Handles, references and namespace
 
-Handles pertencem à tabela de um processo e carregam tipo de objeto, máscara
-de acesso concedida e atributos de herança/proteção contra fechamento. Valores
-novos são monotônicos; IDs de processo e objeto têm geração. Copiar um número
-de handle de outro processo não o torna válido na tabela local. Na herança
-autorizada, o filho recebe intencionalmente o mesmo valor do handle herdado.
+Handles belong to the table of a process and carry type of object, access mask granted and attributes of inheritance/protection against closing. New values are monotonic; Process IDs and object have generation. Copying a handle number from another process does not make it valid in the local table. In the authorized inheritance, the child intentionally receives the same value of the inherited handle.
 
-Duplicação exige o direito de duplicar no handle de origem e no handle do
-processo de destino. O resultado não pode ampliar a máscara da origem e passa
-pela ACL e integridade do token destinatário. A herança também revalida o
-acesso do filho. Essa política é da ABI interna, mais restritiva que uma
-transferência de capacidade sem revalidação; não se declara equivalência
-binária com `DuplicateHandle` ou criação de processos do Windows.
+Duplication requires the right to duplicate in the handle of origin and in the handle of the destination process. The result cannot enlarge the mask of origin and passes through the ACL and integrity of the recipient token. The inheritance also revalidates the access of the child. This policy is internal ABI, more restrictive than a transfer of capacity without revalidation; no binary equivalence with `DuplicateHandle` or creation of Windows processes is declared.
 
-Referências de handles, esperas pendentes e propriedade de locks mantêm o
-objeto vivo. Fechar o último handle durante uma espera ou enquanto há dono não
-destrói o objeto prematuramente. Um objeto compartilhado pode sobreviver à
-saída de seu criador enquanto outro processo ou uma espera o referencia.
-Objetos de conclusão de processo/thread também sobrevivem ao reap quando
-existem referências externas; o código de saída permanece consultável.
+Handles references, pending waits and lock property keep the object alive. Close the last handle during a wait or while there is owner does not destroy the object prematurely. A shared object can survive the output of its creator while another process or waits for the reference. Case/thread completion objects also survive the reap when external references exist; the output code remains consultable.
 
-Há nomes `\Global\nome` e `\Session\nome`, separados pela sessão numérica do
-token. Criar um nome global exige o privilégio interno `CreateGlobal`; abrir
-um nome existente exige os direitos solicitados na ACL. Nomes são ASCII,
-sensíveis a maiúsculas, sem componentes de caminho, com até 63 bytes no nome
-final. Colisão de tipos é recusada. Esses nomes não são caminhos do host.
+There are `\Global\nome` and `\Session\nome` names, separated by the numerical session of the token. Creating a global name requires the internal privilege `CreateGlobal`; opening an existing name requires the rights requested in the ACL. Names are ASCII, capital sensitive, no path components, with up to 63 bytes in the final name. Type collision is refused. These names are not host paths.
 
-### Tokens e decisões de acesso
+### Tokens and access decisions
 
-Tokens imutáveis registram usuário, grupo primário, até quatro grupos
-suplementares, sessão, três níveis de integridade e o privilégio de criar
-objetos globais. As identidades são números internos do convidado; não são
-tokens ou credenciais do Windows host. O filho mantém identidade, sessão e
-grupo primário, pode reduzir integridade/privilégios e converter grupos
-habilitados em grupos usados somente para negações. Não pode adicionar grupos,
-remover grupos do pai ou reabilitar um grupo de negação. Pai e filho são
-validados antes de comparar restrições.
+Unchangeable Tokens register user, primary group, up to four additional groups, session, three levels of integrity and the privilege of creating global objects. Identities are internal guest numbers; they are not Windows host tokens or credentials. The child maintains identity, session, and primary group, can reduce integrity/privileges and convert enabled groups into groups used only for denials. You cannot add groups, remove parent groups, or rehabilitate a denial group. Father and child are validated before comparing restrictions.
 
-Descritores guardam proprietário, grupo, integridade, política de não escrever
-para nível superior e uma DACL de até oito entradas. A DACL aceita usuário,
-grupo ou todos, com negações antes das permissões. DACL vazia nega; DACL ausente
-permite, depois da política de integridade. O proprietário tem controle
-implícito de leitura/alteração da DACL. Grupos de negação não concedem acesso.
+Descriptors keep owner, group, integrity, non-writing policy to higher level and a DACL of up to eight entries. DACL accepts user, group or all, with denials before permissions. DACL empty denies; DACL absent allows, after integrity policy. The owner has implicit control of DACL reading/Amendment. Denial groups do not grant access.
 
-Os direitos incluem esperar, consultar, modificar, duplicar, ler/escrever
-memória de processo, terminar, criar filho e ler/alterar DACL. Direitos
-genéricos são convertidos por tipo; bits inválidos são recusados. Alterar a
-DACL exige `WriteDac` e não permite mudar proprietário, grupo ou rótulo por
-esse caminho. A mudança afeta novas aberturas, preservando máscaras já
-concedidas. A política de integridade bloqueia operações de escrita/controle
-de nível inferior sobre objeto superior; leitura é decidida pela DACL.
+Rights include waiting, query, modify, duplicate, read/write process memory, ending, raising child and read/change DACL. Generic rights are converted by type; invalid bits are refused. Changing DACL requires `WriteDac` and does not allow changing owner, group or label by that way. Change affects new openings, preserving already granted masks. Integrity policy blocks lower level writing/control operations on higher object; reading is decided by DACL.
 
-Cópias entre processos exigem handles com direitos explícitos de leitura ou
-escrita de memória. Todos os bytes de origem e destino são validados antes
-de modificar qualquer destino. Há limite de 4 KiB e um buffer intermediário
-para sobreposição. Endereços são traduzidos pelas tabelas do convidado; um
-ponteiro recebido de CPL3 não vira um ponteiro arbitrário do host.
+Copying between processes requires handsets with explicit read or write rights of memory. All bytes of origin and destination are validated before modifying any destination. There is a limit of 4 KiB and an intermediate buffer for overlapping. Addresses are translated by the guest tables; a pointer received from CPL3 does not become an arbitrary host pointer.
 
-## Exercícios de aceitação
+## Acceptance exercises
 
-O mesmo núcleo de 693 verificações executa em teste nativo e em CPL0 a cada
-boot da imagem de processos. Ele cobre restrições de token, DACL vazia/nula,
-grupos de negação, direitos, integridade, tipos, namespacing por sessão,
-duplicação, herança parcial, proteção contra fechamento, referências e
-recuperação. Inclui esgotamento de 32 handles, 64 objetos e quatro threads por
-processo, quota de commit, todas as 21 posições de falha na criação de um
-espaço de memória e 128 ciclos completos de criação/encerramento.
+The same core of 693 checks performs in native test and CPL0 on each boot of the process image. It covers restrictions of token, DACL empty/nil, denial groups, rights, integrity, types, namespacing per session, duplication, partial inheritance, closing protection, references and recovery. Includes exhaustion of 32 handles, 64 objects and four threads per process, commit quota, all 21 failed positions in creating a memory space and 128 complete cycles of creation/closure.
 
-O boot real cria três processos e quatro threads de usuário:
+The actual boot creates three processes and four user threads:
 
-- Pai e adversário começam com identidades diferentes. O pai cria um filho
-  por syscall, com integridade reduzida, sem privilégio global e com um único
-  handle de evento herdado para esperar/consultar.
-- Os três processos usam `0x40010000`, com conteúdos `0x1111`, `0x2222` e
-  `0x3333` em frames diferentes. O pai lê e escreve na memória do filho por
-  operações autorizadas. O filho não consegue abrir o pai para escrita.
-- O adversário não consegue ler a memória do pai, usar seu número de handle
-  ou sinalizar um evento aberto somente para esperar. Uma de suas threads
-  lê uma página supervisora e produz #PF real, vetor 14, erro 5, CPL3.
-  O kernel encerra suas duas threads, incluindo uma com laço sem syscalls.
-- Pai e filho continuam: o pai sinaliza o evento, aguarda a conclusão do filho,
-  consulta seu código de saída depois da recuperação e termina normalmente.
+- Father and adversary begin with different identities. Father raises a child
+  by syscall, with reduced integrity, without global privilege and with a single event handle inherited to wait/consult.
+- The three processes use `0x40010000`, with `0x1111`, `0x2222` and
+  `0x3333` in different frames. The father reads and writes in the son's memory for authorized operations. The son cannot open the father for writing.
+- The opponent can't read his father's memory, use his handle number
+  or signal an open event only to wait. One of your threads reads a supervisor page and produces real #PF, vector 14, error 5, CPL3. The kernel closes its two threads, including one with no syscalls loop.
+- Father and son continue: The father signs the event, awaits the conclusion of the son,
+  consults your output code after recovery and ends normally.
 
-O relatório exige dois términos normais, um processo com fault contido, pelo
-menos seis recusas de acesso, uma herança, duas cópias remotas autorizadas e
-quatro interrupções de timer reconhecidas. Ao fim há zero processos, objetos,
-handles e referências vivos. Restam somente os 21 frames do espaço de
-kernel/ociosidade. O teste aguarda explicitamente o mínimo de ticks; não
-presume que quatro interrupções sempre ocorreram antes de outra operação.
+The report requires two normal terminations, a suit with a missing process contained, at least six refusals of access, an inheritance, two authorized remote copies and four recognized timer interruptions. At the end there are zero processes, objects, handles and live references. Only the 21 frames of the kernel/ociosidade. space remain The test explicitly awaits the minimum of ticks; do not assume that four interruptions have always occurred before another operation.
 
-Cada configuração deve passar 40 boots de processos, 20 com 16 MiB e 20 com
-64 MiB, mais 12 casos externos negativos: formato/sessão/reservados/máscara de
-relatório inválidos, ordem, comando desconhecido, IN/OUT largo, replay e
-ausência de timer com watchdog. As fases 1–4 somam outros 160 boots positivos
-por configuração. Critérios: `config/phase5-acceptance.json`.
+Each configuration must pass 40 process bootes, 20 with 16 MiB and 20 with 64 MiB, plus 12 negative external cases: format/meeting/booked/mask invalid report, order, unknown command, IN/OUT wide, replay and no timer with watchdog. Phases 1–4 add up to 160 positive bootes per configuration. Criteria: `config/phase5-acceptance.json`.
 
-## Resultado verificado
+## Check result
 
-| Verificação | Resultado |
+| Scan | Result |
 |---|---|
-| Build completo Debug / Release | aprovado / aprovado |
-| CTest por configuração | 25 aprovados, zero falhas e zero ignorados |
-| Núcleo de processos/segurança | 693 verificações, nativo e em cada boot |
-| Boots positivos de processos | 80 (40 por configuração) |
-| Boots positivos de regressão das fases 1–4 | 320 |
-| Casos externos negativos | 160 (24 da fase 5 e 136 de regressão) |
-| Exemplos confiáveis do projeto | sete por configuração, 14 execuções aprovadas |
-| Imagens de produção auditadas | cinco por configuração, sem imports/TLS/relocations/W+X |
-| Compilação Debug limpa independente | aprovada, com cinco auditorias de imagem |
-| Artefatos do build completo | 54 executáveis e sete imagens por configuração |
-| Evidências históricas preservadas | 184 arquivos com SHA-256 inalterado |
+| Build complete Debug / Release | approved / approved |
+| CTest by configuration | 25 approved, zero failed and zero ignored |
+| cases/safety core | 693 verifications, native and in each boot |
+| Boots positive of cases | 80 (40 by configuration) |
+| Phase 1–4 positive regression boots | 320 |
+| Cases external negative | 160 (24 of phase 5 and 136 of regression) |
+| Examples reliable do project | seven per configuration, 14 approved executions |
+| Images of production auditadas | five per configuration without imports/TLS/relocations/W+X |
+| Build Debug clean independent | approved, with five image audits |
+| Full build artifacts | 54 executables and seven images per configuration |
+| Evidence historical preserved | 184 files with unchanged SHA-256 |
 
-Na matriz de processos, os tempos observados foram 103,089–123,917 ms em Debug
-e 75,177–103,123 ms em Release; são medidas desta máquina, não garantia de
-prazo. A imagem ocupa 524.288 bytes de espaço virtual em Debug e 499.712 em
-Release, ambas dentro do limite de 1 MiB do carregador. A verificação adicional
-da CLI executou mais dois boots de processos por configuração; eles não estão
-somados aos 400 boots da matriz acima.
+In the process matrix, the observed times were 103.089–123.917 ms in Debug and 75.177–103.123 ms in Release; they are measured by this machine, not guaranteed time. The image occupies 524.288 bytes of virtual space in Debug and 499.712 in Release, both within the limit of 1 MiB of the loader. Additional CLI verification ran two more bootes of processes per configuration; they are not added to the 400 bootes of the above matrix.
 
-## Compilar e executar
+## Build and execute
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Debug -FullBuild
@@ -169,81 +82,55 @@ somados aos 400 boots da matriz acima.
 .\build-codex\Release\guardian_boot.exe .\build-codex\guest\Release\guardian-kernel-processes.gk --processes --ram-mib 64 --repeat 2 --report .\build-codex\phase5-cli-Release.json
 ```
 
-`--processes` seleciona este contrato. Combinações com os contratos de memória
-ou threads são recusadas antes de alocar uma VM. As imagens anteriores continuam
-sendo compiladas e testadas. O transporte do novo relatório usa a porta EF e
-o endereço físico fixo `0x10B000`, com tamanho, versão, sessão e ordem validados.
-O WHP é usado diretamente, sem QEMU e sem alterar configurações do Windows.
+`--processes` selects this contract. Combinations with memory contracts or threads are refused before allocating a VM. Previous images continue to be compiled and tested. Transport of the new report uses the EF port and fixed physical address `0x10B000`, with validated size, version, session and order. WHP is used directly, without QEMU and without changing Windows settings.
 
-## Evidências e recuperação
+## Evidence and recovery
 
-Os resultados desta fase usam o prefixo `phase5-`, inclusive as regressões.
-Os 184 arquivos de evidência histórica mantêm seus hashes. O backup dos onze
-arquivos anteriores alterados fica em
-`snapshots/codex-before-phase5-20261016-201504/`, junto do inventário histórico.
-Há 14 arquivos novos de implementação, testes, configuração e documentação.
+Results of this phase use prefix `phase5-`, including the regressions. 184 Historical evidence files keep their hashes. Backup of the previous eleven files changed stays in `snapshots/codex-before-phase5-20261016-201504/`, next to the historical inventory. 14 new implementation files, tests, configuration and documentation.
 
-Evidências em `build-codex/`:
+Evidence ed `build-codex/`:
 
-- `phase5-full-debug-script.log`, `phase5-full-release-script.log` e
-  `phase5-*-tests-details.log`: builds completos e resultados individuais.
-- `phase5-boots-Debug.json`, `phase5-boots-Release.json`, seus `.negative.json`
-  e as regressões `phase5-regression-phase1-*` até `phase5-regression-phase4-*`.
-- `phase5-reference-programs.json`, `phase5-smoke.json` e
+- `phase5-full-debug-script.log`, `phase5-full-release-script.log` and
+  `phase5-*-tests-details.log`: complete builds and individual results.
+- `phase5-boots-Debug.json`, `phase5-boots-Release.json`, your `.negative.json`
+  and `phase5-regression-phase1-*` regressions to `phase5-regression-phase4-*`.
+- `phase5-reference-programs.json`, `phase5-smoke.json` and
   `phase5-cli-Debug.json` / `phase5-cli-Release.json`.
 - `phase5-image-audit.json`, `phase5-build-boundaries.json`,
-  `phase5-clean-configure.log` e `phase5-clean-debug-build.log`.
-- `phase5-change-manifest.json`: hashes das fontes anteriores/atuais, arquivos
-  criados, executáveis, imagens, evidências e matriz verificada. Revalidar sem
-  executar programas: `python tools/validate_phase5.py --snapshot snapshots/codex-before-phase5-20261016-201504`.
+  `phase5-clean-configure.log` and `phase5-clean-debug-build.log`.
+- `phase5-change-manifest.json`: hashes from previous/current sources, files
+  created, executable, images, evidence and verified matrix. Revalidate without running programs: `python tools/validate_phase5.py --snapshot snapshots/codex-before-phase5-20261016-201504`.
 
-A pasta `build-codex-phase5-clean/` contém a compilação Debug independente,
-com as cinco imagens de produção auditadas. LNK4281 é o aviso esperado da base
-fixa em 2 MiB, exigida pelo carregador. Tentativas intermediárias foram
-preservadas, inclusive a primeira execução que ainda não aguardava quatro ticks
-e a inclusão posterior do stack probe necessário ao freestanding Debug.
+The `build-codex-phase5-clean/` folder contains the independent Debug compilation, with the five output images audited. LNK4281 is the expected warning of the fixed base at 2 MiB, required by the loader. Intermediate attempts have been preserved, including the first execution that did not yet await four ticks and the subsequent inclusion of the stack probe required for the freestanding Debug.
 
-## Limites e parada
+## Limits and Stop
 
-| Recurso | Limite atual |
+| Resource | Current limit |
 |---|---:|
 | vCPUs | 1 |
-| Processos de usuário / espaços incluindo kernel | 3 / 4 |
-| Threads por processo | 4 |
-| Handles por processo, incluindo os internos | 32 |
-| Objetos no gerenciador de processos | 64 |
-| Arena virtual por processo | 16 MiB |
-| Páginas privadas comprometidas na arena por processo | 128 (512 KiB) |
-| Custo fixo adicional por espaço | 21 frames |
-| Grupos suplementares / entradas da DACL | 4 / 8 |
-| Tamanho de cópia remota | 4 KiB |
+| User processes/spaces including kernel | 3 / 4 |
+| Threads by Case | 4 |
+| Handles by process, including internals | 32 |
+| Objects in the process manager | 64 |
+| Arena virtual by Case | 16 MiB |
+| Private pages committed in the arena by process | 128 (512 KiB) |
+| Additional fixed cost per space | 21 frames |
+| Additional groups / DACL entries | 4 / 8 |
+| Remote copy size | 4 KiB |
 
-As pilhas consomem a quota de páginas privadas. Objetos do escalonador também
-têm seu próprio limite herdado da fase 4. Na fachada de processos, eventos e
-timers criados são automáticos; eventos manuais continuam no escalonador e
-nos objetos de conclusão. Esta imagem usa apenas a página RX de programas
-próprios de teste. Ainda não carrega aplicações Windows arbitrárias.
+Stacks consume the share of private pages. Scaler objects also have their own inherited limit of phase 4. In the facade of processes, events and times created are automatic; manual events continue in the scheduler and completion objects. This image uses only the RX page of own test programs. It does not yet load arbitrary Windows applications.
 
-Esta é uma ABI interna. Não implementa SIDs do Windows, logon, LSA,
-impersonação, privilégios NT completos, jobs, auditoria SACL, sessões gráficas
-ou paridade geral com estruturas/syscalls NT. A integração de permissões com
-I/O, arquivos, registro e rede pertence às fases seguintes. Loader e runtime
-são assunto da fase 8; compatibilidade ampliada com binários e drivers Windows,
-da fase 12. A conclusão desta fase não significa conclusão do antivírus nem
-garantia de que um programa não reconhecerá o ambiente.
+This is an internal ABI. It does not implement Windows SIDs, logon, LSA, impersonation, full NT privileges, jobs, SACL audit, graphical sessions or general parity with structures/syscalls NT. Integration of permissions with I/O, files, registry, and network belongs to the following phases. Loader and runtime are the subject of phase 8; expanded compatibility with binary and Windows drivers, of phase 12. The completion of this phase does not mean completion of the antivirus or guarantee that a program will not recognize the environment.
 
-O MiniNt do host permanece como referência; seus atalhos não atendem as
-syscalls da nova imagem. Foram executados somente programas próprios e
-exemplos confiáveis do projeto.
+Host MiniNt remains a reference; its shortcuts do not meet the syscalls of the new image. Only own programs and reliable examples of the project have been executed.
 
-Ao concluir a fase 5, parar. A fase 6 só começa após nova solicitação.
+At the end of phase 5, stop. Phase 6 only begins after further request.
 
-## Referências de semântica
+## Semantic references
 
-- [Microsoft: listas de controle de acesso](https://learn.microsoft.com/en-us/windows/win32/secauthz/access-control-lists)
-- [Microsoft: controle de acesso](https://learn.microsoft.com/en-us/windows/win32/secauthz/access-control/)
+- [Microsoft: Access Control Lists](https://learn.microsoft.com/en-us/windows/win32/secauthz/access-control-lists)
+- [Microsoft: Access Control](https://learn.microsoft.com/en-us/windows/win32/secauthz/access-control/)
 - [Microsoft: Mandatory Integrity Control](https://learn.microsoft.com/en-us/windows/win32/secauthz/mandatory-integrity-control)
-- [Microsoft: direitos de acesso a processos](https://github.com/MicrosoftDocs/win32/blob/docs/desktop-src/ProcThread/process-security-and-access-rights.md)
+- [Microsoft: access rights to processes](https://github.com/MicrosoftDocs/win32/blob/docs/desktop-src/ProcThread/process-security-and-access-rights.md)
 
-Essas referências orientam o modelo; as diferenças e limites da ABI própria
-estão declarados acima.
+These references guide the model; the differences and limits of the ABI itself are stated above.

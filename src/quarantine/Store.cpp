@@ -873,7 +873,7 @@ Json Store::Restore(const std::string &id, const fs::path &authorizedDirectory,
     if (!journaled) {
         result["complete"] = false;
         result["error"] =
-            "Cópia restaurada e verificada; histórico não atualizado. Cópia do cofre mantida. " +
+            "Copy restored and verified; history not updated. Copy of safe kept. " +
             historyError;
     }
     return result;

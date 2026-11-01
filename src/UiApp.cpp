@@ -154,11 +154,11 @@ static void RefreshServices() {
     for (int i = 0; i < 2; ++i) {
         const auto& state = g.services[i];
         const bool stable = state.state == SERVICE_RUNNING || state.state == SERVICE_STOPPED;
-        SetWindowTextW(g.serviceButtons[i + 1], state.Running() ? L"Desligar" : L"Ligar");
+        SetWindowTextW(g.serviceButtons[i + 1], state.Running() ? L"Stop" : L"Start");
         EnableWindow(g.serviceButtons[i + 1], !g.serviceBusy && state.installed && !state.error && stable);
     }
     EnableWindow(g.serviceButtons[0], !g.serviceBusy && !g.engine.IsRunning() && !g.sbxRunning);
-    SetWindowTextW(g.serviceButtons[0], g.services[0].installed || g.services[1].installed ? L"Reparar serviços..." : L"Instalar serviços...");
+    SetWindowTextW(g.serviceButtons[0], g.services[0].installed || g.services[1].installed ? L"Repair services..." : L"Install Services...");
 }
 
 static void ServiceAction(int action) {
@@ -166,7 +166,7 @@ static void ServiceAction(int action) {
     if (action == ID_SERVICE_INSTALL && (g.engine.IsRunning() || g.sbxRunning)) return;
     if (g.serviceThread.joinable()) g.serviceThread.join();
     g.serviceBusy = true;
-    { std::lock_guard lock(g.serviceMtx); g.serviceMessage = action == ID_SERVICE_INSTALL ? L"Aguardando a autorização do Windows..." : L"Atualizando o serviço..."; }
+    { std::lock_guard lock(g.serviceMtx); g.serviceMessage = action == ID_SERVICE_INSTALL ? L"Waiting for Windows authorization..." : L"Updating service..."; }
     RefreshServices();
     const bool stop = action != ID_SERVICE_INSTALL && g.services[action - ID_SERVICE_AV].Running();
     g.serviceThread = std::thread([action, stop] {
@@ -174,11 +174,11 @@ static void ServiceAction(int action) {
         try {
             if (action == ID_SERVICE_INSTALL) {
                 const auto result = av::services::Setup(g.hwnd);
-                if (result) av::services::WinError("Instalação dos serviços", result);
-                message = L"Serviços instalados. Use Ligar para iniciar cada engine.";
+                if (result) av::services::WinError("Installation of services", result);
+                message = L"Services installed. Use Start to start each engine.";
             } else {
                 av::services::SetRunning(action == ID_SERVICE_AV ? av::services::Kind::Antivirus : av::services::Kind::Sandbox, !stop);
-                message = stop ? L"Serviço desligado; as análises dele foram encerradas." : L"Serviço ligado.";
+                message = stop ? L"Service stopped; its scans have ended." : L"Service started.";
             }
         } catch (const std::exception& error) { message = av::services::Wide(error.what()); }
         { std::lock_guard lock(g.serviceMtx); g.serviceMessage = message; }
@@ -402,7 +402,7 @@ static void Button(const D2D1_RECT_F& r, const std::wstring& label,
 // ---------------------------------------------------------------------------
 // Layout + paint
 // ---------------------------------------------------------------------------
-static const wchar_t* kNav[6] = { L"Dashboard", L"Scan", L"Sandbox", L"Quarentena", L"Proteção", L"Configurações" };
+static const wchar_t* kNav[6] = { L"Dashboard", L"Scan", L"Sandbox", L"Quarantine", L"Protection", L"Settings" };
 
 static void PaintSidebar(float W, float H) {
     (void)W;
@@ -431,7 +431,7 @@ static void PaintSidebar(float W, float H) {
     }
 
     // footer
-    Text(g.services[0].Running() || g.services[1].Running() ? L"v1.0  •  Serviços ativos" : L"v1.0  •  Engines desligadas", g.fSmall.Get(),
+    Text(g.services[0].Running() || g.services[1].Running() ? L"v1.0 • Services running" : L"v1.0  •  Engines desligadas", g.fSmall.Get(),
          RectF(S(20), H - S(40), S(210), H - S(16)), T.textDim);
 }
 
@@ -460,9 +460,9 @@ static void PaintDashboard(float W, float H) {
 
     if (!scanning) {
         DrawShieldCheck(x + S(64), hy + S(84), S(40), g.services[0].Running() ? T.good : T.textDim);
-        Text(g.services[0].Running() ? L"Engine do antivírus ligada" : L"Engine do antivírus desligada", g.fH1.Get(),
+        Text(g.services[0].Running() ? L"Antivirus engine is running" : L"Turn off antivirus engine", g.fH1.Get(),
              RectF(x + S(130), hy + S(44), W - S(60), hy + S(78)), T.text);
-        std::wstring protectionText;{std::lock_guard lock(g.pMtx);protectionText=g.pReport.value("monitoringActive",false)?L"Monitoramento do serviço ativo":L"Consulte Proteção para configurar ou verificar a cobertura";}
+        std::wstring protectionText;{std::lock_guard lock(g.pMtx);protectionText=g.pReport.value("monitoringActive",false)?L"Active service monitoring":L"Open Protection to configure or check coverage";}
         Text(protectionText, g.fBody.Get(),
              RectF(x + S(130), hy + S(84), W - S(60), hy + S(110)), T.textDim);
     } else {
@@ -577,63 +577,63 @@ static void PaintScanPage(float W, float H) {
 
 static std::wstring BaseName(const std::wstring& p);
 static void PaintQuarantine(float W,float H){
-    const float x=S(256),top=S(34);Text(L"Quarentena",g.fTitle.Get(),RectF(x,top,W-S(36),top+S(40)),T.text);
-    Text(L"Cópias criptografadas; restauração sem sobrescrever arquivos",g.fBody.Get(),RectF(x,top+S(42),W-S(36),top+S(68)),T.textDim);
-    const wchar_t* labels[]={L"Atualizar",L"Isolar arquivo...",L"Restaurar como...",g.qConfirm.empty()?L"Excluir do cofre":L"Confirmar exclusão",L"Histórico",L"Anterior",L"Próxima"};
+    const float x=S(256),top=S(34);Text(L"Quarantine",g.fTitle.Get(),RectF(x,top,W-S(36),top+S(40)),T.text);
+    Text(L"Encrypted copies; restore without overwriting files",g.fBody.Get(),RectF(x,top+S(42),W-S(36),top+S(68)),T.textDim);
+    const wchar_t* labels[]={L"Refresh",L"Quarantine file...",L"Restore as...",g.qConfirm.empty()?L"Delete from vault":L"Confirm deletion",L"History",L"Previous",L"Next"};
     for(int i=0;i<7;++i){int row=i/4,column=i%4;const float bx=x+S(float(column*148)),by=top+S(float(80+row*46));g.qButtons[i]=RectF(bx,by,bx+S(140),by+S(38));Button(g.qButtons[i],labels[i],i==3&&!g.qConfirm.empty()?T.danger:T.cardHi,T.text,false);}
     av::services::Json entries;std::wstring message;bool auditMode=false;{std::lock_guard lock(g.qMtx);auditMode=g.qAuditMode;entries=auditMode?g.qAudit:g.qEntries;message=g.qMessage;}
-    Text(g.qRunning?L"Operação em andamento...":message,g.fSmall.Get(),RectF(x,top+S(178),W-S(36),top+S(226)),T.textDim);
+    Text(g.qRunning?L"Operation in progress...":message,g.fSmall.Get(),RectF(x,top+S(178),W-S(36),top+S(226)),T.textDim);
     const auto card=RectF(x,top+S(232),W-S(36),H-S(34));FillRound(card,S(12),T.card);g.qRows.clear();float y=card.top+S(10);g.qPageSize=size_t((std::max)(1.0f,std::ceil((card.bottom-y-S(62))/S(auditMode?60.0f:66.0f))));
-    if(entries.empty())Text(L"Nenhum item carregado. Use Atualizar.",g.fBody.Get(),RectF(x+S(16),y,card.right-S(16),y+S(35)),T.textDim);
+    if(entries.empty())Text(L"No items loaded. Use Refresh.",g.fBody.Get(),RectF(x+S(16),y,card.right-S(16),y+S(35)),T.textDim);
     for(size_t i=g.qOffset;i<entries.size()&&y+S(62)<card.bottom;i++){
         const auto& e=entries[i];if(auditMode){Text(av::services::Wide(e.value("action",std::string()))+L"  "+BaseName(av::services::Wide(e.value("source",std::string()))),g.fBody.Get(),RectF(x+S(16),y,card.right-S(16),y+S(55)),T.textDim);y+=S(60);continue;}auto id=e.value("id",std::string());auto r=RectF(x+S(8),y,card.right-S(8),y+S(60));FillRound(r,S(6),id==g.qSelected?T.cardHi:T.card);g.qRows.push_back({r,id});
         auto source=av::services::Wide(e.value("source",id));Text(BaseName(source),g.fH2.Get(),RectF(r.left+S(12),y+S(4),r.right-S(12),y+S(28)),T.text);
-        const auto state=e.value("state",std::string("corrupt"));auto status=state=="isolated"?L"Isolado":state=="restored-copy"?L"Restaurado; cópia mantida":state=="corrupt"?L"Integridade inválida":L"Requer revisão; cópia preservada";
+        const auto state=e.value("state",std::string("corrupt"));auto status=state=="isolated"?L"Isolado":state=="restored-copy"?L"Restored; copy maintained":state=="corrupt"?L"Integrity check failed":L"Requires revision; preserved copy";
         Text(status,g.fSmall.Get(),RectF(r.left+S(12),y+S(30),r.right-S(12),y+S(55)),state=="corrupt"?T.danger:T.textDim);y+=S(66);
     }
 }
 
 static void PaintProtection(float W,float H){
-    const float x=S(256),top=S(34);Text(L"Proteção",g.fTitle.Get(),RectF(x,top,W-S(36),top+S(40)),T.text);
+    const float x=S(256),top=S(34);Text(L"Protection",g.fTitle.Get(),RectF(x,top,W-S(36),top+S(40)),T.text);
     av::services::Json report;std::wstring message,notice;{std::lock_guard lock(g.pMtx);report=g.pReport;message=g.pMessage;notice=g.pNotification;}
     const bool running=g.services[0].Running(),active=running&&report.value("monitoringActive",false);
-    std::wstring state=!running?L"Engine desligada":!report.value("complete",false)?L"Estado indisponível":active?L"Monitoramento ativo, mesmo com o app fechado":!report.value("enabled",false)?L"Proteção não configurada ou pausada":!report.value("sessionAvailable",false)?L"Aguardando sessão do usuário":L"Proteção incompleta; confira os avisos";
+    std::wstring state=!running?L"Engine off":!report.value("complete",false)?L"Status unavailable":active?L"Monitoring is active, even when the app is closed":!report.value("enabled",false)?L"Protection is not configured or is paused":!report.value("sessionAvailable",false)?L"Waiting for a user session":L"Protection is incomplete; check notifications";
     Text(state,g.fH2.Get(),RectF(x,top+S(46),W-S(36),top+S(78)),active?T.good:T.textDim);
-    const wchar_t* labels[]={L"Atualizar",L"Rápida",L"Completa",L"Pasta...",L"Cancelar atual",L"Proteger pasta...",L"Avisos",L"Pausar/retomar"};
+    const wchar_t* labels[]={L"Refresh",L"Quick",L"Full",L"Folder...",L"Cancel current scan",L"Protect folder...",L"Avisos",L"Pause/resume"};
     for(int i=0;i<8;++i){float bx=x+S(float((i%4)*136)),by=top+S(float(90+(i/4)*46));g.pButtons[i]=RectF(bx,by,bx+S(128),by+S(38));Button(g.pButtons[i],labels[i],T.cardHi,T.text,false);}
-    Text(g.pRunning?L"Consultando o serviço...":message,g.fSmall.Get(),RectF(x,top+S(186),W-S(36),top+S(228)),T.textDim);
-    float y=top+S(236);if(report.contains("jobs"))for(const auto& j:report["jobs"]){if(y+S(64)>H-S(72))break;const auto mode=av::services::Wide(j.value("mode",std::string()));auto text=mode+L" • "+av::services::Wide(j.value("state",std::string())=="completed"&&!j.value("complete",false)?std::string("parcial"):j.value("state",std::string()))+L" • "+std::to_wstring(j.value("filesScanned",uint64_t(0)))+L" arquivos • "+std::to_wstring(j.value("threatsFound",uint64_t(0)))+L" detecções";Text(text,g.fBody.Get(),RectF(x,y,W-S(36),y+S(30)),T.text);Text(av::services::Wide(j.value("lastError",j.value("currentFile",std::string()))),g.fSmall.Get(),RectF(x,y+S(30),W-S(36),y+S(60)),T.textDim);y+=S(66);}
-    Text(notice.empty()?L"Proteger pasta ativa o monitoramento e o isolamento de detecções confirmadas. Alterar a proteção, restaurar ou excluir do cofre exige administrador.":notice,g.fSmall.Get(),RectF(x,H-S(66),W-S(36),H-S(12)),T.textDim);
+    Text(g.pRunning?L"Consulting the service...":message,g.fSmall.Get(),RectF(x,top+S(186),W-S(36),top+S(228)),T.textDim);
+    float y=top+S(236);if(report.contains("jobs"))for(const auto& j:report["jobs"]){if(y+S(64)>H-S(72))break;const auto mode=av::services::Wide(j.value("mode",std::string()));auto text=mode+L" • "+av::services::Wide(j.value("state",std::string())=="completed"&&!j.value("complete",false)?std::string("parcial"):j.value("state",std::string()))+L" • "+std::to_wstring(j.value("filesScanned",uint64_t(0)))+L" files • "+std::to_wstring(j.value("threatsFound",uint64_t(0)))+L" detections";Text(text,g.fBody.Get(),RectF(x,y,W-S(36),y+S(30)),T.text);Text(av::services::Wide(j.value("lastError",j.value("currentFile",std::string()))),g.fSmall.Get(),RectF(x,y+S(30),W-S(36),y+S(60)),T.textDim);y+=S(66);}
+    Text(notice.empty()?L"Protecting folder activates monitoring and isolation of confirmed detections. Changing protection, restoring or deleting from the safe requires administrator.":notice,g.fSmall.Get(),RectF(x,H-S(66),W-S(36),H-S(12)),T.textDim);
 }
 
 static void PaintSettings(float W, float H) {
     const float x = S(256), top = S(34);
-    Text(L"Configurações", g.fTitle.Get(), RectF(x, top, W - S(36), top + S(40)), T.text);
-    Text(L"Serviços das engines", g.fBody.Get(), RectF(x, top + S(42), W - S(36), top + S(68)), T.textDim);
+    Text(L"Settings", g.fTitle.Get(), RectF(x, top, W - S(36), top + S(40)), T.text);
+    Text(L"Engineering services", g.fBody.Get(), RectF(x, top + S(42), W - S(36), top + S(68)), T.textDim);
     for (int i = 0; i < 2; ++i) {
         const float y = top + S(float(88 + i * 120));
         const auto card = RectF(x, y, W - S(36), y + S(100));
         FillRound(card, S(12), T.card);
         const auto& state = g.services[i];
         std::wstring status;
-        if (state.error) status = L"Não foi possível consultar: " + av::services::ErrorText(state.error);
-        else if (!state.installed) status = L"Ainda não instalado";
-        else if (state.state == SERVICE_RUNNING) status = L"Ligado";
-        else if (state.state == SERVICE_STOPPED) status = L"Desligado";
+        if (state.error) status = L"Could not close temporary folder: %s " + av::services::ErrorText(state.error);
+        else if (!state.installed) status = L"Not installed yet";
+        else if (state.state == SERVICE_RUNNING) status = L"Running";
+        else if (state.state == SERVICE_STOPPED) status = L"Stopped";
         else if (state.state == SERVICE_START_PENDING) status = L"Iniciando...";
         else if (state.state == SERVICE_STOP_PENDING) status = L"Encerrando...";
-        else status = L"Indisponível";
-        Text(i == 0 ? L"Engine do antivírus" : L"Engine do sandbox MiniNT", g.fH2.Get(),
+        else status = L"Unavailable";
+        Text(i == 0 ? L"antivirus engine" : L"Engine do sandbox MiniNT", g.fH2.Get(),
             RectF(x + S(18), y + S(12), card.right - S(140), y + S(38)), T.text);
         Text(status, g.fBody.Get(), RectF(x + S(18), y + S(42), card.right - S(140), y + S(65)),
             state.Running() ? T.good : T.textDim);
-        Text(i == 0 ? L"Análises de arquivos e pastas" : L"Execuções isoladas e sessões gráficas preparadas", g.fSmall.Get(),
+        Text(i == 0 ? L"File and folder scans" : L"Isolated executions and prepared graphic sessions", g.fSmall.Get(),
             RectF(x + S(18), y + S(70), card.right - S(18), y + S(92)), T.textDim);
         SetWindowPos(g.serviceButtons[i + 1], nullptr, int(card.right - S(122)), int(y + S(28)), int(S(104)), int(S(34)), SWP_NOACTIVATE | SWP_NOZORDER);
     }
     const float y = top + S(336);
     SetWindowPos(g.serviceButtons[0], nullptr, int(x), int(y), int(S(196)), int(S(38)), SWP_NOACTIVATE | SWP_NOZORDER);
-    Text(L"Instalação inicial com autorização de administrador.\nAo fechar o app, os serviços ligados continuam disponíveis.", g.fSmall.Get(),
+    Text(L"Initial installation with permission of administrador.\nAo close the app, connected services remain available.", g.fSmall.Get(),
         RectF(x, y + S(50), W - S(36), y + S(100)), T.textDim);
     std::wstring message;
     { std::lock_guard lock(g.serviceMtx); message = g.serviceMessage; }
@@ -649,47 +649,47 @@ static void PaintSandbox(float W, float H) {
     const float x = S(256), top = S(34), by = top + S(90);
     const bool running = g.sbxRunning.load();
     Text(L"Sandbox MiniNT", g.fTitle.Get(), RectF(x, top, W - S(36), top + S(40)), T.text);
-    Text(L"Execuções supervisionadas pelo serviço AegisSandbox", g.fBody.Get(),
+    Text(L"Executions supervised by AegisSandbox", g.fBody.Get(),
         RectF(x, top + S(42), W - S(36), top + S(66)), T.textDim);
     g.sbxAnalyzeBtn = g.sbxSampleBtn = g.sbxVmBtn = g.sbxCheckpointBtn = g.sbxResumeBtn = RectF(0, 0, 0, 0);
     if (!running) {
         g.sbxAnalyzeBtn = RectF(x, by, x + S(168), by + S(44));
         g.sbxSampleBtn = RectF(x + S(184), by, x + S(344), by + S(44));
         g.sbxVmBtn = RectF(x + S(360), by, x + S(536), by + S(44));
-        Button(g.sbxAnalyzeBtn, L"Analisar um arquivo...", T.accent, ColorF(ColorF::White), g.hoverBtn == 3);
-        Button(g.sbxSampleBtn, L"Executar exemplo", T.cardHi, T.text, g.hoverBtn == 4);
-        Button(g.sbxVmBtn, L"Bundle preparado...", T.cardHi, T.text, g.hoverBtn == 5);
+        Button(g.sbxAnalyzeBtn, L"Scan a file...", T.accent, ColorF(ColorF::White), g.hoverBtn == 3);
+        Button(g.sbxSampleBtn, L"Run example", T.cardHi, T.text, g.hoverBtn == 4);
+        Button(g.sbxVmBtn, L"Bundle ready...", T.cardHi, T.text, g.hoverBtn == 5);
     } else {
         g.sbxVmBtn = RectF(x, by, x + S(168), by + S(44));
-        Button(g.sbxVmBtn, L"Cancelar", T.danger, ColorF(ColorF::White), g.hoverBtn == 5);
+        Button(g.sbxVmBtn, L"Cancel", T.danger, ColorF(ColorF::White), g.hoverBtn == 5);
     }
-    if(!running){g.sbxCheckpointBtn=RectF(x,by+S(52),x+S(168),by+S(92));g.sbxResumeBtn=RectF(x+S(184),by+S(52),x+S(344),by+S(92));Button(g.sbxCheckpointBtn,L"Salvar ponto...",T.cardHi,T.text,false);Button(g.sbxResumeBtn,L"Retomar ponto...",T.cardHi,T.text,false);}
+    if(!running){g.sbxCheckpointBtn=RectF(x,by+S(52),x+S(168),by+S(92));g.sbxResumeBtn=RectF(x+S(184),by+S(52),x+S(344),by+S(92));Button(g.sbxCheckpointBtn,L"Save point...",T.cardHi,T.text,false);Button(g.sbxResumeBtn,L"Resume point...",T.cardHi,T.text,false);}
     const auto card = RectF(x, by + S(110), W - S(36), H - S(34));
     FillRound(card, S(12), T.card);
     float y = card.top + S(18);
     auto line = [&](const std::wstring& text, const ColorF& color = T.textDim) {
         if(y+S(38)>card.bottom-S(12))return;Text(text, g.fBody.Get(), RectF(x + S(18), y, card.right - S(18), y + S(38)), color); y += S(40);
     };
-    if (running) { line(L"Executando " + BaseName(g.sbxFile) + L"...", T.accentHi);std::string stage;{std::lock_guard lock(g.sbxMtx);stage=g.sbxStage;}line(stage=="preparing"?L"Preparando dependências...":stage=="validating"?L"Conferindo o pacote...":stage=="running"?L"Programa em execução no MiniNT...":L"Conectando ao serviço...");line(L"Cancelar encerra a sessão e seus processos.");return; }
+    if (running) { line(L"Executing " + BaseName(g.sbxFile) + L"...", T.accentHi);std::string stage;{std::lock_guard lock(g.sbxMtx);stage=g.sbxStage;}line(stage=="preparing"?L"Preparing dependencies...":stage=="validating"?L"Checking the package...":stage=="running"?L"Program running in MiniNT...":L"Connecting to service...");line(L"Cancel closes the session and its processes.");return; }
     av::services::Json report; bool has = false;
     { std::lock_guard lock(g.sbxMtx); report = g.sbxReport; has = g.sbxHasReport; }
     if (!has) {
-        line(L"O arquivo é executado dentro do MiniNT, usando WHP.");
-        line(L"Selecione um EXE; o pacote é preparado com as DLLs disponíveis.");
-        line(L"Salvar e retomar: janelas USER32 básicas, sem timers ativos.");
-        line(L"Uma execução concluída não determina que o arquivo é seguro."); return;
+        line(L"The file runs within MiniNT, using WHP.");
+        line(L"Select an EXE; the package is prepared with the available DLLs.");
+        line(L"Save and resume: basic USER32 windows without active timers.");
+        line(L"A completed execution does not determine that the file is secure."); return;
     }
     const auto error = report.value("error", std::string());
     if (!error.empty()) line(av::services::Wide(error),T.danger);
     line(L"Backend: " + av::services::Wide(report.value("backend", "MiniNT")), T.text);
-    line(report.value("checkpointCreated",false)?L"Ponto salvo. Use Retomar ponto e escolha recovery.json.":report.value("complete", false) ? L"Execução concluída. Veredito de malware ainda depende da análise." : L"Execução incompleta; cobertura insuficiente.", T.accentHi);
-    line(L"Código de saída: " + std::to_wstring(report.value("exitCode", 0)));
-    if (report.contains("output")) line(L"Relatórios: " + av::services::Wide(report.at("output").get<std::string>()));
+    line(report.value("checkpointCreated",false)?L"Saved point. Use Resume point and choose recovery.json.":report.value("complete", false) ? L"Execution completed. Malware verdict still depends on the analysis." : L"Incomplete execution; insufficient coverage.", T.accentHi);
+    line(L"Exit code: " + std::to_wstring(report.value("exitCode", 0)));
+    if (report.contains("output")) line(L"Reports: " + av::services::Wide(report.at("output").get<std::string>()));
     {
-        line(L"Eventos: " + std::to_wstring(report.value("events", av::services::Json::array()).size()) +
-             L"  •  Arquivos virtuais: " + std::to_wstring(report.value("virtualFiles", av::services::Json::array()).size()));
+        line(L"Events: " + std::to_wstring(report.value("events", av::services::Json::array()).size()) +
+             L"  •  Virtual files: " + std::to_wstring(report.value("virtualFiles", av::services::Json::array()).size()));
         const auto unresolved = report.value("unresolved", av::services::Json::array());
-        if (!unresolved.empty()) {line(L"Dependências ausentes: " + std::to_wstring(unresolved.size()), T.danger);for(size_t i=0;i<(std::min)(unresolved.size(),size_t(3));++i)line(av::services::Wide(unresolved[i].get<std::string>()),T.danger);}
+        if (!unresolved.empty()) {line(L"Absent dependencies: " + std::to_wstring(unresolved.size()), T.danger);for(size_t i=0;i<(std::min)(unresolved.size(),size_t(3));++i)line(av::services::Wide(unresolved[i].get<std::string>()),T.danger);}
         if (report.contains("console")) line(av::services::Wide(report.at("console").get<std::string>()));
     }
 }
@@ -768,7 +768,7 @@ static void StartScan(const std::wstring& folder) {
     SetTimer(g.hwnd, TIMER_ANIM, 16, nullptr);
 }
 
-static std::wstring PickFile(const wchar_t* title=L"Escolha um executável para o MiniNT") {
+static std::wstring PickFile(const wchar_t* title=L"Choose an executable for MiniNT") {
     std::wstring result;
     ComPtr<IFileOpenDialog> dlg;
     if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
@@ -800,14 +800,14 @@ static void StartSandbox(const std::wstring& file, av::services::Operation opera
         av::services::Json report;
         try { report = av::services::Call(av::services::Kind::Sandbox,
             operation,file,[](const av::services::Json& value){if(value.value("type","")=="runtime-progress"){{std::lock_guard lock(g.sbxMtx);g.sbxStage=value.value("stage","");}PostMessageW(g.hwnd,WM_APP_PROGRESS,0,0);}}, &g.sbxCancel, 60000); }
-        catch (const std::exception& error) { report = {{"error", g.sbxCancel ? "Análise cancelada; resultados incompletos." : error.what()}, {"complete", false}}; }
+        catch (const std::exception& error) { report = {{"error", g.sbxCancel ? "Canceled analysis; incomplete results." : error.what()}, {"complete", false}}; }
         { std::lock_guard lock(g.sbxMtx); g.sbxReport = std::move(report); g.sbxHasReport = true; }
         g.sbxRunning = false; PostMessageW(g.hwnd, WM_APP_SBX_DONE, 0, 0);
     });
     SetTimer(g.hwnd, TIMER_ANIM, 16, nullptr);
 }
 static void QuarantineAction(av::services::Operation operation,av::services::Json request=av::services::Json::object()){
-    if(g.qRunning)return;RefreshServices();if(!g.services[0].Running()){std::lock_guard lock(g.qMtx);g.qMessage=L"Ligue a engine do antivírus nas configurações.";InvalidateRect(g.hwnd,nullptr,FALSE);return;}
+    if(g.qRunning)return;RefreshServices();if(!g.services[0].Running()){std::lock_guard lock(g.qMtx);g.qMessage=L"Start the antivirus engine in Settings.";InvalidateRect(g.hwnd,nullptr,FALSE);return;}
     if(g.qThread.joinable())g.qThread.join();g.qRunning=true;g.qCancel=false;g.qConfirm.clear();{std::lock_guard lock(g.qMtx);g.qResumeOffset=request.value("before",uint64_t(0))?g.qAudit.size():0;}
     g.qThread=std::thread([operation,request]{av::services::Json result,listing;std::filesystem::path job;
         try{auto input=av::services::Executable();if(operation!=av::services::Operation::QuarantineList&&(operation!=av::services::Operation::QuarantineAudit||!request.empty())){auto dir=av::quarantine::DefaultRoot().parent_path()/L"quarantine-requests";av::scan::PrivateState(dir);job=dir/(av::scan::Token()+".json");av::scan::WriteJson(job,request);input=job;}
@@ -816,32 +816,32 @@ static void QuarantineAction(av::services::Operation operation,av::services::Jso
             else if(operation!=av::services::Operation::QuarantineAudit)listing=av::services::Call(av::services::Kind::Antivirus,av::services::Operation::QuarantineList,av::services::Executable(),{},&g.qCancel,60000);
         }catch(const std::exception& e){result={{"complete",false},{"error",e.what()}};}
         if(!job.empty()){std::error_code ignored;std::filesystem::remove(job,ignored);}
-        {std::lock_guard lock(g.qMtx);g.qReport=result;if(listing.contains("entries"))g.qEntries=listing["entries"];if(result.contains("events")){auto page=result["events"];std::reverse(page.begin(),page.end());if(request.value("before",uint64_t(0)))for(auto& e:page)g.qAudit.push_back(std::move(e));else g.qAudit=std::move(page);g.qAuditMode=true;}else g.qAuditMode=false;if(result.contains("events"))g.qMessage=L"Histórico autenticado: "+std::to_wstring(result["events"].size())+L" ações registradas.";else g.qMessage=result.value("complete",false)?L"Operação concluída. Integridade do conteúdo é conferida antes de restaurar.":av::services::Wide(result.value("error",std::string("Operação incompleta; consulte os itens para revisar o estado.")));}
+        {std::lock_guard lock(g.qMtx);g.qReport=result;if(listing.contains("entries"))g.qEntries=listing["entries"];if(result.contains("events")){auto page=result["events"];std::reverse(page.begin(),page.end());if(request.value("before",uint64_t(0)))for(auto& e:page)g.qAudit.push_back(std::move(e));else g.qAudit=std::move(page);g.qAuditMode=true;}else g.qAuditMode=false;if(result.contains("events"))g.qMessage=L"Authenticated history: "+std::to_wstring(result["events"].size())+L" Registered shares.";else g.qMessage=result.value("complete",false)?L"Operation completed. Content integrity is checked before restoration.":av::services::Wide(result.value("error",std::string("Incomplete operation; refer to the items to review the state.")));}
         PostMessageW(g.hwnd,WM_APP_Q_DONE,0,0);
     });InvalidateRect(g.hwnd,nullptr,FALSE);
 }
 static void ProtectionAction(av::services::Operation operation,av::services::Json request,std::wstring configFile){
-    if(g.pRunning)return;if(!g.services[0].Running()){std::lock_guard lock(g.pMtx);g.pReport={{"complete",false}};g.pMessage=L"Ligue a engine do antivírus nas configurações.";return;}
+    if(g.pRunning)return;if(!g.services[0].Running()){std::lock_guard lock(g.pMtx);g.pReport={{"complete",false}};g.pMessage=L"Start the antivirus engine in Settings.";return;}
     if(g.pThread.joinable())g.pThread.join();g.pRunning=true;g.pCancel=false;
     g.pThread=std::thread([operation,request,configFile]{av::services::Json report;std::wstring message,notice;std::filesystem::path job;
         try{auto input=av::services::Executable();if(!configFile.empty())input=configFile;else if(operation!=av::services::Operation::ProtectionStatus){auto dir=av::quarantine::DefaultRoot().parent_path()/L"protection-requests";av::scan::PrivateState(dir);job=dir/(av::scan::Token()+".json");av::scan::WriteJson(job,request);input=job;}
             auto result=av::services::Call(av::services::Kind::Antivirus,operation,input,{},&g.pCancel,15000);report=operation==av::services::Operation::ProtectionStatus?result:av::services::Call(av::services::Kind::Antivirus,av::services::Operation::ProtectionStatus,av::services::Executable(),{},&g.pCancel,15000);
-            auto dir=av::quarantine::DefaultRoot().parent_path()/L"protection-requests";av::scan::PrivateState(dir);if(job.empty())job=dir/(av::scan::Token()+".json");av::scan::WriteJson(job,{{"schema",1},{"after",g.pCursor}});auto events=av::services::Call(av::services::Kind::Antivirus,av::services::Operation::ProtectionEvents,job,{},&g.pCancel,15000);g.pCursor=events.value("next",g.pCursor);for(const auto& e:events["events"])if(e.value("action",std::string())=="threat-detected"||e.value("action",std::string())=="coverage-gap"||e.value("action",std::string())=="protection-error")notice=av::services::Wide(e.value("action",std::string()))+L": "+av::services::Wide(e.value("path",e.value("error",std::string())));message=report.value("lastError",std::string()).empty()?L"Estado atualizado pelo serviço.":av::services::Wide(report.at("lastError").get<std::string>());
+            auto dir=av::quarantine::DefaultRoot().parent_path()/L"protection-requests";av::scan::PrivateState(dir);if(job.empty())job=dir/(av::scan::Token()+".json");av::scan::WriteJson(job,{{"schema",1},{"after",g.pCursor}});auto events=av::services::Call(av::services::Kind::Antivirus,av::services::Operation::ProtectionEvents,job,{},&g.pCancel,15000);g.pCursor=events.value("next",g.pCursor);for(const auto& e:events["events"])if(e.value("action",std::string())=="threat-detected"||e.value("action",std::string())=="coverage-gap"||e.value("action",std::string())=="protection-error")notice=av::services::Wide(e.value("action",std::string()))+L": "+av::services::Wide(e.value("path",e.value("error",std::string())));message=report.value("lastError",std::string()).empty()?L"Status updated by the service.":av::services::Wide(report.at("lastError").get<std::string>());
         }catch(const std::exception& e){report={{"complete",false}};message=av::services::Wide(e.what());}
         if(!job.empty()){std::error_code ignored;std::filesystem::remove(job,ignored);} {std::lock_guard lock(g.pMtx);g.pReport=std::move(report);g.pMessage=message;if(!notice.empty())g.pNotification=notice;}PostMessageW(g.hwnd,WM_APP_P_DONE,0,0);
     });
 }
-static void ProtectionButton(int index){using O=av::services::Operation;if(g.pRunning)return;if(index==0||index==6){ProtectionAction();return;}if(index==1||index==2){ProtectionAction(O::ProtectionSubmit,{{"schema",1},{"mode",index==1?"quick":"full"}});return;}if(index==3){auto folder=PickFolder();if(!folder.empty())ProtectionAction(O::ProtectionSubmit,{{"schema",1},{"mode","custom"},{"paths",av::services::Json::array({av::services::Text(folder)})}});return;}if(index==5||index==7){av::services::Json policy;{std::lock_guard lock(g.pMtx);if(!g.pReport.contains("policy")){g.pMessage=L"Atualize o estado antes de configurar a proteção.";return;}policy=g.pReport["policy"];}
+static void ProtectionButton(int index){using O=av::services::Operation;if(g.pRunning)return;if(index==0||index==6){ProtectionAction();return;}if(index==1||index==2){ProtectionAction(O::ProtectionSubmit,{{"schema",1},{"mode",index==1?"quick":"full"}});return;}if(index==3){auto folder=PickFolder();if(!folder.empty())ProtectionAction(O::ProtectionSubmit,{{"schema",1},{"mode","custom"},{"paths",av::services::Json::array({av::services::Text(folder)})}});return;}if(index==5||index==7){av::services::Json policy;{std::lock_guard lock(g.pMtx);if(!g.pReport.contains("policy")){g.pMessage=L"Refresh the status before configuring protection.";return;}policy=g.pReport["policy"];}
         if(index==5){auto folder=PickFolder();if(folder.empty())return;const auto path=av::services::Text(folder);bool found=false;for(const auto& p:policy["roots"])if(p==path)found=true;if(!found)policy["roots"].push_back(path);policy["enabled"]=true;policy["autoQuarantine"]=true;}
-        else{if(policy["roots"].empty()){std::lock_guard lock(g.pMtx);g.pMessage=L"Escolha uma pasta em Proteger pasta antes de ativar.";return;}policy["enabled"]=!policy.value("enabled",false);}
+        else{if(policy["roots"].empty()){std::lock_guard lock(g.pMtx);g.pMessage=L"Choose a folder using Protect folder before enabling protection.";return;}policy["enabled"]=!policy.value("enabled",false);}
         ProtectionAction(O::ProtectionConfigure,policy);return;}if(index==4){std::string id;{std::lock_guard lock(g.pMtx);id=g.pReport.value("activeJob",std::string());}if(!id.empty())ProtectionAction(O::ProtectionCancel,{{"schema",1},{"id",id}});}}
 static void IsolateDetection(const av::Detection& d){g.page=Page::Quarantine;QuarantineAction(av::services::Operation::QuarantineIsolate,{{"schema",2},{"source",av::services::Text(d.file)},{"sha256",d.sha256},{"threat",av::services::Text(d.threat)},{"reason",av::services::Text(d.reason)}});}
 static void QuarantineButton(int index){
     using O=av::services::Operation;if(g.qRunning)return;
-    if(index==0){QuarantineAction(O::QuarantineList);return;}if(index==1){auto path=PickFile(L"Escolha um arquivo para isolar; ele será removido após cópia verificada");if(!path.empty())QuarantineAction(O::QuarantineIsolate,{{"schema",2},{"source",av::services::Text(path)},{"threat","Manual"}});return;}
+    if(index==0){QuarantineAction(O::QuarantineList);return;}if(index==1){auto path=PickFile(L"Choose a file to isolate; it will be removed after verified copy");if(!path.empty())QuarantineAction(O::QuarantineIsolate,{{"schema",2},{"source",av::services::Text(path)},{"threat","Manual"}});return;}
     if(index==4){QuarantineAction(O::QuarantineAudit);return;}if(index==5){g.qOffset=g.qOffset>=g.qPageSize?g.qOffset-g.qPageSize:0;InvalidateRect(g.hwnd,nullptr,FALSE);return;}if(index==6){uint64_t cursor=0;{std::lock_guard lock(g.qMtx);const auto size=g.qAuditMode?g.qAudit.size():g.qEntries.size();if(g.qOffset+g.qPageSize<size)g.qOffset+=g.qPageSize;else if(g.qAuditMode)cursor=g.qReport.value("nextBefore",uint64_t(0));}if(cursor)QuarantineAction(O::QuarantineAudit,{{"schema",2},{"before",cursor}});InvalidateRect(g.hwnd,nullptr,FALSE);return;}
-    if(g.qSelected.empty())return;if(index==3){if(g.qConfirm!=g.qSelected){g.qConfirm=g.qSelected;{std::lock_guard lock(g.qMtx);g.qMessage=L"Confirme a exclusão permanente da cópia do cofre. Os arquivos fora dele não serão removidos.";}InvalidateRect(g.hwnd,nullptr,FALSE);return;}QuarantineAction(O::QuarantineErase,{{"schema",2},{"id",g.qSelected}});return;}
-    if(index==2){ComPtr<IFileSaveDialog> dlg;if(FAILED(CoCreateInstance(CLSID_FileSaveDialog,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(dlg.GetAddressOf()))))return;dlg->SetTitle(L"Escolha um destino novo para restaurar; o cofre manterá uma cópia");DWORD options=0;dlg->GetOptions(&options);dlg->SetOptions((options&~FOS_OVERWRITEPROMPT)|FOS_FORCEFILESYSTEM|FOS_PATHMUSTEXIST);std::wstring filename=L"restaurado.bin";{std::lock_guard lock(g.qMtx);for(const auto& e:g.qEntries)if(e.value("id",std::string())==g.qSelected)filename=BaseName(av::services::Wide(e.value("source",std::string("restaurado.bin"))));}dlg->SetFileName(filename.c_str());
+    if(g.qSelected.empty())return;if(index==3){if(g.qConfirm!=g.qSelected){g.qConfirm=g.qSelected;{std::lock_guard lock(g.qMtx);g.qMessage=L"Confirm the permanent deletion of the copy from the safe. The files outside of it will not be removed.";}InvalidateRect(g.hwnd,nullptr,FALSE);return;}QuarantineAction(O::QuarantineErase,{{"schema",2},{"id",g.qSelected}});return;}
+    if(index==2){ComPtr<IFileSaveDialog> dlg;if(FAILED(CoCreateInstance(CLSID_FileSaveDialog,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(dlg.GetAddressOf()))))return;dlg->SetTitle(L"Choose a new destination to restore; the safe will keep a copy");DWORD options=0;dlg->GetOptions(&options);dlg->SetOptions((options&~FOS_OVERWRITEPROMPT)|FOS_FORCEFILESYSTEM|FOS_PATHMUSTEXIST);std::wstring filename=L"restaurado.bin";{std::lock_guard lock(g.qMtx);for(const auto& e:g.qEntries)if(e.value("id",std::string())==g.qSelected)filename=BaseName(av::services::Wide(e.value("source",std::string("restaurado.bin"))));}dlg->SetFileName(filename.c_str());
         if(SUCCEEDED(dlg->Show(g.hwnd))){ComPtr<IShellItem> item;if(SUCCEEDED(dlg->GetResult(item.GetAddressOf()))){PWSTR text=nullptr;if(SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH,&text))){std::filesystem::path path=text;CoTaskMemFree(text);QuarantineAction(O::QuarantineRestore,{{"schema",2},{"id",g.qSelected},{"directory",av::services::Text(path.parent_path().wstring())},{"filename",av::services::Text(path.filename().wstring())}});}}}}
 }
 static void RunTestSample() {
@@ -889,7 +889,7 @@ static void OnClick(float x, float y) {
     if (PtIn(g.sbxSampleBtn, x, y))  { RunTestSample(); return; }
     if (PtIn(g.sbxVmBtn, x, y))      { OpenInVm(); return; }
     if(PtIn(g.sbxCheckpointBtn,x,y)){const auto file=PickFile();if(!file.empty())StartSandbox(file,av::services::Operation::Checkpoint);return;}
-    if(PtIn(g.sbxResumeBtn,x,y)){std::wstring last;{std::lock_guard lock(g.sbxMtx);if(g.sbxReport.value("checkpointCreated",false))last=(std::filesystem::path(av::services::Wide(g.sbxReport.at("output").get<std::string>()))/L"recovery.json").wstring();}const auto file=last.empty()?PickFile(L"Escolha o arquivo recovery.json do ponto salvo"):last;if(!file.empty())StartSandbox(file,av::services::Operation::Resume);return;}
+    if(PtIn(g.sbxResumeBtn,x,y)){std::wstring last;{std::lock_guard lock(g.sbxMtx);if(g.sbxReport.value("checkpointCreated",false))last=(std::filesystem::path(av::services::Wide(g.sbxReport.at("output").get<std::string>()))/L"recovery.json").wstring();}const auto file=last.empty()?PickFile(L"Select the saved checkpoint recovery.json file"):last;if(!file.empty())StartSandbox(file,av::services::Operation::Resume);return;}
 }
 
 // ---------------------------------------------------------------------------

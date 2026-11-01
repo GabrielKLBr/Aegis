@@ -187,10 +187,10 @@ def report(plan_path,release,debug,output):
         campaigns[config]=proof['summary'];all_rows.extend(rows)
     public={'schema':1,'phase':'14.14','planSha256':identity(plan),'campaigns':campaigns,'rows':all_rows,'interpretation':'Compatibility of this selected corpus only; unsupported profiles were not executed. No malware efficacy or escape-resistance certification.'}
     write(output,public)
-    text=['# Resultados da campanha 14.14','', 'Amostra de conveniência congelada antes dos testes; não representa todo o ecossistema Windows.','', '| Configuração | Perfil | Avaliados | Funcionais | Parciais | Incompatíveis | Não avaliados | Meta atingida |','|---|---|---:|---:|---:|---:|---:|---|']
+    text=['# Results of the campaign 14.14','', 'Frozen convenience sample before testing; does not represent the entire Windows ecosystem.','', '? Configuration','|---|---|---:|---:|---:|---:|---:|---|']
     for config,summary in campaigns.items():
-        for profile,s in summary['profiles'].items():text.append(f"| {config} | {profile} | {s['measured']}/{s['selected']} | {s['functional']} | {s['partial']} | {s['incompatible']} | {s['not-evaluated']} | {'Sim' if s['acceptanceMet'] else 'Não'} |")
-    text+=['','Perfis sem execução têm taxa observada indisponível, não uma taxa de compatibilidade medida de 0%.','', '| Aplicação | Arquitetura | Release / win10 | Debug / win10 |','|---|---|---|---|']
+        for profile,s in summary['profiles'].items():text.append(f"| {config} | {profile} | {s['measured']}/{s['selected']} | {s['functional']} | {s['partial']} | {s['incompatible']} | {s['not-evaluated']} | {'Yes' if s['acceptanceMet'] else 'No'} |")
+    text+=['','Profiles without execution have an unavailable observed rate, not a 0% measured compatibility rate.','', '. Application','|---|---|---|---|']
     for app in plan['programs']:
         states=[next(r['outcome'] for r in all_rows if r['configuration']==c and r['profile']=='win10' and r['program']==app['id']) for c in ('Release','Debug')]
         text.append(f"| {app['name']} | {app['architecture']} | {states[0]} | {states[1]} |")

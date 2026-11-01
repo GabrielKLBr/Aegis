@@ -19,50 +19,50 @@ def check(condition, message):
 
 
 def inspect_report(data, case, canary):
-    check(data.get("finished"), "Coleta não finalizada")
-    check(canary not in json.dumps(data), "Dado privado do host presente na coleta")
+    check(data.get("finished"), "Collection not completed")
+    check(canary not in json.dumps(data), "Private Host data present in the collection")
     if case == "overflow":
-        check(not data["complete"] and data["dropped"] > 0, "Perda de eventos foi ocultada")
+        check(not data["complete"] and data["dropped"] > 0, "Loss of events has been hidden")
         check(any(f["classification"] == "inconclusive" for f in data["findings"]),
               "Coleta incompleta declarada conclusiva")
         return
     check(data["complete"] and not any(data[k] for k in ("dropped", "rejected", "pending")),
           "Coleta incompleta ou inconsistente")
     events = data["events"]
-    check([e["sequence"] for e in events] == list(range(1, len(events) + 1)), "Sequência divergente")
+    check([e["sequence"] for e in events] == list(range(1, len(events) + 1)), "Sequence mismatch")
     pending = {}
     for e in events:
         if e["stage"] == "intent":
-            check(e["operationId"] not in pending, "Operação duplicada")
+            check(e["operationId"] not in pending, "Duplicate operation")
             pending[e["operationId"]] = e
         else:
             before = pending.pop(e["operationId"], None)
-            check(before is not None, "Resultado sem intenção")
+            check(before is not None, "Unintended result")
             check(all(e[k] == before[k] for k in ("pid", "tid", "actorPid", "actorTid", "domain",
                                                 "operation", "resource", "decision")), "Autoria divergente")
             if e["decision"] == "deny":
                 check(e["status"] != 0, "Recusa declarada como sucesso")
-    check(not pending, "Operação sem resultado")
+    check(not pending, "Operation without result")
     bulk = any(f["rule"] == "bulk-rewrite-rename-v1" for f in data["findings"])
-    check(bulk == (case in ("patterns", "simulated", "offline")), "Classificação incoerente")
+    check(bulk == (case in ("patterns", "simulated", "offline")), "Inconsistent classification")
     if case == "benign":
         check(any(f["classification"] == "legitimate" for f in data["findings"]),
-              "Programa benigno perdeu sua classificação")
+              "Benign program lost its rating")
     if case == "denied":
         writes = [e for e in events if e["stage"] == "result" and e["domain"] == "file"
                   and e["operation"] == "write" and e["resource"].lower() == "c:\\a.txt"]
         check(writes and all(e["decision"] == "deny" and e["status"] != 0
                               and e["oldHash"] == e["newHash"]
                               and e["beforeBytes"] == e["afterBytes"] for e in writes),
-              "Arquivo recusado foi alterado ou o erro foi ocultado")
+              "File refused changed or error was hidden")
     if case == "simulated":
         check(any(e["domain"] == "file" and e["stage"] == "result" and e["operation"] == "write"
                   and e["decision"] == "simulate" and e["status"] == 0
-                  and e["oldHash"] != e["newHash"] for e in events), "Simulação não produziu estado coerente")
+                  and e["oldHash"] != e["newHash"] for e in events), "Simulation did not produce a coherent state")
     domains = {e["domain"] for e in events}
     if case in ("patterns", "simulated"):
         check({"process", "thread", "module", "file", "registry", "service", "driver", "network", "memory"}
-              <= domains, "Domínios ausentes")
+              <= domains, "Missing domains")
 
 
 def run_suite(manager, kernel, output):
@@ -82,7 +82,7 @@ def run_suite(manager, kernel, output):
                            capture_output=True, text=True, encoding="utf-8", errors="replace",
                            env=env, timeout=45)
         commands.append({"args": list(map(str, args)), "exit": p.returncode})
-        check(p.returncode == 0, p.stderr or p.stdout or "Gerenciador falhou sem diagnóstico")
+        check(p.returncode == 0, p.stderr or p.stdout or "Manager failed without diagnostics")
         return json.loads(p.stdout)
 
     names = ["patterns", "denied", "simulated", "benign", "overflow", "offline"]
@@ -105,7 +105,7 @@ def run_suite(manager, kernel, output):
                 status = run("status", name)
                 if not status["resident"] and status["state"] in ("stopped", "fault"):
                     break
-                check(time.monotonic() < deadline, "VM excedeu o tempo limite")
+                check(time.monotonic() < deadline, "VM exceeded time limit")
                 time.sleep(.1)
             check(status["state"] == ("fault" if name == "overflow" else "stopped"), "Estado final inesperado")
             trace = run("analysis", name)
@@ -113,10 +113,10 @@ def run_suite(manager, kernel, output):
             run("analysis-export", name, output / (name + "-report"))
             exported = output / (name + "-report")
             check(json.loads((exported / "analysis.json").read_text(encoding="utf-8")) == trace,
-                  "Exportação difere do estado real")
+                  "Export differs from real state")
             html = (exported / "analysis.html").read_text(encoding="utf-8")
-            check("Content-Security-Policy" in html and "<script" not in html.lower(), "HTML ativo/sem proteção")
-            check(private.read_text(encoding="utf-8") == canary, "Arquivo do host foi alterado")
+            check("Content-Security-Policy" in html and "<script" not in html.lower(), "HTML ativo/sem protection")
+            check(private.read_text(encoding="utf-8") == canary, "Host file changed")
             proof["scenarios"].append({"case": name, "status": "PASS", "events": len(trace["events"])})
         proof.update(status="PASS", kernelModified=False, undetectabilityClaimed=False,
                      isolatedGuestEffects=True, emptyResponsesUsed=False)
@@ -135,7 +135,7 @@ def run_suite(manager, kernel, output):
             proof.update(status="FAIL", cleanupErrors=cleanup_errors)
         (output / "result.json").write_text(json.dumps(proof, indent=2) + "\n", encoding="utf-8")
         (output / "commands.json").write_text(json.dumps(commands, indent=2) + "\n", encoding="utf-8")
-    check(proof["status"] == "PASS", "Falha na limpeza; veja result.json")
+    check(proof["status"] == "PASS", "Cleanup failed; see result.json")
     return proof
 
 
@@ -146,7 +146,7 @@ def main():
     p.add_argument("--output", type=Path, required=True)
     a = p.parse_args()
     if REVISION is None:
-        p.error("Gere uma revisão com tools/aegis_sandbox_revisions.py generate")
+        p.error("Generate a review with tools/aegis_sandbox_revisions.py generate")
     result = run_suite(a.manager.resolve(), a.kernel.resolve(), a.output)
     print(json.dumps(result, indent=2))
 

@@ -1,105 +1,59 @@
-# Memória virtual do MiniNt — 16/10/2026
+# MiniNt virtual memory — 16/10/2026
 
-Esta etapa continua a implementação existente em
-`D:\Desktop Folders (DO NOT ERASE)\AntiVirus`. Usa diretamente o WHP, sem QEMU,
-sem inicializar a ISO Windows e sem modificar a instalação do Windows do host.
-O gerenciador é próprio e atende syscalls interceptados pelo `MiniNt` existente.
-Ainda é uma personalidade NT implementada no host, não um kernel NT completo
-que inicializa sozinho em hardware.
+This step continues the existing implementation in `D:\Desktop Folders (DO NOT ERASE)\AntiVirus`. It uses directly the WHP, without QEMU, without booting ISO Windows and without modifying the installation of Windows from the host. The manager is own and meets syscalls intercepted by the existing `MiniNt`. It is still an NT personality implemented in the host, not a complete NT kernel that bootes itself into hardware.
 
-## Comportamento implementado
+## Behavior implemented
 
-`src/microvm/host/GuestVirtualMemory.h` mantém os metadados de regiões no host e
-o estado de cada página de 4 KiB. A arena padrão continua de `0xA00000` a
-`0xE00000`; `SetArena` permite configurar outra arena alinhada antes do uso.
-Reservas começam em múltiplos de 64 KiB. A arena não pode sobrepor o heap
-configurado no `MiniNt`.
+`src/microvm/host/GuestVirtualMemory.h` maintains the metadata of regions in the host and the state of each page of 4 KiB. The default arena continues from `0xA00000` to `0xE00000`; `SetArena` allows setting up another arena aligned before use. Reservations begin in multiples of 64 KiB. The arena cannot override the heat configured in `MiniNt`.
 
-| Operação | Efeito verificável |
+| Operation | Effect verifiable |
 |---|---|
-| `NtAllocateVirtualMemory` | Reserva endereços, faz commit de páginas ou combina as duas operações; valida limites e flags. |
-| `NtAllocateVirtualMemoryEx` | Usa a ordem correta de argumentos desta API; aceita zero parâmetros estendidos e recusa opções estendidas não implementadas. |
-| `MEM_RESERVE` | Mantém a região ocupada e inacessível ao convidado. |
-| `MEM_COMMIT` | Zera páginas recém-comprometidas e aplica a proteção; novo commit de páginas já comprometidas preserva dados e proteção. |
-| `NtFreeVirtualMemory` / `MEM_DECOMMIT` | Retira o acesso às páginas, mantendo a reserva; commit posterior zera os bytes antigos. |
-| `NtFreeVirtualMemory` / `MEM_RELEASE` | Exige a base original e tamanho de entrada zero; libera a reserva inteira e permite reutilizar seus endereços. |
-| `NtProtectVirtualMemory` | Exige páginas comprometidas da mesma reserva, arredonda o intervalo e devolve a proteção anterior em exatamente 4 bytes. |
-| `NtQueryVirtualMemory` | Implementa `MemoryBasicInformation`, com estrutura x64 de 48 bytes, para endereços dentro da arena. Distingue livre, reservado e comprometido, proteção, base da reserva e tipo. |
-| `NtMapViewOfSection` | Compartilha o controle de endereços com as alocações privadas, sem colisões; registra views como `MEM_MAPPED` ou `MEM_IMAGE`. |
-| `NtUnmapViewOfSection` | Remove a view inteira, inclusive quando recebe um endereço interior, e retira seu acesso no WHP. Não libera alocações privadas. |
+| `NtAllocateVirtualMemory` | Reserve addresses, commit pages or combine the two operations; validate limits and flags. |
+| `NtAllocateVirtualMemoryEx` | Use the correct order of arguments of this API; accept zero extended parameters and refuse extended options not implemented. |
+| `MEM_RESERVE` | Keeps the area occupied and inaccessible to the guest. |
+| `MEM_COMMIT` | Zera newly committed pages and applies protection; new commit of already committed pages preserves data and protection. |
+| `NtFreeVirtualMemory` / `MEM_DECOMMIT` | Removes access to the pages while maintaining the reservation; later commits to zero the old bytes. |
+| `NtFreeVirtualMemory` / `MEM_RELEASE` | Requires the original base and zero input size; releases the entire reservation and allows you to reuse your addresses. |
+| `NtProtectVirtualMemory` | Requires committed pages from the same reservation, rounds the range and returns the previous protection to exactly 4 bytes. |
+| `NtQueryVirtualMemory` | Implements `MemoryBasicInformation`, with structure x64 of 48 bytes, for addresses within the arena. Distinguished free, reserved and committed, protection, reservation base and type. |
+| `NtMapViewOfSection` | Shares address control with private locations, no collisions; registers views such as `MEM_MAPPED` or `MEM_IMAGE`. |
+| `NtUnmapViewOfSection` | Remove the entire view, including when you receive an internal address, and remove your access to the WHP. It does not release private allocations. |
 
-Os novos caminhos de alocação, liberação, proteção, consulta e mapeamento
-verificam os ponteiros de entrada/saída, os limites da RAM e as permissões antes
-de acessar os dados. Só atendem o processo corrente
-(`HANDLE(-1)`). Os campos de saída são preservados quando a operação falha;
-a consulta com buffer curto pode informar o tamanho necessário. Aliasing entre
-campos de saída e campos que seriam protegidos/liberados é recusado neste
-subconjunto. Valores e intervalos que causariam overflow são recusados.
+The new allocation, release, protection, query, and mapping paths check the entry/exit pointers, RAM limits, and permissions before accessing the data. They only serve the current process (`HANDLE(-1)`). Output fields are preserved when the operation fails; short buffer query can inform the required size. Aliasing between output fields and fields that would be protected/released is refused in this subset. Values and ranges that would cause overflow are refused.
 
-## Permissões aplicadas à execução
+## Permissions applied to implementation
 
-`MicroVmMonitor::SetMemoryAccess` usa `WHvMapGpaRange` para substituir permissões
-de páginas e `WHvUnmapGpaRange` para retirar o acesso. O controle de acesso não é
-apenas um valor retornado pelo syscall: o WHP bloqueia as instruções do convidado.
+`MicroVmMonitor::SetMemoryAccess` uses `WHvMapGpaRange` to replace page permissions and `WHvUnmapGpaRange` to remove access. Access control is not just a value returned by syscall: WHP blocks guest instructions.
 
-| Proteção aceita | Leitura | Escrita | Execução |
+| Accepted protection | Reading | Writing | Implementation |
 |---|---|---|---|
-| `PAGE_NOACCESS` | Não | Não | Não |
-| `PAGE_READONLY` | Sim | Não | Não |
-| `PAGE_READWRITE` | Sim | Sim | Não |
-| `PAGE_EXECUTE_READ` | Sim | Não | Sim |
-| `PAGE_EXECUTE_READWRITE` | Sim | Sim | Sim |
+| `PAGE_NOACCESS` | No | No | No |
+| `PAGE_READONLY` | Yes | No | No |
+| `PAGE_READWRITE` | Yes | Yes | No |
+| `PAGE_EXECUTE_READ` | Yes | No | Yes |
+| `PAGE_EXECUTE_READWRITE` | Yes | Yes | Yes |
 
-`PAGE_GUARD`, copy-on-write, execução sem leitura, `ZeroBits` diferente de zero,
-large pages e outras flags não implementadas retornam erro. `MEM_TOP_DOWN` é
-suportado dentro da arena. Uma página comprometida com `PAGE_NOACCESS` continua
-distinta de uma página apenas reservada.
+`PAGE_GUARD`, copy-on-write, unreadable execution, `ZeroBits` other than zero, large pages and other unimplemented flags return error. `MEM_TOP_DOWN` is supported within the arena. A page committed to `PAGE_NOACCESS` remains distinct from a page only reserved.
 
-O primeiro uso do gerenciador retira o mapeamento de toda a arena livre. A RAM
-do host continua pré-alocada: commit/decommit não implementam demanda de memória
-física, paginação ou swap. As tabelas de páginas iniciais continuam usando o
-mapeamento de identidade existente; as restrições adicionais são aplicadas no
-segundo nível de tradução do WHP.
+The first use of the manager removes the mapping of the entire free arena. The RAM of the host remains pre-allocated: commit/decommit do not implement physical memory demand, pagination or swap. The initial page tables continue using existing identity mapping; the additional restrictions are applied at the second translation level of the WHP.
 
-Um acesso proibido encerra a execução com o tipo de acesso, GPA e RIP. Ainda não
-é entregue uma exceção de acesso ao código do convidado nem há recuperação SEH.
-Se uma atualização de mapeamento falha, o gerenciador marca a VM como inválida
-e impede novas execuções: é necessário recriar a VM. Não retorna sucesso com
-permissões incertas nem tenta continuar após uma atualização parcial.
+A prohibited access ends execution with the type of access, GPA and RIP. No exception to access to the guest code is yet delivered nor is there SEH recovery. If a mapping update fails, the manager marks the VM as invalid and prevents new executions: it is necessary to recreate the VM. It does not return success with uncertain permissions nor tries to continue after a partial update.
 
-## Integração com seções e limites atuais
+## Integration with current sections and limits
 
-Views de dados respeitam as permissões máximas da seção também nas chamadas
-posteriores de proteção. Fechar o handle da seção não destrói uma view já
-mapeada. A cópia de dados respeita o tamanho da view e não escreve na reserva
-vizinha. Offset diferente de zero, commit parcial de seção e flags adicionais
-de mapeamento são recusados nesta etapa.
+Data views respect the maximum permissions of the section also in later protection calls. Close the section handle does not destroy an already mapped view. The data copy respects the view size and does not write in the neighboring reserve. Offset is different from zero, partial section commit and additional mapping flags are refused at this step.
 
-**Atualização de objetos:** a etapa de [handles e objetos](KERNEL-OBJECTS.md)
-passou a manter referências do arquivo na seção e da seção nas views, além de
-verificar os direitos do handle ao mapear. Fechar handles não invalida as
-referências restantes; a última referência libera o objeto de arquivo.
+**Object update:** the [handles and objects] step](KERNEL-OBJECTS.md) has started to maintain file references in the section and section in the views, as well as checking the handsle rights when mapping. Close handles does not invalidate the remaining references; the last reference releases the file object.
 
-O modelo de seções continua copiando dados para cada view; não há
-coerência de páginas compartilhadas, persistência das alterações no arquivo ou
-copy-on-write. Tokens, ACLs e compartilhamento de páginas continuam pendentes.
-O carregamento de `SEC_IMAGE` mantém
-a política anterior de imagem inteira RWX; proteção por seção PE ainda não foi
-implementada. O parser PE antigo não foi integralmente auditado.
+The section template continues to copy data for each view; there is no consistency of shared pages, persistence of file changes or copy-on-write. Tokens, ACLs and page sharing remain pending. The `SEC_IMAGE` upload maintains the previous entire image policy RWX; protection by PE section has not yet been implemented. The old PE parser has not been fully audited.
 
-As permissões de CPU e a validação do novo ABI não significam que todos os
-syscalls antigos estejam revisados: ainda existem cópias em massa e respostas
-provisórias em outros caminhos de `MiniNt`. A consulta de regiões não cobre
-módulos, stacks e heaps fora da arena. Há um único espaço de endereços e uma
-vCPU. `NtKernel` (modelo A) continua separado.
+CPU permissions and validation of the new ABI do not mean that all old syscalls are reviewed: there are still mass copies and provisional responses on other paths of `MiniNt`. The query of regions does not cover modules, stacks and heaps outside the arena. There is a single address space and a vCPU. `NtKernel` (Model A) remains separate.
 
-`SnapshotManager` salva RAM e registradores, sem capturar os metadados de heap,
-regiões, seções ou as permissões WHP. Seu restore não pode ser usado para
-restaurar o estado completo do `MiniNt`; essa integração continua pendente.
+`SnapshotManager` saves RAM and registrars without capturing the metadata of heap, regions, sections or WHP permissions. Your restor can't be used to restore the full state of `MiniNt`; this integration remains pending.
 
-## Compilar e validar
+## Build and Validate
 
-Requisitos: Windows x64, Visual Studio 2022 com C++, Windows SDK e CMake.
+Requirements: Windows x64, Visual Studio 2022 with C++, Windows SDK and CMake.
 
 ```powershell
 .\Build-Kernel.ps1 -Configuration Release
@@ -107,66 +61,52 @@ Requisitos: Windows x64, Visual Studio 2022 com C++, Windows SDK e CMake.
 .\Build-Kernel.ps1 -Configuration Release -FullBuild
 ```
 
-As compilações ficam em `build-codex`. O script executa quatro testes:
+The compilations are in `build-codex`. The script performs four tests:
 
-- `microvm_memory`: limites e operações do heap, incluindo 2.500 operações combinadas.
-- `microvm_heap_guest`: execução do heap próprio em ring 3 pelo dispatcher existente.
-- `microvm_virtual_memory`: estados, arredondamento, preservação/zeragem de dados,
-  permissões, reutilização, views e falhas induzidas no backend de mapeamento.
-- `microvm_virtual_memory_guest`: syscalls em ring 3, canários do ABI, consulta
-  de regiões, leitura/escrita/execução permitidas e bloqueadas pelo WHP, execução
-  de código RX, coexistência de views e memória privada e invalidação da VM.
+- `microvm_memory`: Heap limits and operations, including 2,500 combined operations.
+- `microvm_heap_guest`: Execution of the own heat in ring 3 by the existing dispatcher.
+- `microvm_virtual_memory`: states, rounding, preservation/zeragem data,
+  permissions, reuse, views and induced failures in the mapping backend.
+- `microvm_virtual_memory_guest`: syscalls in ring 3, ABI canaries, consultation
+  of regions, reading/writing/implementation allowed and blocked by the WHP, execution of RX code, coexistence of views and private memory and invalidation of the VM.
 
-Os programas dos novos testes são gerados no próprio código. Não usam amostras
-externas. O watchdog limita as execuções; os testes de convidado retornam 77
-quando o WHP não está disponível, e o CTest registra isso como ignorado.
+New test programs are generated in the code itself. They do not use external samples. Watchdog limits executions; guest tests return 77 when WHP is not available, and CTest records this as ignored.
 
-Os exemplos existentes usados como regressão são `vmntdll`, `vmntsect`,
-`vmntimage` e `vmwininit`. Executam stubs das DLLs do sistema ou a pequena DLL
-`test/imgtest.dll` dentro do convidado. `vmntimage` agora encontra esse fixture
-na pasta fonte configurada pelo CMake, sem depender do caminho de outro checkout.
+The existing examples used as regression are `vmntdll`, `vmntsect`, `vmntimage` and `vmwininit`. Run system DLL stubs or small `test/imgtest.dll` DLL within the guest. `vmntimage` now finds this fixture in the source folder configured by CMake, without depending on the path of another checkout.
 
-## Resultados nesta máquina
+## Results on this machine
 
-Validação em Windows x64 com WHP disponível, MSVC 19.44 e SDK 10.0.26100.0:
+Windows x64 validation with available WHP, MSVC 19.44 and SDK 10.0.26100.0:
 
-| Verificação | Debug | Release |
+| Scan | Debug | Release |
 |---|---|---|
-| Quatro testes do CTest | 4 passaram, nenhum ignorado | 4 passaram, nenhum ignorado |
-| `vmntdll`: stub real de alocação e leitura/escrita no convidado | Passou | Passou |
-| `vmntsect`: conteúdo do arquivo virtual lido pela view | Passou | Passou |
-| `vmntimage`: relocação e execução de `Probe()` da DLL de teste | `0xC0FFEE5`, correto | `0xC0FFEE5`, correto |
-| `vmwininit`: exports reais atendidos pelo heap próprio | Passou | Passou |
-| Compilação completa do projeto | Não executada | Passou, 35 executáveis |
+| Four CTest tests | 4 passed, none ignored | 4 passed, none ignored |
+| `vmntdll`: real allocation stub and reading/writing in guest | It's over. | It's over. |
+| `vmntsect`: Virtual file content read by view | It's over. | It's over. |
+| `vmntimage`: relocation and execution of `Probe()` from test DLL | `0xC0FFEE5`, correct | `0xC0FFEE5`, correct |
+| `vmwininit`: real exports attended by the own heap | It's over. | It's over. |
+| Build complete do project | Not executed | It's over., 35 executable |
 
-Os testes de convidado realmente executaram; não foram ignorados por ausência
-de hipervisor. O script `Build-Kernel.ps1 -Configuration Debug` também completou
-com sucesso, sem avisos nos alvos compilados. A compilação completa Release
-mantém avisos anteriores de conversão de tipos no modelo A e em outros módulos.
+The guest tests actually ran; they were not ignored due to the lack of hypervisor. The `Build-Kernel.ps1 -Configuration Debug` script also successfully completed without warnings on compiled targets. The Full Release build maintains previous types conversion warnings in model A and other modules.
 
-Evidências em `build-codex`:
+Evidence ed `build-codex`:
 
-- `virtual-memory-release-tests.log`: os quatro testes em Release.
-- `virtual-memory-debug-script.log`: compilação e quatro testes em Debug.
-- `virtual-memory-regressions.json`: saída completa das oito execuções dos exemplos.
-- `virtual-memory-full-release-build.log`: compilação completa Release.
-- `virtual-memory-change-manifest.json`: arquivos modificados, backup e hashes.
+- `virtual-memory-release-tests.log`: the four tests in Release.
+- `virtual-memory-debug-script.log`: compilation and four tests in Debug.
+- `virtual-memory-regressions.json`: complete exit of the eight executions of the examples.
+- `virtual-memory-full-release-build.log`: compilation complete Release.
+- `virtual-memory-change-manifest.json`: modified files, backup and hashes.
 
-## Próximas partes do núcleo
+## Next parts of the core
 
-O próximo passo é consolidar handles e objetos, incluindo direitos, referências
-e vida útil de seções/arquivos. Depois vêm threads, esperas e sincronização com
-efeitos reais, além da evolução das tabelas de páginas e da entrega de exceções.
-Isso ainda não estabelece compatibilidade integral com NT, Win32 ou drivers,
-nem execução segura de malware.
+The next step is to consolidate handles and objects, including sections/files. rights, references, and service life Then come threads, waits, and synchronization with real effects, as well as the evolution of page tables and the delivery of exceptions. This still does not establish full compatibility with NT, Win32 or drivers, nor secure malware execution.
 
-Os arquivos anteriores a esta etapa estão preservados em
-`snapshots/codex-before-virtual-memory-20261015-233931/`.
+The files prior to this step are preserved in `snapshots/codex-before-virtual-memory-20261015-233931/`.
 
-## Referências de semântica
+## Semantic references
 
 - [ZwAllocateVirtualMemory](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-zwallocatevirtualmemory)
 - [ZwFreeVirtualMemory](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/nf-ntifs-zwfreevirtualmemory)
-- [VirtualProtect e views mapeadas](https://learn.microsoft.com/pt-br/windows/win32/api/memoryapi/nf-memoryapi-virtualprotect)
-- [Gerenciamento de seções](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/managing-memory-sections)
+- [VirtualProtect and views mapped](https://learn.microsoft.com/pt-br/windows/win32/api/memoryapi/nf-memoryapi-virtualprotect)
+- [](https://learn.microsoft.com/en-us/windows-hardware/drivers/kernel/managing-memory-sections) Section Management]
 - [WHvMapGpaRange](https://learn.microsoft.com/en-us/virtualization/api/hypervisor-platform/funcs/whvmapgparange)
