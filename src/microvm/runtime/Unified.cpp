@@ -1,3 +1,4 @@
+#include "common/BoundedJson.h"
 #include "Unified.h"
 #include "../boot/KernelBoot.h"
 #include "../gui/NativeGuiBroker.h"
@@ -158,7 +159,8 @@ Json Run(const fs::path &input, const fs::path &configuredRegistry, const fs::pa
         auto volume = Checked(registry, files, volumePath, guardian::pevolume::MaxBytes);
         auto manifestBytes = Checked(registry, files, manifestPath, 4 << 20);
         Checked(registry, files, bindingPath, 176);
-        auto manifest = Json::parse(manifestBytes);
+        auto manifest = aegis::security::ParseJson(
+            std::string_view(reinterpret_cast<const char*>(manifestBytes.data()), manifestBytes.size()), 4u << 20);
         Require(manifest.at("architecture") == record.at("architecture") &&
                     manifest.at("profile") == record.at("profile"),
                 "Runtime manifest architecture/profile mismatch");

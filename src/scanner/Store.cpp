@@ -1,3 +1,4 @@
+#include "common/BoundedJson.h"
 #include "Store.h"
 #include <chrono>
 #include <sqlite3.h>
@@ -126,7 +127,7 @@ Json Store::Cached(const std::string &category, const std::string &key, int64_t 
     s.Int(3, now);
     if (s.Step() != SQLITE_ROW)
         return nullptr;
-    return Json::parse(s.Text(0),[](int depth,Json::parse_event_t,Json&){Require(depth<=32,"Cached provider nesting limit");return true;});
+    return aegis::security::ParseJson(s.Text(0));
 }
 void Store::Cache(const std::string &category, const std::string &key, const Json &value, int64_t now,
                   uint32_t ttl)
@@ -256,7 +257,7 @@ Json Store::Jobs()
                        {"name", s.Text(2)},
                        {"created", s.Int(3)},
                        {"state", s.Text(4)},
-                       {"result", Json::parse(s.Text(5))}});
+                       {"result", aegis::security::ParseJson(s.Text(5))}});
     return out;
 }
 Json Store::Claim()

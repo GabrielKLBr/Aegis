@@ -1,3 +1,4 @@
+#include "common/BoundedJson.h"
 #include "HashLookup.h"
 #include <bcrypt.h>
 #include <shlobj.h>
@@ -71,7 +72,7 @@ Json LookupHash(const Json& request,const fs::path& cache,const scan::Transport&
     return {{"schema",1},{"complete",true},{"online",online},{"providersComplete",online&&available},{"sha256",hash},{"items",rows},{"verdict","reputation_only"},{"notice","Database matches are supporting evidence. No match or unavailable service does not establish that a file is safe."}};
 }
 Json HashLookupFile(const fs::path& request) {
-    const auto data=Read(request);const auto input=Json::parse(data,[](int depth,Json::parse_event_t,Json&){Check(depth<=16,"Hash request nesting limit");return true;});
+    const auto data=Read(request);const auto input=aegis::security::ParseJson(data,65536);
     PWSTR local=nullptr;Check(SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData,0,nullptr,&local)),"Locate reputation cache");const fs::path root=fs::path(local)/L"AegisReputation17";CoTaskMemFree(local);fs::create_directory(root);Ordinary(root);
     std::string key;
     // Credential access is unnecessary for local-only hashing or CIRCL queries.

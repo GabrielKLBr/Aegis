@@ -1,4 +1,5 @@
 #include "Services.h"
+#include "common/BoundedJson.h"
 #include <sddl.h>
 #include <vector>
 #include <stdexcept>
@@ -68,6 +69,11 @@ void Validate(const Request& r) {
     Check(r.pathChars > 0 && r.pathChars <= 32767 && r.milliseconds >= 100 && r.milliseconds <= 3600000,
           "Engine request limit exceeded");
     Check(r.kind != Kind::Sandbox || r.milliseconds <= 60000, "Sandbox time limit exceeded");
+}
+Json ParseFrame(const std::string& text) {
+    auto value = aegis::security::ParseJson(text, MaxFrame);
+    Check(value.is_object(), "Engine response must be an object");
+    return value;
 }
 void Transfer(HANDLE pipe, bool write, void* buffer, DWORD bytes, ULONGLONG deadline,
               HANDLE stop, const std::atomic<bool>* cancel) {

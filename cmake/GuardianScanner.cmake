@@ -74,7 +74,7 @@ endif()
 add_library(guardian_scanner STATIC src/scanner/Cli.cpp src/scanner/Support.cpp src/scanner/Static.cpp
     src/scanner/Store.cpp src/scanner/Intelligence.cpp src/scanner/Engine.cpp src/scanner/Worker.cpp)
 target_include_directories(guardian_scanner PUBLIC "${PROJECT_SOURCE_DIR}/src")
-file(GLOB scanner_fingerprint_inputs CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/scanner/*.cpp" "${PROJECT_SOURCE_DIR}/src/scanner/*.h")
+file(GLOB scanner_fingerprint_inputs CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/scanner/*.cpp" "${PROJECT_SOURCE_DIR}/src/scanner/*.h" "${PROJECT_SOURCE_DIR}/src/common/BoundedJson.h" "${PROJECT_SOURCE_DIR}/src/common/ProcessPolicy.h")
 list(APPEND scanner_fingerprint_inputs "${CMAKE_CURRENT_LIST_FILE}" "${CMAKE_CURRENT_LIST_DIR}/ScannerDependencies.json")
 file(GLOB scanner_sandbox_fingerprint CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/src/microvm/host/*.h"
     "${PROJECT_SOURCE_DIR}/src/microvm/host/*.cpp" "${PROJECT_SOURCE_DIR}/src/microvm/MicroSandbox.*"

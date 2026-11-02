@@ -16,6 +16,9 @@ namespace fs = std::filesystem;
 enum class Kind : uint32_t { Antivirus = 1, Sandbox = 2 };
 enum class Operation : uint32_t { Scan = 1, Detonate = 2, DesktopBundle = 3, Checkpoint = 4, Resume = 5, QuarantineList = 6, QuarantineIsolate = 7, QuarantineRestore = 8, QuarantineErase = 9, QuarantineAudit = 10, ProtectionStatus = 11, ProtectionConfigure = 12, ProtectionSubmit = 13, ProtectionCancel = 14, ProtectionEvents = 15, HashLookup = 16, ProtectionFile = 25, ProtectionManualFile = 26 };
 enum class FrameType : uint32_t { Progress = 1, Result = 2, Error = 3 };
+inline constexpr bool LeafWorker(Kind kind, Operation operation) {
+    return kind == Kind::Antivirus && operation != Operation::Scan;
+}
 inline constexpr uint32_t Magic = 0x53474541, Version = 1, MaxFrame = 2u << 20;
 // Read attributes are required by Win32's pipe open/identity operations. Do not
 // include FILE_GENERIC_WRITE: it also grants FILE_CREATE_PIPE_INSTANCE.
@@ -71,6 +74,7 @@ fs::path Executable();
 void Check(bool, const char*);
 [[noreturn]] void WinError(const char*, DWORD error = GetLastError());
 void Validate(const Request&);
+Json ParseFrame(const std::string&);
 void Transfer(HANDLE, bool write, void*, DWORD, ULONGLONG deadline,
               HANDLE stop = nullptr, const std::atomic<bool>* cancel = nullptr);
 void Connect(HANDLE, ULONGLONG deadline, HANDLE stop = nullptr);

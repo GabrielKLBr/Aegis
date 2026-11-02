@@ -1,4 +1,6 @@
 #include "Services.h"
+#include "RuntimeCatalog.h"
+#include "common/BoundedJson.h"
 #include "distribution/Distribution.h"
 #include <aclapi.h>
 #include <array>
@@ -315,8 +317,7 @@ int Install(const std::wstring &ownerArgument, bool uninstall, bool rollback) {
         const auto indexPath = assets / L"runtime" / L"index.json";
         Ordinary(indexPath);
         Check(fs::file_size(indexPath) <= 2u << 20, "Runtime index quota");
-        std::ifstream stream(indexPath);
-        const auto index = Json::parse(stream);
+        const auto index = aegis::security::ParseJson(d::Read(indexPath));
         Check(index.value("schema", 0) == 1 && index.at("applications").is_object() &&
                   index.at("applications").size() <= 16,
               "Installed runtime index rejected");
@@ -346,6 +347,7 @@ int Install(const std::wstring &ownerArgument, bool uninstall, bool rollback) {
                     d::CopyMember(member,target);
             }
         }
+        RefreshRuntimeHelpers(slot / L"runtime", slot);
     }
     // Install an immutable code tree for standard users, including the owner.
     for (const auto &entry : fs::recursive_directory_iterator(root)) {

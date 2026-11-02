@@ -1,4 +1,4 @@
-"""Check the signed phase-18 portable payload and its virtualization-independent loader."""
+"""Check a signed portable payload and its virtualization-independent loader."""
 from pathlib import Path
 import argparse,hashlib,json,struct,subprocess
 def imports(path):
@@ -23,7 +23,7 @@ def imports(path):
         raise ValueError('PE import quota')
     return names(1,20,12),names(13,32,4)
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('package',type=Path);p.add_argument('--output',type=Path,required=True);a=p.parse_args();root=a.package.resolve();manifest=json.loads((root/'aegis.manifest.json').read_bytes());assert manifest['kind']=='portable' and manifest['schema']==1
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('package',type=Path);p.add_argument('--phase',choices=['18','19A'],default='18');p.add_argument('--output',type=Path,required=True);a=p.parse_args();root=a.package.resolve();manifest=json.loads((root/'aegis.manifest.json').read_bytes());assert manifest['kind']=='portable' and manifest['schema']==1
     for name,item in manifest['files'].items():
         path=root/name;assert path.is_file() and path.stat().st_size==item['bytes'];assert hashlib.sha256(path.read_bytes()).hexdigest()==item['sha256']
     result=subprocess.run([str(root/'engines/guardian-distribution.exe'),'verify',str(root),'portable'],capture_output=True,timeout=45,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0));assert result.returncode==0,result.stderr
@@ -35,5 +35,5 @@ def main():
         for folder in ['runtime','engines']:
             for name in ['msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll']:assert (root/folder/name).is_file()
     assert (root/'notices/components.json').is_file() and len(list((root/'notices').rglob('*LICENSE*')))+len(list((root/'notices').rglob('*license*')))>0
-    proof={'phase':'18','status':'PASS','files':len(manifest['files']),'identity':json.loads(result.stdout)['identity'],'memberHashes':'PASS','nativeSignatureVerification':'PASS','noGuestWindowsReferences':'PASS','portableLayout':'PASS','WHPDelayedImports':'PASS','componentNotices':'PASS','releaseCrt':'PASS' if manifest['configuration']=='Release' else 'developer prerequisite'};a.output.write_text(json.dumps(proof,indent=2),'utf-8');print(json.dumps(proof))
+    proof={'phase':a.phase,'status':'PASS','files':len(manifest['files']),'identity':json.loads(result.stdout)['identity'],'memberHashes':'PASS','nativeSignatureVerification':'PASS','noGuestWindowsReferences':'PASS','portableLayout':'PASS','WHPDelayedImports':'PASS','componentNotices':'PASS','releaseCrt':'PASS' if manifest['configuration']=='Release' else 'developer prerequisite'};a.output.write_text(json.dumps(proof,indent=2),'utf-8');print(json.dumps(proof))
 if __name__=='__main__':main()

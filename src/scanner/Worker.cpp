@@ -3,6 +3,7 @@
 #include <thread>
 #ifdef _WIN32
 #include <Windows.h>
+#include "common/ProcessPolicy.h"
 #else
 #include <signal.h>
 #include <sys/resource.h>
@@ -66,12 +67,20 @@ Json RunWorker(const fs::path &job, const Json &request, const std::atomic<bool>
         }
     }
     environment += L'\0';
-    STARTUPINFOW start{};
-    start.cb = sizeof(start);
+    aegis::security::ProcessAttributes attributes;
+    STARTUPINFOEXW start{};
+    start.StartupInfo.cb = sizeof(start);
+    start.lpAttributeList = attributes.Get();
+    if (!sandbox) {
+        JOBOBJECT_BASIC_UI_RESTRICTIONS ui{aegis::security::UiRestrictions};
+        Require(SetInformationJobObject(group.h, JobObjectBasicUIRestrictions, &ui, sizeof(ui)) != FALSE,
+                "Cannot constrain scanner desktop access");
+    }
     PROCESS_INFORMATION pi{};
     Require(CreateProcessW(executable.c_str(), command.data(), nullptr, nullptr, FALSE,
-                           CREATE_SUSPENDED | CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT,
-                           environment.data(), job.c_str(), &start, &pi) != FALSE,
+                           CREATE_SUSPENDED | CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT |
+                               EXTENDED_STARTUPINFO_PRESENT,
+                           environment.data(), job.c_str(), &start.StartupInfo, &pi) != FALSE,
             "Cannot start scanner worker");
     process.h = pi.hProcess;
     thread.h = pi.hThread;
@@ -145,7 +154,8 @@ Json RunWorker(const fs::path &job, const Json &request, const std::atomic<bool>
 #endif
     Require(!cancelled, "analysis cancelled");
     Require(!timeout, "worker wall time limit exceeded");
-    Require(exitCode == 0, "scanner worker failed/resource limit exceeded");
+    Require(exitCode == 0, "scanner worker failed/resource limit exceeded (exit " +
+                              std::to_string(exitCode) + ")");
     const auto result = ReadJson(job / "result.json");
     Require(result.is_object() && result.value("schema", 0) == 1 && result.contains("complete") &&
                 result.at("complete").is_boolean(),

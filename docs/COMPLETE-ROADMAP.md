@@ -562,6 +562,14 @@ Measure the proportion of applications that complete the predicted use by catego
 
 ## Phase 19 — Launch, performance and maintenance validation
 
+### 19A — Isolation and permissions review
+
+**Delimited delivery:** [review, hardening, negative-permission tests and remaining release gates](PHASE-19A.md). This is an internal engineering review of the service, MiniNT and native-helper boundaries. It does not complete phase 19 or certify universal containment. Host-helper capability confinement and independent security review remain explicit release gates.
+
+**Acceptance:** bounded hostile requests are refused without service loss or privileged side effects; worker/GUI policies are verified; guest filesystem and offline-network tests leave owned host sentinels/listeners untouched; directly affected rendering, audio, scanner and portable package flows still work. Preserve user policy and service states. Publish this delivery and stop.
+
+The remaining phase-19 work includes parser/protocol fuzzing, broader compatibility and false-positive measurements, performance/recovery, clean-machine and missing-feature matrices, independent isolation review and release/maintenance operations. Do not mark these complete from the 19A checks. Resolve the open containment release gate before making production hostile-code isolation claims.
+
 **Work:**consolidate automated testing, parser fuzzing and protocols, specialized review of isolation and hostile input resistance testing. Run compatibility matrix, false positives, performance and failure recovery; measure CPU/RAM/I/O and optimize queues, cache and incremental scan. Verify multiple VMs, lack of features, restart, update and loss of connectivity. Prepare diagnostic, documentation and correction process.
 
 Also evaluate the five groups of subphases 12A–12E with a versioned suite, initially of harmless own programs. Registering observed signs, differences in the reference and effects on the behavior of applications. Each finding should point to a known correction or limitation. Any proportion of samples that recognize or not the environment requires corpus, method, versions and published limits. Some examples do not support stating that most viruses do not identify the sandbox.

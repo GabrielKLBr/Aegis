@@ -8,6 +8,11 @@ void Check(bool ok,const char* message){if(!ok)throw std::runtime_error(message)
 struct Client {Backend& backend;uint64_t sequence=0;uint32_t pid=101;uint32_t Run(Request& request){request.pid=pid;request.sequence=++sequence;request.status=0;Check(backend.Exchange(request),"transport rejected a valid request");return request.status;}};
 int main(){try{
     Policy offline;Backend denied(offline);Client d{denied};Request random;random.op=Op::Random;random.length=32;Check(!d.Run(random),"offline entropy unavailable");Request resolve;resolve.op=Op::Resolve;std::memcpy(resolve.name,"localhost",10);Check(d.Run(resolve)==10013,"offline DNS policy bypass");
+    // Phase 19A: allocating a virtual socket must not grant a host connection.
+    Request offlineOpen;offlineOpen.op=Op::Open;Check(!d.Run(offlineOpen)&&offlineOpen.id,"offline virtual handle");
+    Request offlineConnect;offlineConnect.op=Op::Connect;offlineConnect.id=offlineOpen.id;offlineConnect.port=46191;offlineConnect.address[0]=127;offlineConnect.address[3]=1;
+    Check(d.Run(offlineConnect)==10013&&denied.Json().find("\"nativeSocketsOpened\":0")!=std::string::npos,"offline connect reached host transport");
+    Request offlineClose;offlineClose.op=Op::Close;offlineClose.id=offlineOpen.id;Check(!d.Run(offlineClose),"offline handle cleanup");
     Policy policy;policy.mode=Mode::Simulated;policy.endpoints=2;for(uint32_t i=0;i<2;++i){auto& e=policy.entries[i];std::memcpy(e.name,i?"http.guardian.test":"echo.guardian.test",i?19:19);e.address[0]=198;e.address[1]=18;e.address[3]=uint8_t(10+i);e.port=i?80:7;e.service=i?1:0;}
     Backend backend(policy);Client c{backend};Request open;open.op=Op::Open;Check(!c.Run(open)&&open.id,"socket create");const auto id=open.id;
     Request stolen;stolen.op=Op::Close;stolen.id=id;c.pid=202;Check(c.Run(stolen)==10038,"socket process ownership bypass");c.pid=101;

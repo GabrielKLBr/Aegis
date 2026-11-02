@@ -1,3 +1,4 @@
+#include "common/BoundedJson.h"
 #include "Protection.h"
 #include "common/SqliteMigration.h"
 #include "DirectoryChanges.h"
@@ -392,7 +393,7 @@ struct Protection::Impl {
         }
         Statement settings(db, "SELECT value FROM settings WHERE id=1");
         if (settings.Step() == SQLITE_ROW) {
-            policy = Json::parse(settings.String(0));
+            policy = aegis::security::ParseJson(settings.String(0));
             Check(policy.value("owner", std::string()) == Text(owner),
                   "Protection installation owner mismatch");
         } else {
@@ -406,7 +407,7 @@ struct Protection::Impl {
             Statement rows(db, "SELECT id,value FROM jobs");
             std::vector<Json> recovered;
             while (rows.Step() == SQLITE_ROW) {
-                auto j = Json::parse(rows.String(1));
+                auto j = aegis::security::ParseJson(rows.String(1));
                 if (j.at("state") == "running") {
                     j["state"] = "queued";
                     j["recovered"] = true;
@@ -481,7 +482,7 @@ struct Protection::Impl {
         Statement s(db, "SELECT value FROM jobs WHERE id=?");
         s.Text(1, id);
         Check(s.Step() == SQLITE_ROW, "Protection job not found");
-        return Json::parse(s.String(0));
+        return aegis::security::ParseJson(s.String(0));
     }
     Json Enqueue(Json request, const std::string &origin) {
         const auto mode = request.value("mode", std::string("custom"));
@@ -493,7 +494,7 @@ struct Protection::Impl {
         size_t pending = 0, manual = 0;
         std::vector<std::string> finished;
         while (rows.Step() == SQLITE_ROW) {
-            auto j = Json::parse(rows.String(0));
+            auto j = aegis::security::ParseJson(rows.String(0));
             if (j.at("state") == "queued" || j.at("state") == "running") {
                 ++pending;
                 if (j.at("origin") == "manual")
@@ -534,7 +535,7 @@ struct Protection::Impl {
         Json jobs = Json::array();
         Statement s(db, "SELECT value FROM jobs ORDER BY rowid DESC LIMIT 64");
         while (s.Step() == SQLITE_ROW)
-            jobs.push_back(Json::parse(s.String(0)));
+            jobs.push_back(aegis::security::ParseJson(s.String(0)));
         return {{"schema", 1},
                 {"type", "protection"},
                 {"complete", true},
@@ -570,7 +571,7 @@ struct Protection::Impl {
         rows.Number(1, int64_t((std::min)(after, uint64_t(INT64_MAX))));
         while (rows.Step() == SQLITE_ROW) {
             next = uint64_t(sqlite3_column_int64(rows.p, 0));
-            auto e = Json::parse(rows.String(1));
+            auto e = aegis::security::ParseJson(rows.String(1));
             e["seq"] = next;
             result["events"].push_back(e);
         }
@@ -895,7 +896,7 @@ struct Protection::Impl {
                     if (token.value && sessionAvailable) {
                         Statement rows(db, "SELECT value FROM jobs ORDER BY rowid");
                         while (rows.Step() == SQLITE_ROW) {
-                            auto j = Json::parse(rows.String(0));
+                            auto j = aegis::security::ParseJson(rows.String(0));
                             if (j.at("state") != "queued")
                                 continue;
                             if (j.at("origin") == "manual") {
@@ -1016,7 +1017,7 @@ Json Protection::Dispatch(Operation operation, const fs::path &path, HANDLE toke
             Statement pending(v.db, "SELECT value FROM jobs");
             std::vector<Json> stale;
             while (pending.Step() == SQLITE_ROW) {
-                auto j = Json::parse(pending.String(0));
+                auto j = aegis::security::ParseJson(pending.String(0));
                 if (j.at("origin") != "manual" && j.at("state") == "queued") {
                     j["state"] = "cancelled";
                     j["policyChanged"] = true;

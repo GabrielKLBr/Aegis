@@ -1,4 +1,5 @@
 #include "Scanner.h"
+#include "common/BoundedJson.h"
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -428,6 +429,7 @@ void WriteJson(const fs::path &p, const Json &j)
 Json ReadJson(const fs::path &p, uint64_t limit)
 {
     const auto s = Read(p, limit);
-    return Json::parse(s.begin(), s.end());
+    return aegis::security::ParseJson(
+        std::string_view(reinterpret_cast<const char*>(s.data()), s.size()), size_t(limit));
 }
 } // namespace av::scan

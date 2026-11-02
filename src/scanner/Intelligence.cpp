@@ -1,3 +1,4 @@
+#include "common/BoundedJson.h"
 #include "Store.h"
 #include <algorithm>
 #include <chrono>
@@ -59,7 +60,7 @@ Json ProviderResponse(const std::string &id, const std::string &hash, const Http
     if (response.status == 404 && id != "malwarebazaar")
         return out;
     Require(response.status == 200, "Provider HTTP failure");
-    const auto j = Json::parse(response.body,[](int depth,Json::parse_event_t,Json&){Require(depth<=32,"Provider nesting limit exceeded");return true;});
+    const auto j = aegis::security::ParseJson(response.body);
     Require(j.is_object(), "Provider object required");
     if (id == "virustotal")
     {

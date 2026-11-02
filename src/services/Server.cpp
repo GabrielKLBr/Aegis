@@ -1,5 +1,6 @@
 #include "Protection.h"
 #include "Services.h"
+#include "common/ProcessPolicy.h"
 #include <bcrypt.h>
 #include <cstring>
 #include <memory>
@@ -127,6 +128,7 @@ struct Process {
             WaitForSingleObject(process.value, 5000);
     }
     void Start(HANDLE token, const std::wstring &pipe, Operation operation) {
+        const bool leaf = LeafWorker(serviceKind, operation);
         const auto exe = Executable();
         auto command = L"\"" + exe.wstring() + L"\" --worker \"" + pipe + L"\" " +
                        std::to_wstring(GetCurrentProcessId());
@@ -137,7 +139,7 @@ struct Process {
         policy.BasicLimitInformation.LimitFlags =
             JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_ACTIVE_PROCESS |
             JOB_OBJECT_LIMIT_PROCESS_MEMORY | JOB_OBJECT_LIMIT_JOB_MEMORY;
-        policy.BasicLimitInformation.ActiveProcessLimit = serviceKind == Kind::Antivirus ? 3 : 5;
+        policy.BasicLimitInformation.ActiveProcessLimit = leaf ? 1 : serviceKind == Kind::Antivirus ? 3 : 5;
         // Checkpoint encoding temporarily holds several copies of the fixed 256 MiB RAM.
         const bool recovery = serviceKind == Kind::Sandbox &&
                               (operation == Operation::Checkpoint || operation == Operation::Resume);
@@ -148,10 +150,14 @@ struct Process {
         if (!SetInformationJobObject(job.value, JobObjectExtendedLimitInformation, &policy, sizeof(policy)))
             WinError("Constrain engine worker");
         auto environment = Environment(token);
-        STARTUPINFOW start{};
-        start.cb = sizeof(start);
+        // Coordinators need supervised children. Leaf parsers/hash lookups do
+        // not. UI restrictions stay on leaves to preserve nested job limits.
+        aegis::security::ProcessAttributes attributes;
+        STARTUPINFOEXW start{};
+        start.StartupInfo.cb = sizeof(start);
+        start.lpAttributeList = attributes.Get();
         wchar_t desktop[] = L"winsta0\\default";
-        start.lpDesktop = desktop;
+        start.StartupInfo.lpDesktop = desktop;
         PROCESS_INFORMATION info{};
         PSECURITY_DESCRIPTOR descriptor = nullptr;
         Check(ConvertStringSecurityDescriptorToSecurityDescriptorW(
@@ -160,8 +166,9 @@ struct Process {
         SECURITY_ATTRIBUTES objectSecurity{sizeof(objectSecurity), descriptor, FALSE};
         const auto created =
             CreateProcessAsUserW(token, exe.c_str(), command.data(), &objectSecurity, &objectSecurity, FALSE,
-                                 CREATE_SUSPENDED | CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT,
-                                 environment.data(), exe.parent_path().c_str(), &start, &info);
+                                 CREATE_SUSPENDED | CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT |
+                                     EXTENDED_STARTUPINFO_PRESENT,
+                                 environment.data(), exe.parent_path().c_str(), &start.StartupInfo, &info);
         const auto createError = GetLastError();
         LocalFree(descriptor);
         if (!created)
@@ -172,6 +179,14 @@ struct Process {
             const auto error = GetLastError();
             TerminateProcess(process.value, ERROR_OPERATION_ABORTED);
             WinError("Assign engine worker job", error);
+        }
+        // Bind the suspended process's interactive session before adding UI
+        // limits. Pre-setting them on a session-0 service's job makes Windows
+        // reject the session-1 process. No user worker code has run yet.
+        if (leaf) {
+            JOBOBJECT_BASIC_UI_RESTRICTIONS ui{aegis::security::UiRestrictions};
+            if (!SetInformationJobObject(job.value, JobObjectBasicUIRestrictions, &ui, sizeof(ui)))
+                WinError("Constrain antivirus worker desktop access");
         }
         if (ResumeThread(thread.value) == DWORD(-1))
             WinError("Resume engine worker");
@@ -357,7 +372,7 @@ Json RunRestricted(HANDLE token, Operation operation, const fs::path &path, HAND
     Process worker;
     worker.Start(token, name, operation);
     for (;;) {
-        Connect(pipe.value, GetTickCount64() + 8000, cancellation);
+        Connect(pipe.value, (std::min)(deadline, GetTickCount64() + 8000), cancellation);
         ULONG pid = 0;
         Check(GetNamedPipeClientProcessId(pipe.value, &pid) != FALSE, "Identify restricted worker");
         if (pid == GetProcessId(worker.process.value))
@@ -385,7 +400,7 @@ Json RunRestricted(HANDLE token, Operation operation, const fs::path &path, HAND
             "Restricted worker frame rejected");
         std::string bytes(f.bytes, '\0');
         Transfer(pipe.value, false, bytes.data(), f.bytes, deadline, cancellation);
-        auto j = Json::parse(bytes);
+        auto j = ParseFrame(bytes);
         if (f.type == FrameType::Error)
             throw std::runtime_error(j.value("error", "Worker failed"));
         if (f.type == FrameType::Result)

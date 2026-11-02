@@ -4,6 +4,7 @@
 #include <vector>
 #include <aclapi.h>
 #include <sddl.h>
+#include "common/BoundedJson.h"
 
 using namespace av::services;
 namespace {
@@ -66,6 +67,32 @@ void Wire() {
     CloseHandle(client.release());
     completion.join(); if (failure) std::rethrow_exception(failure);
 }
+void JsonLimits() {
+    Check(ParseFrame("{\"a\":[1,{\"b\":true}],\"empty\":{}}") ==
+          Json({{"a", Json::array({1, {{"b", true}}})}, {"empty", Json::object()}}),
+          "Nested engine result changed");
+    Check(ParseFrame("{\"left\":{\"same\":1},\"right\":{\"same\":2}}")
+              .at("right").at("same") == 2, "Independent object keys rejected");
+    Rejected([] { ParseFrame("[]"); });
+    Rejected([] { ParseFrame("null"); });
+    Rejected([] { ParseFrame("{\"enabled\":false,\"enab\\u006ced\":true}"); });
+    Rejected([] { ParseFrame("{\"a\":[{\"x\":1,\"x\":2}]}"); });
+    Rejected([] { ParseFrame("{} trailing"); });
+    Rejected([] { ParseFrame("{\"s\":\"\xff\"}"); });
+    Rejected([] { ParseFrame(std::string(MaxFrame + 1, ' ')); });
+    for (const size_t depth : {size_t(33), size_t(10000)})
+        Rejected([&] { ParseFrame("{\"nested\":" + std::string(depth, '[') + "0" +
+                                   std::string(depth, ']') + "}"); });
+    std::string wide = "{\"values\":[0";
+    for (size_t i = 0; i < aegis::security::JsonEventLimit; ++i) wide += ",0";
+    wide += "]}";
+    Rejected([&] { ParseFrame(wide); });
+    // Large strings remain valid within the byte quota; complexity is counted
+    // structurally, not as one event per character.
+    Check(ParseFrame("{\"text\":\"" + std::string(131072, 'x') + "\"}")
+              .at("text").get_ref<const std::string&>().size() == 131072,
+          "Valid bounded text rejected");
+}
 }
 int main() {
     try {
@@ -96,6 +123,7 @@ int main() {
         Check(Wide(Text(unicode)) == unicode, "UTF-16/UTF-8 path roundtrip");
         Rejected([] { Text(std::wstring(1, wchar_t(0xD800))); });
         Rejected([] { Wide(std::string("\xff")); });
+        JsonLimits();
         Wire();
         std::cout << "Engine services protocol PASS\n"; return 0;
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }

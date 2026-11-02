@@ -12,8 +12,9 @@ av::services::Kind ParseKind(const std::wstring& text) {
 }
 int wmain(int argc, wchar_t** argv) {
     using namespace av::services;
-    SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
     try {
+        if (!SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32))
+            WinError("Constrain engine DLL search");
         const std::wstring action = argc >= 2 ? argv[1] : L"--help";
         if (action == L"--serve" && argc == 5 && std::wstring(argv[3]) == L"--owner")
             return Serve(ParseKind(argv[2]), argv[4]);

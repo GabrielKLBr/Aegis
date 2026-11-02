@@ -5,12 +5,18 @@
 #include "distribution/Distribution.h"
 #include "microvm/runtime/Unified.h"
 #include "quarantine/Store.h"
+#include "common/ProcessPolicy.h"
 #include <fstream>
 #include <vector>
 
 namespace av::services {
 namespace {
-Json Identity() {
+Json Identity(Kind kind, Operation operation) {
+    const bool leaf = LeafWorker(kind, operation);
+    Check(!leaf || aegis::security::SealLeafPolicy(), "Seal engine worker child policy");
+    Check(aegis::security::HasProcessPolicy(GetCurrentProcess(), leaf ? aegis::security::ProcessRole::Leaf
+                                                                    : aegis::security::ProcessRole::Supervisor),
+          "Engine worker process policy is missing");
     Handle token;
     if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token.value))
         WinError("Inspect worker token");
@@ -45,6 +51,10 @@ Json Identity() {
     Check(!elevation.TokenIsElevated && session && filtered && safe && !member &&
               UserSid(token.value) != L"S-1-5-18",
           "Worker must have restricted privileges in a non-elevated desktop session");
+    JOBOBJECT_BASIC_UI_RESTRICTIONS ui{};
+    const bool desktopRestricted = QueryInformationJobObject(nullptr, JobObjectBasicUIRestrictions,
+        &ui, sizeof(ui), nullptr) && ui.UIRestrictionsClass == aegis::security::UiRestrictions;
+    Check(!leaf || desktopRestricted, "Leaf worker desktop policy is missing");
     return {{"type", "worker"},
             {"pid", GetCurrentProcessId()},
             {"session", session},
@@ -52,7 +62,11 @@ Json Identity() {
             {"restricted", filtered != 0},
             {"privilegesRestricted", safe},
             {"administrator", member != FALSE},
-            {"restrictingSids", IsTokenRestricted(token.value) != FALSE}};
+            {"restrictingSids", IsTokenRestricted(token.value) != FALSE},
+            {"imageLoadRestricted", true},
+            {"extensionPointsDisabled", true},
+            {"childProcessCreationBlocked", leaf},
+            {"desktopRestricted", desktopRestricted}};
 }
 Json Snapshot(av::Engine &engine, size_t &sent) {
     auto &state = engine.State();
@@ -249,7 +263,7 @@ int Worker(const std::wstring &name, DWORD server) {
                  GetTickCount64() + 5000);
         Check(path.find(L'\0') == path.npos && fs::path(path).is_absolute(), "Worker input path rejected");
         const auto deadline = GetTickCount64() + request.milliseconds;
-        auto identity = Identity();
+        auto identity = Identity(request.kind, request.operation);
         if(request.kind==Kind::Sandbox)Check(aegis::distribution::Prerequisites().at("sandboxReady").get<bool>(),"MiniNT requires WHP, the running Windows hypervisor and NX; antivirus is independent");
         identity["engine"] = request.kind == Kind::Antivirus ? "antivirus" : "sandbox";
         Send(pipe.value, FrameType::Progress, identity, deadline);

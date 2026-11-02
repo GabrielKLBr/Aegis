@@ -1,0 +1,359 @@
+{
+  "schema": 1,
+  "phase": "19A",
+  "completedUtc": "2026-11-02T03:11:58.178871+00:00",
+  "implementationStatus": "implemented",
+  "validationStatus": "PASS",
+  "phaseComplete": true,
+  "completionScope": "delimited internal engineering review and hardening; not completion of phase 19",
+  "releaseReady": false,
+  "fullIsolationCertified": false,
+  "environment": {
+    "os": "Windows 11 x64",
+    "build": 26300,
+    "dpi": 96
+  },
+  "scope": "Current phase and directly exercised dependencies only; no historical compatibility-matrix replay",
+  "configurations": {
+    "Release": {
+      "native": {
+        "protocol": {
+          "status": "PASS",
+          "scope": "headers, quotas, structural/duplicate JSON, partial transfers, cancellation and terminal reply delivery"
+        },
+        "negativePermissionProbe": {
+          "checks": 18,
+          "negativePermissionProbe": {
+            "childCreationDenied": true,
+            "desktopJobPolicy": true,
+            "foreignWindowDcDenied": true,
+            "launchPolicy": true,
+            "listedHandleUsable": true,
+            "mediumFileWriteDenied": true,
+            "mediumPipeWriteDenied": true,
+            "ordinaryUserFileReadable": true,
+            "parentMemoryWriteDenied": true,
+            "unlistedHandleDenied": true
+          },
+          "phase": "19A",
+          "status": "PASS"
+        },
+        "runtimeCatalog": {
+          "cases": [
+            "verified helper update refreshes all enrollment hash links",
+            "matching helper is byte-exact and idempotent",
+            "retained rollback source remains unchanged",
+            "modified retained member is refused before writes",
+            "invalid manifest binding is refused even with a matching file hash",
+            "arbitrary executable cannot replace the fixed helper role",
+            "member cannot cross the application namespace",
+            "all retained records validate before any helper is changed"
+          ],
+          "phase": "19A",
+          "status": "PASS",
+          "tests": 8
+        },
+        "nativeGui": {
+          "status": "PASS",
+          "checks": 95
+        },
+        "audio": {
+          "status": "PASS",
+          "checks": 97
+        },
+        "reputation": {
+          "cases": [
+            "worker descriptor restricts process objects to SYSTEM and administrators",
+            "installation descriptor grants standard users read and execute only",
+            "streamed SHA256 of inert bytes",
+            "offline never contacts provider or creates cache",
+            "CIRCL context and missing MalwareBazaar key are distinct",
+            "cache avoids repeated network query",
+            "uppercase digest normalized",
+            "malformed digest rejected",
+            "unapproved provider rejected",
+            "duplicate provider rejected",
+            "custom URL rejected",
+            "ambiguous input rejected",
+            "directory rejected",
+            "relative path rejected",
+            "network path rejected",
+            "in-use writer prevents hashing changing file",
+            "oversize file rejected without reading",
+            "MalwareBazaar match requires matching returned hash",
+            "MalwareBazaar miss remains unknown",
+            "provider secrets are excluded from transport failure result",
+            "mismatched provider digest rejected",
+            "deep provider JSON rejected",
+            "header injection and NUL keys rejected",
+            "arbitrary network endpoint rejected before connection",
+            "rate limit persists across hash queries",
+            "protected credential roundtrip using isolated test target"
+          ],
+          "status": "PASS",
+          "tests": 26
+        },
+        "internetBackend": {
+          "status": "PASS",
+          "offlineConnectDenied": true,
+          "nativeSocketsOpenedByOfflineCase": 0,
+          "scope": "offline entropy/DNS/connect, simulated transport, ownership, replay, quotas and cleanup; no real provider traffic"
+        }
+      },
+      "liveServiceClient": {
+        "phase": "19A",
+        "status": "PASS",
+        "cases": [
+          "wrong protocol version",
+          "wrong service kind",
+          "internal operation on public pipe",
+          "zero path quota",
+          "oversize path quota",
+          "relative path",
+          "embedded NUL path",
+          "deep privileged request",
+          "duplicate privileged fields",
+          "oversize privileged request",
+          "privileged ADS path rejected",
+          "ordinary user cannot change protection policy",
+          "ordinary user cannot restore quarantined content",
+          "ordinary user cannot erase quarantined content",
+          "scanner coordinator and child retain harmless positive detection",
+          "leaf policy enforced without network lookup",
+          "live worker process denies injection and handle duplication",
+          "service cannot read administrator-only sentinel through user worker",
+          "guest cannot read host sentinel",
+          "guest write remains in virtual namespace",
+          "unavailable Winsock guest refused without host execution or listener connection",
+          "service identities and protection policy unchanged during requests"
+        ],
+        "tests": 22,
+        "clientConfiguration": "Release",
+        "installedServiceConfiguration": "Release",
+        "networkGuestOutcome": "unavailable Winsock imports refused before execution; not an end-to-end socket compatibility pass",
+        "realMalwareExecuted": false,
+        "hostListenerConnections": 0
+      },
+      "signedPortable": {
+        "phase": "19A",
+        "status": "PASS",
+        "files": 358,
+        "identity": "501c54ab1b99c9bee2ce2e12275a4ed84b1e50aff232c4cdb6cac947a0246259",
+        "memberHashes": "PASS",
+        "nativeSignatureVerification": "PASS",
+        "noGuestWindowsReferences": "PASS",
+        "portableLayout": "PASS",
+        "WHPDelayedImports": "PASS",
+        "componentNotices": "PASS",
+        "releaseCrt": "PASS"
+      },
+      "portableUI": {
+        "status": "PASS",
+        "scope": "signed portable bootstrap, settings, prerequisites/maintenance controls and service-backed status; no update command or elevation requested",
+        "locale": "en-US",
+        "theme": "dark",
+        "width": 1100
+      }
+    },
+    "Debug": {
+      "native": {
+        "protocol": {
+          "status": "PASS",
+          "scope": "headers, quotas, structural/duplicate JSON, partial transfers, cancellation and terminal reply delivery"
+        },
+        "negativePermissionProbe": {
+          "checks": 18,
+          "negativePermissionProbe": {
+            "childCreationDenied": true,
+            "desktopJobPolicy": true,
+            "foreignWindowDcDenied": true,
+            "launchPolicy": true,
+            "listedHandleUsable": true,
+            "mediumFileWriteDenied": true,
+            "mediumPipeWriteDenied": true,
+            "ordinaryUserFileReadable": true,
+            "parentMemoryWriteDenied": true,
+            "unlistedHandleDenied": true
+          },
+          "phase": "19A",
+          "status": "PASS"
+        },
+        "runtimeCatalog": {
+          "cases": [
+            "verified helper update refreshes all enrollment hash links",
+            "matching helper is byte-exact and idempotent",
+            "retained rollback source remains unchanged",
+            "modified retained member is refused before writes",
+            "invalid manifest binding is refused even with a matching file hash",
+            "arbitrary executable cannot replace the fixed helper role",
+            "member cannot cross the application namespace",
+            "all retained records validate before any helper is changed"
+          ],
+          "phase": "19A",
+          "status": "PASS",
+          "tests": 8
+        },
+        "nativeGui": {
+          "status": "PASS",
+          "checks": 95
+        },
+        "audio": {
+          "status": "PASS",
+          "checks": 97
+        },
+        "reputation": {
+          "cases": [
+            "worker descriptor restricts process objects to SYSTEM and administrators",
+            "installation descriptor grants standard users read and execute only",
+            "streamed SHA256 of inert bytes",
+            "offline never contacts provider or creates cache",
+            "CIRCL context and missing MalwareBazaar key are distinct",
+            "cache avoids repeated network query",
+            "uppercase digest normalized",
+            "malformed digest rejected",
+            "unapproved provider rejected",
+            "duplicate provider rejected",
+            "custom URL rejected",
+            "ambiguous input rejected",
+            "directory rejected",
+            "relative path rejected",
+            "network path rejected",
+            "in-use writer prevents hashing changing file",
+            "oversize file rejected without reading",
+            "MalwareBazaar match requires matching returned hash",
+            "MalwareBazaar miss remains unknown",
+            "provider secrets are excluded from transport failure result",
+            "mismatched provider digest rejected",
+            "deep provider JSON rejected",
+            "header injection and NUL keys rejected",
+            "arbitrary network endpoint rejected before connection",
+            "rate limit persists across hash queries",
+            "protected credential roundtrip using isolated test target"
+          ],
+          "status": "PASS",
+          "tests": 26
+        },
+        "internetBackend": {
+          "status": "PASS",
+          "offlineConnectDenied": true,
+          "nativeSocketsOpenedByOfflineCase": 0,
+          "scope": "offline entropy/DNS/connect, simulated transport, ownership, replay, quotas and cleanup; no real provider traffic"
+        }
+      },
+      "liveServiceClient": {
+        "phase": "19A",
+        "status": "PASS",
+        "cases": [
+          "wrong protocol version",
+          "wrong service kind",
+          "internal operation on public pipe",
+          "zero path quota",
+          "oversize path quota",
+          "relative path",
+          "embedded NUL path",
+          "deep privileged request",
+          "duplicate privileged fields",
+          "oversize privileged request",
+          "privileged ADS path rejected",
+          "ordinary user cannot change protection policy",
+          "ordinary user cannot restore quarantined content",
+          "ordinary user cannot erase quarantined content",
+          "scanner coordinator and child retain harmless positive detection",
+          "leaf policy enforced without network lookup",
+          "live worker process denies injection and handle duplication",
+          "service cannot read administrator-only sentinel through user worker",
+          "guest cannot read host sentinel",
+          "guest write remains in virtual namespace",
+          "unavailable Winsock guest refused without host execution or listener connection",
+          "service identities and protection policy unchanged during requests"
+        ],
+        "tests": 22,
+        "clientConfiguration": "Debug",
+        "installedServiceConfiguration": "Release",
+        "networkGuestOutcome": "unavailable Winsock imports refused before execution; not an end-to-end socket compatibility pass",
+        "realMalwareExecuted": false,
+        "hostListenerConnections": 0
+      },
+      "signedPortable": {
+        "phase": "19A",
+        "status": "PASS",
+        "files": 338,
+        "identity": "de3956aab6eab0814d816a254c006a8e8f663c8db5ced8873ef987a913ace83f",
+        "memberHashes": "PASS",
+        "nativeSignatureVerification": "PASS",
+        "noGuestWindowsReferences": "PASS",
+        "portableLayout": "PASS",
+        "WHPDelayedImports": "PASS",
+        "componentNotices": "PASS",
+        "releaseCrt": "developer prerequisite"
+      },
+      "portableUI": {
+        "status": "PASS",
+        "scope": "signed portable bootstrap, settings, prerequisites/maintenance controls and service-backed status; no update command or elevation requested",
+        "locale": "pt-BR",
+        "theme": "dark",
+        "width": 1100
+      }
+    }
+  },
+  "maintenance": {
+    "rollbackScope": "same signed phase19A package across two installation slots",
+    "cases": [
+      "Final Debug-over-Release package refused without service change",
+      "Same signed Release package repaired into a new slot without catalog mutation",
+      "Explicit rollback restored the retained validated same-version slot",
+      "Original protection policy and running/startup states preserved"
+    ],
+    "tests": 4,
+    "installedConfiguration": "Release",
+    "phase": "19A",
+    "status": "PASS"
+  },
+  "postRollback": {
+    "phase": "19A",
+    "status": "PASS",
+    "tests": 2,
+    "cases": [
+      "Guest file isolation still passes after explicit same-version slot rollback",
+      "Harmless positive detection still passes after rollback"
+    ],
+    "installedConfiguration": "Release"
+  },
+  "cleanup": {
+    "phase": "19A",
+    "status": "PASS",
+    "servicesUnchanged": true,
+    "unrelatedFilesRemoved": 0,
+    "ownedFixtureFilesRemoved": 3
+  },
+  "fixedFindings": [
+    "19A-01: structural JSON quotas and duplicate-field rejection",
+    "19A-02: verified image/extension-point policies and leaf child-creation seals",
+    "19A-03: desktop/job limits with correct service-session ordering",
+    "19A-04: integrity-preserving runtime enrollment refresh on helper update"
+  ],
+  "openFindings": [
+    {
+      "id": "19A-R01",
+      "releaseGate": true,
+      "description": "Host helpers retain user-level read/access capabilities; full filesystem/registry/credential/network capability confinement remains incomplete. The low-integrity probe explicitly observes ordinary-file read access."
+    },
+    {
+      "id": "19A-R02",
+      "releaseGate": true,
+      "description": "Independent security audit, sustained fuzzing, second-user login tests and a clean Windows/version matrix remain pending."
+    },
+    {
+      "id": "19A-C01",
+      "releaseGate": false,
+      "description": "Current automatic templates refuse the SDK-linked Winsock fixture before execution. This is not an end-to-end socket-compatibility pass."
+    },
+    {
+      "id": "18-R",
+      "releaseGate": true,
+      "description": "Clean/no-WHP host acceptance, CA-backed Authenticode and production signing-key operations remain open."
+    }
+  ],
+  "realMalwareExecuted": false,
+  "productionSourcesStableDuringFinalChecks": true
+}

@@ -117,8 +117,7 @@ Json Call(Kind kind, Operation operation, const fs::path& input,
               (frame.type == FrameType::Progress || frame.type == FrameType::Result || frame.type == FrameType::Error), "Engine response rejected");
         std::string text(frame.bytes, '\0');
         Transfer(pipe.value, false, text.data(), frame.bytes, deadline, nullptr, cancel);
-        const auto value = Json::parse(text);
-        Check(value.is_object(), "Engine response must be an object");
+        const auto value = ParseFrame(text);
         if (frame.type == FrameType::Error) throw std::runtime_error(value.value("error", "Engine failed"));
         if (frame.type == FrameType::Result) return value;
         if (progress) progress(value);
