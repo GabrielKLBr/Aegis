@@ -32,7 +32,7 @@ public:
     explicit Engine(bool serviceManaged = false) : serviceManaged_(serviceManaged) {}
     ~Engine() { Cancel(); Join(); }
 
-    bool   LoadSignatures(const std::wstring& path) { return db_.Load(path); }
+    bool   LoadSignatures(const std::wstring& path,const std::wstring& rulePackage = {}) { return db_.Load(path,rulePackage); }
     size_t SignatureCount() const { return db_.Count(); }
 
     // Starts a background scan. onUpdate is invoked (on the worker thread,

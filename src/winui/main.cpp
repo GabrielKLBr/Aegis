@@ -71,6 +71,7 @@ hstring diagnostic_text(std::string_view bytes) {
 }
 int application_exit_code=0;
 bool smoke_requested=false;
+bool distribution_smoke=false;
 std::filesystem::path diagnostics_path;
 std::string smoke_locale,smoke_theme;int smoke_width=1200;
 size_t in_flight=0;
@@ -124,6 +125,9 @@ struct Shell : std::enable_shared_from_this<Shell> {
     StackPanel hash_results{nullptr};
     PasswordBox provider_key{nullptr};
     bool managing_services=false;
+    TextBox update_source{nullptr},definition_source{nullptr};
+    json deployment_status=json::object(),deployment_operation=json::object();
+    int deployment_scenario=0;
     std::vector<std::string> language_ids;
 
     hstring tr(std::string const& key) const { return to_hstring(localization.text(key)); }
@@ -530,7 +534,21 @@ struct Shell : std::enable_shared_from_this<Shell> {
         auto keys=row();keys.Children().Append(button("hash.keySave",[self=shared_from_this()]{auto key=to_string(self->provider_key.Password());self->provider_key.Password(L"");self->rpc("reputation.key.save",{{"key",key}},[self](const json&){self->show_page("settings");});if(!key.empty())SecureZeroMemory(key.data(),key.size());}));
         keys.Children().Append(button("hash.keyRemove",[self=shared_from_this()]{self->rpc("reputation.key.remove",json::object(),[self](const json&){self->show_page("settings");});}));content.Children().Append(keys);
         content.Children().Append(label("settings.limits"));content.Children().Append(label("settings.about",12));
+        content.Children().Append(label("deployment.title",20));content.Children().Append(label("deployment.notice"));
+        auto prerequisites=label("ui.loading");content.Children().Append(prerequisites);
+        rpc("deployment.prerequisites",json::object(),[self=shared_from_this(),prerequisites](const json& data){prerequisites.Text(self->tr(data.value("antivirusReady",false)?"deployment.avReady":"deployment.avUnavailable")+L"\n"+self->tr(data.value("sandboxReady",false)?"deployment.sandboxReady":"deployment.sandboxUnavailable"));},generation);
+        auto versionState=label("ui.loading");content.Children().Append(versionState);
+        rpc("deployment.status",json::object(),[self=shared_from_this(),versionState](const json& data){self->deployment_status=data;versionState.Text(data.value("available",false)?self->tr("deployment.verified")+L" "+to_hstring(data.value("version",std::string())):self->tr("deployment.unavailable"));},generation);
+        update_source=input("deployment.source");content.Children().Append(update_source);auto updateActions=row();
+        updateActions.Children().Append(button("deployment.choose",[self=shared_from_this()]{const auto path=self->choose_path(true);if(!path.empty())self->update_source.Text(to_hstring(path));}));
+        updateActions.Children().Append(button("deployment.apply",[self=shared_from_this()]{self->deployment_operation=json::object();self->rpc("deployment.update",{{"source",self->string(self->update_source)}},[self](const json& result){self->deployment_operation=result;self->deployment_operation["action"]="update";self->message("ui.saved",self->tr("deployment.restart"),InfoBarSeverity::Success);},self->generation);}));
+        updateActions.Children().Append(button("deployment.rollback",[self=shared_from_this()]{self->deployment_operation=json::object();self->rpc("deployment.rollback",json::object(),[self](const json& result){self->deployment_operation=result;self->deployment_operation["action"]="rollback";self->message("ui.saved",self->tr("deployment.restart"),InfoBarSeverity::Success);},self->generation);}));content.Children().Append(updateActions);
+        content.Children().Append(label("deployment.definitionsNotice"));definition_source=input("deployment.definitionsSource");content.Children().Append(definition_source);auto definitionActions=row();
+        definitionActions.Children().Append(button("deployment.chooseDefinitions",[self=shared_from_this()]{const auto path=self->choose_path(true);if(!path.empty())self->definition_source.Text(to_hstring(path));}));
+        definitionActions.Children().Append(button("deployment.definitionsApply",[self=shared_from_this()]{self->maintain("definitions",self->string(self->definition_source));}));
+        definitionActions.Children().Append(button("deployment.definitionsRollback",[self=shared_from_this()]{self->maintain("definitions.rollback",{});}));definitionActions.Children().Append(button("deployment.servicesRollback",[self=shared_from_this()]{self->maintain("rollback",{});}));content.Children().Append(definitionActions);
     }
+    fire_and_forget maintain(std::string action,std::string source){auto self=shared_from_this();if(managing_services)co_return;managing_services=true;const auto owner=hwnd();const auto queue=dispatcher;std::string failure;co_await resume_background();try{self->backend->Maintain(owner,action,std::filesystem::path(av::services::Wide(source)));}catch(const std::exception& e){failure=e.what();}queue.TryEnqueue([self,failure]{self->managing_services=false;if(self->closed)return;if(failure.empty())self->message("ui.saved",self->tr("services.changed"),InfoBarSeverity::Success);else self->message("ui.error",diagnostic_text(failure),InfoBarSeverity::Error);});}
     json last_hash=json::object();
     fire_and_forget confirm_remove_services(){auto self=shared_from_this();if(dialog_open)co_return;dialog_open=true;try{ContentDialog dialog;dialog.XamlRoot(content.XamlRoot());dialog.Title(box_value(tr("services.uninstall")));dialog.Content(box_value(tr("services.removeNotice")));dialog.PrimaryButtonText(tr("services.uninstall"));dialog.CloseButtonText(tr("ui.cancel"));auto result=co_await dialog.ShowAsync();dialog_open=false;if(result==ContentDialogResult::Primary)manage_services(true);}catch(const hresult_error& e){dialog_open=false;message("ui.error",e.message(),InfoBarSeverity::Error);}}
     fire_and_forget manage_services(bool remove){
@@ -596,6 +614,17 @@ struct Shell : std::enable_shared_from_this<Shell> {
         window.AppWindow().Resize(Windows::Graphics::SizeInt32{smoke_requested?smoke_width:1200,850});
         timer=dispatcher.CreateTimer();timer.Interval(std::chrono::seconds(1));timer.Tick([weak=weak_from_this()](auto const&,auto const&){if(auto self=weak.lock()){
             ++self->ticks;if(self->ticks%5==0)self->poll_events();if(self->page=="scan")self->poll_scan();if(self->page=="sandbox"||self->page=="vm"||self->page=="behavior")self->poll_session();
+            if(distribution_smoke){
+                if(self->ticks>60){diagnostics("FAIL: distribution UI timeout");application_exit_code=1;self->window.Close();return;}
+                if(self->deployment_status.empty())return;
+                if(self->deployment_scenario==0){
+                    if(!self->deployment_status.value("available",false)||!self->commandActions.contains("deployment.apply")||!self->commandActions.contains("deployment.servicesRollback")||!self->commandActions.contains("deployment.definitionsApply")){diagnostics("FAIL: distribution status or controls");application_exit_code=1;self->window.Close();return;}
+                    diagnostics("PASS: verified package, prerequisites and maintenance controls");wchar_t source[32768]{};if(GetEnvironmentVariableW(L"AEGIS_UI_TEST_UPDATE",source,32768)){self->update_source.Text(source);self->commandActions.at("deployment.apply")();self->deployment_scenario=1;return;}
+                    diagnostics("PASS: phase 18 UI");self->window.Close();return;
+                }
+                if(self->deployment_scenario==1&&self->deployment_operation.value("action",std::string())=="update"){const auto state=self->backend->Request("deployment.status",json::object());if(state.value("active",std::string())=="base"){diagnostics("FAIL: UI update did not activate");application_exit_code=1;self->window.Close();return;}diagnostics("PASS: UI signed update command");self->commandActions.at("deployment.rollback")();self->deployment_scenario=2;return;}
+                if(self->deployment_scenario==2&&self->deployment_operation.value("action",std::string())=="rollback"){const auto state=self->backend->Request("deployment.status",json::object());if(state.value("active",std::string())!="base"){diagnostics("FAIL: UI rollback selection");application_exit_code=1;}else diagnostics("PASS: UI rollback command");diagnostics("PASS: phase 18 UI");self->window.Close();}return;
+            }
             if(smoke_requested&&self->ticks==2){const auto style=GetWindowLongPtrW(self->hwnd(),GWL_STYLE);if(!self->window.ExtendsContentIntoTitleBar()||self->caption.ActualHeight()<32||(style&WS_THICKFRAME)==0||(style&WS_MAXIMIZEBOX)==0){diagnostics("FAIL: native resizing or integrated caption layout");application_exit_code=1;}else diagnostics("PASS: integrated caption layout and native resize/maximize styles");}
             if(smoke_requested&&self->ticks%2==1&&(self->page=="dashboard"||self->page=="settings"))self->capture_smoke_image(self->page);
             if(smoke_requested&&self->ticks%2==0){
@@ -627,7 +656,7 @@ struct Shell : std::enable_shared_from_this<Shell> {
                 else {diagnostics(application_exit_code==0?"PASS: all nine WinUI pages rendered":"FAIL: page rendering");self->timer.Stop();self->window.Close();}
             }
         }});timer.Start();
-        show_page("dashboard");window.Activate();
+        show_page(distribution_smoke?"settings":"dashboard");window.Activate();
         rpc("settings.get",json::object(),[self=shared_from_this()](json const& data){
             self->settings=data;if(smoke_requested){if(!smoke_locale.empty())self->settings["locale"]=smoke_locale;if(!smoke_theme.empty())self->settings["theme"]=smoke_theme;}auto locale=self->settings.value("locale",std::string("system"));self->localization.set_locale(locale=="system"?"":locale);self->apply_theme(self->settings.value("theme",std::string("system")));self->rebuild_navigation();self->show_page(self->page);
         });
@@ -655,6 +684,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR command_line, int) {
     try {
         wchar_t temporary[MAX_PATH]{};GetTempPathW(MAX_PATH,temporary);diagnostics_path=std::filesystem::path(temporary)/L"Aegis-UI.log";
         smoke_requested=command_line&&std::wstring_view(command_line).find(L"--smoke-test")!=std::wstring_view::npos;
+        distribution_smoke=smoke_requested&&std::wstring_view(command_line).find(L"--phase18-test")!=std::wstring_view::npos;
         if(smoke_requested){
             wchar_t setting[32768]{};
             if(GetEnvironmentVariableW(L"AEGIS_UI_TEST_OUTPUT",setting,32768)){std::filesystem::create_directories(setting);diagnostics_path=std::filesystem::path(setting)/L"ui.log";}

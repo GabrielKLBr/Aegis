@@ -725,6 +725,7 @@ include(cmake/GuardianFrameworks.cmake)
 include(cmake/GuardianCompat32.cmake)
 include(cmake/GuardianUnified.cmake)
 include(cmake/GuardianQuarantine.cmake)
+include(cmake/GuardianDistribution.cmake)
 include(cmake/GuardianServices.cmake)
 
 include(cmake/GuardianWinUI.cmake)

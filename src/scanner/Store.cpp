@@ -1,6 +1,7 @@
 #include "Store.h"
 #include <chrono>
 #include <sqlite3.h>
+#include "common/SqliteMigration.h"
 #ifdef _WIN32
 #include <Windows.h>
 #endif
@@ -92,6 +93,7 @@ Store::Store(const fs::path &path)
     try
     {
         sqlite3_busy_timeout(db_, 5000);
+        aegis::storage::Migrate(db_,path,1);
         sqlite3_limit(db_, SQLITE_LIMIT_LENGTH, 2 << 20);
         Exec(
             "PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA "

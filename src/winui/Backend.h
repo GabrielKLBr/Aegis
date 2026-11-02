@@ -13,6 +13,7 @@ public:
     void Close() noexcept;
     static void Export(const std::filesystem::path&,const services::Json&);
     services::Json ManageServices(HWND,bool remove);
+    services::Json Maintain(HWND,const std::string&,const std::filesystem::path& source = {});
 private:
     std::mutex mutex_, preferencesMutex_, sessionStartMutex_;
     std::atomic<bool> closed_{false}, cancel_{false};

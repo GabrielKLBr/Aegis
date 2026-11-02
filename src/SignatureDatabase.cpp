@@ -6,7 +6,7 @@ namespace
 {
 std::mutex engineMutex;
 }
-bool SignatureDatabase::Load(const std::wstring &path)
+bool SignatureDatabase::Load(const std::wstring &path,const std::wstring& rulePackage)
 {
     std::lock_guard lock(engineMutex);
     engine_.reset();
@@ -14,6 +14,7 @@ bool SignatureDatabase::Load(const std::wstring &path)
     try
     {
         scan::Config config = scan::UserConfig();
+        if(!rulePackage.empty())config.rulePackage=rulePackage;
         if (std::filesystem::exists(std::filesystem::path(path)))
             config.signatures = path;
         else

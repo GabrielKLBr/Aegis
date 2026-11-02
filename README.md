@@ -8,7 +8,7 @@ Please open a Pull Request reporting any English mistake if you find one.
 [![Windows API Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Foverall.json)](https://gabrielklbr.github.io/Aegis/windows-apis.html)
 [![Graphics and Audio Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fgabrielklbr.github.io%2FAegis%2Fbadges%2Finterface.json)](https://gabrielklbr.github.io/Aegis/progress.html)
 
-**Desktop client:** [Phase 17.1 — portable layout, integrated title bar, service management and public hash queries](docs/PHASE-17.1.md). Open `Aegis.exe` from the extracted portable folder. Install/update the required engine services from Settings; the app has no separate installer. Hash queries are opt-in and never upload files. [Original WinUI delivery](docs/PHASE-17.md).
+**Desktop distribution:** [Phase 18 — signed portable packages, recoverable updates, rollback and signed definitions](docs/PHASE-18.md). Extract the complete ZIP and open `Aegis.exe`; install/update the required services from Settings. Clean-machine and production code-signing acceptance remain pending. The publisher manifest signature is separate from Windows Authenticode. [Phase 17.1 UI and public hash queries](docs/PHASE-17.1.md).
 
 Percentages of entries in the catalogs, including partial support; do not represent the entire Windows system.
 

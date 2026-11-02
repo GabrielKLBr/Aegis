@@ -1,4 +1,5 @@
 #include "Store.h"
+#include "common/SqliteMigration.h"
 #include <Windows.h>
 #include <aclapi.h>
 #include <array>
@@ -452,6 +453,7 @@ struct Store::Impl {
                                     nullptr) == SQLITE_OK,
                     "Open quarantine database");
             sqlite3_busy_timeout(db, 2000);
+            aegis::storage::Migrate(db,root / L"vault.sqlite",2);
             Require(sqlite3_compileoption_used("OMIT_LOAD_EXTENSION") != 0,
                     "SQLite extension loading must be compiled out");
             sqlite3_db_config(db, SQLITE_DBCONFIG_DEFENSIVE, 1, nullptr);

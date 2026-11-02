@@ -177,6 +177,25 @@
     "services.installNotice": "As análises exigem os serviços das duas engines. Instalação, atualização e remoção pedem autorização de administrador do Windows somente após clicar no botão. O app portable dispensa instalador.",
     "services.removeNotice": "Parar e remover o registro dos dois serviços do Aegis? Versões instaladas, configurações de proteção e cofre criptografado serão preservados para recuperação. As análises ficarão indisponíveis até reinstalar os serviços.",
     "services.cancelled": "A autorização do Windows foi cancelada. Os registros dos serviços não foram alterados.",
-    "services.changed": "Registros dos serviços atualizados."
+    "services.changed": "Registros dos serviços atualizados.",
+    "deployment.title": "Atualizações e recuperação",
+    "deployment.notice": "Somente pacotes extraídos e assinados pelo publicador são aceitos. A versão portable anterior é preservada para recuperação.",
+    "deployment.avReady": "Requisitos do antivírus: atendidos",
+    "deployment.avUnavailable": "Requisitos do antivírus: indisponíveis",
+    "deployment.sandboxReady": "Requisitos do MiniNT: atendidos",
+    "deployment.sandboxUnavailable": "MiniNT indisponível: verifique a Plataforma de Hipervisor do Windows, a virtualização e o NX. O antivírus dispensa virtualização.",
+    "deployment.verified": "Versão portable verificada:",
+    "deployment.unavailable": "Build de desenvolvimento: prepare um pacote portable assinado para habilitar atualizações.",
+    "deployment.source": "Pasta do pacote portable assinado e extraído",
+    "deployment.choose": "Escolher pasta da atualização",
+    "deployment.apply": "Aplicar atualização portable",
+    "deployment.rollback": "Usar versão portable anterior",
+    "deployment.restart": "Reinicie o Aegis para usar a versão selecionada. Atualize os serviços separadamente em Atualizar / reparar serviços. Configurações e cofre são preservados.",
+    "deployment.definitionsNotice": "Atualizações das definições e retorno dos serviços exigem autorização de administrador do Windows após clicar no botão. Os pacotes de definições contêm regras e registros de hashes assinados.",
+    "deployment.definitionsSource": "Pasta do pacote de definições assinado e extraído",
+    "deployment.chooseDefinitions": "Escolher pasta de definições",
+    "deployment.definitionsApply": "Atualizar regras e hashes",
+    "deployment.definitionsRollback": "Usar definições anteriores",
+    "deployment.servicesRollback": "Usar serviços das engines anteriores"
   }
 }

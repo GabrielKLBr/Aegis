@@ -22,7 +22,7 @@ inline constexpr uint32_t Magic = 0x53474541, Version = 1, MaxFrame = 2u << 20;
 inline constexpr DWORD PipeClientAccess = FILE_GENERIC_READ | FILE_WRITE_DATA;
 inline constexpr const wchar_t* InstallationSecurity=L"O:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)";
 inline constexpr const wchar_t* WorkerObjectSecurity=L"O:SYD:P(A;;GA;;;SY)(A;;GA;;;BA)";
-inline constexpr const wchar_t* PackageFiles[] = {L"guardian-engine-service.exe", L"guardian-scan-worker.exe", L"guardian-whp-memory.exe",
+inline constexpr const wchar_t* PackageFiles[] = {L"guardian-engine-service.exe", L"guardian-distribution.exe", L"guardian-scan-worker.exe", L"guardian-whp-memory.exe",
     L"guardian-service-sample.exe", L"guardian-quarantine.exe", L"signatures.txt"
 #ifdef GUARDIAN_SERVICE_DESKTOP
     , L"guardian-native-user-host.exe", L"guardian-runtime.exe", L"guardian-desktop.exe", L"guardian-audio-host.exe", L"guardian-kernel-audio.gk"
@@ -81,11 +81,15 @@ Json Call(Kind, Operation, const fs::path&, const std::function<void(const Json&
 Status Query(Kind);
 void SetRunning(Kind, bool, DWORD timeout = 15000);
 DWORD Setup(HWND owner = nullptr, bool uninstall = false, const fs::path& package = {});
+DWORD SetupMaintenance(HWND,const fs::path& package,const std::string& action,const fs::path& source = {});
 inline constexpr const wchar_t* ReputationCredential = L"Aegis.MalwareBazaar.AuthKey";
 std::string ReputationKey(const wchar_t* target = ReputationCredential);
 void SaveReputationKey(std::string&,const wchar_t* target = ReputationCredential);
 void RemoveReputationKey(const wchar_t* target = ReputationCredential);
-int Install(const std::wstring& ownerSid, bool uninstall);
+int Install(const std::wstring& ownerSid, bool uninstall, bool rollback = false);
+void ProtectDeploymentTree(const fs::path&);
+int InstallDefinitions(const fs::path& source,bool rollback);
+fs::path ActiveDefinitions();
 int Serve(Kind, const std::wstring& ownerSid);
 int Worker(const std::wstring& pipe, DWORD serverPid);
 } // namespace av::services

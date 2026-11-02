@@ -1,4 +1,5 @@
 #include "Services.h"
+#include "distribution/Distribution.h"
 #include <shellapi.h>
 #include <vector>
 
@@ -54,6 +55,9 @@ void SetRunning(Kind kind, bool running, DWORD timeout) {
 DWORD Setup(HWND owner, bool uninstall, const fs::path& package) {
     const auto exe = (package.empty()?Executable().parent_path():fs::absolute(package)) / L"guardian-engine-service.exe";
     Check(fs::is_regular_file(exe), "Service installer missing beside the app");
+    // Verify before ShellExecute loads any code from the elevated package. Keep
+    // every member locked until the elevated process exits.
+    auto trusted=aegis::distribution::Verify(exe.parent_path(),"engines");
     if (!uninstall) for (const auto* name : PackageFiles)
         Check(fs::is_regular_file(exe.parent_path() / name), "The service package is incomplete; use the folder prepared for installation.");
     const auto parameters = std::wstring(uninstall ? L"--uninstall --owner " : L"--install --owner ") + UserSid();
@@ -67,6 +71,15 @@ DWORD Setup(HWND owner, bool uninstall, const fs::path& package) {
     DWORD code = 0;
     if (!GetExitCodeProcess(process.value, &code)) WinError("Read installation result");
     return code;
+}
+DWORD SetupMaintenance(HWND owner,const fs::path& package,const std::string& action,const fs::path& source){
+    namespace d=aegis::distribution;Check(action=="rollback"||action=="definitions"||action=="definitions.rollback","Unsupported maintenance action");
+    auto trusted=d::Verify(package,"engines");std::unique_ptr<d::VerifiedTree> definitions;
+    std::wstring parameters;
+    if(action=="definitions"){const auto path=fs::absolute(source).lexically_normal();Check(path.wstring().find(L'\"')==std::wstring::npos,"Invalid definition path");definitions=std::make_unique<d::VerifiedTree>(d::Verify(path,"definitions"));parameters=L"--install-definitions \""+path.wstring()+L"\" --owner "+UserSid();}
+    else parameters=std::wstring(action=="rollback"?L"--rollback --owner ":L"--rollback-definitions --owner ")+UserSid();
+    const auto executable=package/L"guardian-engine-service.exe";SHELLEXECUTEINFOW info{};info.cbSize=sizeof(info);info.fMask=SEE_MASK_NOCLOSEPROCESS|SEE_MASK_FLAG_NO_UI;info.hwnd=owner;info.lpVerb=L"runas";info.lpFile=executable.c_str();info.lpParameters=parameters.c_str();info.nShow=SW_HIDE;
+    if(!ShellExecuteExW(&info))WinError("Authorize Aegis maintenance");Handle process(info.hProcess);Check(WaitForSingleObject(process.value,INFINITE)==WAIT_OBJECT_0,"Wait for Aegis maintenance");DWORD result=0;Check(GetExitCodeProcess(process.value,&result)!=FALSE,"Read maintenance result");return result;
 }
 Json Call(Kind kind, Operation operation, const fs::path& input,
           const std::function<void(const Json&)>& progress, const std::atomic<bool>* cancel, uint32_t milliseconds) {

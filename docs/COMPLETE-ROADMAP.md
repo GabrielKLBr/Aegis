@@ -554,6 +554,8 @@ Measure the proportion of applications that complete the predicted use by catego
 
 ## Phase 18 — Updates, Installation and Distribution
 
+**Implemented delivery:** [signed portable distribution, recoverable activation/service deployment, rollback, signed definitions and storage versioning](PHASE-18.md). Current-workstation verification is recorded separately. **Acceptance remains open:** no clean Windows VM/ISO is available, the no-WHP machine matrix is pending, and no CA-backed Authenticode production signing process is configured. The application signature is the Aegis publisher manifest, not a Windows trust-store certificate. This delivery does not declare the complete phase 18 conclusion met or start phase 19.
+
 **Work:**check integrity and authenticity of rules, bases and binary; implement recoverable updates, data migration and rollback. Distribute a **portable ZIP without a separate EXE/MSI installer**, with the chosen WinUI runtime in an internal subfolder. Install/update/remove the required engine services from the app's Settings buttons, with explicit Windows administrator authorization. Detect virtualization prerequisites, allow antivirus use without starting the sandbox engine, and validate directory permissions, repair, relocation and uninstall. Review licenses and distribution of components and profiles.
 
 **Conclusion:** Install, update, repair and remove on clean test machines; adulterated packages are refused; interruptions do not leave an installation without recovery. Preserved or removed data follow the user's explicit choice. Windows components are not distributed without proper authorization.

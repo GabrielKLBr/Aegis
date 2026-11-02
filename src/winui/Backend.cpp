@@ -1,4 +1,5 @@
 #include "Backend.h"
+#include "distribution/Distribution.h"
 #include <shlobj.h>
 #include <sddl.h>
 #include <aclapi.h>
@@ -34,12 +35,16 @@ Json ScanStatus(const Json& status,const std::string& id){
     for(const auto& job:status.at("jobs"))if(job.value("id",std::string())==id){const auto state=job.value("state",std::string());result=job;result["running"]=state=="queued"||state=="running";result["completed"]=job.value("filesScanned",uint64_t(0));result["last_error"]=job.value("error",std::string());result["results"]=Json::array({job});break;}
     return result;
 }
+fs::path PortableRoot(){
+    auto package=Executable().parent_path().parent_path();
+    if(package.parent_path().filename()==L"versions"&&fs::exists(package.parent_path().parent_path()/aegis::distribution::ManifestName))return package.parent_path().parent_path();return package;
+}
 }
 Backend::Backend(fs::path state){
     PWSTR folder=nullptr;Check(SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData,0,nullptr,&folder)),"Locate local application data");state_=state.empty()?fs::path(folder)/L"AegisUI17":fs::absolute(state);CoTaskMemFree(folder);fs::create_directory(state_);Ordinary(state_);
     PSECURITY_DESCRIPTOR sd=nullptr;const auto acl=L"D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;"+UserSid()+L")";Check(ConvertStringSecurityDescriptorToSecurityDescriptorW(acl.c_str(),SDDL_REVISION_1,&sd,nullptr)!=FALSE,"Create preferences ACL");BOOL present=FALSE,def=FALSE;PACL dacl=nullptr;GetSecurityDescriptorDacl(sd,&present,&dacl,&def);const auto err=SetNamedSecurityInfoW(const_cast<wchar_t*>(state_.c_str()),SE_FILE_OBJECT,DACL_SECURITY_INFORMATION|PROTECTED_DACL_SECURITY_INFORMATION,nullptr,nullptr,dacl,nullptr);LocalFree(sd);Check(err==ERROR_SUCCESS,"Protect UI state directory");
-    preferences_={{"locale","en-US"},{"theme","system"}};session_={{"running",false},{"complete",false},{"state","idle"}};
-    if(fs::exists(state_/L"preferences.json")){try{const auto saved=Read(state_/L"preferences.json");for(const auto* key:{"locale","theme"})if(saved.contains(key)&&saved[key].is_string()){const auto value=saved[key].get<std::string>();if(std::string(key)=="locale"?(value=="system"||value=="en-US"||value=="pt-BR"||value=="es-ES"):(value=="system"||value=="light"||value=="dark"))preferences_[key]=value;}}catch(...){preferences_["warning"]="Saved preferences rejected; using defaults.";}}
+    preferences_={{"schema",1},{"locale","en-US"},{"theme","system"}};session_={{"running",false},{"complete",false},{"state","idle"}};
+    if(fs::exists(state_/L"preferences.json")){const auto saved=aegis::distribution::MigratePreferences(state_/L"preferences.json");for(const auto* key:{"locale","theme"})if(saved.contains(key)&&saved[key].is_string()){const auto value=saved[key].get<std::string>();if(std::string(key)=="locale"?(value=="system"||value=="en-US"||value=="pt-BR"||value=="es-ES"):(value=="system"||value=="light"||value=="dark"))preferences_[key]=value;}}
     if(fs::exists(state_/L"last-session.json")){try{session_=Read(state_/L"last-session.json",3u<<20);Check(session_.is_object(),"Invalid saved session");if(session_.value("running",false)){session_["running"]=false;session_["state"]="interrupted";session_["complete"]=false;}}catch(...){session_={{"running",false},{"complete",false},{"state","incomplete"},{"error","Saved session summary rejected"}};}}
     if(fs::exists(state_/L"last-scan.json")){try{scanId_=Read(state_/L"last-scan.json").value("id",std::string());}catch(...){}}
 
@@ -54,6 +59,7 @@ Json Backend::Call(Operation operation,Json request){
     catch(...){if(input!=Executable()){std::error_code ec;fs::remove(input,ec);}throw;}
 }
 Json Backend::StartSession(const std::string& method,const Json& p){
+    Check(aegis::distribution::Prerequisites().at("sandboxReady").get<bool>(),"MiniNT prerequisites are unavailable; antivirus scanning does not require virtualization");
     std::lock_guard startGuard(sessionStartMutex_);
     const auto path=p.at("path").get<std::string>();Check(!path.empty(),"Select an executable, prepared bundle or recovery.json");
     std::unique_lock lock(mutex_);Check(!session_.value("running",false),"A MiniNT session is already running");lock.unlock();if(sessionThread_.joinable())sessionThread_.join();lock.lock();cancel_=false;Check(!closed_,"Application is closing");
@@ -68,6 +74,10 @@ Json Backend::StartSession(const std::string& method,const Json& p){
 }
 Json Backend::Request(const std::string& method,const Json& p){
     Check(!closed_,"Application is closing");Check(p.is_object(),"UI parameters must be an object");
+    if(method=="deployment.prerequisites")return aegis::distribution::Prerequisites();
+    if(method=="deployment.status"){try{auto status=aegis::distribution::DeploymentStatus(PortableRoot());status["available"]=true;return status;}catch(const std::exception& e){return {{"available",false},{"error",e.what()}};}}
+    if(method=="deployment.update")return aegis::distribution::ApplyUpdate(PortableRoot(),Wide(p.at("source").get<std::string>()));
+    if(method=="deployment.rollback")return aegis::distribution::Rollback(PortableRoot());
     if(method=="reputation.lookup")return Call(Operation::HashLookup,p);
     if(method=="reputation.key.status"){auto key=ReputationKey();const bool present=!key.empty();if(present)SecureZeroMemory(key.data(),key.size());return {{"configured",present}};}
     if(method=="reputation.key.save"){auto key=p.at("key").get<std::string>();SaveReputationKey(key);return {{"configured",true}};}
@@ -114,4 +124,5 @@ Json Backend::ManageServices(HWND owner,bool remove){
     if(result)WinError("Service registration change failed",result);
     return Request("services.get",Json::object());
 }
+Json Backend::Maintain(HWND owner,const std::string& action,const fs::path& source){const auto code=SetupMaintenance(owner,Executable().parent_path().parent_path()/L"engines",action,source);if(code)WinError("Aegis maintenance failed",code);return {{"complete",true}};}
 }

@@ -27,7 +27,7 @@ public:
     //   substr:<ascii-bytes>:<ThreatName>
     // Lines beginning with '#' and blank lines are ignored.
     // Returns false if the file cannot be opened (built-in EICAR rule still active).
-    bool Load(const std::wstring& path);
+    bool Load(const std::wstring& path,const std::wstring& rulePackage = {});
 
     // Number of loaded signatures (excluding the built-in EICAR content rule).
     size_t Count() const { return engine_ ? engine_->SignatureCount() : 0; }

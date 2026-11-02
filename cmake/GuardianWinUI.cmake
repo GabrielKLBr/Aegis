@@ -1,7 +1,7 @@
 # Phase 17: WinUI is explicit, so native/kernel builds do not restore NuGet packages.
 if(WIN32 AND TARGET guardian_engine_client)
     add_executable(aegis-portable WIN32 src/winui/Launcher.cpp)
-    target_link_libraries(aegis-portable PRIVATE shell32)
+    target_link_libraries(aegis-portable PRIVATE shell32 guardian_distribution)
     target_compile_options(aegis-portable PRIVATE /W4 /WX /utf-8 /permissive-)
     set_property(TARGET aegis-portable PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
     file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/ui17-json-include.txt" CONTENT "$<JOIN:$<TARGET_PROPERTY:scanner_json,INTERFACE_INCLUDE_DIRECTORIES>,;>")

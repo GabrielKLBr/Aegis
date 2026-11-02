@@ -297,14 +297,32 @@ void WINAPI Main(DWORD, wchar_t **) {
 }
 } // namespace
 HANDLE RestrictUserToken(HANDLE input) {
+    Handle limited;HANDLE source=input;TOKEN_ELEVATION elevation{};DWORD size=0;
+    if(GetTokenInformation(input,TokenElevation,&elevation,sizeof(elevation),&size)&&elevation.TokenIsElevated){
+        TOKEN_LINKED_TOKEN linked{};
+        if(GetTokenInformation(input,TokenLinkedToken,&linked,sizeof(linked),&size)){
+            limited.value=linked.LinkedToken;DWORD inputSession=0,linkedSession=0;TOKEN_ELEVATION linkedElevation{};
+            Check(UserSid(limited.value)==UserSid(input)&&GetTokenInformation(input,TokenSessionId,&inputSession,sizeof(inputSession),&size)&&GetTokenInformation(limited.value,TokenSessionId,&linkedSession,sizeof(linkedSession),&size)&&inputSession==linkedSession&&GetTokenInformation(limited.value,TokenElevation,&linkedElevation,sizeof(linkedElevation),&size)&&!linkedElevation.TokenIsElevated,"Linked standard-user identity rejected");source=limited.value;
+        }
+    }
     Handle primary;
-    if (!DuplicateTokenEx(input, TOKEN_ALL_ACCESS, nullptr, SecurityImpersonation, TokenPrimary,
+    if (!DuplicateTokenEx(source, TOKEN_ALL_ACCESS, nullptr, SecurityImpersonation, TokenPrimary,
                           &primary.value))
         WinError("Duplicate caller token");
     Handle restricted;
     if (!CreateRestrictedToken(primary.value, DISABLE_MAX_PRIVILEGE | LUA_TOKEN, 0, nullptr, 0, nullptr, 0,
                                nullptr, &restricted.value))
         WinError("Restrict engine worker");
+    // An elevated caller can have a default DACL granting only Administrators.
+    // Once that group is deny-only, the child cannot use its own IPC events.
+    // Give the reduced identity access to objects it creates, while the process
+    // and thread objects remain explicitly owned/protected by the supervisor.
+    PSECURITY_DESCRIPTOR defaults=nullptr;
+    const auto defaultAcl=L"D:P(A;;GA;;;SY)(A;;GA;;;"+UserSid(input)+L")";
+    Check(ConvertStringSecurityDescriptorToSecurityDescriptorW(defaultAcl.c_str(),SDDL_REVISION_1,&defaults,nullptr)!=FALSE,"Create reduced worker default DACL");
+    PACL acl=nullptr;BOOL present=FALSE,inherited=FALSE;GetSecurityDescriptorDacl(defaults,&present,&acl,&inherited);TOKEN_DEFAULT_DACL defaultDacl{acl};
+    const auto applied=SetTokenInformation(restricted.value,TokenDefaultDacl,&defaultDacl,sizeof(defaultDacl));const auto aclError=GetLastError();LocalFree(defaults);
+    if(!applied)WinError("Set reduced worker default DACL",aclError);
     PSID medium = nullptr;
     if (!ConvertStringSidToSidW(L"S-1-16-8192", &medium))
         WinError("Create worker integrity label");

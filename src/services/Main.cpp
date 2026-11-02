@@ -1,4 +1,6 @@
 #include "Services.h"
+#include "scanner/Scanner.h"
+#include <fstream>
 #include <iostream>
 
 namespace {
@@ -22,6 +24,10 @@ int wmain(int argc, wchar_t** argv) {
         }
         if ((action == L"--install" || action == L"--uninstall") && argc == 4 && std::wstring(argv[2]) == L"--owner")
             return Install(argv[3], action == L"--uninstall");
+        if(action==L"--rollback"&&argc==4&&std::wstring(argv[2])==L"--owner")return Install(argv[3],false,true);
+        if(action==L"--install-definitions"&&argc==5&&std::wstring(argv[3])==L"--owner")return InstallDefinitions(argv[2],false);
+        if(action==L"--rollback-definitions"&&argc==4&&std::wstring(argv[2])==L"--owner")return InstallDefinitions({},true);
+        if(action==L"--default-definitions"&&argc==3){const fs::path out=argv[2];Check(fs::is_directory(out),"Create a fresh definition folder first");Check(!fs::exists(out/L"rules.json"),"Definition output already exists");std::ofstream(out/L"rules.json")<<av::scan::DefaultRules().dump(2)<<'\n';return 0;}
         if (action == L"--setup" || action == L"--remove") return int(Setup(nullptr, action == L"--remove"));
         if ((action == L"--start" || action == L"--stop") && argc == 3) { SetRunning(ParseKind(argv[2]), action == L"--start"); return 0; }
         if (action == L"--status") {

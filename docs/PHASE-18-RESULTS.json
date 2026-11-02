@@ -1,0 +1,229 @@
+{
+  "schema": 1,
+  "phase": "18",
+  "implementationStatus": "implemented",
+  "validationStatus": "PASS",
+  "phaseComplete": false,
+  "releaseReady": false,
+  "scope": "Current phase and directly used package/service dependencies; historical compatibility suites were not replayed",
+  "environment": {
+    "os": "Windows 11 x64",
+    "build": 26300,
+    "dpi": 96
+  },
+  "configurations": {
+    "Release": {
+      "native": {
+        "cases": [
+          "ECDSA publisher signature verifies complete tree",
+          "verification locks block concurrent content writes",
+          "modified binary rejected",
+          "extra executable rejected",
+          "missing member rejected",
+          "modified signed manifest rejected",
+          "wrong trust anchor rejected",
+          "package kind mismatch rejected",
+          "traversal, ADS and reserved Windows paths rejected",
+          "case-insensitive member collisions rejected by signed contract",
+          "signed update activates copied immutable version",
+          "explicit rollback preserves anti-replay sequence",
+          "untrusted update leaves current selection unchanged",
+          "concurrent update lock is exclusive",
+          "process termination at copied is recoverable",
+          "process termination at prepared is recoverable",
+          "process termination at activated is recoverable",
+          "preferences migration retains values and an original backup",
+          "future preferences are refused without overwrite",
+          "SQLite migration preserves records and consistent backup",
+          "future SQLite schema rejected without changing it"
+        ],
+        "phase": "18",
+        "status": "PASS",
+        "tests": 21
+      },
+      "ui": {
+        "status": "PASS",
+        "configuration": "Release",
+        "runs": [
+          {
+            "locale": "en-US",
+            "theme": "dark",
+            "width": 1200,
+            "seconds": 27.33,
+            "packageVerification": "PASS",
+            "prerequisitesAndMaintenanceControls": "PASS",
+            "updateCommand": "PASS",
+            "rollbackCommand": "PASS"
+          },
+          {
+            "locale": "pt-BR",
+            "theme": "light",
+            "width": 720,
+            "seconds": 29.12,
+            "packageVerification": "PASS",
+            "prerequisitesAndMaintenanceControls": "PASS",
+            "updateCommand": "PASS",
+            "rollbackCommand": "PASS"
+          }
+        ]
+      },
+      "signedPackage": {
+        "phase": "18",
+        "status": "PASS",
+        "files": 358,
+        "identity": "f0a44afe92ef30b7f68ce2edb475341b6df24cf8333e128b34357539f987d5a0",
+        "memberHashes": "PASS",
+        "nativeSignatureVerification": "PASS",
+        "noGuestWindowsReferences": "PASS",
+        "portableLayout": "PASS",
+        "WHPDelayedImports": "PASS",
+        "componentNotices": "PASS",
+        "releaseCrt": "PASS"
+      },
+      "finalPackageStartup": "PASS",
+      "packageIdentity": "f0a44afe92ef30b7f68ce2edb475341b6df24cf8333e128b34357539f987d5a0",
+      "binaries": {
+        "guardian-engine-service.exe": "bc45b42543b63284aedd3d1ded93b398c6ffc67d4cb787e6ed467b59dc9799ae",
+        "guardian-distribution.exe": "9598f76922d828b909e002d35279a6a4095462b9863074fa1be7407109fd265e",
+        "guardian-publisher.exe": "5925c5f60052162adf6b6c06494a68a68bc8dfa0d681aa32c03b83259c6796e1",
+        "aegis-portable.exe": "1dd7f0111c57b1a49c35dce4389f427a3a658bad0f955818c70567844d8472fa",
+        "distribution_tests.exe": "805b4830ac23665b905e093e434421e880398f220a8434df0fd31b4fc48c4b56",
+        "deployment_fault_driver.exe": "01f439eded0ac1768f997eba718d7d81d1463ee0284ab6985aeaeb870fd64839",
+        "Aegis.exe": "b17cbcbc940698315d1c0aa688d67d69da8c8d802d4617369f067b545a2c22e0"
+      },
+      "installedServiceConfiguration": "Release"
+    },
+    "Debug": {
+      "native": {
+        "cases": [
+          "ECDSA publisher signature verifies complete tree",
+          "verification locks block concurrent content writes",
+          "modified binary rejected",
+          "extra executable rejected",
+          "missing member rejected",
+          "modified signed manifest rejected",
+          "wrong trust anchor rejected",
+          "package kind mismatch rejected",
+          "traversal, ADS and reserved Windows paths rejected",
+          "case-insensitive member collisions rejected by signed contract",
+          "signed update activates copied immutable version",
+          "explicit rollback preserves anti-replay sequence",
+          "untrusted update leaves current selection unchanged",
+          "concurrent update lock is exclusive",
+          "process termination at copied is recoverable",
+          "process termination at prepared is recoverable",
+          "process termination at activated is recoverable",
+          "preferences migration retains values and an original backup",
+          "future preferences are refused without overwrite",
+          "SQLite migration preserves records and consistent backup",
+          "future SQLite schema rejected without changing it"
+        ],
+        "phase": "18",
+        "status": "PASS",
+        "tests": 21
+      },
+      "ui": {
+        "status": "PASS",
+        "configuration": "Debug",
+        "runs": [
+          {
+            "locale": "es-ES",
+            "theme": "system",
+            "width": 960,
+            "packageVerification": "PASS",
+            "prerequisitesAndMaintenanceControls": "PASS"
+          }
+        ]
+      },
+      "signedPackage": {
+        "phase": "18",
+        "status": "PASS",
+        "files": 338,
+        "identity": "a94d32140ca8b49bd00ab45a218a7b758f6520841350cb85448c690e7cdc3f9f",
+        "memberHashes": "PASS",
+        "nativeSignatureVerification": "PASS",
+        "noGuestWindowsReferences": "PASS",
+        "portableLayout": "PASS",
+        "WHPDelayedImports": "PASS",
+        "componentNotices": "PASS",
+        "releaseCrt": "developer prerequisite"
+      },
+      "finalPackageStartup": "PASS",
+      "packageIdentity": "a94d32140ca8b49bd00ab45a218a7b758f6520841350cb85448c690e7cdc3f9f",
+      "binaries": {
+        "guardian-engine-service.exe": "6411b88c0accfae37b7f777684a7cd45b284143ebaea4246f506c737ab0e95aa",
+        "guardian-distribution.exe": "e2e813f780d6b2ac85ea37110eb615d3464c7c68da64ed1f1590f5fe89c9aaf5",
+        "guardian-publisher.exe": "db567c4284b7b3943ee3296b1dde384411ab0a633a7f007ff7f1cef2ee21de87",
+        "aegis-portable.exe": "d290d7e5cfcf3500b20fdf1c531972369841f3c99c1e9ead1c4a30aa74f5c636",
+        "distribution_tests.exe": "8e7815e51b9d92b24b9fe1046aa5ecafdab569a8ca7eaef3083e93e53bf85e3a",
+        "deployment_fault_driver.exe": "122d364801e2fd66f07ec62a4acfde3dd33e87d22cc4a411084f3694f1835ce3",
+        "Aegis.exe": "dc1962ec05642f23f317320f0e1d0a0eb633b91672cce02e9fa70754b308da1c"
+      },
+      "installedServiceConfiguration": "Release"
+    }
+  },
+  "administrativeIntegration": {
+    "cases": [
+      "Tampered signature database rejected before service changes",
+      "Explicit rollback restored recorded previous service slot",
+      "Process termination at service.prepared recovered through repair",
+      "Process termination at service.firstConfigured recovered through repair",
+      "Process termination at service.started recovered through repair",
+      "Signed hash definition update changed real scan verdict for owned inert fixture",
+      "Signed YARA rule update changed real scan verdict",
+      "Definition rollback restored previous scan result",
+      "Definition replay/downgrade rejected",
+      "Antivirus scanning completes while sandbox service is stopped",
+      "Signed portable payload reinstalls after unregistering both services",
+      "Original protection policy and service running states restored"
+    ],
+    "status": "PASS",
+    "tests": 12
+  },
+  "definitionInterruptionRecovery": {
+    "cases": [
+      "Definition update recovered after definitions.first-member",
+      "First definition update retains packaged baseline for rollback",
+      "Definition update recovered after definitions.before-activate"
+    ],
+    "status": "PASS",
+    "tests": 3
+  },
+  "protectedObjectCreation": {
+    "cases": [
+      "Fresh protected directory is SYSTEM-owned at creation",
+      "Atomic journal and copied payload are SYSTEM-owned at creation"
+    ],
+    "status": "PASS",
+    "tests": 2
+  },
+  "ordinaryUserCannotWriteProtectedMetadata": true,
+  "resources": {
+    "tests": 8,
+    "status": "PASS"
+  },
+  "publicationTools": {
+    "tests": 21,
+    "skipped": 1,
+    "status": "PASS"
+  },
+  "pendingAcceptance": [
+    "Clean Windows installation/update/removal: no VM or ISO available",
+    "Actual Windows host without WHP: not exercised; delayed imports and scanning with sandbox stopped were verified",
+    "CA-backed Authenticode signing and production publisher key-management process"
+  ],
+  "securityCorrections": [
+    "Reduced workers use standard linked identity where available and an appropriate private default DACL",
+    "Worker terminal results/errors wait for supervisor consumption",
+    "Antivirus IPC health is checked before committing service activation",
+    "Protected directories, payload copies and journals are SYSTEM-owned from creation",
+    "Definition staging survives interruptions and retains the bundled baseline for the first rollback"
+  ],
+  "limitations": [
+    "Installed service integration uses Release; Debug is a developer build requiring the Visual Studio debug CRT",
+    "Process interruption testing is not sudden hardware power-loss certification",
+    "Physical multi-monitor DPI, Narrator and high-contrast appearance are not manually certified",
+    "The default owned definitions are not a comprehensive malware corpus",
+    "No hostile-malware containment or phase 19 acceptance is claimed"
+  ]
+}

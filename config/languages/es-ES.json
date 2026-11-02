@@ -177,6 +177,25 @@
     "services.installNotice": "Los análisis requieren ambos servicios. Instalar, actualizar y eliminar solicita autorización de administrador de Windows solo al pulsar el botón. La aplicación portable no requiere instalador.",
     "services.removeNotice": "¿Detener y eliminar el registro de los dos servicios de Aegis? Se conservan versiones instaladas, ajustes y la bóveda cifrada para recuperación. Los análisis no estarán disponibles hasta reinstalar los servicios.",
     "services.cancelled": "Se canceló la autorización de Windows. No se modificaron los registros de los servicios.",
-    "services.changed": "Registros de servicios actualizados."
+    "services.changed": "Registros de servicios actualizados.",
+    "deployment.title": "Actualizaciones y recuperación",
+    "deployment.notice": "Solo se aceptan paquetes extraídos y firmados por el publicador. La versión portable anterior se conserva para recuperación.",
+    "deployment.avReady": "Requisitos del antivirus: disponibles",
+    "deployment.avUnavailable": "Requisitos del antivirus: no disponibles",
+    "deployment.sandboxReady": "Requisitos de MiniNT: disponibles",
+    "deployment.sandboxUnavailable": "MiniNT no disponible: revisa Windows Hypervisor Platform, la virtualización y NX. El antivirus no requiere virtualización.",
+    "deployment.verified": "Versión portable verificada:",
+    "deployment.unavailable": "Compilación de desarrollo: prepara un paquete portable firmado para habilitar las actualizaciones.",
+    "deployment.source": "Carpeta del paquete portable firmado y extraído",
+    "deployment.choose": "Elegir carpeta de actualización",
+    "deployment.apply": "Aplicar actualización portable",
+    "deployment.rollback": "Usar versión portable anterior",
+    "deployment.restart": "Reinicia Aegis para usar la versión seleccionada. Actualiza los servicios por separado en Actualizar / reparar servicios. Se conservan los ajustes y la bóveda.",
+    "deployment.definitionsNotice": "Actualizar las definiciones o volver a los servicios anteriores requiere autorización de administrador de Windows al pulsar el botón. Los paquetes de definiciones contienen reglas y registros de hashes firmados.",
+    "deployment.definitionsSource": "Carpeta del paquete de definiciones firmado y extraído",
+    "deployment.chooseDefinitions": "Elegir carpeta de definiciones",
+    "deployment.definitionsApply": "Actualizar reglas y hashes",
+    "deployment.definitionsRollback": "Usar definiciones anteriores",
+    "deployment.servicesRollback": "Usar servicios anteriores"
   }
 }

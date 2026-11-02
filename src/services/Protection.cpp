@@ -1,4 +1,5 @@
 #include "Protection.h"
+#include "common/SqliteMigration.h"
 #include "DirectoryChanges.h"
 #include "quarantine/Store.h"
 #include "scanner/Scanner.h"
@@ -377,6 +378,7 @@ struct Protection::Impl {
                               nullptr) == SQLITE_OK,
               "Open protected protection state");
         sqlite3_busy_timeout(db, 2000);
+        aegis::storage::Migrate(db,path,1);
         sqlite3_db_config(db, SQLITE_DBCONFIG_DEFENSIVE, 1, nullptr);
         Sql(db, "PRAGMA trusted_schema=OFF;PRAGMA journal_mode=DELETE;PRAGMA synchronous=FULL;PRAGMA "
                 "max_page_count=32768;CREATE TABLE IF NOT EXISTS settings(id INTEGER PRIMARY KEY "

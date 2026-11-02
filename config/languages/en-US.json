@@ -177,6 +177,25 @@
     "services.installNotice": "Scanning requires both engine services. Installation, update and removal request Windows administrator authorization only after you click a button. The portable app itself needs no installer.",
     "services.removeNotice": "Stop and unregister the two Aegis services? Installed versions, protection settings and the encrypted vault are retained for recovery. Analysis will be unavailable until you install the services again.",
     "services.cancelled": "Windows authorization was cancelled. Service registrations were not changed.",
-    "services.changed": "Service registrations updated."
+    "services.changed": "Service registrations updated.",
+    "deployment.title": "Updates and recovery",
+    "deployment.notice": "Only publisher-signed extracted packages are accepted. The previous portable version is retained for recovery.",
+    "deployment.avReady": "Antivirus requirements: ready",
+    "deployment.avUnavailable": "Antivirus requirements: unavailable",
+    "deployment.sandboxReady": "MiniNT requirements: ready",
+    "deployment.sandboxUnavailable": "MiniNT unavailable: check Windows Hypervisor Platform, virtualization and NX. Antivirus does not require virtualization.",
+    "deployment.verified": "Verified portable version:",
+    "deployment.unavailable": "Development output: prepare a signed portable package to enable updates.",
+    "deployment.source": "Extracted signed portable package folder",
+    "deployment.choose": "Choose update folder",
+    "deployment.apply": "Apply portable update",
+    "deployment.rollback": "Use previous portable version",
+    "deployment.restart": "Restart Aegis to use the selected version. Update engine services separately with Update / repair services. Settings and the vault are preserved.",
+    "deployment.definitionsNotice": "Definition updates and service rollback require Windows administrator authorization after a button click. Definition bundles contain signed rules and hash records.",
+    "deployment.definitionsSource": "Extracted signed definition bundle folder",
+    "deployment.chooseDefinitions": "Choose definition folder",
+    "deployment.definitionsApply": "Update rules and hashes",
+    "deployment.definitionsRollback": "Use previous definitions",
+    "deployment.servicesRollback": "Use previous engine services"
   }
 }

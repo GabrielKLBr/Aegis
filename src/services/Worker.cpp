@@ -2,6 +2,7 @@
 #include "Protection.h"
 #include "Services.h"
 #include "HashLookup.h"
+#include "distribution/Distribution.h"
 #include "microvm/runtime/Unified.h"
 #include "quarantine/Store.h"
 #include <fstream>
@@ -77,7 +78,8 @@ Json Snapshot(av::Engine &engine, size_t &sent) {
 }
 Json Scan(HANDLE pipe, const fs::path &path, ULONGLONG deadline) {
     av::Engine engine;
-    engine.LoadSignatures((Executable().parent_path() / L"signatures.txt").wstring());
+    auto definitions=aegis::distribution::Verify(ActiveDefinitions(),"definitions");
+    engine.LoadSignatures((definitions.root / L"signatures.txt").wstring(),(definitions.root/L"rules.json").wstring());
     size_t sent = 0;
     std::atomic<bool> failed{false};
     engine.StartScan(path.wstring(),
@@ -125,12 +127,10 @@ Json ProtectedFile(const fs::path &path) {
           "Protection needs an ordinary file");
     scan::Limits limits;
     const auto bytes = scan::Read(path, limits.fileBytes);
-    auto rules = scan::DefaultRules();
-    // The synthetic validation marker is a small file sentinel, not a source-code signature.
-    rules["source"] = "rule Aegis_Harmless_Test { meta: classification = \"detected\" strings: $a = "
-                      "\"AEGIS_SCANNER_TEST_POSITIVE_V1\" condition: $a at 0 and filesize <= 4096 }";
+    auto definitions=aegis::distribution::Verify(ActiveDefinitions(),"definitions");
+    const auto rules=scan::ReadJson(definitions.root/L"rules.json",128u<<10);
     auto result = scan::Inspect(bytes, scan::PathText(path.filename()), rules,
-                                scan::SignatureRules(Executable().parent_path() / L"signatures.txt"), limits);
+                                scan::SignatureRules(definitions.root / L"signatures.txt"), limits);
     std::string threat = "Detected";
     for (const auto &f : result.at("findings"))
         if (f.value("classification", std::string()) == "detected") {
@@ -250,6 +250,7 @@ int Worker(const std::wstring &name, DWORD server) {
         Check(path.find(L'\0') == path.npos && fs::path(path).is_absolute(), "Worker input path rejected");
         const auto deadline = GetTickCount64() + request.milliseconds;
         auto identity = Identity();
+        if(request.kind==Kind::Sandbox)Check(aegis::distribution::Prerequisites().at("sandboxReady").get<bool>(),"MiniNT requires WHP, the running Windows hypervisor and NX; antivirus is independent");
         identity["engine"] = request.kind == Kind::Antivirus ? "antivirus" : "sandbox";
         Send(pipe.value, FrameType::Progress, identity, deadline);
         const auto result = (request.operation == Operation::ProtectionFile ||
@@ -263,10 +264,12 @@ int Worker(const std::wstring &name, DWORD server) {
                                 ? Desktop(path, deadline)
                                 : Detonate(pipe.value, path, deadline, request.operation);
         Send(pipe.value, FrameType::Result, result, deadline);
+        FinishConnection(pipe.value);
         return 0;
     } catch (const std::exception &error) {
         try {
             Send(pipe.value, FrameType::Error, {{"error", error.what()}}, GetTickCount64() + 1000);
+            FinishConnection(pipe.value);
         } catch (...) {
         }
         return 3;
